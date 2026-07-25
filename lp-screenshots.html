@@ -1,0 +1,262 @@
+<title>カレンダーアプリ LPスクリーンショット（静かな文房具）</title>
+<style>
+  :root{
+    --paper:#EDEBE2; --screen:#FDFCF8; --ink:#26251F; --muted:#8C897C;
+    --sline:#EAE8DE; --cline:#DED9CB;
+    --teal:#1D9E75; --tealD:#0F6E56; --tealBg:#E6F4EE;
+    --purple:#534AB7; --purpleD:#3C3489; --purpleBg:#ECEBF7;
+    --coral:#D85A30; --coralD:#993C1D; --coralBg:#F7ECE6;
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--paper); color:var(--ink); margin:0;
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .stage{max-width:1240px; margin:0 auto; padding:30px 26px 34px;}
+
+  .eyebrow{display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:26px; color:var(--muted); font-size:13px; letter-spacing:.04em;}
+  .eyebrow .nib{width:10px; height:10px; border-radius:2px 2px 2px 6px; background:var(--ink); transform:rotate(45deg); display:inline-block;}
+  .eyebrow b{color:var(--ink); font-weight:700; letter-spacing:.02em;}
+
+  .panels{display:flex; gap:20px; align-items:flex-start;}
+  .panel{flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center;}
+  .head{text-align:center; margin-bottom:16px; min-height:62px;}
+  .head h2{margin:0; font-size:19px; line-height:1.4; font-weight:800; letter-spacing:.01em; text-wrap:balance;}
+  .head .l2{display:inline-flex; align-items:center; gap:6px;}
+  .head .ac-teal{color:var(--teal);} .head .ac-purple{color:var(--purple);} .head .ac-coral{color:var(--coral);}
+  .head .mk{width:19px; height:19px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; vertical-align:1px;}
+  .mk.teal{background:var(--teal);} .mk.purple{background:var(--purple);} .mk.coral{background:var(--coral);} .mk.ink{background:var(--ink);}
+
+  .phone{
+    width:100%; max-width:264px; aspect-ratio:264/566; background:var(--screen);
+    border:1px solid #E7E4D9; border-radius:34px; padding:15px 13px;
+    box-shadow:0 18px 34px rgba(60,52,30,.13), 0 3px 8px rgba(60,52,30,.08);
+    display:flex; flex-direction:column; position:relative; overflow:hidden; font-size:12px;
+  }
+  .sb{display:flex; justify-content:space-between; align-items:center; font-size:10.5px; color:#A7A499; padding:1px 6px 10px; font-variant-numeric:tabular-nums; font-weight:600;}
+  .sb .r{display:flex; gap:4px; align-items:center;}
+
+  /* nav / fields */
+  .nav{display:flex; justify-content:space-between; align-items:center; padding:1px 3px 12px;}
+  .nav .s{color:var(--teal); font-size:12.5px;} .nav .s.b{font-weight:700;}
+  .nav .t{font-weight:700; font-size:13.5px;}
+  .field{background:#fff; border:1px solid var(--sline); border-radius:12px; padding:9px 11px; margin-bottom:10px;}
+  .fl{font-size:10px; color:#AAA79B; letter-spacing:.07em; margin-bottom:5px;}
+  .chips{display:flex; gap:6px;}
+  .chip{border:1px solid #E4E1D6; border-radius:999px; padding:4px 12px; font-size:12px; color:var(--muted); background:#fff;}
+  .chip.on{background:var(--teal); border-color:var(--teal); color:#fff; font-weight:600;}
+  .seg{display:flex; background:#EFEDE4; border-radius:10px; padding:3px; gap:3px;}
+  .seg span{flex:1; text-align:center; padding:6px 0; border-radius:8px; font-size:12px; color:var(--muted);}
+  .seg .on{background:#fff; color:var(--ink); font-weight:700; box-shadow:0 1px 3px rgba(0,0,0,.07);}
+  .row2{display:flex; gap:8px;} .row2 .field{flex:1; margin-bottom:0;}
+  .step{display:flex; align-items:center; justify-content:space-between; font-variant-numeric:tabular-nums;}
+  .step .b{width:22px; height:22px; border-radius:7px; background:#EFEDE4; color:var(--muted); text-align:center; line-height:22px; font-size:13px;}
+  .step .v{font-size:15px; font-weight:700;}
+
+  /* pills */
+  .pill{border-radius:5px; padding:1px 5px; font-size:9px; line-height:1.55; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:700; letter-spacing:.01em;}
+  .pill.teal{background:var(--teal); color:#fff;}
+  .pill.purple{background:var(--purple); color:#fff;}
+  .pill.coral{background:var(--coral); color:#fff;}
+  .pill.done{background:var(--teal); color:#fff; opacity:.92;}
+  .pill.gone{background:#F0EEE6; color:#B4B1A5; text-decoration:line-through; font-weight:600;}
+  .pill.m-teal{background:var(--tealBg); border:1.3px dashed var(--teal); color:var(--tealD);}
+  .pill.m-purple{background:var(--purpleBg); border:1.3px dashed var(--purple); color:var(--purpleD);}
+  .pill.m-coral{background:var(--coralBg); border:1.3px dashed var(--coral); color:var(--coralD);}
+
+  /* mini preview week */
+  .pw{display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-top:6px;}
+  .pw .c{background:#fff; border:1px solid #F1EFE6; border-radius:6px; min-height:44px; padding:2px 2px;}
+  .pw .c.blank{background:transparent; border-color:transparent;}
+  .pw .c .d{font-size:8.5px; color:var(--muted); padding:0 2px;}
+  .note{font-size:10.5px; color:var(--muted); margin-top:7px; line-height:1.5;}
+
+  /* month */
+  .mh{display:flex; justify-content:space-between; align-items:center; padding:0 2px 9px;}
+  .mh .m{font-weight:800; font-size:15px;} .mh .a{color:#B3B0A4; font-size:14px;}
+  .wt{display:flex; align-items:center; gap:5px; font-size:10.5px; color:var(--muted);}
+  .tg{width:30px; height:18px; border-radius:999px; background:#DDDACC; position:relative;}
+  .tg::after{content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.2);}
+  .tg.on{background:var(--teal);} .tg.on::after{left:14px;}
+  .dow{display:grid; grid-template-columns:repeat(7,1fr); font-size:8.5px; color:#B3B0A4; text-align:center; margin-bottom:3px;}
+  .grid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px; flex:1;}
+  .cell{border-radius:7px; padding:2px 2px 2px; min-height:62px; background:#fff; border:1px solid #F2F0E7;}
+  .cell.blank{background:transparent; border-color:transparent;}
+  .cell .d{font-size:8.5px; color:var(--muted); padding:0 2px; font-variant-numeric:tabular-nums;}
+  .cell.today{border:1.5px solid var(--ink);} .cell.today .d{font-weight:800; color:var(--ink);}
+  .msum{margin-top:9px; background:#fff; border:1px solid var(--sline); border-radius:11px; padding:7px 13px; font-size:11px; display:flex; justify-content:space-between; align-items:center;}
+  .msum b{font-size:15px; color:var(--tealD); font-variant-numeric:tabular-nums;}
+
+  /* dialog */
+  .blur{filter:blur(2.4px); opacity:.85; display:flex; flex-direction:column; flex:1;}
+  .dim{position:absolute; inset:0; background:rgba(38,37,31,.4); border-radius:34px; display:flex; align-items:center; justify-content:center; padding:16px;}
+  .dlg{background:var(--screen); border-radius:18px; padding:17px 15px 13px; width:100%; box-shadow:0 16px 40px rgba(0,0,0,.28);}
+  .dlg h3{font-size:14.5px; font-weight:800; text-align:center; margin:0 0 2px; text-wrap:balance;}
+  .dlg .sub{text-align:center; font-size:11px; color:var(--muted); margin-bottom:12px;}
+  .orig{font-size:10px; color:#AAA79B; text-align:center; margin:7px 0 12px;}
+  .orig .c{color:var(--coralD); font-weight:700;}
+  .db{display:block; text-align:center; border-radius:11px; padding:9px 0; font-size:13px; font-weight:700; margin-top:7px;}
+  .db.y{background:var(--teal); color:#fff;} .db.n{background:#EFEDE4; color:var(--muted);} .db.l{color:var(--muted); font-weight:500; font-size:12px;}
+
+  /* detail */
+  .det{display:flex; gap:12px; flex:1;}
+  .gauge{width:6px; border-radius:3px; background:var(--tealBg); position:relative; overflow:hidden;}
+  .gauge i{position:absolute; bottom:0; left:0; right:0; height:100%; background:var(--teal);}
+  .badge{width:34px; height:34px; border-radius:50%; background:var(--teal); color:#fff; display:inline-flex; align-items:center; justify-content:center; font-size:17px; font-weight:700;}
+  .stg{display:flex; align-items:center; gap:5px; font-size:10px; color:#B3B0A4; margin:12px 0 15px;}
+  .stg .s{padding:3px 9px; border-radius:999px; background:#EFEDE4;} .stg .s.now{background:var(--teal); color:#fff; font-weight:700;}
+  .kv{display:flex; justify-content:space-between; padding:8px 2px; border-bottom:1px solid #F2F0E7; font-size:12.5px;}
+  .kv .k{color:var(--muted);} .kv .v{font-weight:700; font-variant-numeric:tabular-nums;}
+  .kv .old{color:#C2BFB2; text-decoration:line-through; font-weight:400; margin-right:5px;}
+  .pay{margin-top:auto; background:var(--tealBg); border:1px solid rgba(29,158,117,.28); border-radius:13px; padding:11px 15px; display:flex; justify-content:space-between; align-items:baseline;}
+  .pay .k{font-size:11.5px; color:var(--tealD);} .pay .v{font-size:21px; font-weight:800; color:var(--tealD); font-variant-numeric:tabular-nums;}
+
+  /* tab bar */
+  .tabs{display:flex; justify-content:space-around; padding:9px 2px 2px; margin-top:8px; border-top:1px solid var(--sline);}
+  .tab{display:flex; flex-direction:column; align-items:center; gap:2px; font-size:8.5px; color:#B7B4A8;}
+  .tab .ic{width:17px; height:17px; border-radius:5px; border:1.6px solid currentColor;}
+  .tab.on{color:var(--teal);} .tab.on .ic{background:var(--teal); border-color:var(--teal);}
+
+  .foot{text-align:center; margin-top:30px; font-size:11.5px; color:var(--muted); letter-spacing:.03em;}
+
+  @media(max-width:900px){ .panels{flex-wrap:wrap;} .panel{flex:1 1 44%;} }
+  @media(max-width:520px){ .panel{flex:1 1 100%;} }
+</style>
+
+<div class="stage">
+
+  <div class="eyebrow"><span class="nib"></span><b>（アプリ名）</b>不確定な予定と、決まった予定が、ひと目でわかるカレンダー</div>
+
+  <div class="panels">
+
+    <!-- ① 記録 -->
+    <div class="panel">
+      <div class="head"><h2>予定の“確かさ”を<br><span class="l2 ac-teal">さっと記録</span> <span class="mk ink">✎</span></h2></div>
+      <div class="phone">
+        <div class="sb"><span>10:39</span><span class="r">4G ▮▮▮ 95</span></div>
+        <div class="nav"><span class="s">キャンセル</span><span class="t">新規予定</span><span class="s b">追加</span></div>
+        <div class="field"><div class="fl">タイトル</div><div style="font-size:14px;font-weight:700">カフェバイト</div></div>
+        <div class="field"><div class="fl">しゅるい</div><div class="chips"><span class="chip on">バイト</span><span class="chip">用事</span><span class="chip">遊び</span></div></div>
+        <div class="field"><div class="fl">この予定は</div><div class="seg"><span>決まってる</span><span class="on">まだ不確定</span></div></div>
+        <div class="row2">
+          <div class="field"><div class="fl">開始</div><div class="step"><span class="b">−</span><span class="v">17:00</span><span class="b">＋</span></div></div>
+          <div class="field"><div class="fl">終了</div><div class="step"><span class="b">−</span><span class="v">21:00</span><span class="b">＋</span></div></div>
+        </div>
+        <div class="field" style="margin-top:4px">
+          <div class="fl">カレンダーでの見え方</div>
+          <div class="pw">
+            <div class="c blank"></div><div class="c blank"></div><div class="c"><div class="d">23</div></div>
+            <div class="c"><div class="d">24</div></div><div class="c"><div class="d">25</div><div class="pill m-teal">？カフェ</div></div>
+            <div class="c"><div class="d">26</div></div><div class="c blank"></div>
+          </div>
+          <div class="note">希望シフトとして、点線で置かれます</div>
+        </div>
+        <div class="tabs">
+          <div class="tab on"><span class="ic"></span>きろく</div><div class="tab"><span class="ic"></span>カレンダー</div>
+          <div class="tab"><span class="ic"></span>けいこう</div><div class="tab"><span class="ic"></span>設定</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ② 月表示 -->
+    <div class="panel">
+      <div class="head"><h2>塗りと点線で<br><span class="l2 ac-teal">確かさがひと目</span> <span class="mk teal">✓</span></h2></div>
+      <div class="phone">
+        <div class="sb"><span>10:39</span><span class="r">4G ▮▮▮ 95</span></div>
+        <div class="mh"><span class="a">‹</span><span class="m">2026年7月</span><span class="wt">給料<span class="tg"></span></span></div>
+        <div class="dow"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+        <div class="grid">
+          <div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div>
+          <div class="cell"><div class="d">1</div></div><div class="cell"><div class="d">2</div></div>
+          <div class="cell"><div class="d">3</div><div class="pill done">✓バイト</div></div><div class="cell"><div class="d">4</div></div>
+          <div class="cell"><div class="d">5</div></div><div class="cell"><div class="d">6</div></div>
+          <div class="cell"><div class="d">7</div><div class="pill done">✓バイト</div></div><div class="cell"><div class="d">8</div></div>
+          <div class="cell"><div class="d">9</div></div><div class="cell"><div class="d">10</div><div class="pill done">✓バイト</div></div>
+          <div class="cell"><div class="d">11</div><div class="pill coral">映画</div></div>
+          <div class="cell"><div class="d">12</div></div><div class="cell"><div class="d">13</div></div>
+          <div class="cell"><div class="d">14</div><div class="pill done">✓バイト</div></div><div class="cell"><div class="d">15</div></div>
+          <div class="cell"><div class="d">16</div><div class="pill gone">バイト</div></div><div class="cell"><div class="d">17</div></div>
+          <div class="cell"><div class="d">18</div><div class="pill purple">歯医者</div></div>
+          <div class="cell"><div class="d">19</div></div><div class="cell"><div class="d">20</div></div>
+          <div class="cell"><div class="d">21</div><div class="pill done">✓バイト</div></div>
+          <div class="cell"><div class="d">22</div><div class="pill teal">バイト</div></div><div class="cell"><div class="d">23</div></div>
+          <div class="cell today"><div class="d">24</div><div class="pill teal">バイト</div></div>
+          <div class="cell"><div class="d">25</div><div class="pill m-teal">？カフェ</div></div>
+          <div class="cell"><div class="d">26</div><div class="pill m-coral">？花火</div></div>
+          <div class="cell"><div class="d">27</div></div><div class="cell"><div class="d">28</div><div class="pill teal">バイト</div></div>
+          <div class="cell"><div class="d">29</div></div><div class="cell"><div class="d">30</div><div class="pill m-purple">？面談</div></div>
+          <div class="cell"><div class="d">31</div></div><div class="cell blank"></div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><span class="ic"></span>きろく</div><div class="tab on"><span class="ic"></span>カレンダー</div>
+          <div class="tab"><span class="ic"></span>けいこう</div><div class="tab"><span class="ic"></span>設定</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ③ 確定 -->
+    <div class="panel">
+      <div class="head"><h2>ひと手間で<br><span class="l2 ac-teal">“約束”に変える</span> <span class="mk teal">✓</span></h2></div>
+      <div class="phone">
+        <div class="blur">
+          <div class="sb"><span>10:39</span><span class="r">4G ▮▮▮ 95</span></div>
+          <div class="mh"><span class="a">‹</span><span class="m">2026年7月</span><span class="wt">給料<span class="tg"></span></span></div>
+          <div class="dow"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+          <div class="grid" style="opacity:.75">
+            <div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"><div class="pill m-teal">？カフェ</div></div>
+            <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          </div>
+        </div>
+        <div class="dim">
+          <div class="dlg">
+            <h3>このシフト、どうなりました？</h3>
+            <div class="sub">カフェバイト　7/25（土）</div>
+            <div class="row2">
+              <div class="field"><div class="fl">開始</div><div class="step"><span class="b">−</span><span class="v">17:00</span><span class="b">＋</span></div></div>
+              <div class="field"><div class="fl">終了</div><div class="step"><span class="b">−</span><span class="v">22:00</span><span class="b">＋</span></div></div>
+            </div>
+            <div class="orig">希望：17:00–21:00　<span class="c">→ 変更あり</span></div>
+            <span class="db y">決まった</span>
+            <span class="db n">無くなった</span>
+            <span class="db l">まだ分からない</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ④ 給料 -->
+    <div class="panel">
+      <div class="head"><h2>がんばりが<br><span class="l2 ac-teal">そのまま給料に</span> <span class="mk teal">¥</span></h2></div>
+      <div class="phone">
+        <div class="sb"><span>11:00</span><span class="r">4G ▮▮▮ 92</span></div>
+        <div class="nav"><span class="s">‹ 7月</span><span class="t">シフト詳細</span><span class="s">編集</span></div>
+        <div class="det">
+          <div class="gauge"><i></i></div>
+          <div style="flex:1;display:flex;flex-direction:column">
+            <div style="display:flex;align-items:center;gap:9px;margin-bottom:2px">
+              <span class="badge">✓</span>
+              <div><div style="font-size:15px;font-weight:800">カフェバイト</div><div style="font-size:11px;color:var(--muted)">7/25（土）・実績</div></div>
+            </div>
+            <div class="stg"><span class="s">希望</span>→<span class="s">確定</span>→<span class="s now">実績</span></div>
+            <div class="kv"><span class="k">開始</span><span class="v">17:00</span></div>
+            <div class="kv"><span class="k">終了</span><span class="v"><span class="old">22:00</span>22:30</span></div>
+            <div class="kv"><span class="k">実働</span><span class="v">5.5時間</span></div>
+            <div class="kv"><span class="k">時給</span><span class="v">¥1,120</span></div>
+            <div class="pay"><span class="k">この日の給料</span><span class="v">¥6,160</span></div>
+          </div>
+        </div>
+        <div class="tabs">
+          <div class="tab"><span class="ic"></span>きろく</div><div class="tab"><span class="ic"></span>カレンダー</div>
+          <div class="tab on"><span class="ic"></span>けいこう</div><div class="tab"><span class="ic"></span>設定</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="foot">静かな文房具 — 色は予定だけが持ち、点線がふっと浮く。｜ v0.1 コンセプトモック</div>
+</div>

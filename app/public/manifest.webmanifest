@@ -1,0 +1,12 @@
+{
+  "name": "決まってる？",
+  "short_name": "決まってる？",
+  "description": "不確定な予定と決まっている予定が一目でわかるカレンダー",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF9F4",
+  "theme_color": "#FAF9F4",
+  "icons": []
+}

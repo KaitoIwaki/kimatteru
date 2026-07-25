@@ -1,0 +1,418 @@
+<title>カレンダーアプリ 4画面通しモック v0.1</title>
+<style>
+  :root{
+    --bg:#F2F3F1; --card:#FFFFFF; --ink:#1C2321; --muted:#6B7370;
+    --line:#E1E3DF; --chip:#EBEDE9;
+    --teal:#1D9E75; --purple:#534AB7; --coral:#D85A30;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#141817; --card:#1E2423; --ink:#ECEFEA; --muted:#95A09A; --line:#2B332F; --chip:#28302C; }
+  }
+  :root[data-theme="dark"]{ --bg:#141817; --card:#1E2423; --ink:#ECEFEA; --muted:#95A09A; --line:#2B332F; --chip:#28302C; }
+  :root[data-theme="light"]{ --bg:#F2F3F1; --card:#FFFFFF; --ink:#1C2321; --muted:#6B7370; --line:#E1E3DF; --chip:#EBEDE9; }
+
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Hiragino Sans","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif;
+    line-height:1.6; padding:40px 24px 64px;
+  }
+  .wrap{max-width:1480px; margin:0 auto;}
+  header.page h1{font-size:22px; font-weight:700; letter-spacing:.02em; margin-bottom:4px; text-wrap:balance;}
+  header.page p{color:var(--muted); font-size:13px;}
+  .legend{display:flex; flex-wrap:wrap; gap:10px 22px; margin:20px 0 8px; font-size:12px; color:var(--muted); align-items:center;}
+  .legend .sw{display:inline-block; width:26px; height:10px; border-radius:5px; vertical-align:-1px; margin-right:6px;}
+
+  /* ---- screens row ---- */
+  .screens{display:flex; gap:8px; align-items:flex-start; overflow-x:auto; padding:24px 4px 12px;}
+  .step{flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:12px;}
+  .arrow{flex:0 0 auto; align-self:center; color:var(--muted); font-size:12px; text-align:center; padding:0 4px; margin-top:-70px; min-width:74px;}
+  .arrow .glyph{font-size:20px; display:block; margin-bottom:2px;}
+  .cap{font-size:12px; color:var(--muted); text-align:center; max-width:300px;}
+  .cap b{color:var(--ink); font-weight:600; display:block; font-size:13px; margin-bottom:2px;}
+
+  .phone{
+    width:302px; height:634px; background:#FBFBF9; color:#1C2321;
+    border:1px solid var(--line); border-radius:36px; padding:18px 16px;
+    box-shadow:0 12px 30px rgba(20,30,26,.10);
+    display:flex; flex-direction:column; overflow:hidden; position:relative;
+    font-size:13px;
+  }
+  .phone .statusbar{display:flex; justify-content:space-between; font-size:11px; color:#9AA09B; padding:0 6px 10px; font-variant-numeric:tabular-nums;}
+
+  /* ---- generic app bits ---- */
+  .navbar{display:flex; justify-content:space-between; align-items:center; padding:2px 2px 14px;}
+  .navbar .side{color:#1D9E75; font-size:14px;}
+  .navbar .title{font-weight:700; font-size:15px;}
+  .field{background:#fff; border:1px solid #E7E7E2; border-radius:12px; padding:10px 12px; margin-bottom:12px;}
+  .flabel{font-size:11px; color:#9AA09B; letter-spacing:.06em; margin-bottom:6px;}
+  .chips{display:flex; gap:8px;}
+  .chip{border:1px solid #E0E0DA; border-radius:999px; padding:5px 14px; font-size:13px; color:#6B7370; background:#fff;}
+  .chip.on{background:#1D9E75; border-color:#1D9E75; color:#fff; font-weight:600;}
+  .seg{display:flex; background:#EEEFEA; border-radius:10px; padding:3px; gap:3px;}
+  .seg span{flex:1; text-align:center; padding:6px 0; border-radius:8px; font-size:13px; color:#6B7370;}
+  .seg .on{background:#fff; color:#1C2321; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.08);}
+  .times{display:flex; gap:10px;}
+  .times .field{flex:1; margin-bottom:0;}
+  .stepper{display:flex; align-items:center; justify-content:space-between; font-variant-numeric:tabular-nums;}
+  .stepper .btn{width:24px; height:24px; border-radius:8px; background:#EEEFEA; color:#6B7370; text-align:center; line-height:24px; font-size:14px;}
+  .stepper .val{font-size:17px; font-weight:600;}
+
+  /* pills (calendar bars) */
+  .pill{border-radius:5px; padding:1px 5px; font-size:9.5px; line-height:1.5; margin-top:2px; white-space:nowrap; overflow:hidden; font-weight:600;}
+  .pill.solid.teal{background:#1D9E75; color:#fff;}
+  .pill.solid.purple{background:#534AB7; color:#fff;}
+  .pill.solid.coral{background:#D85A30; color:#fff;}
+  .pill.maybe{background:transparent; border:1.4px dashed; font-weight:600;}
+  .pill.maybe.teal{border-color:#1D9E75; color:#157A5A; background:rgba(29,158,117,.07);}
+  .pill.maybe.purple{border-color:#534AB7; color:#473FA0; background:rgba(83,74,183,.07);}
+  .pill.maybe.coral{border-color:#D85A30; color:#B54524; background:rgba(216,90,48,.07);}
+  .pill.done{background:#1D9E75; color:#fff; opacity:.9;}
+  .pill.gone{background:#F1F2EE; color:#B4BAB3; text-decoration:line-through; font-weight:500;}
+
+  /* month grid */
+  .mhead{display:flex; justify-content:space-between; align-items:center; padding:0 2px 10px;}
+  .mhead .mon{font-weight:700; font-size:16px;}
+  .mhead .nav{color:#9AA09B; font-size:14px;}
+  .wagetgl{display:flex; align-items:center; gap:6px; font-size:11px; color:#6B7370; cursor:pointer; user-select:none;}
+  .tgl{width:34px; height:20px; border-radius:999px; background:#DDDFD9; position:relative; transition:background .18s;}
+  .tgl::after{content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.2); transition:left .18s;}
+  .month.wage-on .tgl{background:#1D9E75;}
+  .month.wage-on .tgl::after{left:16px;}
+  .dow{display:grid; grid-template-columns:repeat(7,1fr); font-size:9px; color:#9AA09B; text-align:center; margin-bottom:4px;}
+  .grid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px; flex:1;}
+  .cell{border-radius:8px; padding:2px 2px 3px; min-height:74px; background:#fff; border:1px solid #F0F0EB;}
+  .cell.blank{background:transparent; border-color:transparent;}
+  .cell .d{font-size:9.5px; color:#6B7370; padding:1px 3px; font-variant-numeric:tabular-nums;}
+  .cell.today{border:1.6px solid #1C2321;}
+  .cell.today .d{font-weight:700; color:#1C2321;}
+  .pill .wage{display:none;}
+  .month.wage-on .pill.done .name{display:none;}
+  .month.wage-on .pill.done .wage{display:inline; font-variant-numeric:tabular-nums;}
+  .msum{display:none; margin-top:10px; background:#fff; border:1px solid #E7E7E2; border-radius:12px; padding:8px 14px; font-size:12px; justify-content:space-between; align-items:center;}
+  .month.wage-on .msum{display:flex;}
+  .msum b{font-size:16px; font-variant-numeric:tabular-nums;}
+
+  /* dialog screen */
+  .dim{position:absolute; inset:0; background:rgba(28,35,33,.42); border-radius:36px; display:flex; align-items:center; justify-content:center; padding:20px;}
+  .dialog{background:#fff; border-radius:20px; padding:20px 18px 16px; width:100%; box-shadow:0 18px 50px rgba(0,0,0,.3);}
+  .dialog h3{font-size:16px; font-weight:700; text-align:center; margin-bottom:2px; text-wrap:balance;}
+  .dialog .sub{text-align:center; font-size:12px; color:#6B7370; margin-bottom:14px;}
+  .orig{font-size:11px; color:#9AA09B; text-align:center; margin:8px 0 14px;}
+  .orig .chg{color:#B54524; font-weight:600;}
+  .dbtn{display:block; text-align:center; border-radius:12px; padding:11px 0; font-size:14px; font-weight:600; margin-top:8px;}
+  .dbtn.yes{background:#1D9E75; color:#fff;}
+  .dbtn.yes.coral{background:#D85A30;}
+  .dbtn.yes.purple{background:#534AB7;}
+  .dbtn.no{background:#EEEFEA; color:#6B7370;}
+  .dbtn.later{color:#6B7370; font-weight:500; font-size:13px;}
+  .blurred{filter:blur(2.5px); opacity:.85;}
+
+  /* detail screen */
+  .detail{display:flex; gap:14px; flex:1;}
+  .gauge{width:6px; border-radius:3px; background:rgba(29,158,117,.15); position:relative; overflow:hidden;}
+  .gauge i{position:absolute; bottom:0; left:0; right:0; height:100%; background:#1D9E75; border-radius:3px;}
+  .badge{width:34px; height:34px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:17px; font-weight:700;}
+  .badge.check{background:#1D9E75; color:#fff;}
+  .stageline{display:flex; align-items:center; gap:6px; font-size:11px; color:#9AA09B; margin:14px 0 18px;}
+  .stageline .st{padding:3px 10px; border-radius:999px; background:#EEEFEA;}
+  .stageline .st.now{background:#1D9E75; color:#fff; font-weight:600;}
+  .kv{display:flex; justify-content:space-between; padding:10px 2px; border-bottom:1px solid #F0F0EB; font-size:13px;}
+  .kv .k{color:#6B7370;}
+  .kv .v{font-weight:600; font-variant-numeric:tabular-nums;}
+  .kv .old{color:#B8BDB7; text-decoration:line-through; font-weight:400; margin-right:6px;}
+  .payout{margin-top:auto; background:rgba(29,158,117,.08); border:1px solid rgba(29,158,117,.25); border-radius:14px; padding:12px 16px; display:flex; justify-content:space-between; align-items:baseline;}
+  .payout .k{font-size:12px; color:#157A5A;}
+  .payout .v{font-size:22px; font-weight:700; color:#157A5A; font-variant-numeric:tabular-nums;}
+
+  /* preview in create screen */
+  .pvweek{display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-top:8px;}
+  .pvweek .cell{min-height:52px;}
+  .pvnote{font-size:11px; color:#6B7370; margin-top:8px;}
+
+  /* ---- dialog variations ---- */
+  section.dlgs{margin-top:44px;}
+  section.dlgs h2{font-size:16px; font-weight:700; margin-bottom:6px;}
+  section.dlgs > p{color:var(--muted); font-size:13px; max-width:820px; margin-bottom:18px;}
+  .dgrid{display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:18px; max-width:1180px;}
+  .dcard{display:flex; flex-direction:column; gap:10px;}
+  .dcard .dlabel{font-size:12px; color:var(--muted); font-weight:600;}
+  .dcard .dialog{box-shadow:0 6px 22px rgba(20,30,26,.12); border:1px solid #ECECe6; color:#1C2321;}
+  .cand{display:flex; gap:8px; justify-content:center; margin:12px 0 4px; flex-wrap:wrap;}
+  .cand span{border:1.4px dashed #D85A30; color:#B54524; background:rgba(216,90,48,.06); border-radius:10px; padding:6px 12px; font-size:12.5px; font-weight:600;}
+  .cand .sel{background:#D85A30; color:#fff; border-style:solid;}
+  .dnote{font-size:11px; color:#9AA09B; text-align:center; margin:6px 0 10px;}
+
+  /* ---- check section ---- */
+  section.check{margin-top:40px; max-width:820px;}
+  section.check h2{font-size:16px; font-weight:700; margin-bottom:14px;}
+  .note{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 18px; margin-bottom:10px; font-size:13.5px;}
+  .note .tag{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.08em; border-radius:999px; padding:1px 10px; margin-right:8px; vertical-align:1px;}
+  .tag.ok{background:rgba(29,158,117,.14); color:#1D9E75;}
+  .tag.warn{background:rgba(216,90,48,.14); color:#D85A30;}
+  table.words{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px;}
+  table.words th, table.words td{padding:7px 10px; border-bottom:1px solid var(--line); text-align:left;}
+  table.words th{font-size:11px; color:var(--muted); letter-spacing:.06em; font-weight:600;}
+  .dot{display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; vertical-align:0;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important;} }
+</style>
+
+<div class="wrap">
+<header class="page">
+  <h1>カレンダーアプリ — 4画面通しモック</h1>
+  <p>v0.1 仕様書準拠 ／ 遷移順に左から：新規作成 → 月表示 → 確認ダイアログ → シフト詳細。月表示の「給料」トグルは動きます。</p>
+  <div class="legend">
+    <span><span class="sw" style="background:#1D9E75"></span>バイト</span>
+    <span><span class="sw" style="background:#534AB7"></span>用事</span>
+    <span><span class="sw" style="background:#D85A30"></span>遊び</span>
+    <span>｜　塗り＝確定　・　点線＋？＝不確定　・　✓＝実績　・　取り消し線＝無くなった</span>
+  </div>
+</header>
+
+<div class="screens">
+
+  <!-- ①新規作成 -->
+  <div class="step">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="navbar"><span class="side">キャンセル</span><span class="title">新規予定</span><span class="side" style="font-weight:600">追加</span></div>
+      <div class="field"><div class="flabel">タイトル</div><div style="font-size:15px;font-weight:600">カフェバイト</div></div>
+      <div class="field"><div class="flabel">種類</div>
+        <div class="chips"><span class="chip on">バイト</span><span class="chip">用事</span><span class="chip">遊び</span></div>
+      </div>
+      <div class="field"><div class="flabel">この予定は</div>
+        <div class="seg"><span>決まってる</span><span class="on">まだ不確定</span></div>
+      </div>
+      <div class="times">
+        <div class="field"><div class="flabel">開始</div><div class="stepper"><span class="btn">−</span><span class="val">17:00</span><span class="btn">＋</span></div></div>
+        <div class="field"><div class="flabel">終了</div><div class="stepper"><span class="btn">−</span><span class="val">21:00</span><span class="btn">＋</span></div></div>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <div class="flabel">カレンダーでの見え方</div>
+        <div class="pvweek">
+          <div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div>
+          <div class="cell"><div class="d">23</div></div>
+          <div class="cell"><div class="d">24</div></div>
+          <div class="cell"><div class="d">25</div><div class="pill maybe teal">？カフェ</div></div>
+          <div class="cell blank"></div>
+        </div>
+        <div class="pvnote">希望シフトとして、点線で置かれます</div>
+      </div>
+    </div>
+    <div class="cap"><b>① 新規作成</b>初期値は「決まってる」。切り替えるとプレビューの棒が塗り⇔点線で変わる</div>
+  </div>
+
+  <div class="arrow"><span class="glyph">→</span>追加</div>
+
+  <!-- ②月表示 -->
+  <div class="step">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="month" id="month" style="display:flex;flex-direction:column;flex:1">
+        <div class="mhead">
+          <span class="nav">‹</span><span class="mon">2026年7月</span><span class="nav">›</span>
+          <span class="wagetgl" onclick="document.getElementById('month').classList.toggle('wage-on')">給料<span class="tgl"></span></span>
+        </div>
+        <div class="dow"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+        <div class="grid">
+          <div class="cell blank"></div><div class="cell blank"></div><div class="cell blank"></div>
+          <div class="cell"><div class="d">1</div></div>
+          <div class="cell"><div class="d">2</div></div>
+          <div class="cell"><div class="d">3</div><div class="pill done"><span class="name">✓バイト</span><span class="wage">¥5,040</span></div></div>
+          <div class="cell"><div class="d">4</div></div>
+          <div class="cell"><div class="d">5</div></div>
+          <div class="cell"><div class="d">6</div></div>
+          <div class="cell"><div class="d">7</div><div class="pill done"><span class="name">✓バイト</span><span class="wage">¥6,160</span></div></div>
+          <div class="cell"><div class="d">8</div></div>
+          <div class="cell"><div class="d">9</div></div>
+          <div class="cell"><div class="d">10</div><div class="pill done"><span class="name">✓バイト</span><span class="wage">¥6,160</span></div></div>
+          <div class="cell"><div class="d">11</div><div class="pill solid coral">映画</div></div>
+          <div class="cell"><div class="d">12</div></div>
+          <div class="cell"><div class="d">13</div></div>
+          <div class="cell"><div class="d">14</div><div class="pill done"><span class="name">✓バイト</span><span class="wage">¥5,600</span></div></div>
+          <div class="cell"><div class="d">15</div></div>
+          <div class="cell"><div class="d">16</div><div class="pill gone">バイト</div></div>
+          <div class="cell"><div class="d">17</div></div>
+          <div class="cell"><div class="d">18</div><div class="pill solid purple">歯医者</div></div>
+          <div class="cell"><div class="d">19</div></div>
+          <div class="cell"><div class="d">20</div></div>
+          <div class="cell"><div class="d">21</div><div class="pill done"><span class="name">✓バイト</span><span class="wage">¥6,160</span></div></div>
+          <div class="cell today"><div class="d">22</div><div class="pill solid teal">バイト</div></div>
+          <div class="cell"><div class="d">23</div></div>
+          <div class="cell"><div class="d">24</div><div class="pill maybe teal">？バイト</div></div>
+          <div class="cell"><div class="d">25</div><div class="pill maybe teal">？カフェ</div></div>
+          <div class="cell"><div class="d">26</div><div class="pill maybe coral">？花火</div></div>
+          <div class="cell"><div class="d">27</div></div>
+          <div class="cell"><div class="d">28</div><div class="pill solid teal">バイト</div></div>
+          <div class="cell"><div class="d">29</div></div>
+          <div class="cell"><div class="d">30</div><div class="pill maybe purple">？面談</div></div>
+          <div class="cell"><div class="d">31</div></div>
+          <div class="cell blank"></div><div class="cell blank"></div>
+        </div>
+        <div class="msum"><span style="color:#6B7370">今月の実績</span><b style="color:#157A5A">¥22,960</b></div>
+      </div>
+    </div>
+    <div class="cap"><b>② 月表示（看板画面）</b>色＝種類、塗り／点線＝確定度。「給料」トグルで実績が金額に変わり月合計が出る（タップで試せます）</div>
+  </div>
+
+  <div class="arrow"><span class="glyph">→</span>点線の予定を<br>タップ</div>
+
+  <!-- ③確認ダイアログ -->
+  <div class="step">
+    <div class="phone">
+      <div class="blurred" style="display:flex;flex-direction:column;flex:1">
+        <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+        <div class="mhead"><span class="nav">‹</span><span class="mon">2026年7月</span><span class="nav">›</span><span class="wagetgl">給料<span class="tgl"></span></span></div>
+        <div class="dow"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+        <div class="grid" style="opacity:.7">
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"><div class="pill maybe teal">？カフェ</div></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div>
+          <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        </div>
+      </div>
+      <div class="dim">
+        <div class="dialog">
+          <h3>このシフト、どうなりました？</h3>
+          <div class="sub">カフェバイト　7/25（土）</div>
+          <div class="times">
+            <div class="field"><div class="flabel">開始</div><div class="stepper"><span class="btn">−</span><span class="val">17:00</span><span class="btn">＋</span></div></div>
+            <div class="field"><div class="flabel">終了</div><div class="stepper"><span class="btn">−</span><span class="val">22:00</span><span class="btn">＋</span></div></div>
+          </div>
+          <div class="orig">希望：17:00–21:00　<span class="chg">→ 変更あり</span></div>
+          <span class="dbtn yes">決まった</span>
+          <span class="dbtn no">無くなった</span>
+          <span class="dbtn later">まだ分からない</span>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><b>③ 確認ダイアログ（中央）</b>時間を必ず確認してから3択。「無くなった」も削除せず取り消し線で残る</div>
+  </div>
+
+  <div class="arrow"><span class="glyph">→</span>働き終えて<br>実績を入力</div>
+
+  <!-- ④シフト詳細 -->
+  <div class="step">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+      <div class="navbar"><span class="side">‹ 7月</span><span class="title">シフト詳細</span><span class="side">編集</span></div>
+      <div class="detail">
+        <div class="gauge"><i></i></div>
+        <div style="flex:1;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:2px">
+            <span class="badge check">✓</span>
+            <div>
+              <div style="font-size:17px;font-weight:700">カフェバイト</div>
+              <div style="font-size:12px;color:#6B7370">7/25（土）・実績</div>
+            </div>
+          </div>
+          <div class="stageline">
+            <span class="st">希望</span>→<span class="st">確定</span>→<span class="st now">実績</span>
+          </div>
+          <div class="kv"><span class="k">開始</span><span class="v">17:00</span></div>
+          <div class="kv"><span class="k">終了</span><span class="v"><span class="old">22:00</span>22:30</span></div>
+          <div class="kv"><span class="k">実働</span><span class="v">5.5時間</span></div>
+          <div class="kv"><span class="k">時給</span><span class="v">¥1,120</span></div>
+          <div class="payout"><span class="k">この日の給料</span><span class="v">¥6,160</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><b>④ シフト詳細</b>左帯のゲージが満ち、✓バッジに。実績で終了時刻が実際の時間に更新され、実働と給料が現れる</div>
+  </div>
+
+</div>
+
+<section class="dlgs">
+  <h2>確認ダイアログ・種類別の展開（構造案）</h2>
+  <p>骨格はどの種類でも同じ<b>「前進 ／ 消滅 ／ 保留」の3択</b>。見出しの口語と色、真ん中の確認部品（時間 or 候補日）だけが種類ごとに入れ替わる。1つの部品で全種類を賄えるので、操作を1回覚えれば全部に効く。</p>
+  <div class="dgrid">
+
+    <div class="dcard">
+      <div class="dlabel">バイト（希望 → 確定）※上の③と同じ</div>
+      <div class="dialog">
+        <h3>このシフト、どうなりました？</h3>
+        <div class="sub">カフェバイト　7/25（土）</div>
+        <div class="times">
+          <div class="field"><div class="flabel">開始</div><div class="stepper"><span class="btn">−</span><span class="val">17:00</span><span class="btn">＋</span></div></div>
+          <div class="field"><div class="flabel">終了</div><div class="stepper"><span class="btn">−</span><span class="val">22:00</span><span class="btn">＋</span></div></div>
+        </div>
+        <div class="orig">希望：17:00–21:00　<span class="chg">→ 変更あり</span></div>
+        <span class="dbtn yes">決まった</span>
+        <span class="dbtn no">無くなった</span>
+        <span class="dbtn later">まだ分からない</span>
+      </div>
+    </div>
+
+    <div class="dcard">
+      <div class="dlabel">用事（まだ分からない → 確定）</div>
+      <div class="dialog">
+        <h3>この用事、どうなりました？</h3>
+        <div class="sub">面談　7/30（木）</div>
+        <div class="times">
+          <div class="field"><div class="flabel">開始</div><div class="stepper"><span class="btn">−</span><span class="val">15:00</span><span class="btn">＋</span></div></div>
+          <div class="field"><div class="flabel">終了</div><div class="stepper"><span class="btn">−</span><span class="val">16:00</span><span class="btn">＋</span></div></div>
+        </div>
+        <div class="orig">予定：15:00–16:00</div>
+        <span class="dbtn yes purple">決まった</span>
+        <span class="dbtn no">無くなった</span>
+        <span class="dbtn later">まだ分からない</span>
+      </div>
+    </div>
+
+    <div class="dcard">
+      <div class="dlabel">遊び（候補日 → 約束）</div>
+      <div class="dialog">
+        <h3>約束、決まった？</h3>
+        <div class="sub">花火大会</div>
+        <div class="cand"><span class="sel">7/26（日）</span><span>8/2（日）</span></div>
+        <div class="dnote">決まった日をえらぶと約束に。他の候補日は自動で消えます</div>
+        <span class="dbtn yes coral">この日に決まった</span>
+        <span class="dbtn no">無くなった</span>
+        <span class="dbtn later">まだ分からない</span>
+      </div>
+    </div>
+
+    <div class="dcard">
+      <div class="dlabel">働き終えたシフト（確定 → 実績）</div>
+      <div class="dialog">
+        <h3>今日は何時まで働いた？</h3>
+        <div class="sub">カフェバイト　7/22（水）</div>
+        <div class="times">
+          <div class="field" style="max-width:47%;margin:0 auto"><div class="flabel">終了</div><div class="stepper"><span class="btn">−</span><span class="val">22:30</span><span class="btn">＋</span></div></div>
+        </div>
+        <div class="orig">予定：22:00まで　<span class="chg">→ 30分延長</span></div>
+        <span class="dbtn yes">✓ 記録する（¥6,160）</span>
+        <span class="dbtn no">働かなかった</span>
+        <span class="dbtn later">あとで</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="check">
+  <h2>一貫性チェックと構造の決定事項</h2>
+
+  <div class="note"><span class="tag ok">一貫</span>色＝種類、塗り／点線＝確定度の2軸が4画面すべてで守れている。プレビュー（①）・月表示（②）・ダイアログ背景（③）で同じ点線ピルが使い回せており、「？が✓になる」流れも①→④で途切れない。</div>
+
+  <div class="note"><span class="tag ok">一貫</span>ダイアログ3択の「まだ分からない」が、用事の不確定名「まだ分からない用事」と同じ言葉で呼応している。口語で統一する方針が効いている。</div>
+
+  <div class="note"><span class="tag ok">決定</span>ダイアログの3択は全種類共通の骨格<b>「前進 ／ 消滅 ／ 保留」</b>に統一。第1選択肢は「確定した」ではなく<b>「決まった」</b>に変更（新規作成の「決まってる」、遊びの「約束、決まった？」と語感が揃う。見出し「どうなりました？」への返事としても自然）。</div>
+
+  <div class="note"><span class="tag ok">決定</span>遊びの確認は<b>候補日をえらぶ構造</b>。複数の候補日のうち決まった日をタップ → その日が約束（塗り）になり、残りの候補日は自動で消える。ダイアログの真ん中の部品だけが「時間ステッパー（バイト・用事）⇔ 候補日チップ（遊び）」で入れ替わる。</div>
+
+  <div class="note"><span class="tag ok">決定</span>実績入力も同じ骨格で。「今日は何時まで働いた？」は終了時刻のみ確認し、第1選択肢に金額を出す（<b>✓ 記録する（¥6,160）</b>）— 押す前に給料が見える。消滅枠は「働かなかった」、保留は「あとで」。</div>
+
+  <div class="note"><span class="tag ok">決定</span>月表示の"薄さ"の衝突を解消：実績✓の不透明度下げはごく僅か（90%）に留め、「無くなった」をさらに沈めて明確に区別。「無くなった」ボタンの取り消し線は廃止（結果プレビューより読みやすさを優先。カレンダー上の表示は引き続き取り消し線）。</div>
+
+  <div class="note">
+    <span class="tag ok">呼び方の対応表（確定版）</span>
+    <table class="words">
+      <tr><th>種類</th><th>不確定</th><th>確定</th><th>ダイアログ見出し</th><th>3択（前進／消滅／保留）</th></tr>
+      <tr><td><span class="dot" style="background:#1D9E75"></span>バイト</td><td>希望シフト</td><td>確定シフト</td><td>このシフト、どうなりました？</td><td>決まった／無くなった／まだ分からない</td></tr>
+      <tr><td><span class="dot" style="background:#1D9E75"></span>バイト実績</td><td>—</td><td>実績</td><td>今日は何時まで働いた？</td><td>✓記録する（金額）／働かなかった／あとで</td></tr>
+      <tr><td><span class="dot" style="background:#534AB7"></span>用事</td><td>まだ分からない用事</td><td>確定した用事</td><td>この用事、どうなりました？</td><td>決まった／無くなった／まだ分からない</td></tr>
+      <tr><td><span class="dot" style="background:#D85A30"></span>遊び</td><td>候補日</td><td>約束</td><td>約束、決まった？</td><td>この日に決まった／無くなった／まだ分からない</td></tr>
+    </table>
+  </div>
+</section>
+</div>

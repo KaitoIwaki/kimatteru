@@ -1,0 +1,86 @@
+/* 「静かな文房具」— 紙と墨。色は予定のピルだけが持つ。 */
+* { box-sizing: border-box; }
+
+:root,
+[data-theme='light'] {
+  --bg: #FAF9F4;
+  --bg2: #F1EFE7;
+  --card: #FFFDF8;
+  --line: #E6E2D6;
+  --ink: #26251F;
+  --ink-soft: #55524A;
+  --ink-mut: #8C887C;
+  --ink-faint: #B7B3A6;
+  --glass: rgba(250, 249, 244, 0.9);
+}
+
+[data-theme='dark'] {
+  --bg: #1A1A17;
+  --bg2: #242320;
+  --card: #26251F;
+  --line: #3A392F;
+  --ink: #EDEBE1;
+  --ink-soft: #B6B2A6;
+  --ink-mut: #8C887C;
+  --ink-faint: #5E5C51;
+  --glass: rgba(26, 26, 23, 0.9);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', -apple-system, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  /* スマホでダブルタップ拡大などが起きないように */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+a { color: #534AB7; }
+a:hover { color: #3C3489; }
+input { font-family: inherit; }
+
+@keyframes riseUp { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes dlgIn { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes notifDrop { from { transform: translateY(-90px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes haloOut { 0% { transform: translate(-50%, -50%) scale(.5); opacity: .45; } 100% { transform: translate(-50%, -50%) scale(2.1); opacity: 0; } }
+@keyframes checkPop { 0% { transform: scale(.3); opacity: 0; } 55% { transform: scale(1.18); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes qFade { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(.4); opacity: 0; } }
+@keyframes capRise { 0% { transform: translateY(8px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+@keyframes sweepFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes pillSettle { 0% { transform: scale(1); } 45% { transform: scale(1.04); } 100% { transform: scale(1); } }
+@keyframes gaugeWave { 0% { height: var(--g0); } 70% { height: var(--g1); } 100% { height: var(--gf); } }
+
+::-webkit-scrollbar { width: 0; height: 0; }
+
+/* iPhone のホームインジケータぶんだけタブバーを持ち上げる。
+   インラインスタイルより優先させる必要があるので !important を付けている。 */
+.tabbar {
+  height: calc(82px + env(safe-area-inset-bottom)) !important;
+  padding-bottom: calc(22px + env(safe-area-inset-bottom)) !important;
+}
+
+.wagebar {
+  bottom: calc(82px + env(safe-area-inset-bottom)) !important;
+}
+
+/* 動きを減らす設定の人には、静かなクロスフェードだけ残す */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}

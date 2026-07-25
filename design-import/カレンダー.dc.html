@@ -1,0 +1,1164 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<style>
+  *{box-sizing:border-box}
+  :root,[data-theme="light"]{--bg:#FAF9F4;--bg2:#F1EFE7;--card:#FFFDF8;--line:#E6E2D6;--ink:#26251F;--ink-soft:#55524A;--ink-mut:#8C887C;--ink-faint:#B7B3A6;--glass:rgba(250,249,244,.9)}
+  [data-theme="dark"]{--bg:#1A1A17;--bg2:#242320;--card:#26251F;--line:#3A392F;--ink:#EDEBE1;--ink-soft:#B6B2A6;--ink-mut:#8C887C;--ink-faint:#5E5C51;--glass:rgba(26,26,23,.9)}
+  body{margin:0;background:#3a3a3c;font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",-apple-system,system-ui,sans-serif}
+  a{color:#534AB7}a:hover{color:#3C3489}
+  input{font-family:inherit}
+  @keyframes riseUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+  @keyframes dlgIn{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+  @keyframes scrimIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideIn{from{transform:translateX(24px);opacity:0}to{transform:translateX(0);opacity:1}}
+  @keyframes notifDrop{from{transform:translateY(-90px);opacity:0}to{transform:translateY(0);opacity:1}}
+  @keyframes haloOut{0%{transform:translate(-50%,-50%) scale(.5);opacity:.45}100%{transform:translate(-50%,-50%) scale(2.1);opacity:0}}
+  @keyframes checkPop{0%{transform:scale(.3);opacity:0}55%{transform:scale(1.18)}100%{transform:scale(1);opacity:1}}
+  @keyframes qFade{0%{transform:scale(1);opacity:1}100%{transform:scale(.4);opacity:0}}
+  @keyframes capRise{0%{transform:translateY(8px);opacity:0}100%{transform:translateY(0);opacity:1}}
+  @keyframes sweepFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes pillSettle{0%{transform:scale(1)}45%{transform:scale(1.04)}100%{transform:scale(1)}}
+  @keyframes gaugeWave{0%{height:var(--g0)}70%{height:var(--g1)}100%{height:var(--gf)}}
+  ::-webkit-scrollbar{width:0;height:0}
+</style>
+</helmet>
+<x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" width="{{ v.fw }}" height="{{ v.fh }}" hint-size="402px,874px">
+<div data-theme="{{ v.theme }}" style="position:relative;height:100%;width:100%;background:var(--bg);overflow:hidden;transition:background .3s ease">
+
+  <!-- ===================== MONTH ===================== -->
+  <sc-if value="{{ v.monthShown }}" hint-placeholder-val="{{ true }}">
+  <div style="display:flex;flex-direction:column;height:100%">
+    <div style="padding:60px 20px 10px 20px;display:flex;align-items:flex-end;justify-content:space-between">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font-size:30px;font-weight:700;color:var(--ink);letter-spacing:-.5px">{{ v.monthLabel }}月</span>
+        <span style="font-size:15px;font-weight:500;color:var(--ink-mut)">{{ v.year }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <div style="width:34px;height:34px;border-radius:9px;background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative" onClick="{{ v.onBell }}">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M12 3a5 5 0 0 0-5 5c0 5-2 6-2 6h14s-2-1-2-6a5 5 0 0 0-5-5Z" stroke="var(--ink-soft)" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="var(--ink-soft)" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <sc-if value="{{ v.bellDot }}" hint-placeholder-val="{{ true }}"><span style="position:absolute;top:5px;right:6px;width:7px;height:7px;border-radius:4px;background:var(--ink-mut);border:1.5px solid var(--bg)"></span></sc-if>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px" onClick="{{ v.onToggleWage }}">
+          <span style="font-size:13px;font-weight:600;color:{{ v.wageLabelColor }}">給料</span>
+          <div style="{{ v.wageTrackStyle }}"><div style="{{ v.wageKnobStyle }}"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);padding:8px 6px 4px 6px">
+      <sc-for list="{{ v.weekdays }}" as="w" hint-placeholder-count="7">
+        <div style="{{ w.style }}">{{ w.label }}</div>
+      </sc-for>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:0 6px 90px 6px">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(98px,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden">
+        <sc-for list="{{ v.cells }}" as="c" hint-placeholder-count="35">
+          <div style="{{ c.style }}" onClick="{{ c.onDay }}">
+            <sc-if value="{{ c.day }}" hint-placeholder-val="{{ true }}">
+              <div style="{{ c.numWrap }}"><span style="{{ c.numStyle }}">{{ c.day }}</span></div>
+            </sc-if>
+            <sc-for list="{{ c.pills }}" as="p" hint-placeholder-count="0">
+              <div style="{{ p.style }}" onClick="{{ p.onClick }}">
+                <sc-if value="{{ p.morphing }}" hint-placeholder-val="{{ false }}"><span style="{{ p.fillStyle }}"></span></sc-if>
+                <span style="{{ p.textStyle }}">{{ p.text }}</span>
+              </div>
+            </sc-for>
+            <sc-if value="{{ c.hasMore }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:10px;font-weight:600;color:var(--ink-mut);padding:1px 5px">{{ c.moreText }}</div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <sc-if value="{{ v.wageOn }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:0;right:0;bottom:82px;padding:14px 22px;background:var(--glass);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;animation:riseUp .3s cubic-bezier(.2,.9,.2,1);cursor:pointer" onClick="{{ v.onOpenSummary }}">
+        <span style="font-size:13px;font-weight:600;color:var(--ink)">{{ v.monthLabel }}月の実績合計</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:22px;font-weight:700;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums">{{ v.monthTotal }}</span>
+          <span style="font-size:16px;color:var(--ink-faint)">›</span>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <!-- ===================== DAY ===================== -->
+  <sc-if value="{{ v.dayShown }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;flex-direction:column;height:100%;background:var(--bg)">
+    <div style="padding:56px 18px 10px 18px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:16px;color:var(--ink-mut);cursor:pointer" onClick="{{ v.onDayBack }}">‹ {{ v.monthLabel }}月</span>
+      <span style="font-size:16px;font-weight:600;color:var(--ink)">{{ v.dayTitle }}</span>
+      <span style="width:44px"></span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:8px 16px 40px 16px;animation:slideIn .28s cubic-bezier(.2,.9,.2,1)">
+      <sc-if value="{{ v.dayEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="text-align:center;color:var(--ink-faint);font-size:14px;padding:48px 0">この日の予定はまだありません</div>
+      </sc-if>
+      <sc-for list="{{ v.dayEvents }}" as="r" hint-placeholder-count="0">
+        <div style="display:flex;align-items:center;gap:12px;background:var(--card);border-radius:12px;padding:14px;margin-bottom:9px;border:1px solid var(--line);cursor:pointer" onClick="{{ r.onClick }}">
+          <div style="{{ r.chipStyle }}">{{ r.chipText }}</div>
+          <div style="flex:1"></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+            <span style="font-size:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums">{{ r.timeText }}</span>
+            <span style="font-size:11px;color:var(--ink-mut)">{{ r.statusWord }}</span>
+          </div>
+        </div>
+      </sc-for>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding:15px;border-radius:12px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:15px;font-weight:600;cursor:pointer" onClick="{{ v.onDayAdd }}">＋ 予定を追加</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== いつ空いてる？ ===================== -->
+  <sc-if value="{{ v.freeShown }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;flex-direction:column;height:100%;background:var(--bg)">
+    <div style="padding:56px 18px 6px;text-align:center">
+      <span style="font-size:16px;font-weight:700;color:var(--ink)">いつ空いてる？</span>
+    </div>
+    <div style="padding:6px 18px 12px;display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:14px">
+        <span style="font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none" onClick="{{ v.onFreePrev }}">◀</span>
+        <span style="font-size:17px;font-weight:700;color:var(--ink);min-width:44px;text-align:center">{{ v.freeMonthLabel }}月</span>
+        <span style="font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none" onClick="{{ v.onFreeNext }}">▶</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700">
+        <span style="color:#1D9E75">○{{ v.cO }}</span>
+        <span style="color:#B9770F">△{{ v.cA }}</span>
+        <span style="color:#C1C5CC">×{{ v.cX }}</span>
+      </div>
+    </div>
+    <div style="flex:1;overflow-y:auto;background:var(--card);border-top:1px solid var(--line);padding-bottom:96px">
+      <sc-for list="{{ v.freeRows }}" as="r" hint-placeholder-count="31">
+        <div style="{{ r.rowStyle }}">
+          <div style="{{ r.dateWrap }}">
+            <span style="{{ r.dowStyle }}">{{ r.dow }}</span>
+            <span style="{{ r.dayStyle }}">{{ r.day }}</span>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:0 12px">
+            <div style="display:flex;gap:4px;flex-wrap:wrap">
+              <sc-for list="{{ r.tags }}" as="tg" hint-placeholder-count="0">
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div style="{{ tg.style }}">{{ tg.text }}</div>
+                  <span style="{{ tg.timeStyle }}">{{ tg.time }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <sc-if value="{{ r.note }}" hint-placeholder-val="{{ false }}">
+              <span style="{{ r.noteStyle }}">{{ r.note }}</span>
+            </sc-if>
+          </div>
+          <div style="{{ r.markWrap }}" onClick="{{ r.onCycle }}"><span style="{{ r.markStyle }}">{{ r.mark }}</span></div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== NEW EVENT ===================== -->
+  <sc-if value="{{ v.newShown }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;flex-direction:column;height:100%;background:var(--bg)">
+    <div style="padding:56px 18px 10px 18px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:16px;color:var(--ink-mut);cursor:pointer" onClick="{{ v.onCancel }}">キャンセル</span>
+      <span style="font-size:16px;font-weight:600;color:var(--ink)">新しい予定</span>
+      <span style="font-size:16px;font-weight:700;color:{{ v.draftColor }};cursor:pointer" onClick="{{ v.onSave }}">保存</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:8px 16px 40px 16px">
+      <div style="background:var(--card);border-radius:14px;padding:4px 14px;margin-bottom:18px">
+        <input value="{{ v.draftTitle }}" placeholder="タイトル" onInput="{{ v.onTitle }}" style="width:100%;border:none;outline:none;padding:14px 0;font-size:16px;color:var(--ink);background:transparent"/>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px">種類</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+        <sc-for list="{{ v.chips }}" as="ch" hint-placeholder-count="4">
+          <div style="{{ ch.style }}" onClick="{{ ch.onClick }}">{{ ch.label }}</div>
+        </sc-for>
+        <div style="{{ v.addChipStyle }}" onClick="{{ v.onAddTypeChip }}">＋ 種類</div>
+      </div>
+
+      <sc-if value="{{ v.newTypeShown }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--card);border-radius:12px;padding:14px;margin-bottom:16px;border:1px solid var(--line);animation:riseUp .24s cubic-bezier(.2,.9,.2,1)">
+          <input value="{{ v.newTypeName }}" placeholder="種類の名前（例：ジム、勉強）" onInput="{{ v.onNewTypeName }}" style="width:100%;border:none;outline:none;padding:6px 0 12px;font-size:15px;color:var(--ink);border-bottom:1px solid var(--line)"/>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 6px">
+            <sc-for list="{{ v.newTypeSwatches }}" as="sw" hint-placeholder-count="8">
+              <div style="{{ sw.style }}" onClick="{{ sw.onClick }}"></div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <div style="flex:1;text-align:center;padding:11px;border-radius:10px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer" onClick="{{ v.onCancelNewType }}">やめる</div>
+            <div style="{{ v.addTypeBtnStyle }}" onClick="{{ v.onAddType }}">この種類を追加</div>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="display:flex;align-items:center;gap:9px;margin:0 2px 20px 2px">
+        <span style="font-size:11px;color:var(--ink-mut)">色</span>
+        <sc-for list="{{ v.recolorSwatches }}" as="sw" hint-placeholder-count="8">
+          <div style="{{ sw.style }}" onClick="{{ sw.onClick }}"></div>
+        </sc-for>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px">この予定は</div>
+      <div style="display:flex;background:var(--bg2);border-radius:10px;padding:2px;margin-bottom:22px">
+        <sc-for list="{{ v.seg }}" as="s" hint-placeholder-count="2">
+          <div style="{{ s.style }}" onClick="{{ s.onClick }}">{{ s.label }}</div>
+        </sc-for>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px">時間</div>
+      <div style="display:flex;background:var(--bg2);border-radius:10px;padding:2px;margin-bottom:16px">
+        <sc-for list="{{ v.spanSeg }}" as="s" hint-placeholder-count="2">
+          <div style="{{ s.style }}" onClick="{{ s.onClick }}">{{ s.label }}</div>
+        </sc-for>
+      </div>
+      <sc-if value="{{ v.timed }}" hint-placeholder-val="{{ true }}">
+        <div style="background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:22px">
+          <sc-for list="{{ v.timeRows }}" as="r" hint-placeholder-count="2">
+            <div style="{{ r.rowStyle }}">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 16px;cursor:pointer" onClick="{{ r.onTap }}">
+                <span style="font-size:15px;color:var(--ink)">{{ r.label }}</span>
+                <span style="{{ r.valStyle }}">{{ r.value }}</span>
+              </div>
+              <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}">
+                <div style="position:relative;display:flex;align-items:center;justify-content:center;gap:4px;height:170px;background:var(--bg2)">
+                  <div style="position:absolute;top:68px;left:64px;right:64px;height:34px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);pointer-events:none"></div>
+                  <div style="{{ v.wheelColStyle }}" onScroll="{{ r.hScroll }}" ref="{{ r.hRef }}">
+                    <sc-for list="{{ r.hItems }}" as="it" hint-placeholder-count="24"><div style="{{ v.wheelItemStyle }}">{{ it }}</div></sc-for>
+                  </div>
+                  <span style="font-size:20px;font-weight:700;color:var(--ink)">:</span>
+                  <div style="{{ v.wheelColStyle }}" onScroll="{{ r.mScroll }}" ref="{{ r.mRef }}">
+                    <sc-for list="{{ r.mItems }}" as="it" hint-placeholder-count="12"><div style="{{ v.wheelItemStyle }}">{{ it }}</div></sc-for>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ v.allDayShown }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--card);border-radius:14px;padding:16px;margin-bottom:22px;font-size:14px;color:var(--ink-mut);text-align:center">この予定は終日として置かれます</div>
+      </sc-if>
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px">カレンダーでの見え方</div>
+      <div style="background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--line)">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden">
+          <sc-for list="{{ v.previewDays }}" as="pd" hint-placeholder-count="3">
+            <div style="{{ pd.cellStyle }}">
+              <div style="{{ pd.numStyle }}">{{ pd.date }}</div>
+              <sc-for list="{{ pd.pills }}" as="pp" hint-placeholder-count="0">
+                <div style="{{ pp.style }}">{{ pp.text }}</div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;margin-top:12px">
+          <span style="{{ v.previewDotStyle }}"></span>
+          <span style="font-size:13px;color:var(--ink);text-wrap:pretty">{{ v.previewExplain }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== SHIFT DETAIL ===================== -->
+  <sc-if value="{{ v.detailShown }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;flex-direction:column;height:100%;background:var(--bg)">
+    <div style="padding:56px 18px 10px 18px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:16px;color:var(--ink-mut);cursor:pointer" onClick="{{ v.onBack }}">‹ 戻る</span>
+      <span style="font-size:16px;font-weight:600;color:var(--ink)">{{ v.dTitle }}</span>
+      <span style="width:44px"></span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:14px 16px 40px 16px">
+      <div style="background:var(--card);border-radius:16px;overflow:hidden;display:flex;border:1px solid var(--line);min-height:170px">
+        <div style="{{ v.gaugeTrackStyle }}">
+          <div style="{{ v.gaugeFillStyle }}"></div>
+        </div>
+        <div style="flex:1;padding:20px 20px 22px 22px">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <span style="{{ v.badgeStyle }}">{{ v.badgeChar }}</span>
+            <span style="font-size:13px;font-weight:600;color:{{ v.dTypeDark }}">{{ v.dStatusLabel }}</span>
+          </div>
+          <div style="font-size:24px;font-weight:700;color:var(--ink);margin:6px 0 2px 0;letter-spacing:-.3px">{{ v.dTitle }}</div>
+          <div style="font-size:14px;color:var(--ink-mut);margin-bottom:20px">{{ v.monthLabel }}月{{ v.dDay }}日</div>
+
+          <div style="display:flex;align-items:baseline;gap:8px">
+            <span style="font-size:15px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums">{{ v.dTimeText }}</span>
+            <sc-if value="{{ v.dTimeChanged }}" hint-placeholder-val="{{ false }}">
+              <span style="font-size:12px;font-weight:600;color:#D85A30">→ 変更あり</span>
+            </sc-if>
+          </div>
+          <sc-if value="{{ v.dWantText }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:12px;color:var(--ink-mut);margin-top:3px">{{ v.dWantText }}</div>
+          </sc-if>
+
+          <sc-if value="{{ v.dWageShown }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--line);animation:riseUp .32s cubic-bezier(.2,.9,.2,1)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+                <span style="font-size:13px;color:var(--ink-mut)">実働時間</span>
+                <span style="font-size:15px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums">{{ v.dWorkHours }}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:13px;color:var(--ink-mut)">給料</span>
+                <span style="font-size:24px;font-weight:700;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums">{{ v.dWage }}</span>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <sc-if value="{{ v.dPrimaryLabel }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ v.dPrimaryStyle }}" onClick="{{ v.dPrimaryAction }}">{{ v.dPrimaryLabel }}</div>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== CENTER DIALOG ===================== -->
+  <sc-if value="{{ v.dialogShown }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;z-index:80;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease" onClick="{{ v.onDlgDismiss }}">
+    <div style="width:100%;max-width:320px;background:var(--card);border-radius:16px;padding:22px 20px 18px 20px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)" onClick="{{ v.stop }}">
+      <div style="font-size:19px;font-weight:700;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance">{{ v.dlgHeading }}</div>
+      <div style="font-size:13px;color:var(--ink-mut);text-align:center;margin:6px 0 18px 0">{{ v.dlgSub }}</div>
+
+      <div style="background:var(--bg2);border-radius:12px;overflow:hidden;margin-bottom:6px">
+        <sc-for list="{{ v.dlgTimeRows }}" as="r" hint-placeholder-count="2">
+          <div style="{{ r.rowStyle }}">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer" onClick="{{ r.onTap }}">
+              <span style="font-size:14px;color:var(--ink)">{{ r.label }}</span>
+              <span style="{{ r.valStyle }}">{{ r.value }}</span>
+            </div>
+            <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}">
+              <div style="position:relative;display:flex;align-items:center;justify-content:center;gap:4px;height:150px;background:var(--bg2)">
+                <div style="position:absolute;top:58px;left:60px;right:60px;height:34px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);pointer-events:none"></div>
+                <div style="{{ v.dlgWheelColStyle }}" onScroll="{{ r.hScroll }}" ref="{{ r.hRef }}">
+                  <sc-for list="{{ r.hItems }}" as="it" hint-placeholder-count="24"><div style="{{ v.wheelItemStyle }}">{{ it }}</div></sc-for>
+                </div>
+                <span style="font-size:19px;font-weight:700;color:var(--ink)">:</span>
+                <div style="{{ v.dlgWheelColStyle }}" onScroll="{{ r.mScroll }}" ref="{{ r.mRef }}">
+                  <sc-for list="{{ r.mItems }}" as="it" hint-placeholder-count="12"><div style="{{ v.wheelItemStyle }}">{{ it }}</div></sc-for>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="text-align:center;margin-bottom:18px;height:16px">
+        <sc-if value="{{ v.dlgChanged }}" hint-placeholder-val="{{ false }}">
+          <span style="font-size:12px;color:var(--ink-mut)">{{ v.dlgOrigText }} <span style="color:#D85A30;font-weight:600">→ 変更あり</span></span>
+        </sc-if>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <div style="{{ v.dlgPrimaryStyle }}" onClick="{{ v.onDlgPrimary }}">{{ v.dlgPrimaryLabel }}</div>
+        <div style="padding:14px;border-radius:12px;text-align:center;font-size:16px;font-weight:600;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer" onClick="{{ v.onDlgNakunatta }}">無くなった</div>
+        <div style="padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer" onClick="{{ v.onDlgStillMaybe }}">まだ分からない</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== 「決まった」CELEBRATE ===================== -->
+  <sc-if value="{{ v.celebShown }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;z-index:85;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;animation:scrimIn .2s ease">
+    <div style="position:relative;display:flex;align-items:center;justify-content:center">
+      <sc-if value="{{ v.celebOn }}" hint-placeholder-val="{{ false }}">
+        <div style="{{ v.haloStyle }}"></div>
+      </sc-if>
+      <div style="{{ v.heroPillStyle }}">
+        <span style="position:relative;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;flex-shrink:0">
+          <span style="{{ v.heroQStyle }}">？</span>
+          <span style="{{ v.heroCheckStyle }}">✓</span>
+        </span>
+        <span style="white-space:nowrap">{{ v.heroTitle }}</span>
+      </div>
+    </div>
+    <sc-if value="{{ v.celebOn }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;animation:capRise .34s cubic-bezier(.2,.9,.2,1) both">
+        <span style="font-size:20px;font-weight:700;color:#fff;letter-spacing:.5px">{{ v.celebCaption }}</span>
+        <span style="font-size:13px;color:rgba(255,255,255,.7)">{{ v.celebSub }}</span>
+      </div>
+    </sc-if>
+  </div>
+  </sc-if>
+  <!-- ===================== 今月のまとめ (B) ===================== -->
+  <sc-if value="{{ v.summaryShown }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;flex-direction:column;height:100%;background:#1A1A1A">
+    <div style="padding:52px 18px 8px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <span style="font-size:16px;color:rgba(255,255,255,.65);cursor:pointer" onClick="{{ v.onSummaryClose }}">閉じる</span>
+      <span style="font-size:14px;font-weight:600;color:rgba(255,255,255,.9)">今月のまとめ</span>
+      <span style="width:44px"></span>
+    </div>
+    <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:10px 16px 20px">
+      <!-- 9:16 shareable card -->
+      <div style="width:100%;max-width:340px;aspect-ratio:9/16;background:linear-gradient(180deg,#FBFBFD 0%,#F4F6F8 100%);border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.5);padding:30px 26px;display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <span style="font-size:13px;font-weight:600;color:var(--ink-mut);letter-spacing:.5px">2026年 7月</span>
+          <span style="font-size:12px;font-weight:600;color:var(--ink-mut)">まとめ</span>
+        </div>
+
+        <!-- rhythm strip -->
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin:20px 0 22px">
+          <sc-for list="{{ v.rhythm }}" as="r" hint-placeholder-count="18">
+            <div style="{{ r.style }}"></div>
+          </sc-for>
+        </div>
+
+        <!-- hero -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px">
+          <span style="width:24px;height:24px;border-radius:12px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">✓</span>
+          <span style="font-size:13px;font-weight:600;color:#085041">稼いだ</span>
+        </div>
+        <div style="font-size:46px;font-weight:800;color:var(--ink);letter-spacing:-1.5px;line-height:1.1">{{ v.sumWage }}</div>
+        <div style="font-size:14px;color:var(--ink-mut);margin-top:2px">{{ v.sumHours }} 働きました</div>
+
+        <div style="height:1px;background:var(--line);margin:22px 0"></div>
+
+        <div style="display:flex;gap:14px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="width:16px;height:16px;border-radius:8px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800">✓</span><span style="font-size:12px;font-weight:600;color:#712B13">果たした約束</span></div>
+            <div style="font-size:34px;font-weight:800;color:var(--ink);letter-spacing:-1px">{{ v.sumPromises }}</div>
+          </div>
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="width:16px;height:16px;border-radius:8px;background:#EDEEF0;color:var(--ink-mut);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">×</span><span style="font-size:12px;font-weight:600;color:var(--ink-mut)">流れた予定</span></div>
+            <div style="font-size:34px;font-weight:800;color:var(--ink-faint);letter-spacing:-1px">{{ v.sumCanceled }}</div>
+          </div>
+        </div>
+
+        <div style="flex:1"></div>
+        <div style="display:flex;align-items:center;gap:8px;padding-top:16px">
+          <span style="font-size:15px;letter-spacing:-2px"><span style="color:#1D9E75">✓</span><span style="color:#C1C5CC">？</span></span>
+          <span style="font-size:12px;font-weight:600;color:var(--ink-soft);text-wrap:pretty">決まってる？ — 予定が一目でわかるカレンダー</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;width:100%;max-width:340px;margin-top:18px">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:13px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer" onClick="{{ v.onShareCard }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="#1A1A1A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="#1A1A1A" stroke-width="1.8" stroke-linecap="round"/></svg>
+          ストーリーズにシェア
+        </div>
+      </div>
+      <sc-if value="{{ v.shareToast }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:12px;font-size:12px;color:rgba(255,255,255,.55)">画像を保存しました（デモ）</div>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== 空いてる日シェア (C) ===================== -->
+  <sc-if value="{{ v.shareShown }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;flex-direction:column;height:100%;background:#1A1A1A">
+    <div style="padding:52px 18px 8px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <span style="font-size:16px;color:rgba(255,255,255,.65);cursor:pointer" onClick="{{ v.onShareClose }}">閉じる</span>
+      <span style="font-size:14px;font-weight:600;color:rgba(255,255,255,.9)">空いてる日をシェア</span>
+      <span style="width:44px"></span>
+    </div>
+    <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:6px 16px 24px">
+
+      <!-- shareable free-days card -->
+      <div style="width:100%;max-width:340px;background:var(--card);border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.5);padding:24px 22px 22px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+          <span style="width:22px;height:22px;border-radius:7px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">○</span>
+          <span style="font-size:13px;font-weight:600;color:#D85A30">わたしの空いてる日</span>
+        </div>
+        <div style="font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.5px">7月のあいてる日</div>
+        <div style="font-size:13px;color:var(--ink-mut);margin:2px 0 18px">予定の中身は出していません</div>
+
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:4px">
+          <sc-for list="{{ v.shareWeekdays }}" as="w" hint-placeholder-count="7">
+            <div style="{{ w.style }}">{{ w.label }}</div>
+          </sc-for>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">
+          <sc-for list="{{ v.shareCells }}" as="c" hint-placeholder-count="35">
+            <div style="{{ c.style }}">{{ c.label }}</div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+          <div style="display:flex;align-items:center;gap:6px"><span style="width:16px;height:16px;border-radius:5px;background:#FAECE7;border:1.5px solid #D85A30"></span><span style="font-size:12px;color:var(--ink-soft)">空いてる</span></div>
+          <div style="display:flex;align-items:center;gap:6px"><span style="width:16px;height:16px;border-radius:5px;background:#EDEEF0"></span><span style="font-size:12px;color:var(--ink-soft)">予定あり</span></div>
+          <div style="flex:1"></div>
+          <span style="font-size:12px;letter-spacing:-2px"><span style="color:#1D9E75">✓</span><span style="color:#C1C5CC">？</span></span>
+        </div>
+      </div>
+
+      <div style="width:100%;max-width:340px;margin-top:14px;font-size:12px;color:rgba(255,255,255,.5);text-align:center;text-wrap:pretty">埋まっている日は灰色のマスだけ。何の予定かは相手に伝わりません。</div>
+
+      <div style="display:flex;gap:10px;width:100%;max-width:340px;margin-top:16px">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:13px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer" onClick="{{ v.onShareCard }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="#1A1A1A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="#1A1A1A" stroke-width="1.8" stroke-linecap="round"/></svg>
+          画像で送る
+        </div>
+      </div>
+      <sc-if value="{{ v.shareToast }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:12px;font-size:12px;color:rgba(255,255,255,.55)">画像を保存しました（デモ）</div>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== SETTINGS ===================== -->
+  <sc-if value="{{ v.settingsShown }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;flex-direction:column;height:100%;background:var(--bg)">
+    <div style="padding:58px 20px 10px">
+      <span style="font-size:30px;font-weight:700;color:var(--ink);letter-spacing:-.5px">設定</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:8px 16px 110px">
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px">給料</div>
+      <div style="background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px">
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span style="font-size:15px;color:var(--ink)">時給</span>
+            <span style="font-size:11px;color:var(--ink-mut)">実働から給料を計算します</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="{{ v.stepBtn }}" onClick="{{ v.onHourlyMinus }}">−</div>
+            <div style="display:flex;align-items:center;gap:2px;background:var(--bg2);border-radius:9px;padding:6px 10px">
+              <span style="font-size:15px;font-weight:700;color:var(--ink-soft)">¥</span>
+              <input value="{{ v.setHourly }}" onInput="{{ v.onHourlyInput }}" inputmode="numeric" style="width:56px;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit"/>
+            </div>
+            <div style="{{ v.stepBtn }}" onClick="{{ v.onHourlyPlus }}">＋</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px">入力</div>
+      <div style="background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:24px">
+        <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+          <span style="font-size:15px;color:var(--ink)">時間の刻み幅</span>
+          <div style="display:flex;background:var(--bg2);border-radius:9px;padding:2px;margin-top:10px">
+            <sc-for list="{{ v.stepSeg }}" as="s" hint-placeholder-count="3">
+              <div style="{{ s.style }}" onClick="{{ s.onClick }}">{{ s.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:14px 16px">
+          <span style="font-size:15px;color:var(--ink)">週のはじまり</span>
+          <div style="display:flex;background:var(--bg2);border-radius:9px;padding:2px;margin-top:10px">
+            <sc-for list="{{ v.weekSeg }}" as="s" hint-placeholder-count="2">
+              <div style="{{ s.style }}" onClick="{{ s.onClick }}">{{ s.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px">予定の種類</div>
+      <div style="background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:8px">
+        <sc-for list="{{ v.typeRows }}" as="t" hint-placeholder-count="4">
+          <div style="{{ t.rowStyle }}">
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer" onClick="{{ t.onTap }}">
+              <span style="{{ t.dotStyle }}"></span>
+              <span style="flex:1;font-size:15px;color:var(--ink)">{{ t.name }}</span>
+              <span style="font-size:12px;color:var(--ink-faint)">{{ t.hint }}</span>
+            </div>
+            <sc-if value="{{ t.open }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-wrap:wrap;gap:12px;padding:4px 16px 16px">
+                <sc-for list="{{ t.swatches }}" as="sw" hint-placeholder-count="8">
+                  <div style="{{ sw.style }}" onClick="{{ sw.onClick }}"></div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+      <div style="font-size:11px;color:var(--ink-faint);margin:0 6px 24px;text-wrap:pretty">種類の追加や名前の変更は「＋」の新規作成画面からできます</div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px">通知</div>
+      <div style="background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px">
+          <div style="display:flex;flex-direction:column;gap:2px;padding-right:12px">
+            <span style="font-size:15px;color:var(--ink)">シフト後に記録をリマインド</span>
+            <span style="font-size:11px;color:var(--ink-mut);text-wrap:pretty">終わった時間に「実働どうだった？」を通知</span>
+          </div>
+          <div style="{{ v.remindTrack }}" onClick="{{ v.onToggleRemind }}"><div style="{{ v.remindKnob }}"></div></div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px">表示</div>
+      <div style="background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:24px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px">
+          <div style="display:flex;flex-direction:column;gap:2px;padding-right:12px">
+            <span style="font-size:15px;color:var(--ink)">「無くなった」予定を隠す</span>
+            <span style="font-size:11px;color:var(--ink-mut);text-wrap:pretty">オフなら取り消し線で薄く残します</span>
+          </div>
+          <div style="{{ v.hideTrack }}" onClick="{{ v.onToggleHide }}"><div style="{{ v.hideKnob }}"></div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-top:1px solid var(--line)">
+          <div style="display:flex;flex-direction:column;gap:2px;padding-right:12px">
+            <span style="font-size:15px;color:var(--ink)">ダークモード</span>
+            <span style="font-size:11px;color:var(--ink-mut);text-wrap:pretty">深い墨色の紙に、点線が浮かびます</span>
+          </div>
+          <div style="{{ v.darkTrack }}" onClick="{{ v.onToggleDark }}"><div style="{{ v.darkKnob }}"></div></div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px">共有・まとめ</div>
+      <div style="background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer" onClick="{{ v.onOpenSummary }}">
+          <span style="width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800">✓</span>
+          <span style="flex:1;font-size:15px;color:var(--ink)">今月のまとめを見る</span>
+          <span style="font-size:16px;color:var(--ink-faint)">›</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer" onClick="{{ v.onOpenShare }}">
+          <span style="width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800">↗</span>
+          <span style="flex:1;font-size:15px;color:var(--ink)">空いてる日をシェア</span>
+          <span style="font-size:16px;color:var(--ink-faint)">›</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- ===================== NOTIFICATION BANNER ===================== -->
+  <sc-if value="{{ v.notifShown }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;top:52px;left:10px;right:10px;z-index:70;animation:notifDrop .42s cubic-bezier(.2,.9,.2,1)">
+    <div style="display:flex;align-items:center;gap:12px;background:rgba(250,250,252,.86);backdrop-filter:blur(22px);border:.5px solid rgba(0,0,0,.06);border-radius:20px;padding:13px 15px;box-shadow:0 10px 34px rgba(0,0,0,.22);cursor:pointer" onClick="{{ v.onNotifOpen }}">
+      <div style="width:40px;height:40px;border-radius:10px;background:#1D9E75;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px rgba(8,80,65,.4)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5" stroke="#fff" stroke-width="1.7"/><path d="M3.5 9h17" stroke="#fff" stroke-width="1.7"/><path d="M8.5 14.5l2.2 2.2 4.3-4.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+          <span style="font-size:14px;font-weight:700;color:var(--ink)">今日のカフェ、おつかれさま</span>
+          <span style="font-size:11px;color:var(--ink-mut);flex-shrink:0">たった今</span>
+        </div>
+        <div style="font-size:13px;color:#4A4F57;margin-top:2px;text-wrap:pretty">実働時間はどうでしたか？タップして記録しよう（17:00–22:00）</div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+
+  <sc-if value="{{ v.navShown }}" hint-placeholder-val="{{ true }}">
+  <div style="position:absolute;left:0;right:0;bottom:0;height:82px;padding:8px 24px 22px;background:var(--glass);backdrop-filter:blur(18px);border-top:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;z-index:60">
+    <div style="{{ v.navCalStyle }}" onClick="{{ v.onNavCal }}">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="4.5" width="17" height="16" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 9h17" stroke="currentColor" stroke-width="1.7"/><path d="M8 3v3M16 3v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span style="font-size:10px;font-weight:600">カレンダー</span>
+    </div>
+    <div style="{{ v.navFreeStyle }}" onClick="{{ v.onNavFree }}">
+      <span style="font-size:15px;letter-spacing:-2px;line-height:24px;height:24px;display:flex;align-items:center"><span style="color:#1D9E75">○</span><span style="color:#B9770F">△</span><span style="color:#C1C5CC">×</span></span>
+      <span style="font-size:10px;font-weight:600">空き状況</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;margin-top:-4px" onClick="{{ v.onFab }}">
+      <div style="width:46px;height:46px;border-radius:23px;background:var(--ink);color:var(--card);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:300;box-shadow:0 4px 14px rgba(0,0,0,.28)">＋</div>
+    </div>
+    <div style="{{ v.navSettingsStyle }}" onClick="{{ v.onNavSettings }}">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/><path d="M12 3.5v2M12 18.5v2M20.5 12h-2M5.5 12h-2M18 6l-1.4 1.4M7.4 16.6 6 18M18 18l-1.4-1.4M7.4 7.4 6 6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span style="font-size:10px;font-weight:600">設定</span>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  PAL = ['#1D9E75','#534AB7','#D85A30','#2F72C4','#C43C7A','#C99A16','#5A6570','#3B8E8A'];
+  ITEM = 34;
+  // stable wheel ref + scroll callbacks (identity fixed so scroll position survives re-renders)
+  refStartH=(n)=>this._attach(n,'start','h'); refStartM=(n)=>this._attach(n,'start','m');
+  refEndH=(n)=>this._attach(n,'end','h');     refEndM=(n)=>this._attach(n,'end','m');
+  scStartH=(e)=>this._onWheel(e,'start','h'); scStartM=(e)=>this._onWheel(e,'start','m');
+  scEndH=(e)=>this._onWheel(e,'end','h');     scEndM=(e)=>this._onWheel(e,'end','m');
+  _attach(node,field,unit){ if(!node || node.dataset.pos==='1') return; const [h,m]=this.state.draft[field].split(':').map(Number); const step=this.state.settings.step; node.scrollTop=(unit==='h'?h:Math.round(m/step))*this.ITEM; node.dataset.pos='1'; }
+  _onWheel(e,field,unit){ if(this['_t'+field+unit]) return; this['_t'+field+unit]=requestAnimationFrame(()=>{ this['_t'+field+unit]=0; const step=this.state.settings.step; const idx=Math.round(e.target.scrollTop/this.ITEM); let [h,m]=this.state.draft[field].split(':').map(Number); if(unit==='h') h=Math.min(23,Math.max(0,idx)); else m=Math.min(60-step,Math.max(0,idx*step)); const nv=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); if(nv!==this.state.draft[field]) this.setState(s=>({draft:{...s.draft,[field]:nv}})); }); }
+  // dialog wheels (operate on state.dialog)
+  dRefStartH=(n)=>this._dAttach(n,'start','h'); dRefStartM=(n)=>this._dAttach(n,'start','m');
+  dRefEndH=(n)=>this._dAttach(n,'end','h');     dRefEndM=(n)=>this._dAttach(n,'end','m');
+  dScStartH=(e)=>this._dWheel(e,'start','h'); dScStartM=(e)=>this._dWheel(e,'start','m');
+  dScEndH=(e)=>this._dWheel(e,'end','h');     dScEndM=(e)=>this._dWheel(e,'end','m');
+  _dAttach(node,field,unit){ if(!node || node.dataset.pos==='1' || !this.state.dialog) return; const step=this.state.settings.step; const set=()=>{ if(!this.state.dialog) return; const [h,m]=this.state.dialog[field].split(':').map(Number); node.scrollTop=(unit==='h'?h:Math.round(m/step))*this.ITEM; }; node.dataset.pos='1'; set(); requestAnimationFrame(set); }
+  _dWheel(e,field,unit){ if(this['_d'+field+unit]) return; this['_d'+field+unit]=requestAnimationFrame(()=>{ this['_d'+field+unit]=0; if(!this.state.dialog) return; const step=this.state.settings.step; const idx=Math.round(e.target.scrollTop/this.ITEM); let [h,m]=this.state.dialog[field].split(':').map(Number); if(unit==='h') h=Math.min(23,Math.max(0,idx)); else m=Math.min(60-step,Math.max(0,idx*step)); const nv=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); if(nv!==this.state.dialog[field]) this.setState(s=>({dialog:{...s.dialog,[field]:nv}})); }); }
+
+  state = {
+    screen:'month', wageOn:false, dialog:null, detailId:null, dayNum:null, returnTo:'month',
+    newType:null, freeMonth:6, overrides:{}, notif:'today', editTypeKey:null,
+    shareChoices:{ o1:null, o2:null, o3:null }, shareSubmitted:false, shareToast:false, morph:null,
+    settings:{ hourly:1120, step:30, weekStart:0, remind:true, hideCanceled:false, dark:false },
+    draft:{ title:'', type:'baito', status:'kakutei', start:'17:00', end:'22:00', day:22, allDay:false, picking:null },
+    types:[
+      {key:'baito', name:'バイト', color:'#1D9E75', paper:'rgba(225,245,238,.72)', dark:'#085041', uWord:'希望シフト', cWord:'確定シフト'},
+      {key:'yoji',  name:'用事',   color:'#534AB7', paper:'rgba(238,237,254,.72)', dark:'#3C3489', uWord:'まだ分からない用事', cWord:'確定した用事'},
+      {key:'asobi', name:'遊び',   color:'#D85A30', paper:'rgba(250,236,231,.72)', dark:'#712B13', uWord:'候補日', cWord:'約束'},
+      {key:'other', name:'その他', color:'#5A6570', paper:'rgba(233,235,238,.72)', dark:'#374151', uWord:'未確定の予定', cWord:'予定'},
+    ],
+    events:[
+      {id:1,type:'baito',title:'カフェ',day:1,start:'17:00',end:'22:00',status:'jisseki',actualEnd:'22:30'},
+      {id:2,type:'baito',title:'カフェ',day:3,start:'17:00',end:'21:00',status:'jisseki',actualEnd:'21:00'},
+      {id:3,type:'asobi',title:'映画',day:4,start:'19:00',end:'22:00',status:'kakutei'},
+      {id:4,type:'baito',title:'カフェ',day:6,start:'10:00',end:'15:00',status:'jisseki',actualEnd:'15:15'},
+      {id:5,type:'baito',title:'倉庫バイト',day:8,start:'09:00',end:'17:00',status:'nakunatta'},
+      {id:6,type:'asobi',title:'BBQ',day:11,start:'12:00',end:'17:00',status:'mikakutei'},
+      {id:7,type:'yoji',title:'歯医者',day:13,start:'18:00',end:'19:00',status:'kakutei'},
+      {id:8,type:'baito',title:'カフェ',day:14,start:'17:00',end:'22:00',status:'jisseki',actualEnd:'22:00'},
+      {id:9,type:'baito',title:'カフェ',day:16,start:'17:00',end:'22:00',status:'jisseki',actualEnd:'23:00'},
+      {id:10,type:'asobi',title:'ライブ',day:18,start:'18:00',end:'22:00',status:'mikakutei'},
+      {id:11,type:'yoji',title:'健康診断',day:20,start:'09:00',end:'11:00',status:'kakutei'},
+      {id:'today',type:'baito',title:'カフェ',day:22,start:'17:00',end:'22:00',status:'kakutei'},
+      {id:20,type:'yoji',title:'研修',day:15,start:'09:00',end:'22:00',status:'kakutei'},
+      {id:12,type:'baito',title:'カフェ',day:21,start:'17:00',end:'22:00',status:'kakutei'},
+      {id:'demo',type:'baito',title:'カフェ',day:24,start:'17:00',end:'22:00',status:'mikakutei',want:['17:00','22:00']},
+      {id:13,type:'baito',title:'カフェ',day:25,start:'12:00',end:'18:00',status:'mikakutei'},
+      {id:14,type:'asobi',title:'花火大会',day:26,start:'18:00',end:'22:00',status:'mikakutei'},
+      {id:15,type:'yoji',title:'区役所',day:27,start:'13:00',end:'14:00',status:'mikakutei'},
+      {id:16,type:'baito',title:'カフェ',day:28,start:'17:00',end:'22:00',status:'kakutei'},
+      {id:17,type:'baito',title:'カフェ',day:31,start:'17:00',end:'22:00',status:'mikakutei'},
+    ],
+  };
+
+  // ---- lookups & color ----
+  T(key){ return this.state.types.find(t=>t.key===key) || this.state.types[0]; }
+  _h(hex){ hex=hex.replace('#',''); return [0,2,4].map(i=>parseInt(hex.slice(i,i+2),16)); }
+  _mix(a,b,t){ const A=this._h(a),B=this._h(b); return A.map((v,i)=>Math.round(v+(B[i]-v)*t)); }
+  paperFrom(hex){ const l=this._mix(hex,'#ffffff',.84); return `rgba(${l[0]},${l[1]},${l[2]},.72)`; }
+  darkFrom(hex){ const d=this._mix(hex,'#000000',.5); return `rgb(${d[0]},${d[1]},${d[2]})`; }
+
+  // ---- time ----
+  mins(s){ const [h,m]=s.split(':').map(Number); return h*60+m; }
+  addMin(s,d){ let x=(this.mins(s)+d+1440)%1440; return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'); }
+  hoursBetween(a,b){ let d=this.mins(b)-this.mins(a); if(d<0)d+=1440; return d/60; }
+  fmtWage(n){ return '¥'+n.toLocaleString('ja-JP'); }
+  wage(ev){ if(ev.type!=='baito')return 0; return Math.round(this.hoursBetween(ev.start, ev.actualEnd||ev.end)*this.state.settings.hourly); }
+  fmtHours(h){ const H=Math.floor(h); const M=Math.round((h-H)*60); return M? H+'時間'+M+'分' : H+'時間'; }
+  fmtMin(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+  freeJudge(evs){
+    if(!evs.length) return {mark:'○'};
+    const conf=evs.filter(e=>e.status==='kakutei'||e.status==='jisseki');
+    const unc=evs.filter(e=>e.status==='mikakutei');
+    if(!conf.length){ const u=unc[0]; return {mark:'△',variant:'adjust',note:u.type==='baito'?'まだ希望を出しただけです':'まだ候補なので調整できます'}; }
+    if(conf.some(e=>e.allDay)) return {mark:'×'};
+    const WS=540, WE=1320;
+    const iv=conf.map(e=>[this.mins(e.start), this.mins(e.status==='jisseki'?(e.actualEnd||e.end):e.end)]).sort((a,b)=>a[0]-b[0]);
+    const merged=[]; iv.forEach(x=>{ const last=merged[merged.length-1]; if(last&&x[0]<=last[1]) last[1]=Math.max(last[1],x[1]); else merged.push([x[0],x[1]]); });
+    const full = merged.length===1 && merged[0][0]<=WS && merged[0][1]>=WE;
+    if(full) return {mark:'×'};
+    let note;
+    if(merged.length===1){ const s=merged[0][0], e=merged[0][1];
+      if(s<=WS+60) note=this.fmtMin(e)+'以降なら空いてます';
+      else if(e>=WE-120) note=this.fmtMin(s)+'までなら空いてます';
+      else note=this.fmtMin(s)+'〜'+this.fmtMin(e)+' 以外なら空いてます';
+    } else note='一部の時間なら空いてます';
+    return {mark:'△',variant:'partial',note};
+  }
+  cycleMark(day,auto){ const order=['○','△','×']; const cur=this.state.overrides[day]||auto; const next=order[(order.indexOf(cur)+1)%3]; this.setState(s=>{ const o={...s.overrides}; if(next===auto) delete o[day]; else o[day]=next; return {overrides:o}; }); }
+
+  // ---- pills ----
+  pillStyle(ev){
+    const t=this.T(ev.type);
+    const base={height:16,boxSizing:'border-box',borderRadius:4,padding:'0 5px',marginBottom:3,fontSize:11,fontWeight:600,lineHeight:'16px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',cursor:'pointer',display:'block',transition:'background .28s cubic-bezier(.2,.9,.2,1),border-color .28s,color .28s'};
+    if(ev.status==='kakutei') return {...base,background:t.color,color:'#fff'};
+    if(ev.status==='mikakutei') return {...base,height:17,background:t.paper,color:t.dark,border:'1.5px dashed '+t.color,lineHeight:'13px',boxShadow:'0 1px 2px rgba(0,0,0,.07)'};
+    if(ev.status==='jisseki') return {...base,background:t.color,color:'#fff',opacity:.88};
+    return {...base,background:'transparent',color:'#9AA0A6',textDecoration:'line-through',opacity:.5};
+  }
+  pillText(ev, wageOn){
+    if(ev.status==='mikakutei') return '？'+ev.title;
+    if(ev.status==='jisseki') return wageOn ? this.fmtWage(this.wage(ev)) : '✓'+ev.title;
+    return ev.title;
+  }
+  pillView(ev, wageOn){
+    const m=this.state.morph;
+    if(!m || m.id!==ev.id) return { text:this.pillText(ev,wageOn), style:this.pillStyle(ev), textStyle:{}, morphing:false, fillStyle:{} };
+    const t=this.T(ev.type);
+    const dash=m.phase==='dash', filling=m.phase==='fill'||m.phase==='settle';
+    const style={height:17,boxSizing:'border-box',borderRadius:4,padding:'0 5px',marginBottom:3,fontSize:11,fontWeight:600,lineHeight:'15px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',display:'block',position:'relative',
+      background:t.paper, border:'1.5px '+(dash?'dashed':'solid')+' '+t.color, transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none'};
+    const fillStyle={position:'absolute',left:0,top:0,right:0,bottom:0,background:t.color,transformOrigin:'left center',transform:filling?'scaleX(1)':'scaleX(0)',animation:m.phase==='fill'?'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none',zIndex:0,borderRadius:2};
+    const textStyle={position:'relative',zIndex:1,color:filling?'#fff':t.dark,transition:'color .16s .12s linear'};
+    return { text: dash ? '？'+ev.title : ev.title, style, textStyle, morphing:true, fillStyle };
+  }
+  statusWord(ev){
+    const t=this.T(ev.type);
+    if(ev.status==='mikakutei') return t.uWord;
+    if(ev.status==='jisseki') return '実績';
+    if(ev.status==='nakunatta') return '無くなった';
+    return t.cWord;
+  }
+
+  // ---- nav / actions ----
+  openFor(ev, from){
+    const ret = from || this.state.returnTo;
+    if(ev.status==='mikakutei'){ this.openDialog(ev,'confirm',ret); return; }
+    if(ev.status==='nakunatta') return;
+    this.setState({screen:'detail',detailId:ev.id,returnTo:ret});
+  }
+  openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month'}); }
+  openNew(day,ret){ this.setState({screen:'new',returnTo:ret,newType:null,draft:{title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',day,allDay:false,picking:null}}); }
+  openDialog(ev,mode,ret){
+    const origS = (mode==='confirm' && ev.want) ? ev.want[0] : ev.start;
+    const origE = (mode==='confirm' && ev.want) ? ev.want[1] : ev.end;
+    this.setState({ returnTo:ret||this.state.returnTo, dialog:{ id:ev.id, mode, type:ev.type, title:ev.title, day:ev.day, start:origS, end:origE, origS, origE, picking:null } });
+  }
+  patchDlg(k,d){ this.setState(s=>({ dialog:{...s.dialog,[k]:this.addMin(s.dialog[k],d)} })); }
+  patchDraft(k,d){ this.setState(s=>({ draft:{...s.draft,[k]:this.addMin(s.draft[k],d)} })); }
+  setSetting(k,val){ this.setState(s=>({ settings:{...s.settings,[k]:val} })); }
+  recolorKey(key,hex){ this.setState(s=>({ types:s.types.map(t=>t.key===key?{...t,color:hex,paper:this.paperFrom(hex),dark:this.darkFrom(hex)}:t) })); }
+  updateEvent(id,patch){ this.setState(s=>({ events:s.events.map(e=>e.id===id?{...e,...patch}:e) })); }
+
+  dlgPrimary(){
+    const d=this.state.dialog;
+    if(d.mode==='worked'){ this.updateEvent(d.id,{status:'jisseki',start:d.start,actualEnd:d.end}); this.setState({dialog:null}); return; }
+    // 依頼A: ダイアログを閉じ→カレンダー上のピルが点線から左→右へ塗り満ちる (§6)
+    this.updateEvent(d.id,{start:d.start,end:d.end,want:[d.origS,d.origE]});
+    this.setState({dialog:null, screen:'month', dayNum:null, detailId:null, morph:{id:d.id, phase:'dash'}});
+    setTimeout(()=>{ if(this.state.morph&&this.state.morph.id===d.id) this.setState({morph:{id:d.id, phase:'fill'}}); /* ペン先ハプティクス(impactLight) */ }, 150);
+    setTimeout(()=>{ if(this.state.morph&&this.state.morph.id===d.id) this.setState({morph:{id:d.id, phase:'settle'}}); /* 着地ハプティクス(success) */ }, 470);
+    setTimeout(()=>{ if(!this.state.morph||this.state.morph.id!==d.id) return; this.updateEvent(d.id,{status:'kakutei'}); this.setState({morph:null}); }, 760);
+  }
+  dlgNakunatta(){ const d=this.state.dialog; this.updateEvent(d.id,{status:'nakunatta'}); this.setState(s=>({dialog:null, screen: s.detailId===d.id ? s.returnTo : s.screen, detailId: s.detailId===d.id?null:s.detailId})); }
+
+  // ---- type editor ----
+  selectType(k){ this.setState(s=>({draft:{...s.draft,type:k}})); }
+  recolor(hex){ const k=this.state.draft.type; this.setState(s=>({ types:s.types.map(t=>t.key===k?{...t,color:hex,paper:this.paperFrom(hex),dark:this.darkFrom(hex)}:t) })); }
+  addType(){
+    const nt=this.state.newType; if(!nt) return;
+    const name=(nt.name||'').trim()||'新しい種類';
+    const key='c'+Date.now(), hex=nt.color;
+    const t={key,name,color:hex,paper:this.paperFrom(hex),dark:this.darkFrom(hex),uWord:'未確定の'+name,cWord:name};
+    this.setState(s=>({ types:[...s.types,t], draft:{...s.draft,type:key}, newType:null }));
+  }
+
+  save(){
+    const dr=this.state.draft, id='n'+Date.now();
+    this.setState(s=>({ screen:s.returnTo, events:[...s.events,{id,type:dr.type,title:dr.title||'無題',day:dr.day,start:dr.start,end:dr.end,status:dr.status,allDay:dr.allDay,want:dr.status==='mikakutei'?[dr.start,dr.end]:undefined}] }));
+  }
+
+  renderVals(){
+    const st=this.state, wageOn=st.wageOn;
+    const stepBtn={width:30,height:30,borderRadius:15,background:'var(--bg2)',color:'var(--ink)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:500,cursor:'pointer',userSelect:'none'};
+    const wl=['日','月','火','水','木','金','土'];
+    const v={
+      fw:402, fh:874,
+      monthShown:st.screen==='month', dayShown:st.screen==='day', newShown:st.screen==='new', detailShown:st.screen==='detail', dialogShown:!!st.dialog&&!st.dialog.phase, celebShown:!!st.dialog&&!!st.dialog.phase, freeShown:st.screen==='free',
+      monthLabel:'7', year:'2026', wageOn, stepBtn,
+      onToggleWage:()=>this.setState(s=>({wageOn:!s.wageOn})),
+      onFab:()=>this.openNew(22,'month'),
+      onCancel:()=>this.setState({screen:st.returnTo}),
+      onBack:()=>this.setState({screen:st.returnTo, detailId:null}),
+      onDayBack:()=>this.setState({screen:'month', dayNum:null}),
+      onOpenFree:()=>this.setState({screen:'free'}),
+      onFreeBack:()=>this.setState({screen:'month'}),
+      navShown: st.screen==='month' || st.screen==='free' || st.screen==='settings',
+      notifShown: st.screen==='month' && !!st.notif && !st.dialog && st.settings.remind,
+      bellDot: !!st.notif && st.settings.remind,
+      onBell:()=>{ if(!st.settings.remind) return; this.setState(s=>({notif:s.notif?null:'today'})); },
+      onNotifOpen:()=>{ const ev=st.events.find(e=>e.id===st.notif); this.setState({notif:null}); if(ev) this.openDialog(ev,'worked','month'); },
+      navCur: st.screen,
+      onNavCal:()=>this.setState({screen:'month', dayNum:null, detailId:null}),
+      onNavFree:()=>this.setState({screen:'free'}),
+      onNavSettings:()=>this.setState({screen:'settings', editTypeKey:null}),
+      onOpenSummary:()=>this.setState({screen:'summary', shareToast:false}),
+      onSummaryClose:()=>this.setState({screen:'month'}),
+      onShareCard:()=>{ this.setState({shareToast:true}); },
+      onOpenShare:()=>this.setState({screen:'share', shareToast:false}),
+      onShareClose:()=>this.setState({screen:'settings'}),
+      onFreePrev:()=>this.setState(s=>({freeMonth:(s.freeMonth+11)%12})),
+      onFreeNext:()=>this.setState(s=>({freeMonth:(s.freeMonth+1)%12})),
+      stop:(e)=>e&&e.stopPropagation(),
+    };
+
+    v.wageLabelColor = wageOn ? 'var(--ink)' : 'var(--ink-mut)';
+    v.theme = st.settings.dark ? 'dark' : 'light';
+    const navItem=(active)=>({display:'flex',flexDirection:'column',alignItems:'center',gap:4,width:56,cursor:'pointer',color:active?'var(--ink)':'var(--ink-faint)',transition:'color .2s'});
+    v.navCalStyle = navItem(st.screen==='month');
+    v.navFreeStyle = navItem(st.screen==='free');
+    v.navSettingsStyle = navItem(st.screen==='settings');
+
+    // ---------- SETTINGS ----------
+    const cfg=st.settings;
+    v.settingsShown = st.screen==='settings';
+    v.setHourly = String(cfg.hourly);
+    v.onHourlyInput=(e)=>{ const n=parseInt((e.target.value||'').replace(/[^0-9]/g,''),10); this.setSetting('hourly', isNaN(n)?0:Math.min(99999,n)); };
+    v.onHourlyMinus=()=>this.setSetting('hourly',Math.max(0,cfg.hourly-10));
+    v.onHourlyPlus=()=>this.setSetting('hourly',cfg.hourly+10);
+    const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:7,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',transition:'all .2s cubic-bezier(.2,.9,.2,1)',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+    v.stepSeg=[5,15,30].map(n=>({ label:n+'分', onClick:()=>this.setSetting('step',n), style:segCell(cfg.step===n) }));
+    v.weekSeg=[[0,'日曜'],[1,'月曜']].map(([n,label])=>({ label, onClick:()=>this.setSetting('weekStart',n), style:segCell(cfg.weekStart===n) }));
+    v.typeRows = st.types.map((t,i)=>({
+      name:t.name, open: st.editTypeKey===t.key, hint: st.editTypeKey===t.key?'':'色を変える',
+      rowStyle:{borderBottom: i<st.types.length-1?'1px solid var(--line)':'none'},
+      dotStyle:{width:18,height:18,borderRadius:9,background:t.color,flexShrink:0,boxShadow:'inset 0 0 0 1px rgba(0,0,0,.06)'},
+      onTap:()=>this.setState(s=>({editTypeKey:s.editTypeKey===t.key?null:t.key})),
+      swatches:this.PAL.map(hex=>({ style:{width:26,height:26,borderRadius:13,background:hex,cursor:'pointer',boxShadow: t.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)'}, onClick:()=>this.recolorKey(t.key,hex) })),
+    }));
+    const tgTrack=(on,col)=>({width:44,height:26,borderRadius:13,background:on?'var(--ink)':'var(--line)',padding:2,transition:'background .28s cubic-bezier(.2,.9,.2,1)',cursor:'pointer',display:'flex',flexShrink:0});
+    const tgKnob=(on)=>({width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s cubic-bezier(.2,.9,.2,1)',transform:on?'translateX(18px)':'translateX(0)'});
+    v.remindTrack=tgTrack(cfg.remind); v.remindKnob=tgKnob(cfg.remind);
+    v.darkTrack=tgTrack(cfg.dark); v.darkKnob=tgKnob(cfg.dark); v.onToggleDark=()=>this.setSetting('dark',!cfg.dark);
+    v.onToggleRemind=()=>this.setSetting('remind',!cfg.remind);
+    v.hideTrack=tgTrack(cfg.hideCanceled,'#5A6570'); v.hideKnob=tgKnob(cfg.hideCanceled);
+    v.onToggleHide=()=>this.setSetting('hideCanceled',!cfg.hideCanceled);
+
+    // ---------- SUMMARY (B) ----------
+    v.summaryShown = st.screen==='summary';
+    v.shareToast = st.shareToast;
+    const jis = st.events.filter(e=>e.status==='jisseki');
+    const totalH = jis.reduce((a,e)=>a+this.hoursBetween(e.start,e.actualEnd||e.end),0);
+    v.sumWage = this.fmtWage(jis.reduce((a,e)=>a+this.wage(e),0));
+    v.sumHours = this.fmtHours(totalH);
+    v.sumPromises = String(st.events.filter(e=>e.type==='asobi'&&e.status==='kakutei').length);
+    v.sumCanceled = String(st.events.filter(e=>e.status==='nakunatta').length);
+    v.rhythm = st.events.map(e=>{ const t=this.T(e.type); const solid=e.status==='kakutei'||e.status==='jisseki';
+      return { style:{ width:14,height:14,borderRadius:4, ...(e.status==='nakunatta'?{background:'#EDEEF0'}: solid?{background:t.color,opacity:e.status==='jisseki'?.9:1}:{background:t.paper,border:'1.5px dashed '+t.color}) } }; });
+
+    // ---------- 空いてる日シェア (C) ----------
+    v.shareShown = st.screen==='share';
+    const swl=['日','月','火','水','木','金','土'];
+    const sws=cfg.weekStart;
+    v.shareWeekdays = Array.from({length:7},(_,i)=>{ const dw=(i+sws)%7; return { label:swl[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,color:dw===0?'var(--ink-mut)':dw===6?'var(--ink-mut)':'#B0B4BB'} }; });
+    const sRawFirst=new Date(2026,6,1).getDay(), sFirst=(sRawFirst-sws+7)%7;
+    const sCells=[];
+    for(let i=0;i<sFirst;i++) sCells.push({ label:'', style:{} });
+    for(let d=1;d<=31;d++){
+      const busy = st.events.some(e=>e.day===d && (e.status==='kakutei'||e.status==='jisseki'));
+      sCells.push({ label:d, style: busy
+        ? { height:34,borderRadius:7,background:'#EDEEF0',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600,color:'#C1C5CC' }
+        : { height:34,borderRadius:7,background:'#FAECE7',border:'1.5px solid #D85A30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#712B13' } });
+    }
+    v.shareCells = sCells;
+
+    v.wageTrackStyle = { width:44,height:26,borderRadius:13,background:wageOn?'var(--ink)':'var(--line)',padding:2,transition:'background .28s cubic-bezier(.2,.9,.2,1)',cursor:'pointer',display:'flex' };
+    v.wageKnobStyle = { width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s cubic-bezier(.2,.9,.2,1)',transform:wageOn?'translateX(18px)':'translateX(0)' };
+
+    const ws=st.settings.weekStart;
+    const wlRot=Array.from({length:7},(_,i)=>{ const dw=(i+ws)%7; return {label:wl[dw], dw}; });
+    v.weekdays = wlRot.map(({label,dw})=>({ label, style:{textAlign:'center',fontSize:11,fontWeight:600,padding:'6px 0',color:dw===0?'var(--ink-mut)':dw===6?'var(--ink-mut)':'#9AA0A6'} }));
+
+    // month cells
+    const rawFirst=new Date(2026,6,1).getDay(), days=31, today=22;
+    const first=(rawFirst-ws+7)%7;
+    const cells=[];
+    const blankStyle={background:'var(--bg2)',padding:'3px 4px'};
+    for(let i=0;i<first;i++) cells.push({blank:true,style:blankStyle,day:null,pills:[],numWrap:{},numStyle:{},onDay:()=>{}});
+    for(let d=1;d<=days;d++){
+      const dayEvents=st.events.filter(e=>e.day===d && !(st.settings.hideCanceled && e.status==='nakunatta'));
+      const shown=dayEvents.slice(0,3), extra=dayEvents.length-shown.length;
+      const dow=(rawFirst+d-1)%7, isToday=d===today;
+      const numStyle = isToday
+        ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:10,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
+        : {fontSize:11,fontWeight:600,color:dow===0||dow===6?'var(--ink-mut)':'var(--ink)',paddingLeft:2};
+      cells.push({
+        blank:false, day:d,
+        style:{background:'var(--card)',padding:'3px 4px',overflow:'hidden',cursor:'pointer'},
+        numWrap:{marginBottom:3,lineHeight:'20px'}, numStyle,
+        pills: shown.map(ev=>({ ...this.pillView(ev,wageOn), onClick:(e)=>{ if(e)e.stopPropagation(); this.openFor(ev,'month'); } })),
+        hasMore: extra>0, moreText:'+'+extra+'件',
+        onDay:()=>this.openDay(d),
+      });
+    }
+    while(cells.length%7) cells.push({blank:true,style:blankStyle,day:null,pills:[],numWrap:{},numStyle:{},onDay:()=>{}});
+    v.cells=cells;
+    v.monthTotal = this.fmtWage(st.events.filter(e=>e.status==='jisseki').reduce((a,e)=>a+this.wage(e),0));
+
+    // ---------- DAY ----------
+    if(st.dayNum){
+      const d=st.dayNum, dow=(rawFirst+d-1)%7;
+      v.dayTitle = '7月'+d+'日（'+wl[dow]+'）';
+      const evs=st.events.filter(e=>e.day===d).sort((a,b)=>this.mins(a.start)-this.mins(b.start));
+      v.dayEmpty = evs.length===0;
+      v.dayEvents = evs.map(ev=>{
+        const endShown = ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end;
+        return {
+          chipStyle: {...this.pillStyle(ev), height:26, lineHeight:'26px', fontSize:13, padding:'0 12px', marginBottom:0, borderRadius:6, display:'inline-block', flexShrink:0, overflow:'visible', textOverflow:'clip', width:'max-content', maxWidth:220},
+          chipText: this.pillText(ev,false),
+          timeText: ev.allDay ? '終日' : ev.start+'–'+endShown,
+          statusWord: this.statusWord(ev),
+          onClick: ()=>this.openFor(ev,'day'),
+        };
+      });
+      v.onDayAdd = ()=>this.openNew(d,'day');
+    }
+
+    // ---------- NEW ----------
+    const dr=st.draft, dt=this.T(dr.type);
+    v.draftTitle=dr.title; v.draftColor=dt.color; v.draftStart=dr.start; v.draftEnd=dr.end;
+    v.onTitle=(e)=>{ const val=e.target.value; this.setState(s=>({draft:{...s.draft,title:val}})); };
+    v.onStartMinus=()=>this.patchDraft('start',-st.settings.step); v.onStartPlus=()=>this.patchDraft('start',st.settings.step);
+    v.onEndMinus=()=>this.patchDraft('end',-st.settings.step); v.onEndPlus=()=>this.patchDraft('end',st.settings.step);
+    v.onSave=()=>this.save();
+
+    // 終日 / 時間指定
+    v.timed = !dr.allDay; v.allDayShown = dr.allDay;
+    v.spanSeg = [['timed','時間を指定'],['all','終日']].map(([k,label])=>{ const sel=(k==='all')===!!dr.allDay;
+      return { label, onClick:()=>this.setState(s=>({draft:{...s.draft,allDay:k==='all',picking:null}})),
+        style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:8,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
+          background:sel?'var(--card)':'transparent', color:sel?'var(--ink)':'var(--ink-mut)', border:sel?'1px solid var(--line)':'1px solid transparent'} }; });
+    // drum-roll wheels
+    v.wheelColStyle = {width:66,height:170,overflowY:'scroll',scrollSnapType:'y mandatory',padding:'68px 0',textAlign:'center',WebkitMaskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)',maskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)'};
+    v.wheelItemStyle = {height:34,lineHeight:'34px',fontSize:21,fontWeight:600,color:'var(--ink)',scrollSnapAlign:'center',fontVariantNumeric:'tabular-nums'};
+    const hours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+    const minutes=Array.from({length:Math.round(60/st.settings.step)},(_,i)=>String(i*st.settings.step).padStart(2,'0'));
+    const mkRow=(field,label,isFirst)=>({
+      label, value:dr[field], open:dr.picking===field,
+      rowStyle:{borderBottom:isFirst?'1px solid var(--line)':'none'},
+      valStyle:{fontSize:16,fontWeight:dr.picking===field?700:600,color:dr.picking===field?dt.color:'var(--ink)',fontVariantNumeric:'tabular-nums'},
+      onTap:()=>this.setState(s=>({draft:{...s.draft,picking:s.draft.picking===field?null:field}})),
+      hItems:hours, mItems:minutes,
+      hRef: field==='start'?this.refStartH:this.refEndH, mRef: field==='start'?this.refStartM:this.refEndM,
+      hScroll: field==='start'?this.scStartH:this.scEndH, mScroll: field==='start'?this.scStartM:this.scEndM,
+    });
+    v.timeRows=[ mkRow('start','開始',true), mkRow('end','終了',false) ];
+
+    v.chips = st.types.map(t=>{ const sel=dr.type===t.key;
+      return { label:t.name, onClick:()=>this.selectType(t.key),
+        style:{textAlign:'center',whiteSpace:'nowrap',padding:'10px 15px',borderRadius:10,fontSize:14,fontWeight:600,cursor:'pointer',transition:'all .2s',
+          background:sel?t.color:'var(--card)', color:sel?'#fff':'var(--ink-mut)', boxShadow:'none', border:sel?'none':'1px solid var(--line)'} }; });
+    v.addChipStyle = {textAlign:'center',whiteSpace:'nowrap',padding:'10px 14px',borderRadius:10,fontSize:14,fontWeight:600,cursor:'pointer',color:'var(--ink-soft)',background:'transparent',border:'1.5px dashed #C9CDD4'};
+    v.onAddTypeChip = ()=>this.setState(s=>({newType: s.newType?null:{name:'',color:'#2F72C4'}}));
+
+    // recolor swatches (selected type)
+    v.recolorSwatches = this.PAL.map(hex=>({ style:{width:24,height:24,borderRadius:12,background:hex,cursor:'pointer',boxShadow: dt.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)',transition:'box-shadow .15s'}, onClick:()=>this.recolor(hex) }));
+
+    // new type creator
+    const nt=st.newType;
+    v.newTypeShown=!!nt;
+    if(nt){
+      v.newTypeName=nt.name;
+      v.onNewTypeName=(e)=>{ const val=e.target.value; this.setState(s=>({newType:{...s.newType,name:val}})); };
+      v.newTypeSwatches = this.PAL.map(hex=>({ style:{width:26,height:26,borderRadius:13,background:hex,cursor:'pointer',boxShadow: nt.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)'}, onClick:()=>this.setState(s=>({newType:{...s.newType,color:hex}})) }));
+      v.addTypeBtnStyle={flex:1,textAlign:'center',padding:'11px',borderRadius:10,background:nt.color,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'};
+      v.onAddType=()=>this.addType();
+      v.onCancelNewType=()=>this.setState({newType:null});
+    } else { v.newTypeName=''; }
+
+    v.seg=[['kakutei','決まってる'],['mikakutei','まだ不確定']].map(([k,label])=>{ const sel=dr.status===k;
+      return { label, onClick:()=>this.setState(s=>({draft:{...s.draft,status:k}})),
+        style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:8,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
+          background:sel?'var(--card)':'transparent', color:sel?'var(--ink)':'var(--ink-mut)', border:sel?'1px solid var(--line)':'1px solid transparent'} }; });
+
+    const previewEv={type:dr.type,title:dr.title||dt.name,status:dr.status};
+    const mkPrevCell=(date,center,ctx)=>({ date, cellStyle:{background:'var(--card)',padding:'4px 4px 10px',minHeight:64}, numStyle:{fontSize:10,fontWeight:600,color:'var(--ink-mut)',marginBottom:4,paddingLeft:2},
+      pills: center?[{text:this.pillText(previewEv,false),style:this.pillStyle(previewEv)}]:(ctx||[]) });
+    v.previewDays=[ mkPrevCell(dr.day-1,false,[{text:'カフェ',style:this.pillStyle({type:'baito',status:'kakutei'})}]), mkPrevCell(dr.day,true), mkPrevCell(dr.day+1,false,[]) ];
+    v.previewExplain = dr.status==='mikakutei' ? dt.uWord+'として、点線で置かれます' : dt.cWord+'として、塗りで置かれます';
+    v.previewDotStyle = { width:10,height:10,borderRadius:3,flexShrink:0, ...(dr.status==='mikakutei'?{background:dt.paper,border:'1.5px dashed '+dt.color}:{background:dt.color}) };
+
+    // ---------- DETAIL ----------
+    const ev = st.events.find(e=>e.id===st.detailId);
+    if(ev){
+      const t=this.T(ev.type);
+      const pct = ev.status==='mikakutei'?34: ev.status==='kakutei'?67: ev.status==='jisseki'?100: 20;
+      v.dTitle=ev.title; v.dDay=ev.day; v.dTypeDark=t.dark;
+      v.dStatusLabel = this.statusWord(ev);
+      v.badgeChar = (ev.status==='jisseki'||ev.status==='kakutei')?'✓':'？';
+      v.badgeStyle = { width:26,height:26,borderRadius:13,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,transition:'all .3s cubic-bezier(.2,.9,.2,1)',
+        ...(v.badgeChar==='✓'?{background:t.color,color:'#fff'}:{background:t.paper,color:t.dark,border:'1.5px dashed '+t.color}) };
+      v.gaugeTrackStyle={ width:10,alignSelf:'stretch',background:t.paper,position:'relative',flexShrink:0 };
+      v.gaugeFillStyle={ position:'absolute',left:0,right:0,bottom:0,height:pct+'%',background:t.color,transition:'height .32s cubic-bezier(.2,.9,.2,1)' };
+      const endShown = ev.status==='jisseki'? (ev.actualEnd||ev.end) : ev.end;
+      v.dTimeText = ev.allDay ? '終日' : ev.start+'–'+endShown;
+      v.dTimeChanged = ev.status==='jisseki' && ev.actualEnd && ev.actualEnd!==ev.end;
+      v.dWantText = ev.want ? '希望 '+ev.want[0]+'–'+ev.want[1] : (v.dTimeChanged?'予定 '+ev.start+'–'+ev.end:'');
+      v.dWageShown = ev.status==='jisseki';
+      if(v.dWageShown){ v.dWorkHours=this.fmtHours(this.hoursBetween(ev.start,endShown)); v.dWage=this.fmtWage(this.wage(ev)); }
+      if(ev.status==='kakutei' && ev.type==='baito'){ v.dPrimaryLabel='働いた記録をつける'; v.dPrimaryAction=()=>this.openDialog(ev,'worked',st.returnTo);
+        v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:700,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; }
+      else { v.dPrimaryLabel=null; }
+    } else { v.dTitle=''; v.dPrimaryLabel=null; }
+
+    // ---------- DIALOG ----------
+    const d=st.dialog;
+    if(d){
+      const t=this.T(d.type);
+      if(d.phase){
+        const on=d.phase==='on'||d.phase==='done';
+        v.celebOn=on;
+        v.heroPillStyle={ display:'inline-flex',alignItems:'center',gap:8,height:48,padding:'0 22px',borderRadius:10,fontSize:19,fontWeight:700,
+          border:'1.5px '+(on?'solid':'dashed')+' '+t.color,
+          background:on?t.color:t.paper, color:on?'#fff':t.dark,
+          transform:on?'scale(1.06)':'scale(1)',
+          transition:'background .6s cubic-bezier(.2,.9,.2,1),border-color .6s cubic-bezier(.2,.9,.2,1),color .6s cubic-bezier(.2,.9,.2,1),transform .6s cubic-bezier(.2,.9,.2,1)',
+          boxShadow:on?'0 10px 30px '+t.paper:'0 1px 3px rgba(0,0,0,.08)' };
+        v.heroQStyle={ position:'absolute',fontSize:15,fontWeight:700, animation:on?'qFade .42s cubic-bezier(.2,.9,.2,1) forwards':'none', opacity:on?0:1 };
+        v.heroCheckStyle={ position:'absolute',fontSize:16,fontWeight:800,color:'#fff', opacity:on?1:0, animation:on?'checkPop .5s .18s cubic-bezier(.2,.9,.2,1) both':'none' };
+        v.heroTitle=d.title;
+        v.haloStyle={ position:'absolute',left:'50%',top:'50%',width:120,height:52,borderRadius:16,border:'2px solid '+t.color,animation:'haloOut .85s .1s cubic-bezier(.2,.9,.2,1) forwards',pointerEvents:'none' };
+        v.celebCaption = d.type==='asobi' ? '約束、決まった' : d.type==='baito' ? 'シフト確定' : '決まった';
+        v.celebSub = '7月'+d.day+'日 ・ '+d.start+'–'+d.end;
+        return { v };
+      }
+      v.dlgHeading = d.mode==='worked' ? '今日は何時まで働いた？'
+        : d.type==='asobi' ? '約束、決まった？'
+        : d.type==='yoji' ? 'この用事、どうなりました？'
+        : d.type==='baito' ? 'このシフト、どうなりました？'
+        : 'この予定、どうなりました？';
+      v.dlgSub = '7月'+d.day+'日 ・ '+d.title;
+      v.dlgStart=d.start; v.dlgEnd=d.end;
+      v.dlgChanged = d.start!==d.origS || d.end!==d.origE;
+      v.dlgOrigText = (d.mode==='worked'?'確定 ':'希望 ')+d.origS+'–'+d.origE;
+      v.dlgPrimaryLabel = d.mode==='worked'?'記録する':'確定した';
+      v.dlgPrimaryStyle = {padding:15,borderRadius:12,textAlign:'center',fontSize:16,fontWeight:700,color:'#fff',background:t.color,cursor:'pointer',boxShadow:'0 3px 10px '+t.paper};
+      v.dlgWheelColStyle = {width:60,height:150,overflowY:'scroll',scrollSnapType:'y mandatory',padding:'58px 0',textAlign:'center',WebkitMaskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)',maskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)'};
+      const dHours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+      const dMinutes=Array.from({length:Math.round(60/st.settings.step)},(_,i)=>String(i*st.settings.step).padStart(2,'0'));
+      const dMkRow=(field,label,isFirst)=>({ label, value:d[field], open:d.picking===field,
+        rowStyle:{borderBottom:isFirst?'1px solid var(--line)':'none'},
+        valStyle:{fontSize:16,fontWeight:d.picking===field?700:600,color:d.picking===field?t.color:'var(--ink)',fontVariantNumeric:'tabular-nums'},
+        onTap:()=>this.setState(s=>({dialog:{...s.dialog,picking:s.dialog.picking===field?null:field}})),
+        hItems:dHours, mItems:dMinutes,
+        hRef: field==='start'?this.dRefStartH:this.dRefEndH, mRef: field==='start'?this.dRefStartM:this.dRefEndM,
+        hScroll: field==='start'?this.dScStartH:this.dScEndH, mScroll: field==='start'?this.dScStartM:this.dScEndM });
+      v.dlgTimeRows=[ dMkRow('start','開始',true), dMkRow('end','終了',false) ];
+      v.onDlgPrimary=()=>this.dlgPrimary();
+      v.onDlgNakunatta=()=>this.dlgNakunatta();
+      v.onDlgStillMaybe=()=>this.setState({dialog:null});
+      v.onDlgDismiss=()=>this.setState({dialog:null});
+    }
+    // ---------- いつ空いてる？ ----------
+    if(v.freeShown){
+      const fm=st.freeMonth;
+      const dim=new Date(2026,fm+1,0).getDate();
+      const fdow=new Date(2026,fm,1).getDay();
+      v.freeMonthLabel=fm+1;
+      let cO=0,cA=0,cX=0; const rows=[];
+      for(let d=1;d<=dim;d++){
+        const dow=(fdow+d-1)%7;
+        const evs = (fm===6) ? st.events.filter(e=>e.day===d && e.status!=='nakunatta') : [];
+        const j=this.freeJudge(evs);
+        const applied = st.overrides[d] || j.mark;
+        const overridden = !!st.overrides[d];
+        if(applied==='○')cO++; else if(applied==='△')cA++; else cX++;
+        const isX = applied==='×';
+        let mk={width:30,height:30,borderRadius:15,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,fontWeight:700,flexShrink:0,boxSizing:'border-box',transition:'all .2s cubic-bezier(.2,.9,.2,1)'};
+        if(applied==='○') mk={...mk,color:'#1D9E75'};
+        else if(applied==='×') mk={...mk,color:'#C1C5CC'};
+        else { const variant=overridden?'manual':j.variant;
+          if(variant==='adjust') mk={...mk,color:'#B9770F',border:'1.5px dashed #E0921C'};
+          else if(variant==='partial') mk={...mk,color:'#B9770F',background:'rgba(224,146,28,.14)'};
+          else mk={...mk,color:'#B9770F'}; }
+        if(overridden) mk={...mk, boxShadow:'0 0 0 1.5px rgba(0,0,0,.22)'};
+        const showNote = !overridden && applied==='△' && j.note;
+        const dayColor = dow===0||dow===6?'var(--ink-mut)':(applied==='○'?'var(--ink-faint)':'var(--ink)');
+        rows.push({
+          day:d, dow:['日','月','火','水','木','金','土'][dow],
+          rowStyle:{display:'flex',alignItems:'center',padding:'11px 16px',borderBottom:'1px solid var(--line)',opacity:isX?0.5:1,background:'var(--card)'},
+          dateWrap:{width:38,flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center'},
+          dowStyle:{fontSize:10,fontWeight:600,color:dow===0||dow===6?'var(--ink-mut)':'var(--ink-mut)'},
+          dayStyle:{fontSize:18,fontWeight:700,color:dayColor,fontVariantNumeric:'tabular-nums',lineHeight:'22px'},
+          tags: evs.slice(0,2).map(ev=>({ text:this.pillText(ev,false), time: ev.allDay ? '終日' : (ev.start+'–'+(ev.status==='jisseki'?(ev.actualEnd||ev.end):ev.end)), style:{...this.pillStyle(ev),height:15,fontSize:10,lineHeight:'15px',padding:'0 6px',marginBottom:0,borderRadius:4,display:'inline-block',maxWidth:130,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}, timeStyle:{fontSize:10,fontWeight:600,color:'#9AA0A6',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap'} })),
+          note: showNote ? j.note : '',
+          noteStyle:{fontSize:11,color: j.variant==='adjust' ? '#B9770F' : '#9AA0A6'},
+          mark:applied, markStyle:mk, markWrap:{cursor:'pointer',padding:'3px',marginLeft:'6px'}, onCycle:()=>this.cycleMark(d,j.mark),
+        });
+      }
+      v.freeRows=rows; v.cO=cO; v.cA=cA; v.cX=cX;
+    }
+
+    return { v };
+  }
+}
+</script>
+</body>
+</html>
+

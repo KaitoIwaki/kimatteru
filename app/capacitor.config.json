@@ -1,0 +1,15 @@
+{
+  "appId": "com.kimatteru.app",
+  "appName": "Kimatteru",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#FAF9F4"
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "DEFAULT"
+    }
+  }
+}

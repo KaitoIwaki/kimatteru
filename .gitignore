@@ -1,0 +1,8 @@
+node_modules
+app/dist
+
+# cap sync が dist から生成するので追跡しない
+app/ios/App/App/public
+
+.DS_Store
+*.local
