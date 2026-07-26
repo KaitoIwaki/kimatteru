@@ -70,7 +70,7 @@ export default class App extends React.Component {
 
   state = {
     screen:'month', wageOn:false, dialog:null, detailId:null, dayNum:null, returnTo:'month',
-    newType:null, overrides:{}, notif:null, editTypeKey:null, docKey:null,
+    newType:null, overrides:{}, notif:null, editTypeKey:null, docKey:null, confirmDelete:null,
     ym: thisMonth(),      // カレンダーで表示している月
     freeYM: thisMonth(),  // 「いつ空いてる？」で見ている月
     today: todayParts(),
@@ -163,10 +163,25 @@ export default class App extends React.Component {
     this.setState({screen:'detail',detailId:ev.id,returnTo:ret});
   }
   openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month'}); }
-  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,allDay:false,picking:null}}); }
+  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,allDay:false,picking:null}}); }
+  // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
+  openEdit(ev,ret){
+    this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
+      editingId:ev.id, title:ev.title, type:ev.type, status:ev.status,
+      start:ev.start, end: ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end,
+      y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, allDay:!!ev.allDay, picking:null }});
+  }
+  askDelete(id){ this.setState({confirmDelete:id}); }
+  doDelete(){
+    const id=this.state.confirmDelete;
+    this.setState(s=>({ events:s.events.filter(e=>e.id!==id), confirmDelete:null, dialog:null,
+      screen: s.detailId===id ? 'month' : s.screen, detailId: s.detailId===id ? null : s.detailId }));
+  }
   openDialog(ev,mode,ret){
+    // 実績を記録し直すときは、記録済みの終了時刻から始める
+    const again = mode==='worked' && ev.status==='jisseki';
     const origS = (mode==='confirm' && ev.want) ? ev.want[0] : ev.start;
-    const origE = (mode==='confirm' && ev.want) ? ev.want[1] : ev.end;
+    const origE = again ? (ev.actualEnd||ev.end) : ((mode==='confirm' && ev.want) ? ev.want[1] : ev.end);
     this.setState({ returnTo:ret||this.state.returnTo, dialog:{ id:ev.id, mode, type:ev.type, title:ev.title, y:ev.y, m:ev.m, day:ev.day, start:origS, end:origE, origS, origE, picking:null } });
   }
   patchDlg(k,d){ this.setState(s=>({ dialog:{...s.dialog,[k]:this.addMin(s.dialog[k],d)} })); }
@@ -201,8 +216,21 @@ export default class App extends React.Component {
   }
 
   save(){
-    const dr=this.state.draft, id='n'+Date.now();
-    this.setState(s=>({ screen:s.returnTo, events:[...s.events,{id,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,end:dr.end,status:dr.status,allDay:dr.allDay,want:dr.status==='mikakutei'?[dr.start,dr.end]:undefined}] }));
+    const dr=this.state.draft;
+    tapLight();
+    if(dr.editingId){
+      this.setState(s=>({ screen:'month', detailId:null, dayNum:null, ym:{y:dr.y,m:dr.m},
+        events:s.events.map(e=>{
+          if(e.id!==dr.editingId) return e;
+          const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay};
+          // 実績のときに直しているのは「実際に働いた終わりの時刻」
+          return dr.status==='jisseki' ? {...base, actualEnd:dr.end} : {...base, end:dr.end, actualEnd:undefined};
+        }) }));
+      return;
+    }
+    const id='n'+Date.now();
+    this.setState(s=>({ screen:s.returnTo, ym:{y:dr.y,m:dr.m},
+      events:[...s.events,{id,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,end:dr.end,status:dr.status,allDay:dr.allDay,want:dr.status==='mikakutei'?[dr.start,dr.end]:undefined}] }));
   }
 
   renderVals(){
@@ -223,7 +251,7 @@ export default class App extends React.Component {
       onDayBack:()=>this.setState({screen:'month', dayNum:null}),
       onOpenFree:()=>this.setState({screen:'free'}),
       onFreeBack:()=>this.setState({screen:'month'}),
-      navShown: st.screen==='month' || st.screen==='free' || st.screen==='settings',
+      navShown: st.screen==='month' || st.screen==='free' || st.screen==='report' || st.screen==='settings',
       notifShown: st.screen==='month' && !!st.notif && !st.dialog && st.settings.remind,
       bellDot: !!st.notif && st.settings.remind,
       onBell:()=>{ if(!st.settings.remind) return; this.setState(s=>({notif:s.notif?null:'today'})); },
@@ -231,12 +259,24 @@ export default class App extends React.Component {
       navCur: st.screen,
       onNavCal:()=>this.setState({screen:'month', dayNum:null, detailId:null}),
       onNavFree:()=>this.setState({screen:'free'}),
+      onNavReport:()=>this.setState({screen:'report'}),
       onNavSettings:()=>this.setState({screen:'settings', editTypeKey:null}),
-      onOpenSummary:()=>this.setState({screen:'summary', shareToast:false}),
-      onSummaryClose:()=>this.setState({screen:'month'}),
+      onOpenSummary:()=>this.setState({screen:'summary', shareToast:false, cardFrom:st.screen}),
+      onSummaryClose:()=>this.setState(s=>({screen:s.cardFrom||'month'})),
+      // カレンダーを横に払って前後の月へ
+      onMonthTouchStart:(e)=>{ const t=e.touches&&e.touches[0]; if(t){ this._sx=t.clientX; this._sy=t.clientY; } },
+      onMonthTouchEnd:(e)=>{
+        const t=e.changedTouches&&e.changedTouches[0];
+        if(!t || this._sx==null) return;
+        const dx=t.clientX-this._sx, dy=t.clientY-this._sy;
+        this._sx=null;
+        // 横の動きが縦よりはっきり大きいときだけ月を送る
+        if(Math.abs(dx)<55 || Math.abs(dx)<Math.abs(dy)*1.6) return;
+        this.setState(s=>({ym:shiftMonth(s.ym, dx<0?1:-1), dayNum:null}));
+      },
       onShareCard:()=>{ this._shareCard(st.screen==='summary'?'summary':'free'); },
-      onOpenShare:()=>this.setState({screen:'share', shareToast:false}),
-      onShareClose:()=>this.setState({screen:'settings'}),
+      onOpenShare:()=>this.setState({screen:'share', shareToast:false, cardFrom:st.screen}),
+      onShareClose:()=>this.setState(s=>({screen:s.cardFrom||'settings'})),
       onOpenTerms:()=>this.setState({screen:'doc', docKey:'terms'}),
       onOpenPrivacy:()=>this.setState({screen:'doc', docKey:'privacy'}),
       onDocBack:()=>this.setState({screen:'settings', docKey:null}),
@@ -263,9 +303,11 @@ export default class App extends React.Component {
     const notifEv = st.notif ? st.events.find(e=>e.id===st.notif) : null;
     v.notifTitle = notifEv ? `今日の${notifEv.title}、おつかれさま` : '';
     v.notifBody = notifEv ? `実働時間はどうでしたか？タップして記録しよう（${notifEv.start}–${notifEv.end}）` : '';
-    const navItem=(active)=>({display:'flex',flexDirection:'column',alignItems:'center',gap:4,width:56,cursor:'pointer',color:active?'var(--ink)':'var(--ink-faint)',transition:'color .2s'});
+    // 5つを等幅で並べる（真ん中が＋）。アイランド型なので幅は固定せず分け合う
+    const navItem=(active)=>({display:'flex',flex:1,flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,cursor:'pointer',color:active?'var(--ink)':'var(--ink-faint)',transition:'color .2s'});
     v.navCalStyle = navItem(st.screen==='month');
     v.navFreeStyle = navItem(st.screen==='free');
+    v.navReportStyle = navItem(st.screen==='report');
     v.navSettingsStyle = navItem(st.screen==='settings');
 
     // ---------- SETTINGS ----------
@@ -308,6 +350,44 @@ export default class App extends React.Component {
     v.sumYearMonth = st.ym.y+'年 '+(st.ym.m+1)+'月';
     v.rhythm = monthEvents.map(e=>{ const t=this.T(e.type); const solid=e.status==='kakutei'||e.status==='jisseki';
       return { style:{ width:14,height:14,borderRadius:4, ...(e.status==='nakunatta'?{background:'#EDEEF0'}: solid?{background:t.color,opacity:e.status==='jisseki'?.9:1}:{background:t.paper,border:'1.5px dashed '+t.color}) } }; });
+
+    // ---------- まとめ（働いた時間） ----------
+    v.reportShown = st.screen==='report';
+    if(v.reportShown){
+      const Y=st.ym.y, M=st.ym.m;
+      const sum=(list)=>{
+        const hours=list.reduce((a,e)=>a+this.hoursBetween(e.start,e.actualEnd||e.end),0);
+        const wage=list.reduce((a,e)=>a+this.wage(e),0);
+        return { hours, wage, days:list.length };
+      };
+      const doneAll = st.events.filter(e=>e.status==='jisseki');
+      const mo = sum(doneAll.filter(e=>e.y===Y && e.m===M));
+      const yr = sum(doneAll.filter(e=>e.y===Y));
+      v.repMonthLabel = (M+1)+'月';
+      v.repYearLabel = Y+'年';
+      v.repMonthHours = this.fmtHours(mo.hours);
+      v.repMonthWage = this.fmtWage(mo.wage);
+      v.repMonthDays = String(mo.days);
+      v.repYearHours = this.fmtHours(yr.hours);
+      v.repYearWage = this.fmtWage(yr.wage);
+      v.repYearDays = String(yr.days);
+      v.repEmpty = doneAll.length===0;
+      // 月ごとの棒。今年の12ヶ月ぶんを並べて、働いた量の起伏を見せる
+      const perMonth = Array.from({length:12},(_,i)=>sum(doneAll.filter(e=>e.y===Y && e.m===i)).hours);
+      const peak = Math.max(1, ...perMonth);
+      v.repBars = perMonth.map((h,i)=>({
+        label: (i+1),
+        hours: h,
+        isCur: i===M,
+        barStyle:{ height: Math.max(3, Math.round(h/peak*74))+'px', borderRadius:4, background: i===M?'#1D9E75':(h>0?'rgba(29,158,117,.32)':'var(--line)'), transition:'height .3s cubic-bezier(.2,.9,.2,1)' },
+        labelStyle:{ fontSize:9, marginTop:5, color: i===M?'var(--ink)':'var(--ink-faint)', fontWeight:i===M?700:500 },
+        onClick:()=>this.setState({ym:{y:Y,m:i}}),
+      }));
+      v.onRepPrevYear = ()=>this.setState(s=>({ym:{y:s.ym.y-1,m:s.ym.m}}));
+      v.onRepNextYear = ()=>this.setState(s=>({ym:{y:s.ym.y+1,m:s.ym.m}}));
+      v.onOpenSummaryCard = ()=>this.setState({screen:'summary', shareToast:false, cardFrom:'report'});
+      v.onOpenFreeShare = ()=>this.setState({screen:'share', shareToast:false, cardFrom:'report'});
+    }
 
     // ---------- 空いてる日シェア (C) ----------
     v.shareShown = st.screen==='share';
@@ -393,6 +473,41 @@ export default class App extends React.Component {
     v.onSave=()=>this.save();
 
     // 終日 / 時間指定
+    // ---------- 日付えらび（小さなカレンダーを開く） ----------
+    v.editing = !!dr.editingId;
+    v.newTitle = dr.editingId ? '予定を編集' : '新しい予定';
+    const DOW=['日','月','火','水','木','金','土'];
+    const dDate=new Date(dr.y,dr.m,dr.day);
+    v.dateLabel = `${dr.y}年${dr.m+1}月${dr.day}日（${DOW[dDate.getDay()]}）`;
+    v.dateOpen = dr.picking==='date';
+    v.onTapDate = ()=>this.setState(s=>({draft:{...s.draft, picking:s.draft.picking==='date'?null:'date', pickY:s.draft.y, pickM:s.draft.m}}));
+    const pY = dr.pickY==null?dr.y:dr.pickY, pM = dr.pickM==null?dr.m:dr.pickM;
+    v.datePickLabel = `${pY}年${pM+1}月`;
+    v.onDatePrev = ()=>this.setState(s=>{ const n=shiftMonth({y:pY,m:pM},-1); return {draft:{...s.draft,pickY:n.y,pickM:n.m}}; });
+    v.onDateNext = ()=>this.setState(s=>{ const n=shiftMonth({y:pY,m:pM},1); return {draft:{...s.draft,pickY:n.y,pickM:n.m}}; });
+    const dws=st.settings.weekStart;
+    v.dateWeekdays = Array.from({length:7},(_,i)=>{ const dw=(i+dws)%7;
+      return { label:DOW[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,padding:'4px 0',color:'var(--ink-faint)'} }; });
+    {
+      const first=(new Date(pY,pM,1).getDay()-dws+7)%7;
+      const dim=new Date(pY,pM+1,0).getDate();
+      const cells=[];
+      for(let i=0;i<first;i++) cells.push({ label:'', style:{height:36} });
+      for(let d2=1;d2<=dim;d2++){
+        const sel = pY===dr.y && pM===dr.m && d2===dr.day;
+        const isToday = st.today.y===pY && st.today.m===pM && st.today.d===d2;
+        cells.push({ label:d2,
+          style:{height:36,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:9,cursor:'pointer',
+            fontSize:14,fontVariantNumeric:'tabular-nums',
+            fontWeight:sel?700:(isToday?700:500),
+            background: sel?'var(--ink)':'transparent',
+            color: sel?'var(--card)':(isToday?'var(--ink)':'var(--ink-soft)'),
+            border: (!sel&&isToday)?'1px solid var(--line)':'1px solid transparent'},
+          onClick:()=>this.setState(s=>({draft:{...s.draft,y:pY,m:pM,day:d2,picking:null}})) });
+      }
+      v.dateCells=cells;
+    }
+
     v.timed = !dr.allDay; v.allDayShown = dr.allDay;
     v.spanSeg = [['timed','時間を指定'],['all','終日']].map(([k,label])=>{ const sel=(k==='all')===!!dr.allDay;
       return { label, onClick:()=>this.setState(s=>({draft:{...s.draft,allDay:k==='all',picking:null}})),
@@ -466,10 +581,28 @@ export default class App extends React.Component {
       v.dWantText = ev.want ? '希望 '+ev.want[0]+'–'+ev.want[1] : (v.dTimeChanged?'予定 '+ev.start+'–'+ev.end:'');
       v.dWageShown = ev.status==='jisseki';
       if(v.dWageShown){ v.dWorkHours=this.fmtHours(this.hoursBetween(ev.start,endShown)); v.dWage=this.fmtWage(this.wage(ev)); }
-      if(ev.status==='kakutei' && ev.type==='baito'){ v.dPrimaryLabel='働いた記録をつける'; v.dPrimaryAction=()=>this.openDialog(ev,'worked',st.returnTo);
-        v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:700,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; }
-      else { v.dPrimaryLabel=null; }
+      const primary=(label,fn)=>{ v.dPrimaryLabel=label; v.dPrimaryAction=fn;
+        v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:700,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; };
+      if(ev.status==='kakutei' && ev.type==='baito') primary('働いた記録をつける',()=>this.openDialog(ev,'worked',st.returnTo));
+      else if(ev.status==='jisseki') primary('働いた時間を直す',()=>this.openDialog(ev,'worked',st.returnTo));
+      else if(ev.status==='mikakutei') primary('この予定、どうなった？',()=>this.openFor(ev,st.returnTo));
+      else v.dPrimaryLabel=null;
+      v.onEdit=()=>this.openEdit(ev,st.returnTo);
+      v.onDelete=()=>this.askDelete(ev.id);
+      v.dDeleteLabel = ev.status==='jisseki' ? 'この実績を削除' : 'この予定を削除';
     } else { v.dTitle=''; v.dPrimaryLabel=null; }
+
+    // ---------- 削除の確認 ----------
+    v.confirmShown = !!st.confirmDelete;
+    if(v.confirmShown){
+      const target = st.events.find(e=>e.id===st.confirmDelete);
+      v.confirmTitle = target ? `「${target.title}」を削除しますか？` : '削除しますか？';
+      v.confirmBody = target && target.status==='jisseki'
+        ? '働いた記録も一緒に消えます。元に戻せません。'
+        : '元に戻せません。';
+      v.onConfirmDelete = ()=>this.doDelete();
+      v.onCancelDelete = ()=>this.setState({confirmDelete:null});
+    }
 
     // ---------- DIALOG ----------
     const d=st.dialog;
@@ -489,15 +622,15 @@ export default class App extends React.Component {
         v.heroTitle=d.title;
         v.haloStyle={ position:'absolute',left:'50%',top:'50%',width:120,height:52,borderRadius:16,border:'2px solid '+t.color,animation:'haloOut .85s .1s cubic-bezier(.2,.9,.2,1) forwards',pointerEvents:'none' };
         v.celebCaption = d.type==='asobi' ? '約束、決まった' : d.type==='baito' ? 'シフト確定' : '決まった';
-        v.celebSub = '7月'+d.day+'日 ・ '+d.start+'–'+d.end;
+        v.celebSub = (d.m+1)+'月'+d.day+'日 ・ '+d.start+'–'+d.end;
         return { v };
       }
-      v.dlgHeading = d.mode==='worked' ? '今日は何時まで働いた？'
+      v.dlgHeading = d.mode==='worked' ? '何時まで働いた？'
         : d.type==='asobi' ? '約束、決まった？'
         : d.type==='yoji' ? 'この用事、どうなりました？'
         : d.type==='baito' ? 'このシフト、どうなりました？'
         : 'この予定、どうなりました？';
-      v.dlgSub = '7月'+d.day+'日 ・ '+d.title;
+      v.dlgSub = (d.m+1)+'月'+d.day+'日 ・ '+d.title;
       v.dlgStart=d.start; v.dlgEnd=d.end;
       v.dlgChanged = d.start!==d.origS || d.end!==d.origE;
       v.dlgOrigText = (d.mode==='worked'?'確定 ':'希望 ')+d.origS+'–'+d.origE;
