@@ -10,10 +10,9 @@ workflows:
         XCODE_PROJECT: "app/ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.kimatteru.app"
-      # Codemagic の Teams > Integrations で App Store Connect の鍵を登録し、
-      # その名前をここに書く（下の名前は仮）
+      # Codemagic の Settings > Integrations > Developer Portal に登録した鍵の名前
       integrations:
-        app_store_connect: kimatteru_asc_key
+        app_store_connect: App Store Connect API key
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.kimatteru.app
