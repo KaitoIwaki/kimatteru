@@ -6,3 +6,6 @@ app/ios/App/App/public
 
 .DS_Store
 *.local
+
+# 署名用の秘密鍵（絶対にコミットしない）
+SECRET_*.pem
