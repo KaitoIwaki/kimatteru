@@ -21,6 +21,18 @@ const forced = () => {
 
 export const canImport = () => native() || forced();
 
+// 許可が下りなかったときに、iOS の設定アプリのこのアプリのページを開く
+export async function openAppSettings() {
+  if (!native()) return false;
+  try {
+    const { App } = await import('@capacitor/app');
+    await App.openUrl({ url: 'app-settings:' });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 // 読み取り専用でお願いする。書き込みは一切しないので、その権限は求めない。
 export async function askCalendarAccess() {
   if (!native()) return 'unavailable';

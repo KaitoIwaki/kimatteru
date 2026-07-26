@@ -6,7 +6,7 @@ import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE } from './docs';
 import { applyStatusBarTheme } from './statusbar';
-import { canImport, askCalendarAccess, readCalendarEvents, dedupe } from './calendarimport';
+import { canImport, askCalendarAccess, readCalendarEvents, dedupe, openAppSettings } from './calendarimport';
 import { shareCanvas } from './shareimg';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
@@ -73,6 +73,7 @@ export default class App extends React.Component {
     screen:'month', wageOn:false, dialog:null, detailId:null, dayNum:null, returnTo:'month',
     newType:null, overrides:{}, notif:null, editTypeKey:null, docKey:null, confirmDelete:null,
     imp:{ phase:'idle', found:[], type:'yoji', error:'' },
+    swipe:{ dx:0, animating:false },
     ym: thisMonth(),      // カレンダーで表示している月
     freeYM: thisMonth(),  // 「いつ空いてる？」で見ている月
     today: todayParts(),
@@ -161,7 +162,7 @@ export default class App extends React.Component {
   openFor(ev, from){
     const ret = from || this.state.returnTo;
     if(ev.status==='mikakutei'){ this.openDialog(ev,'confirm',ret); return; }
-    if(ev.status==='nakunatta') return;
+    // 無くなった予定も開ける。直したり、戻したり、消したりできるように
     this.setState({screen:'detail',detailId:ev.id,returnTo:ret});
   }
   openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month'}); }
@@ -183,7 +184,10 @@ export default class App extends React.Component {
     const perm = await askCalendarAccess();
     if(perm!=='granted'){
       this.setState(s=>({imp:{...s.imp, phase:'idle',
-        error: perm==='unavailable' ? 'この端末では取り込みを使えません。' : 'カレンダーを読む許可が下りませんでした。設定アプリから許可すると取り込めます。'}}));
+        denied: perm!=='unavailable',
+        error: perm==='unavailable'
+          ? 'この端末では取り込みを使えません。'
+          : 'カレンダーを読む許可が下りませんでした。設定アプリで「カレンダー」を許可すると取り込めます。'}}));
       return;
     }
     try{
@@ -295,16 +299,42 @@ export default class App extends React.Component {
       onNavSettings:()=>this.setState({screen:'settings', editTypeKey:null}),
       onOpenSummary:()=>this.setState({screen:'summary', shareToast:false, cardFrom:st.screen}),
       onSummaryClose:()=>this.setState(s=>({screen:s.cardFrom||'month'})),
-      // カレンダーを横に払って前後の月へ
-      onMonthTouchStart:(e)=>{ const t=e.touches&&e.touches[0]; if(t){ this._sx=t.clientX; this._sy=t.clientY; } },
+      // カレンダーは指の動きについてくる。離したところで隣の月に収まるか、元に戻る。
+      onMonthTouchStart:(e)=>{
+        const t=e.touches&&e.touches[0]; if(!t) return;
+        if(this._settle){ clearTimeout(this._settle); this._settle=null; }
+        this._sx=t.clientX; this._sy=t.clientY; this._axis=null;
+        this._trackW=(e.currentTarget&&e.currentTarget.clientWidth)||320;
+        this.setState(s=>({swipe:{dx:s.swipe?s.swipe.dx:0, animating:false}}));
+      },
+      onMonthTouchMove:(e)=>{
+        const t=e.touches&&e.touches[0]; if(!t||this._sx==null) return;
+        const dx=t.clientX-this._sx, dy=t.clientY-this._sy;
+        // 最初の数pxで、横に払っているのか縦に送っているのかを決める
+        if(!this._axis){
+          if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
+          this._axis = Math.abs(dx)>Math.abs(dy)*1.2 ? 'x' : 'y';
+        }
+        if(this._axis!=='x') return;
+        // 端では少し重くして、紙を引っぱっている感じにする
+        const w2=this._trackW||320;
+        const d = Math.abs(dx)>w2 ? Math.sign(dx)*(w2+(Math.abs(dx)-w2)*0.3) : dx;
+        this.setState({swipe:{dx:d, animating:false}});
+      },
       onMonthTouchEnd:(e)=>{
         const t=e.changedTouches&&e.changedTouches[0];
-        if(!t || this._sx==null) return;
-        const dx=t.clientX-this._sx, dy=t.clientY-this._sy;
-        this._sx=null;
-        // 横の動きが縦よりはっきり大きいときだけ月を送る
-        if(Math.abs(dx)<55 || Math.abs(dx)<Math.abs(dy)*1.6) return;
-        this.setState(s=>({ym:shiftMonth(s.ym, dx<0?1:-1), dayNum:null}));
+        const wasX=this._axis==='x'; this._sx=null; this._axis=null;
+        if(!t||!wasX) return;
+        const dx=this.state.swipe?this.state.swipe.dx:0;
+        const w=this._trackW||320;
+        const go = Math.abs(dx) > Math.min(72, w*0.22);
+        const dir = dx<0 ? 1 : -1;
+        this.setState({swipe:{dx: go ? dir*-w : 0, animating:true}});
+        this._settle=setTimeout(()=>{
+          this._settle=null;
+          if(go) this.setState(s=>({ym:shiftMonth(s.ym,dir), dayNum:null, swipe:{dx:0,animating:false}}));
+          else this.setState({swipe:{dx:0,animating:false}});
+        }, 300);
       },
       onShareCard:()=>{ this._shareCard(st.screen==='summary'?'summary':'free'); },
       onOpenShare:()=>this.setState({screen:'share', shareToast:false, cardFrom:st.screen}),
@@ -328,6 +358,8 @@ export default class App extends React.Component {
       v.impCount=String((im.found||[]).length);
       v.impAdded=String(im.added||0);
       v.onScan=()=>this.runScan();
+      v.impDenied=!!im.denied;
+      v.onOpenSettingsApp=()=>{ tapLight(); openAppSettings(); };
       v.onDoImport=()=>this.doImport();
       v.onImportBack=()=>this.setState({screen:'settings'});
       v.onImportDone=()=>this.setState({screen:'month'});
@@ -383,7 +415,7 @@ export default class App extends React.Component {
     v.typeRows = st.types.map((t,i)=>({
       name:t.name, open: st.editTypeKey===t.key, hint: st.editTypeKey===t.key?'':'色を変える',
       rowStyle:{borderBottom: i<st.types.length-1?'1px solid var(--line)':'none'},
-      dotStyle:{width:18,height:18,borderRadius:9,background:t.color,flexShrink:0,boxShadow:'inset 0 0 0 1px rgba(0,0,0,.06)'},
+      dotStyle:{width:18,height:18,borderRadius:12,background:t.color,flexShrink:0,boxShadow:'inset 0 0 0 1px rgba(0,0,0,.06)'},
       onTap:()=>this.setState(s=>({editTypeKey:s.editTypeKey===t.key?null:t.key})),
       swatches:this.PAL.map(hex=>({ style:{width:26,height:26,borderRadius:13,background:hex,cursor:'pointer',boxShadow: t.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)'}, onClick:()=>this.recolorKey(t.key,hex) })),
     }));
@@ -475,32 +507,47 @@ export default class App extends React.Component {
     const wlRot=Array.from({length:7},(_,i)=>{ const dw=(i+ws)%7; return {label:wl[dw], dw}; });
     v.weekdays = wlRot.map(({label,dw})=>({ label, style:{textAlign:'center',fontSize:11,fontWeight:600,padding:'6px 0',color:dw===0?'var(--ink-mut)':dw===6?'var(--ink-mut)':'#9AA0A6'} }));
 
-    // month cells
+    // month cells — 前後の月も一緒に作る（スワイプで指についてくるように並べるため）
     const Y=st.ym.y, M=st.ym.m;
-    const rawFirst=new Date(Y,M,1).getDay(), days=new Date(Y,M+1,0).getDate();
-    const today=(st.today.y===Y && st.today.m===M) ? st.today.d : 0;
-    const first=(rawFirst-ws+7)%7;
-    const cells=[];
+    const rawFirst=new Date(Y,M,1).getDay();
     const blankStyle={background:'var(--bg2)',padding:'3px 4px'};
-    for(let i=0;i<first;i++) cells.push({blank:true,style:blankStyle,day:null,pills:[],numWrap:{},numStyle:{},onDay:()=>{}});
-    for(let d=1;d<=days;d++){
-      const dayEvents=st.events.filter(e=>e.y===Y && e.m===M && e.day===d && !(st.settings.hideCanceled && e.status==='nakunatta'));
-      const shown=dayEvents.slice(0,3), extra=dayEvents.length-shown.length;
-      const dow=(rawFirst+d-1)%7, isToday=d===today;
-      const numStyle = isToday
-        ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:10,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
-        : {fontSize:11,fontWeight:600,color:dow===0||dow===6?'var(--ink-mut)':'var(--ink)',paddingLeft:2};
-      cells.push({
-        blank:false, day:d,
-        style:{background:'var(--card)',padding:'3px 4px',overflow:'hidden',cursor:'pointer'},
-        numWrap:{marginBottom:3,lineHeight:'20px'}, numStyle,
-        pills: shown.map(ev=>({ ...this.pillView(ev,wageOn), onClick:(e)=>{ if(e)e.stopPropagation(); this.openFor(ev,'month'); } })),
-        hasMore: extra>0, moreText:'+'+extra+'件',
-        onDay:()=>this.openDay(d),
-      });
-    }
-    while(cells.length%7) cells.push({blank:true,style:blankStyle,day:null,pills:[],numWrap:{},numStyle:{},onDay:()=>{}});
-    v.cells=cells;
+    const buildCells=(Y,M)=>{
+      const rawFirst=new Date(Y,M,1).getDay(), days=new Date(Y,M+1,0).getDate();
+      const today=(st.today.y===Y && st.today.m===M) ? st.today.d : 0;
+      const first=(rawFirst-ws+7)%7;
+      const cells=[];
+      for(let i=0;i<first;i++) cells.push({blank:true,style:blankStyle,day:null,pills:[],numWrap:{},numStyle:{},onDay:()=>{}});
+      for(let d=1;d<=days;d++){
+        const dayEvents=st.events.filter(e=>e.y===Y && e.m===M && e.day===d && !(st.settings.hideCanceled && e.status==='nakunatta'));
+        const shown=dayEvents.slice(0,3), extra=dayEvents.length-shown.length;
+        const dow=(rawFirst+d-1)%7, isToday=d===today;
+        const numStyle = isToday
+          ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
+          : {fontSize:11,fontWeight:600,color:dow===0||dow===6?'var(--ink-mut)':'var(--ink)',paddingLeft:2};
+        cells.push({
+          blank:false, day:d,
+          style:{background:'var(--card)',padding:'3px 4px',overflow:'hidden',cursor:'pointer'},
+          numWrap:{marginBottom:3,lineHeight:'20px'}, numStyle,
+          pills: shown.map(ev=>({ ...this.pillView(ev,wageOn), onClick:(e)=>{ if(e)e.stopPropagation(); this.openFor(ev,'month'); } })),
+          hasMore: extra>0, moreText:'+'+extra+'件',
+          onDay:()=>this.openDay(d),
+        });
+      }
+      while(cells.length%7) cells.push({blank:true,style:blankStyle,day:null,pills:[],numWrap:{},numStyle:{},onDay:()=>{}});
+      return cells;
+    };
+    const prevYM=shiftMonth(st.ym,-1), nextYM=shiftMonth(st.ym,1);
+    v.monthPages=[
+      { key:prevYM.y+'-'+prevYM.m, cells:buildCells(prevYM.y,prevYM.m) },
+      { key:st.ym.y+'-'+st.ym.m,   cells:buildCells(st.ym.y,st.ym.m) },
+      { key:nextYM.y+'-'+nextYM.m, cells:buildCells(nextYM.y,nextYM.m) },
+    ];
+    // 指の動きぶんだけ横にずらす。離したときだけ滑らせる。
+    const sw=st.swipe||{dx:0,animating:false};
+    v.trackStyle={ display:'flex', width:'300%', transform:`translateX(calc(-33.3333% + ${sw.dx}px))`,
+      transition: sw.animating ? 'transform .3s cubic-bezier(.22,.86,.3,1)' : 'none' };
+    // 給料バーが出ているぶん、下に余白を足して最終週が隠れないようにする
+    v.monthPadBottom = (wageOn ? 168 : 104)+'px';
     // まだ何も置かれていないときだけ、静かに使い方を添える
     v.showFirstRunHint = st.events.length===0;
     v.monthTotal = this.fmtWage(st.events.filter(e=>e.y===Y && e.m===M && e.status==='jisseki').reduce((a,e)=>a+this.wage(e),0));
@@ -557,7 +604,7 @@ export default class App extends React.Component {
         const sel = pY===dr.y && pM===dr.m && d2===dr.day;
         const isToday = st.today.y===pY && st.today.m===pM && st.today.d===d2;
         cells.push({ label:d2,
-          style:{height:36,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:9,cursor:'pointer',
+          style:{height:36,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:12,cursor:'pointer',
             fontSize:14,fontVariantNumeric:'tabular-nums',
             fontWeight:sel?700:(isToday?700:500),
             background: sel?'var(--ink)':'transparent',
@@ -571,7 +618,7 @@ export default class App extends React.Component {
     v.timed = !dr.allDay; v.allDayShown = dr.allDay;
     v.spanSeg = [['timed','時間を指定'],['all','終日']].map(([k,label])=>{ const sel=(k==='all')===!!dr.allDay;
       return { label, onClick:()=>this.setState(s=>({draft:{...s.draft,allDay:k==='all',picking:null}})),
-        style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:8,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
+        style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:11,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
           background:sel?'var(--card)':'transparent', color:sel?'var(--ink)':'var(--ink-mut)', border:sel?'1px solid var(--line)':'1px solid transparent'} }; });
     // drum-roll wheels
     v.wheelColStyle = {width:66,height:170,overflowY:'scroll',scrollSnapType:'y mandatory',padding:'68px 0',textAlign:'center',WebkitMaskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)',maskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)'};
@@ -591,9 +638,9 @@ export default class App extends React.Component {
 
     v.chips = st.types.map(t=>{ const sel=dr.type===t.key;
       return { label:t.name, onClick:()=>this.selectType(t.key),
-        style:{textAlign:'center',whiteSpace:'nowrap',padding:'10px 15px',borderRadius:10,fontSize:14,fontWeight:600,cursor:'pointer',transition:'all .2s',
+        style:{textAlign:'center',whiteSpace:'nowrap',padding:'10px 15px',borderRadius:13,fontSize:14,fontWeight:600,cursor:'pointer',transition:'all .2s',
           background:sel?t.color:'var(--card)', color:sel?'#fff':'var(--ink-mut)', boxShadow:'none', border:sel?'none':'1px solid var(--line)'} }; });
-    v.addChipStyle = {textAlign:'center',whiteSpace:'nowrap',padding:'10px 14px',borderRadius:10,fontSize:14,fontWeight:600,cursor:'pointer',color:'var(--ink-soft)',background:'transparent',border:'1.5px dashed #C9CDD4'};
+    v.addChipStyle = {textAlign:'center',whiteSpace:'nowrap',padding:'10px 14px',borderRadius:13,fontSize:14,fontWeight:600,cursor:'pointer',color:'var(--ink-soft)',background:'transparent',border:'1.5px dashed #C9CDD4'};
     v.onAddTypeChip = ()=>this.setState(s=>({newType: s.newType?null:{name:'',color:'#2F72C4'}}));
 
     // recolor swatches (selected type)
@@ -606,14 +653,14 @@ export default class App extends React.Component {
       v.newTypeName=nt.name;
       v.onNewTypeName=(e)=>{ const val=e.target.value; this.setState(s=>({newType:{...s.newType,name:val}})); };
       v.newTypeSwatches = this.PAL.map(hex=>({ style:{width:26,height:26,borderRadius:13,background:hex,cursor:'pointer',boxShadow: nt.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)'}, onClick:()=>this.setState(s=>({newType:{...s.newType,color:hex}})) }));
-      v.addTypeBtnStyle={flex:1,textAlign:'center',padding:'11px',borderRadius:10,background:nt.color,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'};
+      v.addTypeBtnStyle={flex:1,textAlign:'center',padding:'11px',borderRadius:13,background:nt.color,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'};
       v.onAddType=()=>this.addType();
       v.onCancelNewType=()=>this.setState({newType:null});
     } else { v.newTypeName=''; }
 
     v.seg=[['kakutei','決まってる'],['mikakutei','まだ不確定']].map(([k,label])=>{ const sel=dr.status===k;
       return { label, onClick:()=>this.setState(s=>({draft:{...s.draft,status:k}})),
-        style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:8,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
+        style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:11,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
           background:sel?'var(--card)':'transparent', color:sel?'var(--ink)':'var(--ink-mut)', border:sel?'1px solid var(--line)':'1px solid transparent'} }; });
 
     const previewEv={type:dr.type,title:dr.title||dt.name,status:dr.status};
@@ -643,7 +690,8 @@ export default class App extends React.Component {
       if(v.dWageShown){ v.dWorkHours=this.fmtHours(this.hoursBetween(ev.start,endShown)); v.dWage=this.fmtWage(this.wage(ev)); }
       const primary=(label,fn)=>{ v.dPrimaryLabel=label; v.dPrimaryAction=fn;
         v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:700,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; };
-      if(ev.status==='kakutei' && ev.type==='baito') primary('働いた記録をつける',()=>this.openDialog(ev,'worked',st.returnTo));
+      if(ev.status==='nakunatta') primary('予定として戻す',()=>{ tapLight(); this.updateEvent(ev.id,{status:'kakutei'}); });
+      else if(ev.status==='kakutei' && ev.type==='baito') primary('働いた記録をつける',()=>this.openDialog(ev,'worked',st.returnTo));
       else if(ev.status==='jisseki') primary('働いた時間を直す',()=>this.openDialog(ev,'worked',st.returnTo));
       else if(ev.status==='mikakutei') primary('この予定、どうなった？',()=>this.openFor(ev,st.returnTo));
       else v.dPrimaryLabel=null;
@@ -671,7 +719,7 @@ export default class App extends React.Component {
       if(d.phase){
         const on=d.phase==='on'||d.phase==='done';
         v.celebOn=on;
-        v.heroPillStyle={ display:'inline-flex',alignItems:'center',gap:8,height:48,padding:'0 22px',borderRadius:10,fontSize:19,fontWeight:700,
+        v.heroPillStyle={ display:'inline-flex',alignItems:'center',gap:8,height:48,padding:'0 22px',borderRadius:13,fontSize:19,fontWeight:700,
           border:'1.5px '+(on?'solid':'dashed')+' '+t.color,
           background:on?t.color:t.paper, color:on?'#fff':t.dark,
           transform:on?'scale(1.06)':'scale(1)',

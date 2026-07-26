@@ -1,6 +1,18 @@
 import React from 'react';
 import { s } from './style';
 
+// 日本語は語の途中でも改行されてしまう。意味のかたまりごとに
+// inline-block で包んで、変なところで折れないようにする。
+function Jp({ parts, style }) {
+  return (
+    <span style={s(style)}>
+      {parts.map((t, i) => (
+        <span key={i} style={s('display:inline-block')}>{t}</span>
+      ))}
+    </span>
+  );
+}
+
 // Claude design のテンプレートを JSX に移植したもの。
 // 値はすべて renderVals() が返す v から来る（表示ロジックは logic 側に閉じている）。
 export function renderApp(v) {
@@ -22,7 +34,7 @@ export function renderApp(v) {
               <span role="button" aria-label="次の月" tabIndex={0} style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onNextMonth}>›</span>
             </div>
             <div style={s('display:flex;align-items:center;gap:12px')}>
-              <div style={s('width:34px;height:34px;border-radius:9px;background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative')} onClick={v.onBell}>
+              <div style={s('width:34px;height:34px;border-radius:15px;background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative')} onClick={v.onBell}>
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
                   <path d="M12 3a5 5 0 0 0-5 5c0 5-2 6-2 6h14s-2-1-2-6a5 5 0 0 0-5-5Z" stroke="var(--ink-soft)" strokeWidth="1.6" strokeLinejoin="round" />
                   <path d="M10 20a2 2 0 0 0 4 0" stroke="var(--ink-soft)" strokeWidth="1.6" strokeLinecap="round" />
@@ -42,24 +54,38 @@ export function renderApp(v) {
             ))}
           </div>
 
-          <div className="month-scroll" style={s('flex:1;overflow-y:auto;padding:0 6px 104px 6px;display:flex;flex-direction:column')} onTouchStart={v.onMonthTouchStart} onTouchEnd={v.onMonthTouchEnd}>
-            <div style={s('display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(86px,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;flex:1 0 auto')}>
-              {(v.cells || []).map((c, i) => (
-                <div key={i} style={s(c.style)} onClick={c.onDay}>
-                  {!!c.day && (
-                    <div style={s(c.numWrap)}><span style={s(c.numStyle)}>{c.day}</span></div>
-                  )}
-                  {(c.pills || []).map((p, j) => (
-                    <div key={j} style={s(p.style)} onClick={p.onClick}>
-                      {p.morphing && <span style={s(p.fillStyle)} />}
-                      <span style={s(p.textStyle)}>{p.text}</span>
+          <div
+            className="month-scroll"
+            style={s(`flex:1;overflow-y:auto;overflow-x:hidden;padding:0 6px ${v.monthPadBottom} 6px;display:flex;flex-direction:column`)}
+            onTouchStart={v.onMonthTouchStart}
+            onTouchMove={v.onMonthTouchMove}
+            onTouchEnd={v.onMonthTouchEnd}
+          >
+            <div style={s('flex:1 0 auto;display:flex;overflow:hidden')}>
+              <div style={s(v.trackStyle)}>
+                {(v.monthPages || []).map((page) => (
+                  <div key={page.key} style={s('width:33.3333%;flex:0 0 33.3333%;padding:0 6px')}>
+                    <div style={s('display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(86px,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;height:100%')}>
+                      {page.cells.map((c, i) => (
+                        <div key={i} style={s(c.style)} onClick={c.onDay}>
+                          {!!c.day && (
+                            <div style={s(c.numWrap)}><span style={s(c.numStyle)}>{c.day}</span></div>
+                          )}
+                          {(c.pills || []).map((p, j) => (
+                            <div key={j} style={s(p.style)} onClick={p.onClick}>
+                              {p.morphing && <span style={s(p.fillStyle)} />}
+                              <span style={s(p.textStyle)}>{p.text}</span>
+                            </div>
+                          ))}
+                          {c.hasMore && (
+                            <div style={s('font-size:10px;font-weight:600;color:var(--ink-mut);padding:1px 5px')}>{c.moreText}</div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  {c.hasMore && (
-                    <div style={s('font-size:10px;font-weight:600;color:var(--ink-mut);padding:1px 5px')}>{c.moreText}</div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {v.showFirstRunHint && (
@@ -69,11 +95,11 @@ export function renderApp(v) {
                   <span style={s('display:inline-block;width:52px;height:15px;border-radius:5px;background:rgba(29,158,117,.10);border:1.4px dashed #1D9E75')} />
                 </div>
                 <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.7;text-wrap:pretty')}>
-                  決まっている予定は塗り、<br />まだ分からない予定は点線で並びます。
+                  {''}<Jp parts={['決まっている予定は','塗り、','まだ分からない予定は','点線で','並びます。']} />
                 </div>
                 <div style={s('font-size:12px;color:var(--ink-faint)')}>＋ から最初の予定を置いてみてください</div>
                 {v.importAvailable && (
-                  <div style={s('margin-top:14px;padding:12px 20px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer')} onClick={v.onOpenImport}>
+                  <div style={s('margin-top:14px;padding:12px 20px;border-radius:15px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer')} onClick={v.onOpenImport}>
                     iPhone のカレンダーから取り込む
                   </div>
                 )}
@@ -106,7 +132,7 @@ export function renderApp(v) {
               <div style={s('text-align:center;color:var(--ink-faint);font-size:14px;padding:48px 0')}>この日の予定はまだありません</div>
             )}
             {(v.dayEvents || []).map((r, i) => (
-              <div key={i} style={s('display:flex;align-items:center;gap:12px;background:var(--card);border-radius:12px;padding:14px;margin-bottom:9px;border:1px solid var(--line);cursor:pointer')} onClick={r.onClick}>
+              <div key={i} style={s('display:flex;align-items:center;gap:12px;background:var(--card);border-radius:15px;padding:14px;margin-bottom:9px;border:1px solid var(--line);cursor:pointer')} onClick={r.onClick}>
                 <div style={s(r.chipStyle)}>{r.chipText}</div>
                 <div style={s('flex:1')} />
                 <div style={s('display:flex;flex-direction:column;align-items:flex-end;gap:2px')}>
@@ -115,7 +141,7 @@ export function renderApp(v) {
                 </div>
               </div>
             ))}
-            <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding:15px;border-radius:12px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:15px;font-weight:600;cursor:pointer')} onClick={v.onDayAdd}>＋ 予定を追加</div>
+            <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding:15px;border-radius:15px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:15px;font-weight:600;cursor:pointer')} onClick={v.onDayAdd}>＋ 予定を追加</div>
           </div>
         </div>
       )}
@@ -172,7 +198,7 @@ export function renderApp(v) {
             <span style={s(`font-size:16px;font-weight:700;color:${v.draftColor};cursor:pointer`)} onClick={v.onSave}>保存</span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:8px 16px 40px 16px')}>
-            <div style={s('background:var(--card);border-radius:14px;padding:4px 14px;margin-bottom:18px')}>
+            <div style={s('background:var(--card);border-radius:17px;padding:4px 14px;margin-bottom:18px')}>
               <input value={v.draftTitle} placeholder="タイトル" onChange={v.onTitle} style={s('width:100%;border:none;outline:none;padding:14px 0;font-size:16px;color:var(--ink);background:transparent')} />
             </div>
 
@@ -185,7 +211,7 @@ export function renderApp(v) {
             </div>
 
             {v.newTypeShown && (
-              <div style={s('background:var(--card);border-radius:12px;padding:14px;margin-bottom:16px;border:1px solid var(--line);animation:riseUp .24s cubic-bezier(.2,.9,.2,1)')}>
+              <div style={s('background:var(--card);border-radius:15px;padding:14px;margin-bottom:16px;border:1px solid var(--line);animation:riseUp .24s cubic-bezier(.2,.9,.2,1)')}>
                 <input value={v.newTypeName} placeholder="種類の名前（例：ジム、勉強）" onChange={v.onNewTypeName} style={s('width:100%;border:none;outline:none;padding:6px 0 12px;font-size:15px;color:var(--ink);border-bottom:1px solid var(--line)')} />
                 <div style={s('display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 6px')}>
                   {(v.newTypeSwatches || []).map((sw, i) => (
@@ -193,7 +219,7 @@ export function renderApp(v) {
                   ))}
                 </div>
                 <div style={s('display:flex;gap:8px;margin-top:14px')}>
-                  <div style={s('flex:1;text-align:center;padding:11px;border-radius:10px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer')} onClick={v.onCancelNewType}>やめる</div>
+                  <div style={s('flex:1;text-align:center;padding:11px;border-radius:16px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer')} onClick={v.onCancelNewType}>やめる</div>
                   <div style={s(v.addTypeBtnStyle)} onClick={v.onAddType}>この種類を追加</div>
                 </div>
               </div>
@@ -207,14 +233,14 @@ export function renderApp(v) {
             </div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>この予定は</div>
-            <div style={s('display:flex;background:var(--bg2);border-radius:10px;padding:2px;margin-bottom:22px')}>
+            <div style={s('display:flex;background:var(--bg2);border-radius:16px;padding:2px;margin-bottom:22px')}>
               {(v.seg || []).map((sg, i) => (
                 <div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>
               ))}
             </div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>日付</div>
-            <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:22px')}>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px')}>
               <div style={s('display:flex;align-items:center;justify-content:space-between;padding:15px 16px;cursor:pointer')} onClick={v.onTapDate}>
                 <span style={s('font-size:15px;color:var(--ink)')}>日にち</span>
                 <span style={s(`font-size:16px;font-weight:${v.dateOpen ? '700' : '600'};color:${v.dateOpen ? '#1D9E75' : 'var(--ink)'};font-variant-numeric:tabular-nums`)}>{v.dateLabel}</span>
@@ -239,14 +265,14 @@ export function renderApp(v) {
             </div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>時間</div>
-            <div style={s('display:flex;background:var(--bg2);border-radius:10px;padding:2px;margin-bottom:16px')}>
+            <div style={s('display:flex;background:var(--bg2);border-radius:16px;padding:2px;margin-bottom:16px')}>
               {(v.spanSeg || []).map((sg, i) => (
                 <div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>
               ))}
             </div>
 
             {v.timed && (
-              <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:22px')}>
+              <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px')}>
                 {(v.timeRows || []).map((r, i) => (
                   <div key={i} style={s(r.rowStyle)}>
                     <div style={s('display:flex;align-items:center;justify-content:space-between;padding:15px 16px;cursor:pointer')} onClick={r.onTap}>
@@ -270,11 +296,11 @@ export function renderApp(v) {
               </div>
             )}
             {v.allDayShown && (
-              <div style={s('background:var(--card);border-radius:14px;padding:16px;margin-bottom:22px;font-size:14px;color:var(--ink-mut);text-align:center')}>この予定は終日として置かれます</div>
+              <div style={s('background:var(--card);border-radius:17px;padding:16px;margin-bottom:22px;font-size:14px;color:var(--ink-mut);text-align:center')}>この予定は終日として置かれます</div>
             )}
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>カレンダーでの見え方</div>
-            <div style={s('background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--line)')}>
+            <div style={s('background:var(--card);border-radius:17px;padding:14px;border:1px solid var(--line)')}>
               <div style={s('display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden')}>
                 {(v.previewDays || []).map((pd, i) => (
                   <div key={i} style={s(pd.cellStyle)}>
@@ -356,7 +382,7 @@ export function renderApp(v) {
             <div style={s('font-size:17px;font-weight:700;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.confirmTitle}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:8px 0 20px;text-wrap:pretty')}>{v.confirmBody}</div>
             <div style={s('display:flex;flex-direction:column;gap:8px')}>
-              <div style={s('padding:14px;border-radius:12px;text-align:center;font-size:16px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onConfirmDelete}>削除する</div>
+              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onConfirmDelete}>削除する</div>
               <div style={s('padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancelDelete}>やめる</div>
             </div>
           </div>
@@ -370,7 +396,7 @@ export function renderApp(v) {
             <div style={s('font-size:19px;font-weight:700;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.dlgHeading}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:6px 0 18px 0')}>{v.dlgSub}</div>
 
-            <div style={s('background:var(--bg2);border-radius:12px;overflow:hidden;margin-bottom:6px')}>
+            <div style={s('background:var(--bg2);border-radius:15px;overflow:hidden;margin-bottom:6px')}>
               {(v.dlgTimeRows || []).map((r, i) => (
                 <div key={i} style={s(r.rowStyle)}>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:13px 14px;cursor:pointer')} onClick={r.onTap}>
@@ -400,7 +426,7 @@ export function renderApp(v) {
 
             <div style={s('display:flex;flex-direction:column;gap:9px')}>
               <div style={s(v.dlgPrimaryStyle)} onClick={v.onDlgPrimary}>{v.dlgPrimaryLabel}</div>
-              <div style={s('padding:14px;border-radius:12px;text-align:center;font-size:16px;font-weight:600;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onDlgNakunatta}>無くなった</div>
+              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:600;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onDlgNakunatta}>無くなった</div>
               <div style={s('padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onDlgStillMaybe}>まだ分からない</div>
             </div>
           </div>
@@ -449,7 +475,7 @@ export function renderApp(v) {
               </div>
 
               <div style={s('display:flex;align-items:center;gap:8px;margin-bottom:2px')}>
-                <span style={s('width:24px;height:24px;border-radius:12px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>✓</span>
+                <span style={s('width:24px;height:24px;border-radius:15px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>✓</span>
                 <span style={s('font-size:13px;font-weight:600;color:#085041')}>稼いだ</span>
               </div>
               <div style={s('font-size:46px;font-weight:800;color:var(--ink);letter-spacing:-1.5px;line-height:1.1')}>{v.sumWage}</div>
@@ -460,14 +486,14 @@ export function renderApp(v) {
               <div style={s('display:flex;gap:14px')}>
                 <div style={s('flex:1')}>
                   <div style={s('display:flex;align-items:center;gap:6px;margin-bottom:6px')}>
-                    <span style={s('width:16px;height:16px;border-radius:8px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800')}>✓</span>
+                    <span style={s('width:16px;height:16px;border-radius:11px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800')}>✓</span>
                     <span style={s('font-size:12px;font-weight:600;color:#712B13')}>果たした約束</span>
                   </div>
                   <div style={s('font-size:34px;font-weight:800;color:var(--ink);letter-spacing:-1px')}>{v.sumPromises}</div>
                 </div>
                 <div style={s('flex:1')}>
                   <div style={s('display:flex;align-items:center;gap:6px;margin-bottom:6px')}>
-                    <span style={s('width:16px;height:16px;border-radius:8px;background:#EDEEF0;color:var(--ink-mut);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700')}>×</span>
+                    <span style={s('width:16px;height:16px;border-radius:11px;background:#EDEEF0;color:var(--ink-mut);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700')}>×</span>
                     <span style={s('font-size:12px;font-weight:600;color:var(--ink-mut)')}>流れた予定</span>
                   </div>
                   <div style={s('font-size:34px;font-weight:800;color:var(--ink-faint);letter-spacing:-1px')}>{v.sumCanceled}</div>
@@ -482,7 +508,7 @@ export function renderApp(v) {
             </div>
 
             <div style={s('display:flex;gap:10px;width:100%;max-width:340px;margin-top:18px')}>
-              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:13px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
+              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
                   <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" />
@@ -538,7 +564,7 @@ export function renderApp(v) {
             <div style={s('width:100%;max-width:340px;margin-top:14px;font-size:12px;color:rgba(255,255,255,.5);text-align:center;text-wrap:pretty')}>埋まっている日は灰色のマスだけ。何の予定かは相手に伝わりません。</div>
 
             <div style={s('display:flex;gap:10px;width:100%;max-width:340px;margin-top:16px')}>
-              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:13px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
+              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
                   <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" />
@@ -562,17 +588,17 @@ export function renderApp(v) {
           <div style={s('flex:1;overflow-y:auto;padding:8px 16px 110px')}>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>給料</div>
-            <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:24px')}>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
               <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
                 <div style={s('display:flex;flex-direction:column;gap:2px')}>
                   <span style={s('font-size:15px;color:var(--ink)')}>時給</span>
                   <span style={s('font-size:11px;color:var(--ink-mut)')}>実働から給料を計算します</span>
                 </div>
-                <div style={s('display:flex;align-items:center;gap:10px')}>
+                <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
                   <div style={s(v.stepBtn)} onClick={v.onHourlyMinus}>−</div>
-                  <div style={s('display:flex;align-items:center;gap:2px;background:var(--bg2);border-radius:9px;padding:6px 10px')}>
+                  <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:15px;padding:6px 12px')}>
                     <span style={s('font-size:15px;font-weight:700;color:var(--ink-soft)')}>¥</span>
-                    <input value={v.setHourly} onChange={v.onHourlyInput} inputMode="numeric" maxLength={5} style={s('width:5ch;min-width:5ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit')} />
+                    <input value={v.setHourly} onChange={v.onHourlyInput} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
                   </div>
                   <div style={s(v.stepBtn)} onClick={v.onHourlyPlus}>＋</div>
                 </div>
@@ -580,23 +606,23 @@ export function renderApp(v) {
             </div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>入力</div>
-            <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:24px')}>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
               <div style={s('padding:14px 16px;border-bottom:1px solid var(--line)')}>
                 <span style={s('font-size:15px;color:var(--ink)')}>時間の刻み幅</span>
-                <div style={s('display:flex;background:var(--bg2);border-radius:9px;padding:2px;margin-top:10px')}>
+                <div style={s('display:flex;background:var(--bg2);border-radius:15px;padding:2px;margin-top:10px')}>
                   {(v.stepSeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
                 </div>
               </div>
               <div style={s('padding:14px 16px')}>
                 <span style={s('font-size:15px;color:var(--ink)')}>週のはじまり</span>
-                <div style={s('display:flex;background:var(--bg2);border-radius:9px;padding:2px;margin-top:10px')}>
+                <div style={s('display:flex;background:var(--bg2);border-radius:15px;padding:2px;margin-top:10px')}>
                   {(v.weekSeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
                 </div>
               </div>
             </div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>予定の種類</div>
-            <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:8px')}>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:8px')}>
               {(v.typeRows || []).map((t, i) => (
                 <div key={i} style={s(t.rowStyle)}>
                   <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={t.onTap}>
@@ -615,7 +641,7 @@ export function renderApp(v) {
             <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;text-wrap:pretty')}>種類の追加や名前の変更は「＋」の新規作成画面からできます</div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>通知</div>
-            <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:24px')}>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
               <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
                 <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
                   <span style={s('font-size:15px;color:var(--ink)')}>シフト後に記録をリマインド</span>
@@ -626,7 +652,7 @@ export function renderApp(v) {
             </div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>表示</div>
-            <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:24px')}>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
               <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
                 <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
                   <span style={s('font-size:15px;color:var(--ink)')}>「無くなった」予定を隠す</span>
@@ -646,7 +672,7 @@ export function renderApp(v) {
             {v.importAvailable && (
               <>
                 <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>予定の取り込み</div>
-                <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:8px')}>
+                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:8px')}>
                   <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onOpenImport}>
                     <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
                     <span style={s('flex:1;font-size:15px;color:var(--ink)')}>iPhone のカレンダーから取り込む</span>
@@ -654,13 +680,13 @@ export function renderApp(v) {
                   </div>
                 </div>
                 <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8;text-wrap:pretty')}>
-                  読むだけです。あなたのカレンダーに書き込むことはありません。
+                  {''}<Jp parts={['読むだけです。','あなたのカレンダーに','書き込むことは','ありません。']} />
                 </div>
               </>
             )}
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
-            <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:14px')}>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
               <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenTerms}>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>利用規約</span>
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
@@ -675,7 +701,7 @@ export function renderApp(v) {
               </div>
             </div>
             <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8;text-wrap:pretty')}>
-              予定はこの端末の中だけに保存されます。外部に送られることはありません。
+              {''}<Jp parts={['予定はこの端末の','中だけに','保存されます。','外部に','送られることは','ありません。']} />
             </div>
 
           </div>
@@ -692,12 +718,12 @@ export function renderApp(v) {
 
             {v.repEmpty ? (
               <div style={s('text-align:center;padding:56px 24px;color:var(--ink-faint);font-size:14px;line-height:1.9;text-wrap:pretty')}>
-                働いた記録がまだありません。<br />バイトの予定を確定して、<br />終わったら実働時間をつけると、<br />ここに積み上がっていきます。
+                {''}<Jp parts={['働いた記録が','まだありません。','バイトの予定を','確定して、','終わったら','実働時間をつけると、','ここに','積み上がっていきます。']} />
               </div>
             ) : (
               <>
                 <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>{v.repMonthLabel}</div>
-                <div style={s('background:var(--card);border-radius:14px;padding:18px 18px 20px;margin-bottom:22px;border:1px solid var(--line)')}>
+                <div style={s('background:var(--card);border-radius:17px;padding:18px 18px 20px;margin-bottom:22px;border:1px solid var(--line)')}>
                   <div style={s('display:flex;align-items:baseline;gap:8px;margin-bottom:2px')}>
                     <span style={s('font-size:34px;font-weight:800;color:var(--ink);letter-spacing:-.8px;font-variant-numeric:tabular-nums')}>{v.repMonthWage}</span>
                   </div>
@@ -705,7 +731,7 @@ export function renderApp(v) {
                 </div>
 
                 <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>月ごとの働いた時間</div>
-                <div style={s('background:var(--card);border-radius:14px;padding:16px 12px 12px;margin-bottom:22px;border:1px solid var(--line)')}>
+                <div style={s('background:var(--card);border-radius:17px;padding:16px 12px 12px;margin-bottom:22px;border:1px solid var(--line)')}>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:0 4px 12px')}>
                     <span role="button" aria-label="前の年" style={s('width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onRepPrevYear}>‹</span>
                     <span style={s('font-size:14px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearLabel}</span>
@@ -726,7 +752,7 @@ export function renderApp(v) {
                 </div>
 
                 <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>{v.repYearLabel}の合計</div>
-                <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:22px;border:1px solid var(--line)')}>
+                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px;border:1px solid var(--line)')}>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
                     <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた時間</span>
                     <span style={s('font-size:17px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearHours}</span>
@@ -744,7 +770,7 @@ export function renderApp(v) {
             )}
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>シェア</div>
-            <div style={s('background:var(--card);border-radius:14px;overflow:hidden;border:1px solid var(--line)')}>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line)')}>
               <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenSummaryCard}>
                 <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>今月のまとめカード</span>
@@ -776,15 +802,15 @@ export function renderApp(v) {
                 <div style={s('width:56px;height:56px;border-radius:28px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;animation:checkPop .5s cubic-bezier(.2,.9,.2,1) both')}>✓</div>
                 <div style={s('font-size:19px;font-weight:700;color:var(--ink);margin-top:18px')}>{v.impAdded}件を取り込みました</div>
                 <div style={s('font-size:13px;color:var(--ink-mut);margin-top:8px;line-height:1.9;text-wrap:pretty')}>
-                  すべて「決まってる」として置きました。<br />まだ分からない予定は、タップして点線に変えられます。
+                  {''}<Jp parts={['すべて','「決まってる」として','置きました。','まだ分からない予定は、','タップして','点線に','変えられます。']} />
                 </div>
-                <div style={s('margin-top:28px;padding:15px;border-radius:13px;background:var(--ink);color:var(--card);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onImportDone}>カレンダーを見る</div>
+                <div style={s('margin-top:28px;padding:15px;border-radius:16px;background:var(--ink);color:var(--card);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onImportDone}>カレンダーを見る</div>
               </div>
             ) : v.impPhase === 'found' ? (
               <>
                 <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>{v.impCount}件の予定が見つかりました</div>
                 <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-bottom:22px;text-wrap:pretty')}>
-                  先月から1年ぶんを読みました。すでに入っている予定は除いてあります。
+                  {''}<Jp parts={['先月から','1年ぶんを','読みました。','すでに入っている予定は','除いてあります。']} />
                 </div>
 
                 <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 2px 8px')}>どの種類に入れますか</div>
@@ -793,7 +819,7 @@ export function renderApp(v) {
                 </div>
 
                 <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 2px 8px')}>取り込まれる予定</div>
-                <div style={s('background:var(--card);border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-bottom:8px')}>
+                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:8px')}>
                   {(v.impPreview || []).map((p, i) => (
                     <div key={i} style={s(`display:flex;align-items:center;gap:12px;padding:12px 15px;${i ? 'border-top:1px solid var(--line)' : ''}`)}>
                       <span style={s('font-size:12px;color:var(--ink-mut);font-variant-numeric:tabular-nums;white-space:nowrap')}>{p.when}</span>
@@ -805,31 +831,39 @@ export function renderApp(v) {
                   <div style={s('font-size:12px;color:var(--ink-faint);margin:0 2px 22px')}>ほか {v.impMore} 件</div>
                 )}
 
-                <div style={s('margin-top:14px;padding:16px;border-radius:14px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer')} onClick={v.onDoImport}>{v.impCount}件を取り込む</div>
+                <div style={s('margin-top:14px;padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer')} onClick={v.onDoImport}>{v.impCount}件を取り込む</div>
                 <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
               </>
             ) : (
               <>
                 <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:10px;text-wrap:balance')}>いま使っているカレンダーの予定を持ってくる</div>
                 <div style={s('font-size:14px;color:var(--ink-soft);line-height:2;text-wrap:pretty')}>
-                  iPhone のカレンダーに入っている予定を読み込んで、このアプリに並べます。<br />
-                  はじめから作り直さなくて済みます。
+                  {''}<Jp parts={['iPhone のカレンダーに','入っている予定を','読み込んで、','このアプリに','並べます。','はじめから','作り直さなくて','済みます。']} />
                 </div>
 
-                <div style={s('margin-top:26px;background:var(--card);border-radius:14px;padding:16px 18px;border:1px solid var(--line)')}>
+                <div style={s('margin-top:26px;background:var(--card);border-radius:17px;padding:16px 18px;border:1px solid var(--line)')}>
                   <div style={s('font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px')}>読むだけです</div>
-                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95;text-wrap:pretty')}>
-                    ・あなたのカレンダーに書き込むことはありません<br />
-                    ・読んだ予定はこの端末の中だけに保存されます<br />
-                    ・外部に送られることはありません
+                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95')}>
+                    {['あなたのカレンダーに書き込むことはありません', '読んだ予定はこの端末の中だけに保存されます', '外部に送られることはありません'].map((t, i) => (
+                      <div key={i} style={s('display:flex;gap:6px')}>
+                        <span>・</span><span style={s('flex:1')}>{t}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
                 {!!v.impError && (
-                  <div style={s('margin-top:18px;font-size:13px;color:#A8452B;line-height:1.8;text-wrap:pretty')}>{v.impError}</div>
+                  <div style={s('margin-top:18px')}>
+                    <div style={s('font-size:13px;color:#A8452B;line-height:1.9;text-wrap:pretty')}>{v.impError}</div>
+                    {v.impDenied && (
+                      <div style={s('margin-top:14px;padding:14px;border-radius:17px;border:1px solid var(--line);background:var(--card);text-align:center;font-size:15px;font-weight:700;color:var(--ink);cursor:pointer')} onClick={v.onOpenSettingsApp}>
+                        設定アプリを開く
+                      </div>
+                    )}
+                  </div>
                 )}
 
-                <div style={s(`margin-top:26px;padding:16px;border-radius:14px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
+                <div style={s(`margin-top:26px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
                   {v.impPhase === 'scanning' ? '読み込んでいます…' : 'カレンダーを読む'}
                 </div>
               </>
@@ -867,7 +901,7 @@ export function renderApp(v) {
       {v.notifShown && (
         <div style={s('position:absolute;top:52px;left:10px;right:10px;z-index:70;animation:notifDrop .42s cubic-bezier(.2,.9,.2,1)')}>
           <div style={s('display:flex;align-items:center;gap:12px;background:rgba(250,250,252,.86);backdrop-filter:blur(22px);border:.5px solid rgba(0,0,0,.06);border-radius:20px;padding:13px 15px;box-shadow:0 10px 34px rgba(0,0,0,.22);cursor:pointer')} onClick={v.onNotifOpen}>
-            <div style={s('width:40px;height:40px;border-radius:10px;background:#1D9E75;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px rgba(8,80,65,.4)')}>
+            <div style={s('width:40px;height:40px;border-radius:16px;background:#1D9E75;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px rgba(8,80,65,.4)')}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                 <rect x="3.5" y="4.5" width="17" height="16" rx="2.5" stroke="#fff" strokeWidth="1.7" />
                 <path d="M3.5 9h17" stroke="#fff" strokeWidth="1.7" />
