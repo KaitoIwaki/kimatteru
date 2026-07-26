@@ -148,10 +148,11 @@ App Store Connect はこのサイズがあれば他サイズへ自動で縮小�
 - [x] `node app/tools/build-legal.mjs` を実行して公開HTMLを更新した
 - [x] GitHub にリポジトリを作って push した（KaitoIwaki/kimatteru）
 - [x] `legal/` を GitHub Pages で公開した
-- [ ] App Store Connect でアプリを作成した（バンドルID `com.kimatteru.app`）
-- [ ] App Store Connect API キーを作り、Codemagic に登録した
-- [ ] `codemagic.yaml` の `app_store_connect:` をそのキー名に書き換えた
-- [ ] Codemagic でビルドが通り、TestFlight に上がった
+- [x] Bundle ID `com.kimatteru.app` を Apple Developer に登録した
+- [x] App Store Connect でアプリを作成した
+- [x] App Store Connect API キーを作り、Codemagic に登録した
+- [x] `codemagic.yaml` を Codemagic の仕様に合わせた
+- [x] Codemagic でビルドが通り、TestFlight に上がった
 - [ ] 自分のiPhoneで実機確認した（通知・触覚・共有シート・ダークモード）
 - [ ] スクリーンショットと説明文を登録した
 - [ ] 審査に提出した
