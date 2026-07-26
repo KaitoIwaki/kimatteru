@@ -1,6 +1,6 @@
 // 規約とプライバシーポリシーの本文。
 // アプリ内の表示と、公開用HTML（tools/build-legal.mjs）で同じ原稿を使う。
-export const CONTACT = '[ここに連絡先メールアドレスを入れてください]';
+export const CONTACT = 'voidlabs.work@gmail.com';
 export const APP_NAME = '決まってる？';
 export const EFFECTIVE = '2026年7月26日';
 
