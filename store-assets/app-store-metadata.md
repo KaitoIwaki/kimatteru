@@ -78,12 +78,13 @@ App Store Connect の入力欄にそのまま貼れる形でまとめていま�
 
 | 項目 | 値 |
 |---|---|
-| プライバシーポリシーURL（必須） | **[ legal/privacy.html を公開したURL ]** |
-| サポートURL（必須） | **[ legal/index.html を公開したURL ]** |
+| プライバシーポリシーURL（必須） | `https://kaitoiwaki.github.io/kimatteru/legal/privacy.html` |
+| サポートURL（必須） | `https://kaitoiwaki.github.io/kimatteru/legal/index.html` |
 | マーケティングURL（任意） | 空欄で可 |
 | 連絡先メールアドレス | `voidlabs.work@gmail.com` |
 
-> `legal/` フォルダを GitHub Pages などに公開すると、そのまま両方のURLに使えます。
+> 公開済み（GitHub Pages）。原稿を直したら `node app/tools/build-legal.mjs` を実行して push すると更新される。
+> 利用規約：`https://kaitoiwaki.github.io/kimatteru/legal/terms.html`
 
 ---
 
@@ -145,8 +146,8 @@ App Store Connect はこのサイズがあれば他サイズへ自動で縮小�
 - [x] Apple Developer Program に登録した
 - [x] `app/src/docs.js` の `CONTACT` を実際の連絡先メールアドレスに設定した（voidlabs.work@gmail.com）
 - [x] `node app/tools/build-legal.mjs` を実行して公開HTMLを更新した
-- [ ] GitHub にリポジトリを作って push した
-- [ ] `legal/` を公開して、プライバシーポリシーURLを控えた
+- [x] GitHub にリポジトリを作って push した（KaitoIwaki/kimatteru）
+- [x] `legal/` を GitHub Pages で公開した
 - [ ] App Store Connect でアプリを作成した（バンドルID `com.kimatteru.app`）
 - [ ] App Store Connect API キーを作り、Codemagic に登録した
 - [ ] `codemagic.yaml` の `app_store_connect:` をそのキー名に書き換えた
