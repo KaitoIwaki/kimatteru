@@ -9,7 +9,8 @@ workflows:
       app_store_connect: App Store Connect API key
     environment:
       xcode: latest
-      node: 20
+      # Capacitor 8 の CLI は Node 22 以上を要求する
+      node: 22
       # Codemagic の Environment variables で作るグループ。
       # CERTIFICATE_PRIVATE_KEY（配布証明書の秘密鍵）を secure で入れておく。
       groups:
