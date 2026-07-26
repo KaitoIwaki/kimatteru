@@ -6,6 +6,7 @@ import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE } from './docs';
 import { applyStatusBarTheme } from './statusbar';
+import { canImport, askCalendarAccess, readCalendarEvents, dedupe } from './calendarimport';
 import { shareCanvas } from './shareimg';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
@@ -71,6 +72,7 @@ export default class App extends React.Component {
   state = {
     screen:'month', wageOn:false, dialog:null, detailId:null, dayNum:null, returnTo:'month',
     newType:null, overrides:{}, notif:null, editTypeKey:null, docKey:null, confirmDelete:null,
+    imp:{ phase:'idle', found:[], type:'yoji', error:'' },
     ym: thisMonth(),      // カレンダーで表示している月
     freeYM: thisMonth(),  // 「いつ空いてる？」で見ている月
     today: todayParts(),
@@ -172,6 +174,36 @@ export default class App extends React.Component {
       y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, allDay:!!ev.allDay, picking:null }});
   }
   askDelete(id){ this.setState({confirmDelete:id}); }
+
+  // ---- iPhone のカレンダーから取り込む ----
+  openImport(){ this.setState({screen:'import', imp:{phase:'idle', found:[], type:'yoji', error:''}}); }
+  async runScan(){
+    tapLight();
+    this.setState(s=>({imp:{...s.imp, phase:'scanning', error:''}}));
+    const perm = await askCalendarAccess();
+    if(perm!=='granted'){
+      this.setState(s=>({imp:{...s.imp, phase:'idle',
+        error: perm==='unavailable' ? 'この端末では取り込みを使えません。' : 'カレンダーを読む許可が下りませんでした。設定アプリから許可すると取り込めます。'}}));
+      return;
+    }
+    try{
+      const all = await readCalendarEvents({monthsBack:1, monthsAhead:12});
+      const fresh = dedupe(all, this.state.events);
+      this.setState(s=>({imp:{...s.imp, phase:'found', found:fresh}}));
+    }catch(e){
+      this.setState(s=>({imp:{...s.imp, phase:'idle', error:'予定を読めませんでした。時間をおいて試してください。'}}));
+    }
+  }
+  doImport(){
+    const {found, type} = this.state.imp;
+    if(!found.length) return;
+    stampHeavy();
+    const now=Date.now();
+    // 取り込んだ予定は「決まっている」扱い。あとから点線に変えられる。
+    const add = found.map((e,i)=>({ id:'i'+now+'-'+i, type, title:e.title, y:e.y, m:e.m, day:e.day,
+      start:e.start, end:e.end, status:'kakutei', allDay:e.allDay }));
+    this.setState(s=>({ events:[...s.events, ...add], imp:{...s.imp, phase:'done', added:add.length} }));
+  }
   doDelete(){
     const id=this.state.confirmDelete;
     this.setState(s=>({ events:s.events.filter(e=>e.id!==id), confirmDelete:null, dialog:null,
@@ -284,6 +316,34 @@ export default class App extends React.Component {
       onFreeNext:()=>this.setState(s=>({freeYM:shiftMonth(s.freeYM,1)})),
       stop:(e)=>e&&e.stopPropagation(),
     };
+
+    // ---------- 予定の取り込み ----------
+    v.importAvailable = canImport();
+    v.onOpenImport = ()=>this.openImport();
+    v.importShown = st.screen==='import';
+    if(v.importShown){
+      const im=st.imp;
+      v.impPhase=im.phase;
+      v.impError=im.error;
+      v.impCount=String((im.found||[]).length);
+      v.impAdded=String(im.added||0);
+      v.onScan=()=>this.runScan();
+      v.onDoImport=()=>this.doImport();
+      v.onImportBack=()=>this.setState({screen:'settings'});
+      v.onImportDone=()=>this.setState({screen:'month'});
+      // 取り込んだ予定をどの種類に入れるか
+      v.impTypeChips = st.types.map(t=>{ const sel=t.key===im.type;
+        return { label:t.name, onClick:()=>this.setState(s=>({imp:{...s.imp,type:t.key}})),
+          style:{padding:'7px 14px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',
+            background:sel?t.color:'var(--card)', color:sel?'#fff':'var(--ink-mut)',
+            border:'1px solid '+(sel?t.color:'var(--line)')} }; });
+      // 何が入るのか見えるように、先頭のいくつかを見せる
+      v.impPreview = (im.found||[]).slice(0,6).map(e=>({
+        title:e.title,
+        when:`${e.m+1}/${e.day}　${e.allDay?'終日':e.start+'–'+e.end}`,
+      }));
+      v.impMore = Math.max(0,(im.found||[]).length-6);
+    }
 
     // ---------- 規約・プライバシーポリシー ----------
     v.docShown = st.screen==='doc' && !!DOCS[st.docKey];
@@ -771,7 +831,7 @@ export default class App extends React.Component {
     const Y = st.ym.y, M = st.ym.m;
     const monthEvents = st.events.filter((e) => e.y === Y && e.m === M);
     try {
-      let canvas, name, text;
+      let canvas, name;
       if (kind === 'summary') {
         const jis = monthEvents.filter((e) => e.status === 'jisseki');
         const totalH = jis.reduce((a, e) => a + this.hoursBetween(e.start, e.actualEnd || e.end), 0);
@@ -792,7 +852,6 @@ export default class App extends React.Component {
           }),
         });
         name = `kimatteru-${Y}-${M + 1}-summary.png`;
-        text = `${Y}年${M + 1}月のまとめ`;
       } else {
         const ws = st.settings.weekStart;
         const wl = ['日', '月', '火', '水', '木', '金', '土'];
@@ -814,9 +873,8 @@ export default class App extends React.Component {
           cells,
         });
         name = `kimatteru-${Y}-${M + 1}-free.png`;
-        text = `${M + 1}月のあいてる日`;
       }
-      const msg = await shareCanvas(canvas, name, text);
+      const msg = await shareCanvas(canvas, name);
       if (msg) {
         this.setState({ shareToast: true, shareMsg: msg });
         setTimeout(() => this.setState({ shareToast: false }), 2400);

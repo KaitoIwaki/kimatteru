@@ -162,7 +162,7 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
   const rowGap = 10;
   const rows = Math.ceil(cells.length / 7);
   // マスの行数に合わせて高さを決める。余白が間延びしないようにするため。
-  const H = 470 + rows * (cellH + rowGap) + 300;
+  const H = 430 + rows * (cellH + rowGap) + 300;
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
@@ -184,13 +184,11 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
   ctx.fillStyle = INK;
   ctx.fillText(`${monthLabel}月のあいてる日`, PAD, y);
 
-  y += 54;
-  ctx.font = f(32, 400);
-  ctx.fillStyle = INK_MUT;
-  ctx.fillText('予定の中身は出していません', PAD, y);
+  // 「予定の中身は出していません」は送る前の画面にだけ置く。
+  // 受け取る側には、予定名が無いことも凡例も見れば伝わるので、画像には入れない。
 
   // 曜日
-  y += 80;
+  y += 92;
   const gw = W - PAD * 2;
   const cw = gw / 7;
   ctx.font = f(26, 600);

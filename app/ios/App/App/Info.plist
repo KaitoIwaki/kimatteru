@@ -47,6 +47,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- 予定の取り込みで、カレンダーを読むときにだけ表示される説明 -->
+	<key>NSCalendarsUsageDescription</key>
+	<string>いま使っているカレンダーの予定を、このアプリに取り込むために読み込みます。読むだけで、書き込みや外部への送信は行いません。</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>いま使っているカレンダーの予定を、このアプリに取り込むために読み込みます。読むだけで、書き込みや外部への送信は行いません。</string>
 	<!-- 暗号化を独自に使っていないため、ビルドごとの輸出コンプライアンス質問を省略する -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>

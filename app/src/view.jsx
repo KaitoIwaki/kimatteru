@@ -72,6 +72,11 @@ export function renderApp(v) {
                   決まっている予定は塗り、<br />まだ分からない予定は点線で並びます。
                 </div>
                 <div style={s('font-size:12px;color:var(--ink-faint)')}>＋ から最初の予定を置いてみてください</div>
+                {v.importAvailable && (
+                  <div style={s('margin-top:14px;padding:12px 20px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer')} onClick={v.onOpenImport}>
+                    iPhone のカレンダーから取り込む
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -638,6 +643,22 @@ export function renderApp(v) {
               </div>
             </div>
 
+            {v.importAvailable && (
+              <>
+                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>予定の取り込み</div>
+                <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:8px')}>
+                  <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onOpenImport}>
+                    <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
+                    <span style={s('flex:1;font-size:15px;color:var(--ink)')}>iPhone のカレンダーから取り込む</span>
+                    <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+                  </div>
+                </div>
+                <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8;text-wrap:pretty')}>
+                  読むだけです。あなたのカレンダーに書き込むことはありません。
+                </div>
+              </>
+            )}
+
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
             <div style={s('background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:14px')}>
               <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenTerms}>
@@ -735,6 +756,84 @@ export function renderApp(v) {
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
               </div>
             </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ===================== 予定の取り込み ===================== */}
+      {v.importShown && (
+        <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
+          <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
+            <span style={s('font-size:16px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>← 設定</span>
+            <span style={s('font-size:16px;font-weight:600;color:var(--ink);white-space:nowrap')}>予定の取り込み</span>
+            <span style={s('width:44px')} />
+          </div>
+          <div style={s('flex:1;overflow-y:auto;padding:14px 20px 60px')}>
+
+            {v.impPhase === 'done' ? (
+              <div style={s('text-align:center;padding:56px 10px')}>
+                <div style={s('width:56px;height:56px;border-radius:28px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;animation:checkPop .5s cubic-bezier(.2,.9,.2,1) both')}>✓</div>
+                <div style={s('font-size:19px;font-weight:700;color:var(--ink);margin-top:18px')}>{v.impAdded}件を取り込みました</div>
+                <div style={s('font-size:13px;color:var(--ink-mut);margin-top:8px;line-height:1.9;text-wrap:pretty')}>
+                  すべて「決まってる」として置きました。<br />まだ分からない予定は、タップして点線に変えられます。
+                </div>
+                <div style={s('margin-top:28px;padding:15px;border-radius:13px;background:var(--ink);color:var(--card);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onImportDone}>カレンダーを見る</div>
+              </div>
+            ) : v.impPhase === 'found' ? (
+              <>
+                <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>{v.impCount}件の予定が見つかりました</div>
+                <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-bottom:22px;text-wrap:pretty')}>
+                  先月から1年ぶんを読みました。すでに入っている予定は除いてあります。
+                </div>
+
+                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 2px 8px')}>どの種類に入れますか</div>
+                <div style={s('display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px')}>
+                  {(v.impTypeChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                </div>
+
+                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 2px 8px')}>取り込まれる予定</div>
+                <div style={s('background:var(--card);border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-bottom:8px')}>
+                  {(v.impPreview || []).map((p, i) => (
+                    <div key={i} style={s(`display:flex;align-items:center;gap:12px;padding:12px 15px;${i ? 'border-top:1px solid var(--line)' : ''}`)}>
+                      <span style={s('font-size:12px;color:var(--ink-mut);font-variant-numeric:tabular-nums;white-space:nowrap')}>{p.when}</span>
+                      <span style={s('flex:1;font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{p.title}</span>
+                    </div>
+                  ))}
+                </div>
+                {v.impMore > 0 && (
+                  <div style={s('font-size:12px;color:var(--ink-faint);margin:0 2px 22px')}>ほか {v.impMore} 件</div>
+                )}
+
+                <div style={s('margin-top:14px;padding:16px;border-radius:14px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer')} onClick={v.onDoImport}>{v.impCount}件を取り込む</div>
+                <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
+              </>
+            ) : (
+              <>
+                <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:10px;text-wrap:balance')}>いま使っているカレンダーの予定を持ってくる</div>
+                <div style={s('font-size:14px;color:var(--ink-soft);line-height:2;text-wrap:pretty')}>
+                  iPhone のカレンダーに入っている予定を読み込んで、このアプリに並べます。<br />
+                  はじめから作り直さなくて済みます。
+                </div>
+
+                <div style={s('margin-top:26px;background:var(--card);border-radius:14px;padding:16px 18px;border:1px solid var(--line)')}>
+                  <div style={s('font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px')}>読むだけです</div>
+                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95;text-wrap:pretty')}>
+                    ・あなたのカレンダーに書き込むことはありません<br />
+                    ・読んだ予定はこの端末の中だけに保存されます<br />
+                    ・外部に送られることはありません
+                  </div>
+                </div>
+
+                {!!v.impError && (
+                  <div style={s('margin-top:18px;font-size:13px;color:#A8452B;line-height:1.8;text-wrap:pretty')}>{v.impError}</div>
+                )}
+
+                <div style={s(`margin-top:26px;padding:16px;border-radius:14px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
+                  {v.impPhase === 'scanning' ? '読み込んでいます…' : 'カレンダーを読む'}
+                </div>
+              </>
+            )}
 
           </div>
         </div>

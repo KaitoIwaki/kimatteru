@@ -1,7 +1,7 @@
 {
   "name": "kimatteru",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,6 +17,7 @@
     "@capacitor/local-notifications": "^8.2.1",
     "@capacitor/share": "^8.0.1",
     "@capacitor/status-bar": "^8.0.3",
+    "@ebarooni/capacitor-calendar": "^8.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
