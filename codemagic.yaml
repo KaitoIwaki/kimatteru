@@ -14,10 +14,16 @@ workflows:
         XCODE_PROJECT: "app/ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.kimatteru.app"
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.kimatteru.app
+      # ios_signing は既存のプロファイルを探すだけで、無いときに作ってくれない。
+      # 下の「署名の準備」で --create 付きで取得する。
     scripts:
+      - name: 署名ファイルを取得（無ければ作成）
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
       - name: 依存関係をインストール
         script: npm --prefix app ci
       - name: Web をビルド
@@ -30,6 +36,7 @@ workflows:
         script: |
           cd app/ios/App
           agvtool new-version -all "$PROJECT_BUILD_NUMBER"
+      # cap sync がプロジェクトを書き換えるので、署名の適用はその後に行う
       - name: 署名プロファイルを適用
         script: xcode-project use-profiles
       - name: IPA をビルド
