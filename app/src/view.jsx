@@ -61,11 +61,11 @@ export function renderApp(v) {
             onTouchMove={v.onMonthTouchMove}
             onTouchEnd={v.onMonthTouchEnd}
           >
-            <div style={s('flex:1 0 auto;display:flex;overflow:hidden')}>
+            <div style={s('flex:1 1 auto;min-height:0;position:relative;overflow:hidden')}>
               <div style={s(v.trackStyle)}>
                 {(v.monthPages || []).map((page) => (
-                  <div key={page.key} style={s('width:33.3333%;flex:0 0 33.3333%;padding:0 6px')}>
-                    <div style={s('display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(86px,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;height:100%')}>
+                  <div key={page.key} style={s('flex:0 0 33.3333%;max-width:33.3333%;padding:0 6px;display:flex;flex-direction:column;box-sizing:border-box')}>
+                    <div style={s('display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(86px,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;flex:1 1 auto;min-height:0')}>
                       {page.cells.map((c, i) => (
                         <div key={i} style={s(c.style)} onClick={c.onDay}>
                           {!!c.day && (
@@ -89,7 +89,7 @@ export function renderApp(v) {
             </div>
 
             {v.showFirstRunHint && (
-              <div style={s('display:flex;flex-direction:column;align-items:center;gap:10px;padding:30px 34px 8px;text-align:center')}>
+              <div style={s('flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px;padding:30px 34px 8px;text-align:center')}>
                 <div style={s('display:flex;align-items:center;gap:8px')}>
                   <span style={s('display:inline-block;width:52px;height:15px;border-radius:5px;background:#1D9E75')} />
                   <span style={s('display:inline-block;width:52px;height:15px;border-radius:5px;background:rgba(29,158,117,.10);border:1.4px dashed #1D9E75')} />

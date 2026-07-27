@@ -543,8 +543,10 @@ export default class App extends React.Component {
       { key:nextYM.y+'-'+nextYM.m, cells:buildCells(nextYM.y,nextYM.m) },
     ];
     // 指の動きぶんだけ横にずらす。離したときだけ滑らせる。
+    // 絶対配置にして、flex の縮みで幅が崩れないようにする
     const sw=st.swipe||{dx:0,animating:false};
-    v.trackStyle={ display:'flex', width:'300%', transform:`translateX(calc(-33.3333% + ${sw.dx}px))`,
+    v.trackStyle={ position:'absolute', top:0, left:0, height:'100%', width:'300%', display:'flex',
+      transform:`translateX(calc(-33.3333% + ${sw.dx}px))`,
       transition: sw.animating ? 'transform .3s cubic-bezier(.22,.86,.3,1)' : 'none' };
     // 給料バーが出ているぶん、下に余白を足して最終週が隠れないようにする
     v.monthPadBottom = (wageOn ? 168 : 104)+'px';
