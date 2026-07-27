@@ -53,7 +53,8 @@ export default class App extends React.Component {
           events: saved.events || this.state.events,
           types: saved.types || this.state.types,
           overrides: saved.overrides || this.state.overrides,
-          settings: { ...this.state.settings, ...(saved.settings || {}) },
+          // すでに使っている人には案内を出さない
+          settings: { ...this.state.settings, onboarded: true, ...(saved.settings || {}) },
           notices: saved.notices || this.state.notices,
           lastSeenVersion: saved.lastSeenVersion || null,
           jobs: saved.jobs || this.state.jobs,
@@ -93,7 +94,9 @@ export default class App extends React.Component {
     freeYM: thisMonth(),  // 「いつ空いてる？」で見ている月
     today: todayParts(),
     shareChoices:{ o1:null, o2:null, o3:null }, shareSubmitted:false, shareToast:false, shareMsg:'', morph:null,
-    settings:{ hourly:1120, step:30, weekStart:0, remind:true, hideCanceled:false, dark:false },
+    settings:{ hourly:1120, step:30, weekStart:0, remind:true, hideCanceled:false, dark:false, onboarded:false },
+    // はじめての案内。step は 0=しくみ 1=時給 2=取り込み
+    onboard:{ step:0, demo:'dash', jobName:'', jobHourly:1120 },
     draft:{ title:'', type:'baito', status:'kakutei', start:'17:00', end:'22:00', y:todayParts().y, m:todayParts().m, day:todayParts().d, allDay:false, picking:null },
     types:[
       {key:'baito', name:'バイト', color:'#1D9E75', paper:'rgba(225,245,238,.72)', dark:'#085041', uWord:'希望シフト', cWord:'確定シフト'},
@@ -200,6 +203,36 @@ export default class App extends React.Component {
       y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, picking:null }});
   }
   askDelete(id){ this.setState({confirmDelete:id}); }
+
+  // ---- はじめての案内 ----
+  // 点線が塗りに変わる瞬間を、その場で一度さわってもらう
+  onboardDemoTap(){
+    if(this.state.onboard.demo!=='dash') return;
+    tapLight();
+    this.setState(s=>({onboard:{...s.onboard, demo:'fill'}}));
+    setTimeout(()=>{ penTick(); }, 120);
+    setTimeout(()=>{ settleSuccess(); this.setState(s=>({onboard:{...s.onboard, demo:'done'}})); }, 430);
+  }
+  onboardResetDemo(){ this.setState(s=>({onboard:{...s.onboard, demo:'dash'}})); }
+  onboardNext(){ tapLight(); this.setState(s=>({onboard:{...s.onboard, step:s.onboard.step+1}})); }
+  onboardBack(){ this.setState(s=>({onboard:{...s.onboard, step:Math.max(0,s.onboard.step-1)}})); }
+  // 時給の入力を、そのままバイト先として登録する
+  onboardSaveJob(){
+    const {jobName,jobHourly}=this.state.onboard;
+    const name=(jobName||'').trim();
+    if(name){
+      const id='j'+Date.now();
+      this.setState(s=>({ jobs:[...s.jobs,{id,name,hourly:jobHourly}] }));
+    } else {
+      this.setSetting('hourly', jobHourly);
+    }
+    this.onboardNext();
+  }
+  finishOnboard(goImport){
+    stampHeavy();
+    this.setState(s=>({ settings:{...s.settings, onboarded:true}, screen: goImport ? 'import' : 'month' }));
+    if(goImport) this.setState({imp:{phase:'idle', found:[], type:'yoji', error:''}});
+  }
 
   // ---- バイト先 ----
   addJob(){
@@ -416,6 +449,55 @@ export default class App extends React.Component {
       onFreeNext:()=>this.setState(s=>({freeYM:shiftMonth(s.freeYM,1)})),
       stop:(e)=>e&&e.stopPropagation(),
     };
+
+    // ---------- はじめての案内 ----------
+    v.onboardShown = !st.settings.onboarded;
+    if(v.onboardShown){
+      const ob=st.onboard, teal='#1D9E75';
+      v.obStep = ob.step;
+      v.obDots = [0,1,2].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
+        background:i===ob.step?'var(--ink)':'var(--line)',transition:'all .3s cubic-bezier(.2,.9,.2,1)'} }));
+      v.onObNext = ()=>this.onboardNext();
+      v.onObBack = ()=>this.onboardBack();
+      v.onObSkip = ()=>this.finishOnboard(false);
+
+      // 1枚目：しくみを、さわって知ってもらう
+      const filled = ob.demo!=='dash';
+      v.obDemoDone = ob.demo==='done';
+      v.onObDemoTap = ()=>this.onboardDemoTap();
+      v.onObDemoReset = ()=>this.onboardResetDemo();
+      v.obDemoPillStyle = {
+        position:'relative', overflow:'hidden', display:'block', width:'100%', boxSizing:'border-box',
+        height:34, lineHeight:'30px', borderRadius:9, padding:'0 12px', fontSize:15, fontWeight:700,
+        cursor: filled ? 'default' : 'pointer',
+        background: filled ? this.softFill(teal) : 'rgba(29,158,117,.09)',
+        border: '1.6px '+(filled?'solid':'dashed')+' '+this.softLine(teal),
+        color: this.inkOn(teal),
+        animation: ob.demo==='done' ? 'pillSettle .24s cubic-bezier(.3,1.4,.5,1)' : 'none',
+        transition:'background .25s, border-color .25s',
+      };
+      v.obDemoFillStyle = { position:'absolute',left:0,top:0,bottom:0,right:0,background:this.softFill(teal),
+        transformOrigin:'left center', transform: filled?'scaleX(1)':'scaleX(0)',
+        animation: ob.demo==='fill' ? 'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none', zIndex:0 };
+      v.obDemoTextStyle = { position:'relative', zIndex:1 };
+      v.obDemoLabel = filled ? 'カフェバイト' : '？カフェバイト';
+      v.obDemoCaption = filled ? '決まった、が形になりました。' : '点線の予定をタップしてみてください';
+
+      // 2枚目：時給
+      v.obJobName = ob.jobName;
+      v.obJobHourly = String(ob.jobHourly);
+      v.onObJobName = (e)=>{ const val=e.target.value; this.setState(s=>({onboard:{...s.onboard, jobName:val}})); };
+      v.onObHourly = (e)=>{ const n=parseInt((e.target.value||'').replace(/[^0-9]/g,''),10);
+        this.setState(s=>({onboard:{...s.onboard, jobHourly:isNaN(n)?0:Math.min(99999,n)}})); };
+      v.onObHourlyMinus = ()=>this.setState(s=>({onboard:{...s.onboard, jobHourly:Math.max(0,s.onboard.jobHourly-10)}}));
+      v.onObHourlyPlus = ()=>this.setState(s=>({onboard:{...s.onboard, jobHourly:s.onboard.jobHourly+10}}));
+      v.onObSaveJob = ()=>this.onboardSaveJob();
+
+      // 3枚目：取り込み
+      v.obCanImport = canImport();
+      v.onObImport = ()=>this.finishOnboard(true);
+      v.onObStart = ()=>this.finishOnboard(false);
+    }
 
     // ---------- 予定の取り込み ----------
     v.importAvailable = canImport();

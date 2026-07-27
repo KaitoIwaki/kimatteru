@@ -852,6 +852,114 @@ export function renderApp(v) {
         </div>
       )}
 
+      {/* ===================== はじめての案内 ===================== */}
+      {v.onboardShown && (
+        <div style={s('position:absolute;top:0;right:0;bottom:0;left:0;z-index:95;background:var(--bg);display:flex;flex-direction:column')}>
+          <div className="scr-head" style={s('padding:0 18px 4px 18px')}>
+            <span style={s(`font-size:15px;color:var(--ink-mut);cursor:pointer;${v.obStep === 0 ? 'visibility:hidden' : ''}`)} onClick={v.onObBack}>←</span>
+            <span />
+            <span style={s('font-size:14px;color:var(--ink-faint);cursor:pointer;white-space:nowrap')} onClick={v.onObSkip}>スキップ</span>
+          </div>
+
+          <div style={s('flex:1;overflow-y:auto;padding:12px 26px 20px;display:flex;flex-direction:column')}>
+
+            {v.obStep === 0 && (
+              <div style={s('animation:riseUp .32s cubic-bezier(.2,.9,.2,1)')}>
+                <div style={s('font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.5px;line-height:1.5;margin-top:18px')}>
+                  {''}<Jp parts={['決まってる？', 'まだ？']} />
+                </div>
+                <div style={s('font-size:14.5px;color:var(--ink-soft);line-height:2;margin-top:14px')}>
+                  {''}<Jp parts={['決まっている予定は', '塗り、', 'まだ分からない予定は', '点線。', 'カレンダーを開いた', 'その瞬間に', '見分けられます。']} />
+                </div>
+
+                <div style={s('margin-top:34px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px')}>
+                  <div style={s('font-size:11px;font-weight:600;color:var(--ink-faint);margin-bottom:10px')}>7月25日（土）</div>
+                  <div style={s(v.obDemoPillStyle)} onClick={v.onObDemoTap}>
+                    <span style={s(v.obDemoFillStyle)} />
+                    <span style={s(v.obDemoTextStyle)}>{v.obDemoLabel}</span>
+                  </div>
+                  <div style={s(`font-size:12.5px;margin-top:14px;line-height:1.7;color:${v.obDemoDone ? '#0F6E56' : 'var(--ink-mut)'}`)}>{v.obDemoCaption}</div>
+                  {v.obDemoDone && (
+                    <div style={s('font-size:12px;color:var(--ink-faint);margin-top:8px;cursor:pointer')} onClick={v.onObDemoReset}>もう一度みる</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {v.obStep === 1 && (
+              <div style={s('animation:riseUp .32s cubic-bezier(.2,.9,.2,1)')}>
+                <div style={s('font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.5px;line-height:1.5;margin-top:18px')}>
+                  {''}<Jp parts={['バイトの給料も', '記録できます']} />
+                </div>
+                <div style={s('font-size:14px;color:var(--ink-soft);line-height:2;margin-top:12px')}>
+                  {''}<Jp parts={['働いた時間を入れると、', '時給から', '計算します。', 'あとで変えられます。']} />
+                </div>
+
+                <div style={s('margin-top:28px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px')}>
+                  <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin-bottom:8px')}>バイト先（任意）</div>
+                  <input value={v.obJobName} onChange={v.onObJobName} placeholder="例：マクド、塾" style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:12px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:18px')} />
+                  <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
+                    <span style={s('font-size:14px;color:var(--ink-mut)')}>時給</span>
+                    <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
+                      <div style={s(v.stepBtn)} onClick={v.onObHourlyMinus}>−</div>
+                      <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:7px 12px')}>
+                        <span style={s('font-size:15px;font-weight:700;color:var(--ink-soft)')}>¥</span>
+                        <input value={v.obJobHourly} onChange={v.onObHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:17px;font-weight:700;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
+                      </div>
+                      <div style={s(v.stepBtn)} onClick={v.onObHourlyPlus}>＋</div>
+                    </div>
+                  </div>
+                </div>
+                <div style={s('font-size:11.5px;color:var(--ink-faint);margin-top:12px;line-height:1.8')}>
+                  {''}<Jp parts={['バイト先を入れておくと、', '掛け持ちでも', 'それぞれの時給で', '計算できます。']} />
+                </div>
+              </div>
+            )}
+
+            {v.obStep === 2 && (
+              <div style={s('animation:riseUp .32s cubic-bezier(.2,.9,.2,1)')}>
+                <div style={s('font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.5px;line-height:1.5;margin-top:18px')}>
+                  {''}<Jp parts={['いまの予定を', '持ってきますか']} />
+                </div>
+                <div style={s('font-size:14px;color:var(--ink-soft);line-height:2;margin-top:12px')}>
+                  {''}<Jp parts={['iPhone のカレンダーから', '読み込めます。', 'はじめから', '作り直さなくて', '済みます。']} />
+                </div>
+                <div style={s('margin-top:24px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px')}>
+                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95')}>
+                    {['読むだけです。書き込みはしません', '入れるものは1件ずつ選べます', 'あとから設定でもできます'].map((t, i) => (
+                      <div key={i} style={s('display:flex;gap:6px')}><span>・</span><span style={s('flex:1')}>{t}</span></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={s('flex:1')} />
+
+            <div style={s('display:flex;justify-content:center;gap:6px;padding:20px 0 16px')}>
+              {(v.obDots || []).map((d, i) => (<span key={i} style={s(d.style)} />))}
+            </div>
+
+            {v.obStep === 0 && (
+              <div style={s('padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer')} onClick={v.onObNext}>つぎへ</div>
+            )}
+            {v.obStep === 1 && (
+              <div style={s('padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer')} onClick={v.onObSaveJob}>つぎへ</div>
+            )}
+            {v.obStep === 2 && (
+              <>
+                {v.obCanImport && (
+                  <div style={s('padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:9px')} onClick={v.onObImport}>カレンダーから取り込む</div>
+                )}
+                <div style={s(`padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;${v.obCanImport ? 'background:var(--card);border:1px solid var(--line);color:var(--ink)' : 'background:var(--ink);color:var(--card)'}`)} onClick={v.onObStart}>
+                  {v.obCanImport ? '空のまま はじめる' : 'はじめる'}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ===================== 予定の取り込み ===================== */}
       {v.importShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
