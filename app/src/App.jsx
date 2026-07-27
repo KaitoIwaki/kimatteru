@@ -10,8 +10,9 @@ import { canImport, askCalendarAccess, readCalendarEvents, dedupe, openAppSettin
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
 
-// 祝日の赤。紙の上で浮きすぎないよう、少し落ち着かせた赤にする。
-const HOLIDAY_RED = '#B4453A';
+// 曜日と祝日の色。紙の上で浮きすぎないよう、どちらも少し落ち着かせた色にする。
+const HOLIDAY_RED = '#B4453A'; // 祝日と日曜
+const SATURDAY_BLUE = '#3D6E9C'; // 土曜
 import { shareCanvas } from './shareimg';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
@@ -530,7 +531,8 @@ export default class App extends React.Component {
 
     const ws=st.settings.weekStart;
     const wlRot=Array.from({length:7},(_,i)=>{ const dw=(i+ws)%7; return {label:wl[dw], dw}; });
-    v.weekdays = wlRot.map(({label,dw})=>({ label, style:{textAlign:'center',fontSize:11,fontWeight:600,padding:'6px 0',color:dw===0?'var(--ink-mut)':dw===6?'var(--ink-mut)':'#9AA0A6'} }));
+    v.weekdays = wlRot.map(({label,dw})=>({ label, style:{textAlign:'center',fontSize:11,fontWeight:600,padding:'6px 0',
+      color: dw===0 ? HOLIDAY_RED : dw===6 ? SATURDAY_BLUE : '#9AA0A6'} }));
 
     // month cells — 前後の月も一緒に作る（スワイプで指についてくるように並べるため）
     const Y=st.ym.y, M=st.ym.m;
@@ -547,10 +549,11 @@ export default class App extends React.Component {
         const shown=dayEvents.slice(0,3), extra=dayEvents.length-shown.length;
         const dow=(rawFirst+d-1)%7, isToday=d===today;
         const hol=holidayName(Y,M,d);
+        // 祝日と日曜は赤、土曜は青。日本のカレンダーの見慣れた並びに合わせる。
+        const dayColor = (hol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)';
         const numStyle = isToday
           ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
-          : {fontSize:11,fontWeight:hol?700:600,
-             color: hol ? HOLIDAY_RED : (dow===0||dow===6?'var(--ink-mut)':'var(--ink)'), paddingLeft:2};
+          : {fontSize:11,fontWeight:(hol||dow===0||dow===6)?700:600, color:dayColor, paddingLeft:2};
         cells.push({
           blank:false, day:d,
           style:{background:'var(--card)',padding:'3px 4px',overflow:'hidden',cursor:'pointer'},
@@ -587,7 +590,8 @@ export default class App extends React.Component {
       const dayHol = holidayName(Y,M,d);
       v.dayTitle = (M+1)+'月'+d+'日（'+wl[dow]+'）';
       v.dayHoliday = dayHol || '';
-      v.dayTitleStyle = {fontSize:16,fontWeight:600,color: dayHol ? HOLIDAY_RED : 'var(--ink)'};
+      v.dayTitleStyle = {fontSize:16,fontWeight:600,
+        color: (dayHol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)'};
       const evs=st.events.filter(e=>e.y===Y && e.m===M && e.day===d).sort((a,b)=>this.mins(a.start)-this.mins(b.start));
       v.dayEmpty = evs.length===0;
       v.dayEvents = evs.map(ev=>{
@@ -626,7 +630,8 @@ export default class App extends React.Component {
     v.onDateNext = ()=>this.setState(s=>{ const n=shiftMonth({y:pY,m:pM},1); return {draft:{...s.draft,pickY:n.y,pickM:n.m}}; });
     const dws=st.settings.weekStart;
     v.dateWeekdays = Array.from({length:7},(_,i)=>{ const dw=(i+dws)%7;
-      return { label:DOW[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,padding:'4px 0',color:'var(--ink-faint)'} }; });
+      return { label:DOW[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,padding:'4px 0',
+        color: dw===0 ? HOLIDAY_RED : dw===6 ? SATURDAY_BLUE : 'var(--ink-faint)'} }; });
     {
       const first=(new Date(pY,pM,1).getDay()-dws+7)%7;
       const dim=new Date(pY,pM+1,0).getDate();
@@ -635,12 +640,15 @@ export default class App extends React.Component {
       for(let d2=1;d2<=dim;d2++){
         const sel = pY===dr.y && pM===dr.m && d2===dr.day;
         const isToday = st.today.y===pY && st.today.m===pM && st.today.d===d2;
+        const dw2 = new Date(pY,pM,d2).getDay();
+        const hol2 = holidayName(pY,pM,d2);
+        const c2 = (hol2||dw2===0) ? HOLIDAY_RED : dw2===6 ? SATURDAY_BLUE : 'var(--ink-soft)';
         cells.push({ label:d2,
           style:{height:36,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:12,cursor:'pointer',
             fontSize:14,fontVariantNumeric:'tabular-nums',
             fontWeight:sel?700:(isToday?700:500),
             background: sel?'var(--ink)':'transparent',
-            color: sel?'var(--card)':(isToday?'var(--ink)':'var(--ink-soft)'),
+            color: sel?'var(--card)':c2,
             border: (!sel&&isToday)?'1px solid var(--line)':'1px solid transparent'},
           onClick:()=>this.setState(s=>({draft:{...s.draft,y:pY,m:pM,day:d2,picking:null}})) });
       }
