@@ -13,6 +13,9 @@ import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTi
 // 曜日と祝日の色。紙の上で浮きすぎないよう、どちらも少し落ち着かせた色にする。
 const HOLIDAY_RED = '#B4453A'; // 祝日と日曜
 const SATURDAY_BLUE = '#3D6E9C'; // 土曜
+
+// 予定の塗りをどれだけ白に寄せるか。0 = 原色のまま、0.45 くらいでかなり淡い。
+const FILL_SOFT = 0.32;
 import { shareCanvas } from './shareimg';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
@@ -107,6 +110,11 @@ export default class App extends React.Component {
   _mix(a,b,t){ const A=this._h(a),B=this._h(b); return A.map((v,i)=>Math.round(v+(B[i]-v)*t)); }
   paperFrom(hex){ const l=this._mix(hex,'#ffffff',.84); return `rgba(${l[0]},${l[1]},${l[2]},.72)`; }
   darkFrom(hex){ const d=this._mix(hex,'#000000',.5); return `rgb(${d[0]},${d[1]},${d[2]})`; }
+  // 塗りの濃さ。白に寄せるほど紙になじむ。FILL_SOFT の一箇所で全体が変わる。
+  softFill(hex){ const l=this._mix(hex,'#ffffff',FILL_SOFT); return `rgb(${l[0]},${l[1]},${l[2]})`; }
+  softLine(hex){ const l=this._mix(hex,'#ffffff',FILL_SOFT*0.5); return `rgb(${l[0]},${l[1]},${l[2]})`; }
+  // 薄い塗りの上に置く文字。読みやすさを保つために濃いめにする。
+  inkOn(hex){ const d=this._mix(hex,'#000000',.58); return `rgb(${d[0]},${d[1]},${d[2]})`; }
 
   // ---- time ----
   mins(s){ const [h,m]=s.split(':').map(Number); return h*60+m; }
@@ -146,9 +154,9 @@ export default class App extends React.Component {
   pillStyle(ev){
     const t=this.T(ev.type);
     const base={height:16,boxSizing:'border-box',borderRadius:4,padding:'0 5px',marginBottom:3,fontSize:11,fontWeight:600,lineHeight:'16px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',cursor:'pointer',display:'block',transition:'background .28s cubic-bezier(.2,.9,.2,1),border-color .28s,color .28s'};
-    if(ev.status==='kakutei') return {...base,background:t.color,color:'#fff'};
-    if(ev.status==='mikakutei') return {...base,height:17,background:t.paper,color:t.dark,border:'1.5px dashed '+t.color,lineHeight:'13px',boxShadow:'0 1px 2px rgba(0,0,0,.07)'};
-    if(ev.status==='jisseki') return {...base,background:t.color,color:'#fff',opacity:.88};
+    if(ev.status==='kakutei') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color)};
+    if(ev.status==='mikakutei') return {...base,height:17,background:t.paper,color:this.inkOn(t.color),border:'1.5px dashed '+this.softLine(t.color),lineHeight:'13px'};
+    if(ev.status==='jisseki') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color),opacity:.92};
     return {...base,background:'transparent',color:'#9AA0A6',textDecoration:'line-through',opacity:.5};
   }
   pillText(ev, wageOn){
@@ -162,9 +170,9 @@ export default class App extends React.Component {
     const t=this.T(ev.type);
     const dash=m.phase==='dash', filling=m.phase==='fill'||m.phase==='settle';
     const style={height:17,boxSizing:'border-box',borderRadius:4,padding:'0 5px',marginBottom:3,fontSize:11,fontWeight:600,lineHeight:'15px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',display:'block',position:'relative',
-      background:t.paper, border:'1.5px '+(dash?'dashed':'solid')+' '+t.color, transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none'};
-    const fillStyle={position:'absolute',left:0,top:0,right:0,bottom:0,background:t.color,transformOrigin:'left center',transform:filling?'scaleX(1)':'scaleX(0)',animation:m.phase==='fill'?'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none',zIndex:0,borderRadius:2};
-    const textStyle={position:'relative',zIndex:1,color:filling?'#fff':t.dark,transition:'color .16s .12s linear'};
+      background:t.paper, border:'1.5px '+(dash?'dashed':'solid')+' '+this.softLine(t.color), transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none'};
+    const fillStyle={position:'absolute',left:0,top:0,right:0,bottom:0,background:this.softFill(t.color),transformOrigin:'left center',transform:filling?'scaleX(1)':'scaleX(0)',animation:m.phase==='fill'?'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none',zIndex:0,borderRadius:2};
+    const textStyle={position:'relative',zIndex:1,color:this.inkOn(t.color),transition:'color .16s .12s linear'};
     return { text: dash ? '？'+ev.title : ev.title, style, textStyle, morphing:true, fillStyle };
   }
   statusWord(ev){
@@ -246,21 +254,27 @@ export default class App extends React.Component {
     try{
       const all = await readCalendarEvents({monthsBack:1, monthsAhead:12});
       const fresh = dedupe(all, this.state.events);
-      this.setState(s=>({imp:{...s.imp, phase:'found', found:fresh}}));
+      // 1件ずつ、入れるかどうかと種類を持たせる。既定は全部入れる・用事あつかい。
+      const picked = fresh.map((e,i)=>({...e, key:'k'+i, on:true, type:'yoji'}));
+      this.setState(s=>({imp:{...s.imp, phase:'found', found:picked}}));
     }catch(e){
       this.setState(s=>({imp:{...s.imp, phase:'idle', error:'予定を読めませんでした。時間をおいて試してください。'}}));
     }
   }
   doImport(){
-    const {found, type} = this.state.imp;
-    if(!found.length) return;
+    const on = (this.state.imp.found||[]).filter(e=>e.on);
+    if(!on.length) return;
     stampHeavy();
     const now=Date.now();
     // 取り込んだ予定は「決まっている」扱い。あとから点線に変えられる。
-    const add = found.map((e,i)=>({ id:'i'+now+'-'+i, type, title:e.title, y:e.y, m:e.m, day:e.day,
+    const add = on.map((e,i)=>({ id:'i'+now+'-'+i, type:e.type, title:e.title, y:e.y, m:e.m, day:e.day,
       start:e.start, end:e.end, status:'kakutei', allDay:e.allDay }));
     this.setState(s=>({ events:[...s.events, ...add], imp:{...s.imp, phase:'done', added:add.length} }));
   }
+  toggleImportRow(key){ this.setState(s=>({imp:{...s.imp, found:s.imp.found.map(e=>e.key===key?{...e,on:!e.on}:e)}})); }
+  setImportRowType(key,type){ this.setState(s=>({imp:{...s.imp, found:s.imp.found.map(e=>e.key===key?{...e,type}:e)}})); }
+  setAllImport(on){ tapLight(); this.setState(s=>({imp:{...s.imp, found:s.imp.found.map(e=>({...e,on}))}})); }
+  setAllImportType(type){ tapLight(); this.setState(s=>({imp:{...s.imp, found:s.imp.found.map(e=>e.on?{...e,type}:e)}})); }
   doDelete(){
     const id=this.state.confirmDelete;
     this.setState(s=>({ events:s.events.filter(e=>e.id!==id), confirmDelete:null, dialog:null,
@@ -412,6 +426,35 @@ export default class App extends React.Component {
       v.impPhase=im.phase;
       v.impError=im.error;
       v.impCount=String((im.found||[]).length);
+      v.impOnCount=String((im.found||[]).filter(e=>e.on).length);
+      v.impAllOn=(im.found||[]).length>0 && (im.found||[]).every(e=>e.on);
+      v.onToggleAll=()=>this.setAllImport(!v.impAllOn);
+      // 選んでいるものをまとめて種類変更
+      v.impBulkChips = st.types.map(t=>({ label:t.name, onClick:()=>this.setAllImportType(t.key),
+        style:{padding:'6px 12px',borderRadius:999,fontSize:12,cursor:'pointer',
+          background:'var(--card)', color:'var(--ink-mut)', border:'1px solid var(--line)'} }));
+      // 1件ごと
+      v.impRows = (im.found||[]).map(e=>{
+        const ty=st.types.find(t=>t.key===e.type)||st.types[0];
+        return {
+          key:e.key, title:e.title, on:e.on,
+          when:`${e.m+1}/${e.day}　${e.allDay?'終日':e.start+'–'+e.end}`,
+          onToggle:()=>this.toggleImportRow(e.key),
+          rowStyle:{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:'1px solid var(--line)',
+            cursor:'pointer', opacity:e.on?1:0.45},
+          checkStyle:{width:20,height:20,borderRadius:7,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
+            fontSize:12,fontWeight:800,
+            background:e.on?'#1D9E75':'transparent', color:'#fff',
+            border:'1.5px solid '+(e.on?'#1D9E75':'var(--line)')},
+          typeChips: st.types.map(t=>({ label:t.name, sel:t.key===e.type,
+            onClick:(ev)=>{ if(ev)ev.stopPropagation(); this.setImportRowType(e.key,t.key); },
+            style:{padding:'3px 9px',borderRadius:999,fontSize:11,fontWeight:t.key===e.type?700:500,cursor:'pointer',whiteSpace:'nowrap',
+              background:t.key===e.type?this.softFill(t.color):'transparent',
+              color:t.key===e.type?this.inkOn(t.color):'var(--ink-faint)',
+              border:'1px solid '+(t.key===e.type?this.softLine(t.color):'var(--line)')} })),
+          typeName:ty.name,
+        };
+      });
       v.impAdded=String(im.added||0);
       v.onScan=()=>this.runScan();
       v.impDenied=!!im.denied;

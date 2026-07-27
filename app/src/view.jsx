@@ -878,25 +878,38 @@ export function renderApp(v) {
                   {''}<Jp parts={['先月から','1年ぶんを','読みました。','すでに入っている予定は','除いてあります。']} />
                 </div>
 
-                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 2px 8px')}>どの種類に入れますか</div>
-                <div style={s('display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px')}>
-                  {(v.impTypeChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                <div style={s('display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 8px')}>
+                  <span style={s('font-size:12px;font-weight:600;color:var(--ink-mut)')}>入れるものをえらぶ</span>
+                  <span style={s('font-size:13px;color:var(--ink-mut);cursor:pointer;white-space:nowrap')} onClick={v.onToggleAll}>
+                    {v.impAllOn ? 'すべて外す' : 'すべて選ぶ'}
+                  </span>
                 </div>
 
-                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 2px 8px')}>取り込まれる予定</div>
-                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:8px')}>
-                  {(v.impPreview || []).map((p, i) => (
-                    <div key={i} style={s(`display:flex;align-items:center;gap:12px;padding:12px 15px;${i ? 'border-top:1px solid var(--line)' : ''}`)}>
-                      <span style={s('font-size:12px;color:var(--ink-mut);font-variant-numeric:tabular-nums;white-space:nowrap')}>{p.when}</span>
-                      <span style={s('flex:1;font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{p.title}</span>
+                <div style={s('display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 2px 12px')}>
+                  <span style={s('font-size:11px;color:var(--ink-faint)')}>まとめて種類を変える</span>
+                  {(v.impBulkChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                </div>
+
+                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:14px')}>
+                  {(v.impRows || []).map((r) => (
+                    <div key={r.key} style={s(r.rowStyle)} onClick={r.onToggle}>
+                      <span style={s(r.checkStyle)}>{r.on ? '✓' : ''}</span>
+                      <div style={s('flex:1;min-width:0')}>
+                        <div style={s('display:flex;align-items:baseline;gap:8px')}>
+                          <span style={s('font-size:11px;color:var(--ink-mut);font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.when}</span>
+                          <span style={s('flex:1;font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.title}</span>
+                        </div>
+                        <div style={s('display:flex;gap:5px;margin-top:6px;flex-wrap:wrap')}>
+                          {r.typeChips.map((t, j) => (<div key={j} style={s(t.style)} onClick={t.onClick}>{t.label}</div>))}
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
-                {v.impMore > 0 && (
-                  <div style={s('font-size:12px;color:var(--ink-faint);margin:0 2px 22px')}>ほか {v.impMore} 件</div>
-                )}
 
-                <div style={s('margin-top:14px;padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer')} onClick={v.onDoImport}>{v.impCount}件を取り込む</div>
+                <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-faint)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onDoImport}>
+                  {v.impOnCount}件を取り込む
+                </div>
                 <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
               </>
             ) : (
@@ -911,7 +924,14 @@ export function renderApp(v) {
                   {''}<Jp parts={['はじめから', '作り直さなくて', '済みます。']} />
                 </div>
 
-                <div style={s('margin-top:26px;background:var(--card);border-radius:17px;padding:16px 18px;border:1px solid var(--line)')}>
+                <div style={s('margin-top:22px;background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.28);border-radius:17px;padding:14px 16px')}>
+                  <div style={s('font-size:13px;font-weight:700;color:#0F6E56;margin-bottom:7px')}>「フルアクセス」を選んでください</div>
+                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.9')}>
+                    {''}<Jp parts={['iPhone が', '「追加のみ」と', '「フルアクセス」を', '聞いてきます。', '予定を読むには', 'フルアクセスが要ります。', '「追加のみ」だと', '読み込めません。']} />
+                  </div>
+                </div>
+
+                <div style={s('margin-top:14px;background:var(--card);border-radius:17px;padding:16px 18px;border:1px solid var(--line)')}>
                   <div style={s('font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px')}>読むだけです</div>
                   <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95')}>
                     {['あなたのカレンダーに書き込むことはありません', '読んだ予定はこの端末の中だけに保存されます', '外部に送られることはありません'].map((t, i) => (
