@@ -123,7 +123,7 @@ export function renderApp(v) {
       {v.dayShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
-            <span style={s('font-size:16px;color:var(--ink-mut);cursor:pointer')} onClick={v.onDayBack}>← {v.monthLabel}月</span>
+            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onDayBack}>←</span>
             <span style={s('font-size:16px;font-weight:600;color:var(--ink)')}>{v.dayTitle}</span>
             <span style={s('width:44px')} />
           </div>
@@ -324,7 +324,7 @@ export function renderApp(v) {
       {v.detailShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
-            <span style={s('font-size:16px;color:var(--ink-mut);cursor:pointer')} onClick={v.onBack}>←</span>
+            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onBack}>←</span>
             <span style={s('font-size:16px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px')}>{v.dTitle}</span>
             <span style={s('font-size:16px;color:var(--ink-mut);cursor:pointer')} onClick={v.onEdit}>編集</span>
           </div>
@@ -791,7 +791,7 @@ export function renderApp(v) {
       {v.importShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
-            <span style={s('font-size:16px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>← 設定</span>
+            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onImportBack}>←</span>
             <span style={s('font-size:16px;font-weight:600;color:var(--ink);white-space:nowrap')}>予定の取り込み</span>
             <span style={s('width:44px')} />
           </div>
@@ -836,9 +836,14 @@ export function renderApp(v) {
               </>
             ) : (
               <>
-                <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:10px;text-wrap:balance')}>いま使っているカレンダーの予定を持ってくる</div>
-                <div style={s('font-size:14px;color:var(--ink-soft);line-height:2;text-wrap:pretty')}>
-                  {''}<Jp parts={['iPhone のカレンダーに','入っている予定を','読み込んで、','このアプリに','並べます。','はじめから','作り直さなくて','済みます。']} />
+                <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:12px;line-height:1.55')}>
+                  {''}<Jp parts={['いま使っている', 'カレンダーの', '予定を', '持ってくる']} />
+                </div>
+                <div style={s('font-size:14px;color:var(--ink-soft);line-height:1.95')}>
+                  {''}<Jp parts={['iPhone のカレンダーに', '入っている予定を', '読み込んで、', 'このアプリに', '並べます。']} />
+                </div>
+                <div style={s('font-size:14px;color:var(--ink-soft);line-height:1.95;margin-top:2px')}>
+                  {''}<Jp parts={['はじめから', '作り直さなくて', '済みます。']} />
                 </div>
 
                 <div style={s('margin-top:26px;background:var(--card);border-radius:17px;padding:16px 18px;border:1px solid var(--line)')}>
@@ -877,7 +882,7 @@ export function renderApp(v) {
       {v.docShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
-            <span style={s('font-size:16px;color:var(--ink-mut);cursor:pointer')} onClick={v.onDocBack}>← 設定</span>
+            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onDocBack}>←</span>
             <span style={s('font-size:16px;font-weight:600;color:var(--ink)')}>{v.docTitle}</span>
             <span style={s('width:44px')} />
           </div>
