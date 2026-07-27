@@ -244,11 +244,25 @@ export function renderApp(v) {
               ))}
             </div>
 
+            {v.jobPickerShown && (
+              <>
+                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>バイト先</div>
+                <div style={s('display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px')}>
+                  {(v.jobChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                  <div style={s(v.jobNoneChip.style)} onClick={v.jobNoneChip.onClick}>{v.jobNoneChip.label}</div>
+                  <div style={s('padding:8px 14px;border-radius:999px;font-size:13px;color:var(--ink-mut);border:1px dashed var(--line);cursor:pointer')} onClick={v.onAddJobFromNew}>＋ バイト先</div>
+                </div>
+              </>
+            )}
+
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>日付</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px')}>
               <div style={s('display:flex;align-items:center;justify-content:space-between;padding:15px 16px;cursor:pointer')} onClick={v.onTapDate}>
                 <span style={s('font-size:15px;color:var(--ink)')}>日にち</span>
-                <span style={s(`font-size:16px;font-weight:${v.dateOpen ? '700' : '600'};color:${v.dateOpen ? '#1D9E75' : 'var(--ink)'};font-variant-numeric:tabular-nums`)}>{v.dateLabel}</span>
+                <span style={s('display:flex;align-items:baseline;gap:7px')}>
+                  {!!v.dateSummary && <span style={s('font-size:12px;font-weight:600;color:#1D9E75')}>{v.dateSummary}</span>}
+                  <span style={s(`font-size:16px;font-weight:${v.dateOpen ? '700' : '600'};color:${v.dateOpen ? '#1D9E75' : 'var(--ink)'};font-variant-numeric:tabular-nums`)}>{v.dateLabel}</span>
+                </span>
               </div>
               {v.dateOpen && (
                 <div style={s('padding:2px 12px 14px;background:var(--bg2)')}>
@@ -264,6 +278,12 @@ export function renderApp(v) {
                     {(v.dateCells || []).map((c, i) => (
                       <div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>
                     ))}
+                  </div>
+                  <div style={s('display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 2px 2px')}>
+                    <span style={s('font-size:11px;color:var(--ink-faint);line-height:1.6')}>{v.dateHint}</span>
+                    {v.dateExtraCount > 0 && (
+                      <span style={s('font-size:12px;color:var(--ink-mut);cursor:pointer;white-space:nowrap')} onClick={v.onClearExtraDays}>ほかの日を外す</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -608,6 +628,46 @@ export function renderApp(v) {
                   <div style={s(v.stepBtn)} onClick={v.onHourlyPlus}>＋</div>
                 </div>
               </div>
+            </div>
+
+            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>バイト先</div>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:8px')}>
+              {(v.jobRows || []).map((j, i) => (
+                <div key={i} style={s(j.rowStyle)}>
+                  <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={j.onTap}>
+                    <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{j.name}</span>
+                    <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>¥{j.hourly}</span>
+                    <span style={s('font-size:16px;color:var(--ink-faint)')}>{j.open ? '⌄' : '›'}</span>
+                  </div>
+                  {j.open && (
+                    <div style={s('padding:2px 16px 16px')}>
+                      <input value={j.name === '（名前なし）' ? '' : j.name} onChange={j.onName} placeholder="バイト先の名前（例：マクド、塾）" style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:12px')} />
+                      <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
+                        <span style={s('font-size:14px;color:var(--ink-mut)')}>時給</span>
+                        <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
+                          <div style={s(v.stepBtn)} onClick={j.onMinus}>−</div>
+                          <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
+                            <span style={s('font-size:15px;font-weight:700;color:var(--ink-soft)')}>¥</span>
+                            <input value={j.hourly} onChange={j.onHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
+                          </div>
+                          <div style={s(v.stepBtn)} onClick={j.onPlus}>＋</div>
+                        </div>
+                      </div>
+                      <div style={s('display:flex;align-items:center;justify-content:space-between;margin-top:14px')}>
+                        <span style={s('font-size:11px;color:var(--ink-faint)')}>{j.usedCount > 0 ? `${j.usedCount}件の予定で使っています` : 'まだ使っていません'}</span>
+                        <span style={s('font-size:13px;color:#A8452B;cursor:pointer')} onClick={j.onRemove}>削除</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div style={s(`display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;${v.jobsEmpty ? '' : 'border-top:1px solid var(--line)'}`)} onClick={v.onAddJob}>
+                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:600')}>＋</span>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バイト先を追加</span>
+              </div>
+            </div>
+            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8')}>
+              {''}<Jp parts={['バイト先ごとに', '時給を決められます。', '予定を作るときに', 'えらぶと、', 'その時給で', '計算します。']} />
             </div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>入力</div>

@@ -35,11 +35,28 @@ export async function openAppSettings() {
   }
 }
 
-// 読み取り専用でお願いする。書き込みは一切しないので、その権限は求めない。
+// すでに許可されているかを、ダイアログを出さずに確かめる
+export async function checkCalendarAccess() {
+  if (!native()) return 'unavailable';
+  try {
+    const r = await CapacitorCalendar.checkPermission({ scope: 'readCalendar' });
+    return r && r.result === 'granted' ? 'granted' : r && r.result === 'denied' ? 'denied' : 'prompt';
+  } catch (e) {
+    return 'prompt';
+  }
+}
+
+/**
+ * カレンダーを読む許可をもらう。
+ * iOS 17 以降は「読むだけ」の権限が存在せず、読み取りにも Full Access が要る。
+ * （requestReadOnlyCalendarAccess は Android 専用で、iOS では何も起きない）
+ */
 export async function askCalendarAccess() {
   if (!native()) return 'unavailable';
   try {
-    const r = await CapacitorCalendar.requestReadOnlyCalendarAccess();
+    const cur = await checkCalendarAccess();
+    if (cur === 'granted') return 'granted';
+    const r = await CapacitorCalendar.requestFullCalendarAccess();
     return r && r.result === 'granted' ? 'granted' : 'denied';
   } catch (e) {
     return 'denied';

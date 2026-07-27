@@ -6,7 +6,7 @@ import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE } from './docs';
 import { applyStatusBarTheme } from './statusbar';
-import { canImport, askCalendarAccess, readCalendarEvents, dedupe, openAppSettings } from './calendarimport';
+import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, openAppSettings } from './calendarimport';
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
 
@@ -53,6 +53,7 @@ export default class App extends React.Component {
           settings: { ...this.state.settings, ...(saved.settings || {}) },
           notices: saved.notices || this.state.notices,
           lastSeenVersion: saved.lastSeenVersion || null,
+          jobs: saved.jobs || this.state.jobs,
         };
       }
     } catch (e) {
@@ -83,6 +84,8 @@ export default class App extends React.Component {
     imp:{ phase:'idle', found:[], type:'yoji', error:'' },
     swipe:{ dx:0, animating:false },
     notices:[], lastSeenVersion:null,
+    // バイト先。名前と時給を持つ。予定に紐づけると、その時給で計算する。
+    jobs:[], editJobId:null,
     ym: thisMonth(),      // カレンダーで表示している月
     freeYM: thisMonth(),  // 「いつ空いてる？」で見ている月
     today: todayParts(),
@@ -110,7 +113,12 @@ export default class App extends React.Component {
   addMin(s,d){ let x=(this.mins(s)+d+1440)%1440; return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'); }
   hoursBetween(a,b){ let d=this.mins(b)-this.mins(a); if(d<0)d+=1440; return d/60; }
   fmtWage(n){ return '¥'+n.toLocaleString('ja-JP'); }
-  wage(ev){ if(ev.type!=='baito')return 0; return Math.round(this.hoursBetween(ev.start, ev.actualEnd||ev.end)*this.state.settings.hourly); }
+  // その予定に使う時給。バイト先が決まっていればその時給、なければ設定の時給。
+  hourlyFor(ev){
+    const j = ev && ev.jobId ? (this.state.jobs||[]).find(x=>x.id===ev.jobId) : null;
+    return j ? j.hourly : this.state.settings.hourly;
+  }
+  wage(ev){ if(ev.type!=='baito')return 0; return Math.round(this.hoursBetween(ev.start, ev.actualEnd||ev.end)*this.hourlyFor(ev)); }
   fmtHours(h){ const H=Math.floor(h); const M=Math.round((h-H)*60); return M? H+'時間'+M+'分' : H+'時間'; }
   fmtMin(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
   freeJudge(evs){
@@ -175,15 +183,51 @@ export default class App extends React.Component {
     this.setState({screen:'detail',detailId:ev.id,returnTo:ret});
   }
   openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month'}); }
-  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,allDay:false,picking:null}}); }
+  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,picking:null}}); }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
     this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
       editingId:ev.id, title:ev.title, type:ev.type, status:ev.status,
       start:ev.start, end: ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end,
-      y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, allDay:!!ev.allDay, picking:null }});
+      y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, picking:null }});
   }
   askDelete(id){ this.setState({confirmDelete:id}); }
+
+  // ---- バイト先 ----
+  addJob(){
+    tapLight();
+    const id='j'+Date.now();
+    this.setState(s=>({ jobs:[...s.jobs,{id,name:'',hourly:s.settings.hourly}], editJobId:id }));
+  }
+  patchJob(id,patch){ this.setState(s=>({ jobs:s.jobs.map(j=>j.id===id?{...j,...patch}:j) })); }
+  removeJob(id){
+    // 消したバイト先を使っていた予定は、設定の時給に戻す
+    this.setState(s=>({ jobs:s.jobs.filter(j=>j.id!==id), editJobId:null,
+      events:s.events.map(e=>e.jobId===id?{...e,jobId:undefined}:e) }));
+  }
+  // バイト先を選ぶと、名前もそのまま予定の名前に使う（テンプレのように）
+  pickJob(id){
+    tapLight();
+    this.setState(s=>{
+      const job=s.jobs.find(j=>j.id===id);
+      const prev=s.jobs.find(j=>j.id===s.draft.jobId);
+      const keepTitle = s.draft.title && s.draft.title!==(prev&&prev.name);
+      return { draft:{...s.draft, jobId:id, title: keepTitle ? s.draft.title : (job?job.name:s.draft.title)} };
+    });
+  }
+  clearJob(){ this.setState(s=>({draft:{...s.draft, jobId:undefined}})); }
+
+  // ---- 複数日えらび ----
+  toggleExtraDay(y,m,d){
+    const key=y+'-'+m+'-'+d;
+    this.setState(s=>{
+      // 本体の日付そのものは外せない
+      if(s.draft.y===y && s.draft.m===m && s.draft.day===d) return null;
+      const cur=s.draft.extraDays||[];
+      const has=cur.includes(key);
+      return { draft:{...s.draft, extraDays: has ? cur.filter(k=>k!==key) : [...cur,key]} };
+    });
+  }
 
   // ---- iPhone のカレンダーから取り込む ----
   openImport(){ this.setState({screen:'import', imp:{phase:'idle', found:[], type:'yoji', error:''}}); }
@@ -267,15 +311,21 @@ export default class App extends React.Component {
       this.setState(s=>({ screen:'month', detailId:null, dayNum:null, ym:{y:dr.y,m:dr.m},
         events:s.events.map(e=>{
           if(e.id!==dr.editingId) return e;
-          const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay};
+          const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay,
+            jobId: dr.type==='baito' ? dr.jobId : undefined};
           // 実績のときに直しているのは「実際に働いた終わりの時刻」
           return dr.status==='jisseki' ? {...base, actualEnd:dr.end} : {...base, end:dr.end, actualEnd:undefined};
         }) }));
       return;
     }
-    const id='n'+Date.now();
-    this.setState(s=>({ screen:s.returnTo, ym:{y:dr.y,m:dr.m},
-      events:[...s.events,{id,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,end:dr.end,status:dr.status,allDay:dr.allDay,want:dr.status==='mikakutei'?[dr.start,dr.end]:undefined}] }));
+    // 本体の日＋えらんだ他の日、まとめて置く
+    const days=[[dr.y,dr.m,dr.day], ...(dr.extraDays||[]).map(k=>k.split('-').map(Number))];
+    const base=Date.now();
+    const made=days.map(([y,m,d],i)=>({ id:'n'+base+'-'+i, type:dr.type, title:dr.title||'無題',
+      y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay,
+      jobId: dr.type==='baito' ? dr.jobId : undefined,
+      want: dr.status==='mikakutei' ? [dr.start,dr.end] : undefined }));
+    this.setState(s=>({ screen:s.returnTo, ym:{y:dr.y,m:dr.m}, events:[...s.events,...made] }));
   }
 
   renderVals(){
@@ -365,7 +415,8 @@ export default class App extends React.Component {
       v.impAdded=String(im.added||0);
       v.onScan=()=>this.runScan();
       v.impDenied=!!im.denied;
-      v.onOpenSettingsApp=()=>{ tapLight(); openAppSettings(); };
+      // 設定アプリを開いたら、戻ってきたときに自動でもう一度読みにいく
+      v.onOpenSettingsApp=()=>{ tapLight(); this._retryImportOnReturn=true; openAppSettings(); };
       v.onDoImport=()=>this.doImport();
       v.onImportBack=()=>this.setState({screen:'settings'});
       v.onImportDone=()=>this.setState({screen:'month'});
@@ -623,7 +674,13 @@ export default class App extends React.Component {
     const dDate=new Date(dr.y,dr.m,dr.day);
     v.dateLabel = `${dr.y}年${dr.m+1}月${dr.day}日（${DOW[dDate.getDay()]}）`;
     v.dateOpen = dr.picking==='date';
-    v.onTapDate = ()=>this.setState(s=>({draft:{...s.draft, picking:s.draft.picking==='date'?null:'date', pickY:s.draft.y, pickM:s.draft.m}}));
+    v.onTapDate = ()=>this.setState(s=>({draft:{...s.draft, picking:s.draft.picking==='date'?null:'date', pickY:s.draft.y, pickM:s.draft.m, pickedOnce:false}}));
+    // 複数日えらんだときの表示
+    const extras=(dr.extraDays||[]).length;
+    v.dateExtraCount = extras;
+    v.dateSummary = extras ? `ほか${extras}日` : '';
+    v.dateHint = v.dateOpen ? (extras || dr.pickedOnce ? '別の日もタップすると、まとめて置けます' : '日をえらんでください') : '';
+    v.onClearExtraDays = ()=>this.setState(s=>({draft:{...s.draft, extraDays:[]}}));
     const pY = dr.pickY==null?dr.y:dr.pickY, pM = dr.pickM==null?dr.m:dr.pickM;
     v.datePickLabel = `${pY}年${pM+1}月`;
     v.onDatePrev = ()=>this.setState(s=>{ const n=shiftMonth({y:pY,m:pM},-1); return {draft:{...s.draft,pickY:n.y,pickM:n.m}}; });
@@ -638,7 +695,9 @@ export default class App extends React.Component {
       const cells=[];
       for(let i=0;i<first;i++) cells.push({ label:'', style:{height:36} });
       for(let d2=1;d2<=dim;d2++){
-        const sel = pY===dr.y && pM===dr.m && d2===dr.day;
+        const isMain = pY===dr.y && pM===dr.m && d2===dr.day;
+        const isExtra = (dr.extraDays||[]).includes(pY+'-'+pM+'-'+d2);
+        const sel = isMain || isExtra;
         const isToday = st.today.y===pY && st.today.m===pM && st.today.d===d2;
         const dw2 = new Date(pY,pM,d2).getDay();
         const hol2 = holidayName(pY,pM,d2);
@@ -647,13 +706,44 @@ export default class App extends React.Component {
           style:{height:36,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:12,cursor:'pointer',
             fontSize:14,fontVariantNumeric:'tabular-nums',
             fontWeight:sel?700:(isToday?700:500),
-            background: sel?'var(--ink)':'transparent',
-            color: sel?'var(--card)':c2,
-            border: (!sel&&isToday)?'1px solid var(--line)':'1px solid transparent'},
-          onClick:()=>this.setState(s=>({draft:{...s.draft,y:pY,m:pM,day:d2,picking:null}})) });
+            background: isMain?'var(--ink)': isExtra?'var(--bg2)':'transparent',
+            color: isMain?'var(--card)':c2,
+            border: isExtra ? '1.5px solid var(--ink)' : (!sel&&isToday)?'1px solid var(--line)':'1px solid transparent'},
+          // 1回目のタップで本体の日、2回目以降は追加の日として足していく
+          onClick:()=>{ if(isMain) return;
+            if(dr.picking==='date' && !dr.pickedOnce) this.setState(s=>({draft:{...s.draft,y:pY,m:pM,day:d2,pickedOnce:true}}));
+            else this.toggleExtraDay(pY,pM,d2); } });
       }
       v.dateCells=cells;
     }
+
+    // ---------- バイト先（新規作成画面） ----------
+    v.jobPickerShown = dr.type==='baito';
+    v.jobChips = (st.jobs||[]).map(j=>{ const sel=j.id===dr.jobId;
+      return { label:(j.name||'名前なし')+'　¥'+j.hourly, onClick:()=>this.pickJob(j.id),
+        style:{padding:'8px 14px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',
+          background:sel?'#1D9E75':'var(--card)', color:sel?'#fff':'var(--ink-mut)',
+          border:'1px solid '+(sel?'#1D9E75':'var(--line)'), fontVariantNumeric:'tabular-nums'} }; });
+    v.jobNoneChip = { label:'設定の時給（¥'+cfg.hourly+'）', onClick:()=>this.clearJob(),
+      style:{padding:'8px 14px',borderRadius:999,fontSize:13,fontWeight:!dr.jobId?700:500,cursor:'pointer',
+        background:!dr.jobId?'#1D9E75':'var(--card)', color:!dr.jobId?'#fff':'var(--ink-mut)',
+        border:'1px solid '+(!dr.jobId?'#1D9E75':'var(--line)'), fontVariantNumeric:'tabular-nums'} };
+    v.onAddJobFromNew = ()=>{ this.addJob(); this.setState({screen:'settings'}); };
+
+    // ---------- バイト先（設定画面） ----------
+    v.jobRows = (st.jobs||[]).map((j,i)=>({
+      name:j.name||'（名前なし）', hourly:String(j.hourly), open:st.editJobId===j.id,
+      rowStyle:{borderBottom: i<st.jobs.length-1 ? '1px solid var(--line)':'none'},
+      onTap:()=>this.setState(s=>({editJobId:s.editJobId===j.id?null:j.id})),
+      onName:(e)=>this.patchJob(j.id,{name:e.target.value}),
+      onHourly:(e)=>{ const n=parseInt((e.target.value||'').replace(/[^0-9]/g,''),10); this.patchJob(j.id,{hourly:isNaN(n)?0:Math.min(99999,n)}); },
+      onMinus:()=>this.patchJob(j.id,{hourly:Math.max(0,j.hourly-10)}),
+      onPlus:()=>this.patchJob(j.id,{hourly:j.hourly+10}),
+      onRemove:()=>this.removeJob(j.id),
+      usedCount: st.events.filter(e=>e.jobId===j.id).length,
+    }));
+    v.onAddJob = ()=>this.addJob();
+    v.jobsEmpty = (st.jobs||[]).length===0;
 
     v.timed = !dr.allDay; v.allDayShown = dr.allDay;
     v.spanSeg = [['timed','時間を指定'],['all','終日']].map(([k,label])=>{ const sel=(k==='all')===!!dr.allDay;
@@ -863,6 +953,18 @@ export default class App extends React.Component {
       const ev = this.state.events.find((e) => String(e.id) === String(eventId));
       if (ev) this.openDialog(ev, 'worked', 'month');
     });
+    // 設定アプリで許可してから戻ってきたら、そのまま読み込みを続ける
+    this._onResume = async () => {
+      if (!this._retryImportOnReturn) return;
+      this._retryImportOnReturn = false;
+      if (this.state.screen !== 'import') return;
+      const perm = await checkCalendarAccess();
+      if (perm === 'granted') this.runScan();
+    };
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) this._onResume();
+    });
+
     // 日付が変わったら「今日」の位置と記録の催促を更新する
     this._tick = setInterval(() => {
       const t = todayParts();
@@ -990,8 +1092,8 @@ export default class App extends React.Component {
 
   _persist() {
     try {
-      const { events, types, overrides, settings, notices, lastSeenVersion } = this.state;
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ events, types, overrides, settings, notices, lastSeenVersion }));
+      const { events, types, overrides, settings, notices, lastSeenVersion, jobs } = this.state;
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ events, types, overrides, settings, notices, lastSeenVersion, jobs }));
     } catch (e) {
       // 容量オーバーなどは黙って諦める（保存できなくても操作は続けられる）
     }
