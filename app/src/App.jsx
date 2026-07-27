@@ -7,6 +7,11 @@ import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE } from './docs';
 import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, readCalendarEvents, dedupe, openAppSettings } from './calendarimport';
+import { holidayName } from './holidays';
+import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
+
+// 祝日の赤。紙の上で浮きすぎないよう、少し落ち着かせた赤にする。
+const HOLIDAY_RED = '#B4453A';
 import { shareCanvas } from './shareimg';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
@@ -45,6 +50,8 @@ export default class App extends React.Component {
           types: saved.types || this.state.types,
           overrides: saved.overrides || this.state.overrides,
           settings: { ...this.state.settings, ...(saved.settings || {}) },
+          notices: saved.notices || this.state.notices,
+          lastSeenVersion: saved.lastSeenVersion || null,
         };
       }
     } catch (e) {
@@ -74,6 +81,7 @@ export default class App extends React.Component {
     newType:null, overrides:{}, notif:null, editTypeKey:null, docKey:null, confirmDelete:null,
     imp:{ phase:'idle', found:[], type:'yoji', error:'' },
     swipe:{ dx:0, animating:false },
+    notices:[], lastSeenVersion:null,
     ym: thisMonth(),      // カレンダーで表示している月
     freeYM: thisMonth(),  // 「いつ空いてる？」で見ている月
     today: todayParts(),
@@ -288,10 +296,7 @@ export default class App extends React.Component {
       onOpenFree:()=>this.setState({screen:'free'}),
       onFreeBack:()=>this.setState({screen:'month'}),
       navShown: st.screen==='month' || st.screen==='free' || st.screen==='report' || st.screen==='settings',
-      notifShown: st.screen==='month' && !!st.notif && !st.dialog && st.settings.remind,
-      bellDot: !!st.notif && st.settings.remind,
-      onBell:()=>{ if(!st.settings.remind) return; this.setState(s=>({notif:s.notif?null:'today'})); },
-      onNotifOpen:()=>{ const ev=st.events.find(e=>e.id===st.notif); this.setState({notif:null}); if(ev) this.openDialog(ev,'worked','month'); },
+      onBell:()=>this.openNotices(),
       navCur: st.screen,
       onNavCal:()=>this.setState({screen:'month', dayNum:null, detailId:null}),
       onNavFree:()=>this.setState({screen:'free'}),
@@ -391,10 +396,30 @@ export default class App extends React.Component {
     v.wageLabelColor = wageOn ? 'var(--ink)' : 'var(--ink-mut)';
     v.theme = st.settings.dark ? 'dark' : 'light';
 
-    // 記録を促すバナーの文面は、対象の予定から作る
-    const notifEv = st.notif ? st.events.find(e=>e.id===st.notif) : null;
-    v.notifTitle = notifEv ? `今日の${notifEv.title}、おつかれさま` : '';
-    v.notifBody = notifEv ? `実働時間はどうでしたか？タップして記録しよう（${notifEv.start}–${notifEv.end}）` : '';
+    // ---------- お知らせ（ベル） ----------
+    const nowMs = Date.now();
+    const unread = unreadCount(st.notices);
+    v.bellCount = unread;
+    v.bellBadge = unread > 9 ? '9+' : String(unread);
+    v.noticesShown = st.screen==='notices';
+    if(v.noticesShown){
+      v.noticeEmpty = st.notices.length===0;
+      v.noticeHasUnread = unread>0;
+      v.onMarkAllRead = ()=>this.markAllRead();
+      v.onNoticesBack = ()=>this.setState({screen:'month'});
+      v.noticeRows = sortNotices(st.notices).map(n=>({
+        title:n.title, body:n.body, when:relativeTime(n.at, nowMs), unread:!n.read,
+        isShift:n.kind===KIND_SHIFT,
+        onClick:()=>this.readNotice(n),
+        dotStyle:{ width:8,height:8,borderRadius:4,flexShrink:0,marginTop:7,
+          background: n.read ? 'transparent' : '#1D9E75' },
+        iconStyle:{ width:34,height:34,borderRadius:11,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
+          fontSize:15,fontWeight:800,
+          background: n.kind===KIND_SHIFT ? 'rgba(29,158,117,.12)' : 'var(--bg2)',
+          color: n.kind===KIND_SHIFT ? '#0F6E56' : 'var(--ink-soft)' },
+        icon: n.kind===KIND_SHIFT ? '✓' : 'i',
+      }));
+    }
     // 5つを等幅で並べる（真ん中が＋）。アイランド型なので幅は固定せず分け合う
     const navItem=(active)=>({display:'flex',flex:1,flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,cursor:'pointer',color:active?'var(--ink)':'var(--ink-faint)',transition:'color .2s'});
     v.navCalStyle = navItem(st.screen==='month');
@@ -521,9 +546,11 @@ export default class App extends React.Component {
         const dayEvents=st.events.filter(e=>e.y===Y && e.m===M && e.day===d && !(st.settings.hideCanceled && e.status==='nakunatta'));
         const shown=dayEvents.slice(0,3), extra=dayEvents.length-shown.length;
         const dow=(rawFirst+d-1)%7, isToday=d===today;
+        const hol=holidayName(Y,M,d);
         const numStyle = isToday
           ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
-          : {fontSize:11,fontWeight:600,color:dow===0||dow===6?'var(--ink-mut)':'var(--ink)',paddingLeft:2};
+          : {fontSize:11,fontWeight:hol?700:600,
+             color: hol ? HOLIDAY_RED : (dow===0||dow===6?'var(--ink-mut)':'var(--ink)'), paddingLeft:2};
         cells.push({
           blank:false, day:d,
           style:{background:'var(--card)',padding:'3px 4px',overflow:'hidden',cursor:'pointer'},
@@ -557,7 +584,10 @@ export default class App extends React.Component {
     // ---------- DAY ----------
     if(st.dayNum){
       const d=st.dayNum, dow=(rawFirst+d-1)%7;
-      v.dayTitle = '7月'+d+'日（'+wl[dow]+'）';
+      const dayHol = holidayName(Y,M,d);
+      v.dayTitle = (M+1)+'月'+d+'日（'+wl[dow]+'）';
+      v.dayHoliday = dayHol || '';
+      v.dayTitleStyle = {fontSize:16,fontWeight:600,color: dayHol ? HOLIDAY_RED : 'var(--ink)'};
       const evs=st.events.filter(e=>e.y===Y && e.m===M && e.day===d).sort((a,b)=>this.mins(a.start)-this.mins(b.start));
       v.dayEmpty = evs.length===0;
       v.dayEvents = evs.map(ev=>{
@@ -813,6 +843,12 @@ export default class App extends React.Component {
       const { y, m } = this.state.ym;
       this.setState({ events: demoEvents(y, m) });
     }
+    // 版が上がっていたら、アップデートのお知らせを足す
+    const ver = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
+    this.setState((s) => ({
+      notices: syncInfoNotices(s.notices, ver, s.lastSeenVersion),
+      lastSeenVersion: ver,
+    }));
     this._refreshNotif();
     this._syncReminders();
     onNotificationTap((eventId) => {
@@ -846,23 +882,32 @@ export default class App extends React.Component {
     syncReminders(this.state.events, this.state.settings, this.state.types);
   }
 
-  // 終わったのにまだ実績を入れていないバイトがあれば、アプリ内バナーで知らせる
+  // 終わったのにまだ実績を入れていないバイトを、お知らせに溜める
   _refreshNotif() {
-    const t = todayParts();
     const now = new Date();
-    const mins = now.getHours() * 60 + now.getMinutes();
-    const due = this.state.events.find(
-      (e) =>
-        e.type === 'baito' &&
-        e.status === 'kakutei' &&
-        !e.allDay &&
-        e.y === t.y &&
-        e.m === t.m &&
-        e.day === t.d &&
-        this.mins(e.end) <= mins
-    );
-    const next = due ? due.id : null;
-    if (next !== this.state.notif) this.setState({ notif: next });
+    const next = syncShiftNotices(this.state.notices, this.state.events, now);
+    const changed =
+      next.length !== this.state.notices.length ||
+      next.some((n, i) => n.id !== this.state.notices[i]?.id);
+    if (changed) this.setState({ notices: next });
+  }
+
+  openNotices() {
+    tapLight();
+    this.setState({ screen: 'notices' });
+  }
+
+  readNotice(n) {
+    this.setState((s) => ({ notices: s.notices.map((x) => (x.id === n.id ? { ...x, read: true } : x)) }));
+    if (n.kind === KIND_SHIFT) {
+      const ev = this.state.events.find((e) => String(e.id) === String(n.eventId));
+      if (ev) this.openDialog(ev, 'worked', 'notices');
+    }
+  }
+
+  markAllRead() {
+    tapLight();
+    this.setState((s) => ({ notices: s.notices.map((x) => ({ ...x, read: true })) }));
   }
 
   // ダークモードを html 要素にも反映する（safe area やオーバースクロールの地色のため）
@@ -937,8 +982,8 @@ export default class App extends React.Component {
 
   _persist() {
     try {
-      const { events, types, overrides, settings } = this.state;
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ events, types, overrides, settings }));
+      const { events, types, overrides, settings, notices, lastSeenVersion } = this.state;
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ events, types, overrides, settings, notices, lastSeenVersion }));
     } catch (e) {
       // 容量オーバーなどは黙って諦める（保存できなくても操作は続けられる）
     }

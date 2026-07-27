@@ -34,12 +34,14 @@ export function renderApp(v) {
               <span role="button" aria-label="次の月" tabIndex={0} style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onNextMonth}>›</span>
             </div>
             <div style={s('display:flex;align-items:center;gap:12px')}>
-              <div style={s('width:34px;height:34px;border-radius:15px;background:var(--bg);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative')} onClick={v.onBell}>
-                <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 3a5 5 0 0 0-5 5c0 5-2 6-2 6h14s-2-1-2-6a5 5 0 0 0-5-5Z" stroke="var(--ink-soft)" strokeWidth="1.6" strokeLinejoin="round" />
-                  <path d="M10 20a2 2 0 0 0 4 0" stroke="var(--ink-soft)" strokeWidth="1.6" strokeLinecap="round" />
+              <div role="button" aria-label="お知らせ" style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative')} onClick={v.onBell}>
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 10a6 6 0 0 1 12 0c0 3.2.7 5 1.4 6a.6.6 0 0 1-.5.9H5.1a.6.6 0 0 1-.5-.9C5.3 15 6 13.2 6 10Z" stroke="var(--ink-soft)" strokeWidth="1.5" strokeLinejoin="round" />
+                  <path d="M10.2 20.2a2 2 0 0 0 3.6 0" stroke="var(--ink-soft)" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
-                {v.bellDot && <span style={s('position:absolute;top:5px;right:6px;width:7px;height:7px;border-radius:4px;background:var(--ink-mut);border:1.5px solid var(--bg)')} />}
+                {v.bellCount > 0 && (
+                  <span style={s('position:absolute;top:1px;right:0;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#1D9E75;color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid var(--bg);font-variant-numeric:tabular-nums')}>{v.bellBadge}</span>
+                )}
               </div>
               <div style={s('display:flex;align-items:center;gap:8px')} onClick={v.onToggleWage}>
                 <span style={s(`font-size:13px;font-weight:600;color:${v.wageLabelColor}`)}>給料</span>
@@ -124,7 +126,10 @@ export function renderApp(v) {
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
             <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onDayBack}>←</span>
-            <span style={s('font-size:16px;font-weight:600;color:var(--ink)')}>{v.dayTitle}</span>
+            <span style={s('display:flex;flex-direction:column;align-items:center;gap:1px')}>
+              <span style={s(v.dayTitleStyle)}>{v.dayTitle}</span>
+              {!!v.dayHoliday && <span style={s(`font-size:11px;font-weight:600;color:${'#B4453A'}`)}>{v.dayHoliday}</span>}
+            </span>
             <span style={s('width:44px')} />
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:8px 16px 40px 16px;animation:slideIn .28s cubic-bezier(.2,.9,.2,1)')}>
@@ -902,24 +907,36 @@ export function renderApp(v) {
         </div>
       )}
 
-      {/* ===================== NOTIFICATION BANNER ===================== */}
-      {v.notifShown && (
-        <div style={s('position:absolute;top:52px;left:10px;right:10px;z-index:70;animation:notifDrop .42s cubic-bezier(.2,.9,.2,1)')}>
-          <div style={s('display:flex;align-items:center;gap:12px;background:rgba(250,250,252,.86);backdrop-filter:blur(22px);border:.5px solid rgba(0,0,0,.06);border-radius:20px;padding:13px 15px;box-shadow:0 10px 34px rgba(0,0,0,.22);cursor:pointer')} onClick={v.onNotifOpen}>
-            <div style={s('width:40px;height:40px;border-radius:16px;background:#1D9E75;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px rgba(8,80,65,.4)')}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <rect x="3.5" y="4.5" width="17" height="16" rx="2.5" stroke="#fff" strokeWidth="1.7" />
-                <path d="M3.5 9h17" stroke="#fff" strokeWidth="1.7" />
-                <path d="M8.5 14.5l2.2 2.2 4.3-4.4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <div style={s('flex:1;min-width:0')}>
-              <div style={s('display:flex;align-items:baseline;justify-content:space-between;gap:8px')}>
-                <span style={s('font-size:14px;font-weight:700;color:var(--ink)')}>{v.notifTitle}</span>
-                <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>たった今</span>
+      {/* ===================== お知らせ一覧 ===================== */}
+      {v.noticesShown && (
+        <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
+          <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
+            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onNoticesBack}>←</span>
+            <span style={s('font-size:16px;font-weight:600;color:var(--ink);white-space:nowrap')}>お知らせ</span>
+            <span style={s(`font-size:13px;color:${v.noticeHasUnread ? 'var(--ink-mut)' : 'transparent'};cursor:pointer;white-space:nowrap`)} onClick={v.noticeHasUnread ? v.onMarkAllRead : undefined}>
+              すべて既読
+            </span>
+          </div>
+          <div style={s('flex:1;overflow-y:auto;padding:8px 16px 40px')}>
+            {v.noticeEmpty ? (
+              <div style={s('text-align:center;padding:64px 24px;color:var(--ink-faint);font-size:14px;line-height:1.9')}>
+                {''}<Jp parts={['お知らせは', 'まだありません。']} />
               </div>
-              <div style={s('font-size:13px;color:#4A4F57;margin-top:2px;text-wrap:pretty')}>{v.notifBody}</div>
-            </div>
+            ) : (
+              (v.noticeRows || []).map((n, i) => (
+                <div key={i} style={s(`display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:17px;padding:14px;margin-bottom:9px;cursor:pointer;${n.unread ? '' : 'opacity:.72'}`)} onClick={n.onClick}>
+                  <span style={s(n.iconStyle)}>{n.icon}</span>
+                  <div style={s('flex:1;min-width:0')}>
+                    <div style={s('display:flex;align-items:baseline;justify-content:space-between;gap:8px')}>
+                      <span style={s(`font-size:14px;font-weight:${n.unread ? '700' : '600'};color:var(--ink)`)}>{n.title}</span>
+                      <span style={s('font-size:11px;color:var(--ink-faint);flex-shrink:0')}>{n.when}</span>
+                    </div>
+                    <div style={s('font-size:13px;color:var(--ink-soft);margin-top:3px;line-height:1.8')}>{n.body}</div>
+                  </div>
+                  <span style={s(n.dotStyle)} />
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

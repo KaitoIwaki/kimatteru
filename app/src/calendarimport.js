@@ -21,12 +21,14 @@ const forced = () => {
 
 export const canImport = () => native() || forced();
 
-// 許可が下りなかったときに、iOS の設定アプリのこのアプリのページを開く
+// 許可が下りなかったときに、設定アプリのこのアプリのページを開く。
+// App.openUrl('app-settings:') は canOpenURL に弾かれて動かないので、
+// 専用プラグインを使う。
 export async function openAppSettings() {
   if (!native()) return false;
   try {
-    const { App } = await import('@capacitor/app');
-    await App.openUrl({ url: 'app-settings:' });
+    const { NativeSettings, IOSSettings } = await import('capacitor-native-settings');
+    await NativeSettings.openIOS({ option: IOSSettings.App });
     return true;
   } catch (e) {
     return false;
