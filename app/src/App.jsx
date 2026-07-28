@@ -89,7 +89,7 @@ export default class App extends React.Component {
     swipe:{ dx:0, animating:false },
     notices:[], lastSeenVersion:null,
     // バイト先。名前と時給を持つ。予定に紐づけると、その時給で計算する。
-    jobs:[], editJobId:null,
+    jobs:[], editJobId:null, newJob:null,
     ym: thisMonth(),      // カレンダーで表示している月
     freeYM: thisMonth(),  // 「いつ空いてる？」で見ている月
     today: todayParts(),
@@ -156,7 +156,8 @@ export default class App extends React.Component {
   // ---- pills ----
   pillStyle(ev){
     const t=this.T(ev.type);
-    const base={height:16,boxSizing:'border-box',borderRadius:4,padding:'0 5px',marginBottom:3,fontSize:11,fontWeight:600,lineHeight:'16px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',cursor:'pointer',display:'block',transition:'background .28s cubic-bezier(.2,.9,.2,1),border-color .28s,color .28s'};
+    // 余白を詰めて、狭いマスでも名前が1〜2文字ぶん多く読めるようにする
+    const base={height:16,boxSizing:'border-box',borderRadius:4,padding:'0 3px',marginBottom:3,fontSize:11,fontWeight:600,lineHeight:'16px',whiteSpace:'nowrap',overflow:'hidden',cursor:'pointer',display:'flex',alignItems:'center',transition:'background .28s cubic-bezier(.2,.9,.2,1),border-color .28s,color .28s'};
     if(ev.status==='kakutei') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color)};
     if(ev.status==='mikakutei') return {...base,height:17,background:t.paper,color:this.inkOn(t.color),border:'1.5px dashed '+this.softLine(t.color),lineHeight:'13px'};
     if(ev.status==='jisseki') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color),opacity:.92};
@@ -167,16 +168,30 @@ export default class App extends React.Component {
     if(ev.status==='jisseki') return wageOn ? this.fmtWage(this.wage(ev)) : '✓'+ev.title;
     return ev.title;
   }
+  // マスが狭いので、印（？ ✓）と予定の名前を分けて描く。
+  // 全角の印は幅を食って名前が読めなくなるため、印だけ小さく細くする。
+  pillParts(ev, wageOn){
+    if(ev.status==='mikakutei') return { mark:'?', body:ev.title };
+    if(ev.status==='jisseki') return wageOn ? { mark:'', body:this.fmtWage(this.wage(ev)) } : { mark:'✓', body:ev.title };
+    return { mark:'', body:ev.title };
+  }
+  markStyleFor(ev){
+    return { fontSize:9, fontWeight:800, opacity:.75, marginRight:2, flexShrink:0, letterSpacing:'-.02em' };
+  }
   pillView(ev, wageOn){
     const m=this.state.morph;
-    if(!m || m.id!==ev.id) return { text:this.pillText(ev,wageOn), style:this.pillStyle(ev), textStyle:{}, morphing:false, fillStyle:{} };
+    if(!m || m.id!==ev.id){
+      const p=this.pillParts(ev,wageOn);
+      return { text:p.body, mark:p.mark, markStyle:this.markStyleFor(ev),
+        style:this.pillStyle(ev), textStyle:{minWidth:0,overflow:'hidden',textOverflow:'ellipsis'}, morphing:false, fillStyle:{} };
+    }
     const t=this.T(ev.type);
     const dash=m.phase==='dash', filling=m.phase==='fill'||m.phase==='settle';
     const style={height:17,boxSizing:'border-box',borderRadius:4,padding:'0 5px',marginBottom:3,fontSize:11,fontWeight:600,lineHeight:'15px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',display:'block',position:'relative',
       background:t.paper, border:'1.5px '+(dash?'dashed':'solid')+' '+this.softLine(t.color), transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none'};
     const fillStyle={position:'absolute',left:0,top:0,right:0,bottom:0,background:this.softFill(t.color),transformOrigin:'left center',transform:filling?'scaleX(1)':'scaleX(0)',animation:m.phase==='fill'?'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none',zIndex:0,borderRadius:2};
     const textStyle={position:'relative',zIndex:1,color:this.inkOn(t.color),transition:'color .16s .12s linear'};
-    return { text: dash ? '？'+ev.title : ev.title, style, textStyle, morphing:true, fillStyle };
+    return { text: ev.title, mark: dash?'?':'', markStyle:this.markStyleFor(ev), style, textStyle, morphing:true, fillStyle };
   }
   statusWord(ev){
     const t=this.T(ev.type);
@@ -257,6 +272,22 @@ export default class App extends React.Component {
     });
   }
   clearJob(){ this.setState(s=>({draft:{...s.draft, jobId:undefined}})); }
+  // 予定を作りかけのまま、その場でバイト先を足せるようにする
+  // （設定画面に飛ばすと、入力していた内容が消えてしまうため）
+  startNewJob(){ tapLight(); this.setState(s=>({newJob:{name:'',hourly:s.settings.hourly}})); }
+  cancelNewJob(){ this.setState({newJob:null}); }
+  commitNewJob(){
+    const nj=this.state.newJob; if(!nj) return;
+    tapLight();
+    const id='j'+Date.now();
+    const name=(nj.name||'').trim()||'バイト先';
+    this.setState(s=>{
+      const prev=s.jobs.find(j=>j.id===s.draft.jobId);
+      const keepTitle = s.draft.title && s.draft.title!==(prev&&prev.name);
+      return { jobs:[...s.jobs,{id,name,hourly:nj.hourly}], newJob:null,
+        draft:{...s.draft, jobId:id, title: keepTitle ? s.draft.title : name} };
+    });
+  }
 
   // ---- 複数日えらび ----
   toggleExtraDay(y,m,d){
@@ -853,7 +884,20 @@ export default class App extends React.Component {
       style:{padding:'8px 14px',borderRadius:999,fontSize:13,fontWeight:!dr.jobId?700:500,cursor:'pointer',
         background:!dr.jobId?'#1D9E75':'var(--card)', color:!dr.jobId?'#fff':'var(--ink-mut)',
         border:'1px solid '+(!dr.jobId?'#1D9E75':'var(--line)'), fontVariantNumeric:'tabular-nums'} };
-    v.onAddJobFromNew = ()=>{ this.addJob(); this.setState({screen:'settings'}); };
+    // その場で足せるようにする。画面を離れないので入力が消えない。
+    v.onAddJobFromNew = ()=>this.startNewJob();
+    v.newJobShown = !!st.newJob;
+    if(st.newJob){
+      v.newJobName = st.newJob.name;
+      v.newJobHourly = String(st.newJob.hourly);
+      v.onNewJobName = (e)=>{ const val=e.target.value; this.setState(s=>({newJob:{...s.newJob,name:val}})); };
+      v.onNewJobHourly = (e)=>{ const n=parseInt((e.target.value||'').replace(/[^0-9]/g,''),10);
+        this.setState(s=>({newJob:{...s.newJob,hourly:isNaN(n)?0:Math.min(99999,n)}})); };
+      v.onNewJobMinus = ()=>this.setState(s=>({newJob:{...s.newJob,hourly:Math.max(0,s.newJob.hourly-10)}}));
+      v.onNewJobPlus = ()=>this.setState(s=>({newJob:{...s.newJob,hourly:s.newJob.hourly+10}}));
+      v.onCancelNewJob = ()=>this.cancelNewJob();
+      v.onCommitNewJob = ()=>this.commitNewJob();
+    }
 
     // ---------- バイト先（設定画面） ----------
     v.jobRows = (st.jobs||[]).map((j,i)=>({
@@ -1014,6 +1058,9 @@ export default class App extends React.Component {
       v.onDlgNakunatta=()=>this.dlgNakunatta();
       v.onDlgStillMaybe=()=>this.setState({dialog:null});
       v.onDlgDismiss=()=>this.setState({dialog:null});
+      // 3択のどれでもないとき（名前や日付を直したいとき）の逃げ道
+      v.onDlgEdit=()=>{ const ev=st.events.find(e=>e.id===d.id); this.setState({dialog:null}); if(ev) this.openEdit(ev, st.returnTo); };
+      v.dlgEditLabel = d.mode==='worked' ? 'この予定を編集' : '予定の内容を直す';
     }
     // ---------- いつ空いてる？ ----------
     if(v.freeShown){
