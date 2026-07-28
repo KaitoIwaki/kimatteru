@@ -1,5 +1,6 @@
 import { CapacitorCalendar } from '@ebarooni/capacitor-calendar';
 import { Capacitor } from '@capacitor/core';
+import { holidayName } from './holidays';
 
 const native = () => {
   try {
@@ -84,9 +85,14 @@ export async function readCalendarEvents({ monthsBack = 1, monthsAhead = 12 } = 
       const sd = new Date(e.startDate);
       const ed = new Date(e.endDate || e.startDate);
       if (isNaN(sd.getTime())) return null;
+      // iPhone に入っている「日本の祝日」カレンダーは取り込まない。
+      // このアプリは祝日を日付の色で示すので、予定として重ねる意味がない。
+      const title = (e.title || '').trim();
+      const hol = holidayName(sd.getFullYear(), sd.getMonth(), sd.getDate());
+      if (e.isAllDay && hol && title === hol) return null;
       return {
         srcId: String(e.id),
-        title: (e.title || '').trim() || '無題',
+        title: title || '無題',
         y: sd.getFullYear(),
         m: sd.getMonth(),
         day: sd.getDate(),

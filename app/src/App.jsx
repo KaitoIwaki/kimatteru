@@ -156,8 +156,9 @@ export default class App extends React.Component {
   // ---- pills ----
   pillStyle(ev){
     const t=this.T(ev.type);
-    // 余白を詰めて、狭いマスでも名前が1〜2文字ぶん多く読めるようにする
-    const base={height:16,boxSizing:'border-box',borderRadius:4,padding:'0 3px',marginBottom:3,fontSize:11,fontWeight:600,lineHeight:'16px',whiteSpace:'nowrap',overflow:'hidden',cursor:'pointer',display:'flex',alignItems:'center',transition:'background .28s cubic-bezier(.2,.9,.2,1),border-color .28s,color .28s'};
+    // 狭いマスで名前を1文字でも多く見せるため、余白と字間を詰める。
+    // letterSpacing を少し詰めるだけで、日本語は1文字ぶん稼げる。
+    const base={height:16,boxSizing:'border-box',borderRadius:4,padding:'0 2px',marginBottom:3,fontSize:11,fontWeight:600,letterSpacing:'-.04em',lineHeight:'16px',whiteSpace:'nowrap',overflow:'hidden',cursor:'pointer',display:'flex',alignItems:'center',transition:'background .28s cubic-bezier(.2,.9,.2,1),border-color .28s,color .28s'};
     if(ev.status==='kakutei') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color)};
     if(ev.status==='mikakutei') return {...base,height:17,background:t.paper,color:this.inkOn(t.color),border:'1.5px dashed '+this.softLine(t.color),lineHeight:'13px'};
     if(ev.status==='jisseki') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color),opacity:.92};
@@ -169,9 +170,11 @@ export default class App extends React.Component {
     return ev.title;
   }
   // マスが狭いので、印（？ ✓）と予定の名前を分けて描く。
-  // 全角の印は幅を食って名前が読めなくなるため、印だけ小さく細くする。
-  pillParts(ev, wageOn){
-    if(ev.status==='mikakutei') return { mark:'?', body:ev.title };
+  // compact（月表示のマス）では「？」を出さない。点線の枠そのものが
+  // 未確定を示しているので、印は重複であり、名前を削ってまで置く価値がない。
+  // 「✓」は塗り同士（確定と実績）を見分ける唯一の手がかりなので残す。
+  pillParts(ev, wageOn, compact){
+    if(ev.status==='mikakutei') return { mark: compact ? '' : '？', body:ev.title };
     if(ev.status==='jisseki') return wageOn ? { mark:'', body:this.fmtWage(this.wage(ev)) } : { mark:'✓', body:ev.title };
     return { mark:'', body:ev.title };
   }
@@ -181,7 +184,7 @@ export default class App extends React.Component {
   pillView(ev, wageOn){
     const m=this.state.morph;
     if(!m || m.id!==ev.id){
-      const p=this.pillParts(ev,wageOn);
+      const p=this.pillParts(ev,wageOn,true);
       return { text:p.body, mark:p.mark, markStyle:this.markStyleFor(ev),
         style:this.pillStyle(ev), textStyle:{minWidth:0,overflow:'hidden',textOverflow:'ellipsis'}, morphing:false, fillStyle:{} };
     }
