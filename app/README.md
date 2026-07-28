@@ -1,22 +1,36 @@
 # 決まってる？ — iOSアプリ
 
-不確定な予定と決まっている予定が一目でわかるカレンダー。
-Windows で開発し、iOS のビルドと署名は Codemagic のクラウド Mac で行う構成（Capacitor）。
+不確定な予定と決まっている予定が、カレンダーを開いた瞬間に見分けられるアプリ。
+Windows で開発し、iOS のビルドと署名は Codemagic のクラウド Mac で行う（Capacitor）。
 
-## 開発中の確認（Windows）
+**いまの版：v0.8.3 / TestFlight 配信中 / App Store 未提出**
+
+---
+
+## いちばん大事な考え方
+
+このアプリが解いているのは「**確定した予定と、入るかもしれない予定が同じ見た目で並ぶ**」問題。
+
+- **色 ＝ 種類**（バイト／用事／遊び／その他）
+- **塗り／点線 ＝ 確定度**（決まってる／まだ不確定）
+
+この2軸を壊す変更はしない。迷ったら「月表示を開いた瞬間に伝わるか」で判断する。
+
+見た目のトーンは「**静かな文房具**」。紙のような地に墨色の文字、影は使わず細い罫線。
+**色を持つのは予定だけ**で、ボタンやUIには種類の3色を使わない。
+
+## 動かす
 
 ```bash
 npm --prefix app run dev
 ```
 
-表示された Network のアドレスを iPhone の Safari で開けば、同じ Wi-Fi 上で実機の見え方を確認できる。
-※ 触覚フィードバックとOS通知、共有シートはブラウザでは動かない。実機アプリでのみ動く。
+同じ Wi-Fi の iPhone からは、表示される Network のアドレスで開ける。
+`?demo=1` を付けるとサンプルの予定入り、`?import=1` で取り込み画面をPCでも確認できる。
 
-サンプルの予定を入れた状態を見たいときは、URLの末尾に `?demo=1` を付ける（通常の利用では現れない）。
+触覚・OS通知・共有シート・カレンダー取り込みはブラウザでは動かない（実機のみ）。
 
-## iOSプロジェクトへ反映
-
-Web 側を変更したら、必ずこの2つを実行する。
+## iOSへ反映
 
 ```bash
 npm --prefix app run build
@@ -26,62 +40,103 @@ npm --prefix app run build
 cd app && npx cap sync ios
 ```
 
+> **注意**：OneDrive 配下のため、`dist` が同期中だとビルドが無言で落ちることがある。
+> その場合は `rm -rf dist` してからビルドし直す。
+
 ## 構成
 
 | ファイル | 役割 |
 |---|---|
-| `src/App.jsx` | 状態と表示ロジック。`renderVals()` が画面に渡す値を全部組み立てる |
-| `src/view.jsx` | 見た目。`v` を受け取って JSX を返すだけ |
+| `src/App.jsx` | 状態と表示ロジック。`renderVals()` が画面に渡す値 `v` を全部組み立てる |
+| `src/view.jsx` | 見た目。`v` を受け取って JSX を返すだけ。ロジックを持たない |
 | `src/style.js` | CSS文字列 → React の style オブジェクト変換 |
-| `src/styles.css` | 色（紙と墨）、キーフレーム、セーフエリア対応 |
-| `src/haptics.js` | 触覚フィードバック。ネイティブ以外では自動的に無効 |
-| `src/notify.js` | シフト終了時刻のローカル通知。予定の変更に応じて貼り直す |
-| `src/sharecard.js` | シェア画像をキャンバスに直接描く（まとめ／空いてる日） |
-| `src/shareimg.js` | 書き出した画像をiOSの共有シートに渡す |
-| `src/docs.js` | 利用規約・プライバシーポリシーの原稿（アプリ内と公開HTMLで共用） |
-| `src/demo.js` | `?demo=1` のときだけ使うサンプル予定 |
-| `ios/` | Xcode プロジェクト（`npx cap add ios` が生成。手で編集しない） |
+| `src/styles.css` | 色の変数、キーフレーム、セーフエリア、アイランド型ナビ |
+| `src/holidays.js` | 日本の祝日を計算（通信なし。振替休日・国民の休日・春分/秋分に対応） |
+| `src/notices.js` | ベルに溜まるお知らせ。`RELEASE_NOTES` に足すと更新案内が出る |
+| `src/calendarimport.js` | iPhone のカレンダーから読み込む。祝日カレンダーは除外 |
+| `src/notify.js` | シフト終了時刻のローカル通知 |
+| `src/haptics.js` `src/statusbar.js` | 触覚とステータスバー。ネイティブ以外では自動的に無効 |
+| `src/sharecard.js` `src/shareimg.js` | シェア画像をキャンバスに直接描いて共有シートへ |
+| `src/docs.js` | 規約とプライバシーポリシーの原稿（アプリ内と公開HTMLで共用） |
+| `src/demo.js` | `?demo=1` のときだけ使うサンプル |
 
-**直したい場所**：見た目は `view.jsx`、挙動や計算は `App.jsx`。
+**直す場所**：見た目は `view.jsx`、挙動や計算は `App.jsx`。
+
+### よく触る定数（App.jsx の先頭）
+
+- `FILL_SOFT` … 予定の塗りをどれだけ白に寄せるか（今は `0.32`）
+- `HOLIDAY_RED` `SATURDAY_BLUE` … 日曜・祝日と土曜の色
+
+## 画面
+
+`month`（看板）/ `day` / `new`（作成・編集）/ `detail` / `free`（空き状況）/
+`report`（まとめ）/ `notices`（お知らせ）/ `import` / `summary` `share`（シェア用カード）/
+`settings` / `doc`（規約）＋ はじめての案内（オーバーレイ）
+
+## データ
+
+`localStorage` の `kimatteru.v2` に、予定・種類・バイト先・設定・お知らせを保存。
+**端末の中だけ**で、外部には一切送らない。端末間の同期はない。
+
+## 検証のしかた（重要）
+
+この環境ではスクリーンショット生成（html2canvas）が
+**アニメーション中の要素・transform・重なりを正しく描けない**。
+過去にこれを「描画ツールの制約」と誤判断して、実機に崩れたまま出してしまったことがある。
+
+**レイアウトは必ず実寸で確かめる。**
+
+```js
+// 例：要素の幅・位置・重なりを測る
+el.getBoundingClientRect()
+// 例：文字が省略されているか
+body.scrollWidth > body.clientWidth
+```
+
+また確認用ペインは `document.hidden === true` のため、
+`requestAnimationFrame` が動かず `setTimeout` も1秒に制限される。
+タイマー絡みの検証では待ち時間を長め（2秒以上）に取る。
 
 ## ツール
 
 ```bash
 node tools/build-legal.mjs
 ```
-`src/docs.js` の原稿から、公開用の `legal/*.html` を書き出す。プライバシーポリシーURLに使う。
+`src/docs.js` から公開用の `legal/*.html` を書き出す。push すると GitHub Pages に反映される。
 
 ```bash
 npm i -D sharp && node tools/make-icon.mjs
 ```
-アプリアイコンを作り直す（sharp は普段のビルドに不要なので依存に入れていない）。
+アプリアイコンを作り直す。
 
-### App Store 用スクリーンショットの撮り直し
+## 公開しているもの
 
-1. `npm --prefix app run dev` でサーバーを立てる
-2. ブラウザの表示サイズを **430×932** にする
-3. `http://localhost:****/?demo=1` を開く
-4. 開発者コンソールで `html2canvas` を読み込み、`#root>div` を `scale:3, width:430, height:932` で描画して保存する
+- リポジトリ: https://github.com/KaitoIwaki/kimatteru
+- プライバシーポリシー: https://kaitoiwaki.github.io/kimatteru/legal/privacy.html
+- サポート: https://kaitoiwaki.github.io/kimatteru/legal/index.html
 
-`store-assets/screenshots-6.9/` に 1290×2796 で5枚入っている。
+## 提出までに残っていること
 
-## データの保存
+`store-assets/app-store-metadata.md` に説明文・キーワード・審査メモ・チェックリストがある。
 
-`localStorage` に `kimatteru.v2` として保存。アプリを閉じても残るが、その端末だけ。端末間同期は未実装。
+1. 実機で最終確認
+2. **確認ダイアログのスクリーンショットを実機で撮る**（生成できなかった1枚）
+3. App Store Connect に説明文とスクショを登録
+4. EU の trader status を申告
+5. 審査に提出
 
-## リリースまでに必要な手続き
+審査で「なぜカレンダーへのアクセスが必要か」を聞かれたら、
+「他のカレンダーアプリからの移行のため、ユーザーが明示的に操作したときだけ読み取る」と答える。
 
-`store-assets/app-store-metadata.md` に、説明文・キーワード・審査メモ・チェックリストをまとめてある。
+## 課金の方針
 
-1. **Apple Developer Program の登録**（年額あり）
-2. **GitHub リポジトリの用意** — Codemagic はリポジトリを見てビルドする
-3. **`src/docs.js` の `CONTACT` を実際の連絡先に書き換える** → `node tools/build-legal.mjs` を再実行
-4. **`legal/` を公開**（GitHub Pages など）してプライバシーポリシーURLを取得
-5. **App Store Connect でアプリを作成**（バンドルID `com.kimatteru.app`）
-6. **App Store Connect API キー**を Codemagic に登録し、`codemagic.yaml` のキー名を差し替え
+`monetization-plan.md` 参照。**看板（確定度カレンダー）は全部無料**、給料レイヤーで課金。
+掛け持ちの合算は無料で出したので、Pro の目玉は**深夜手当・残業割増**に寄せる。
+実装はまだ入れていない（まず無料で伸ばす段階）。
 
 ## 既知の未対応
 
-- 端末間のデータ同期（クラウド）
+- 端末間のデータ同期
 - 深夜手当・残業割増などの時間帯別時給
 - 候補日を相手に送って回答してもらう共有リンク
+- 月表示のマスが狭く、長い予定名は最後まで表示しきれない
