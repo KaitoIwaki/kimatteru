@@ -38,10 +38,27 @@ workflows:
         script: |
           cd app
           npx cap sync ios
+      # agvtool は VERSIONING_SYSTEM = "apple-generic" が前提。
+      # これが無いと採番が黙って効かず、ビルド番号が 1 のままになる。
+      # 同じ 版＋ビルド番号 は App Store Connect が重複として弾くので、
+      # IPA のビルドは成功したまま TestFlight に現れない、という形で出る。
+      # 何番を振ったかを必ずログに残し、思ったとおりでなければここで落とす。
       - name: ビルド番号を採番
         script: |
           cd app/ios/App
+          if [ -z "$PROJECT_BUILD_NUMBER" ]; then
+            echo "✗ PROJECT_BUILD_NUMBER が空。採番できないので止める。"
+            exit 1
+          fi
           agvtool new-version -all "$PROJECT_BUILD_NUMBER"
+          STAMPED=$(agvtool what-version -terse | tr -d '[:space:]')
+          MARKETING=$(agvtool what-marketing-version -terse1 | tr -d '[:space:]')
+          echo "▶ 振ったビルド番号: $STAMPED（期待値 $PROJECT_BUILD_NUMBER）"
+          echo "▶ 表示バージョン:   $MARKETING"
+          if [ "$STAMPED" != "$PROJECT_BUILD_NUMBER" ]; then
+            echo "✗ 採番に失敗している。このまま上げても重複で弾かれるので、ここで止める。"
+            exit 1
+          fi
       # cap sync がプロジェクトを書き換えるので、署名の適用はその後に行う
       - name: 署名プロファイルを適用
         script: xcode-project use-profiles
