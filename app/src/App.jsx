@@ -22,6 +22,25 @@ import { shareCanvas } from './shareimg';
 const SAVE_KEY = 'kimatteru.v2';
 
 // 予定は y（西暦）・m（0始まりの月）・day で持つ。表示中の月も同じ形。
+// days は「その日から何日続くか」。無いか 1 なら1日だけの予定。
+// 日またぎは終日の予定にだけ許す（時間指定はバイトの実働・給料が1日単位のため）。
+
+// 日付を通し番号にする。UTC で数えるので夏時間や時差の影響を受けない。
+const dayNo = (y, m, d) => Math.floor(Date.UTC(y, m, d) / 86400000);
+const fromDayNo = (n) => {
+  const t = new Date(n * 86400000);
+  return { y: t.getUTCFullYear(), m: t.getUTCMonth(), d: t.getUTCDate() };
+};
+// 60日を上限にしておく。壊れたデータでカレンダーが埋まらないように。
+const evSpan = (e) => Math.max(1, Math.min(60, (e && e.days) | 0 || 1));
+const evFrom = (e) => dayNo(e.y, e.m, e.day);
+const evTo = (e) => evFrom(e) + evSpan(e) - 1;
+// その日を覆っているか
+const evCovers = (e, n) => n >= evFrom(e) && n <= evTo(e);
+
+// 月表示のマスに積める帯の段数。これを超えたぶんは「+N件」に回す。
+const MAX_LANES = 3;
+
 const todayParts = () => {
   const n = new Date();
   return { y: n.getFullYear(), m: n.getMonth(), d: n.getDate() };
@@ -132,6 +151,11 @@ export default class App extends React.Component {
   wage(ev){ if(ev.type!=='baito')return 0; return Math.round(this.hoursBetween(ev.start, ev.actualEnd||ev.end)*this.hourlyFor(ev)); }
   fmtHours(h){ const H=Math.floor(h); const M=Math.round((h-H)*60); return M? H+'時間'+M+'分' : H+'時間'; }
   fmtMin(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+  // 日またぎの範囲を「8/25〜8/27」の形にする。年をまたぐときだけ年を添える。
+  spanLabel(ev){
+    const a=fromDayNo(evFrom(ev)), b=fromDayNo(evTo(ev));
+    return (a.m+1)+'/'+a.d+'〜'+(b.y!==a.y?b.y+'/':'')+(b.m+1)+'/'+b.d;
+  }
   freeJudge(evs){
     if(!evs.length) return {mark:'○'};
     const conf=evs.filter(e=>e.status==='kakutei'||e.status==='jisseki');
@@ -158,7 +182,7 @@ export default class App extends React.Component {
     const t=this.T(ev.type);
     // 狭いマスで名前を1文字でも多く見せるため、余白と字間を詰める。
     // letterSpacing を少し詰めるだけで、日本語は1文字ぶん稼げる。
-    const base={height:16,boxSizing:'border-box',borderRadius:4,padding:'0 2px',marginBottom:3,fontSize:11,fontWeight:600,letterSpacing:'-.04em',lineHeight:'16px',whiteSpace:'nowrap',overflow:'hidden',cursor:'pointer',display:'flex',alignItems:'center',transition:'background .28s cubic-bezier(.2,.9,.2,1),border-color .28s,color .28s'};
+    const base={height:16,boxSizing:'border-box',borderRadius:4,padding:'0 2px',marginBottom:3,fontSize:11,fontWeight:500,letterSpacing:'-.04em',lineHeight:'16px',whiteSpace:'nowrap',overflow:'hidden',cursor:'pointer',display:'flex',alignItems:'center',transition:'background .28s cubic-bezier(.2,.9,.2,1),border-color .28s,color .28s'};
     if(ev.status==='kakutei') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color)};
     if(ev.status==='mikakutei') return {...base,height:17,background:t.paper,color:this.inkOn(t.color),border:'1.5px dashed '+this.softLine(t.color),lineHeight:'13px'};
     if(ev.status==='jisseki') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color),opacity:.92};
@@ -181,20 +205,46 @@ export default class App extends React.Component {
   markStyleFor(ev){
     return { fontSize:9, fontWeight:800, opacity:.75, marginRight:2, flexShrink:0, letterSpacing:'-.02em' };
   }
-  pillView(ev, wageOn){
+  // 月表示の帯のかたち。端だけ丸めて、続きがある側は切り落とす。
+  // 切り落とした辺は隣の週（や隣の月）へ地続きに見えるので、
+  // 「ここで終わっていない」が言葉なしで伝わる。
+  segShape(seg){
+    const L=!seg || seg.startsHere!==false, R=!seg || seg.endsHere!==false;
+    return {
+      marginBottom:0,
+      // マスの幅いっぱいに置く。端だけ 1px 空けて、隣の日の別の予定とくっつかないようにする。
+      padding:'0 3px', marginLeft:L?1:0, marginRight:R?1:0,
+      borderRadius:`${L?4:0}px ${R?4:0}px ${R?4:0}px ${L?4:0}px`,
+      _L:L, _R:R,
+    };
+  }
+  // 帯の左右どちらかが切り落とされているとき、その辺の線も消す
+  trimBorder(style, sh){
+    if(!style.border) return style;
+    const out={...style};
+    if(!sh._L) out.borderLeft='none';
+    if(!sh._R) out.borderRight='none';
+    return out;
+  }
+  pillView(ev, wageOn, seg){
+    const sh=this.segShape(seg);
+    const { _L, _R, ...shape }=sh;
     const m=this.state.morph;
+    // 段の高さをそろえないと、日をまたぐ帯が隣のマスでずれて見える
+    const evenOut=(st)=>({...st, height:17, lineHeight: ev.status==='mikakutei' ? '13px' : '17px'});
     if(!m || m.id!==ev.id){
       const p=this.pillParts(ev,wageOn,true);
       return { text:p.body, mark:p.mark, markStyle:this.markStyleFor(ev),
-        style:this.pillStyle(ev), textStyle:{minWidth:0,overflow:'hidden',textOverflow:'ellipsis'}, morphing:false, fillStyle:{} };
+        style:this.trimBorder(evenOut({...this.pillStyle(ev), ...shape}), sh),
+        textStyle:{minWidth:0,overflow:'hidden',textOverflow:'ellipsis'}, morphing:false, fillStyle:{} };
     }
     const t=this.T(ev.type);
     const dash=m.phase==='dash', filling=m.phase==='fill'||m.phase==='settle';
-    const style={height:17,boxSizing:'border-box',borderRadius:4,padding:'0 5px',marginBottom:3,fontSize:11,fontWeight:600,lineHeight:'15px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',display:'block',position:'relative',
-      background:t.paper, border:'1.5px '+(dash?'dashed':'solid')+' '+this.softLine(t.color), transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none'};
+    const style={height:17,boxSizing:'border-box',fontSize:11,fontWeight:500,letterSpacing:'-.04em',lineHeight:'13px',whiteSpace:'nowrap',overflow:'hidden',display:'flex',alignItems:'center',position:'relative',cursor:'pointer',
+      background:t.paper, border:'1.5px '+(dash?'dashed':'solid')+' '+this.softLine(t.color), transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none', ...shape};
     const fillStyle={position:'absolute',left:0,top:0,right:0,bottom:0,background:this.softFill(t.color),transformOrigin:'left center',transform:filling?'scaleX(1)':'scaleX(0)',animation:m.phase==='fill'?'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none',zIndex:0,borderRadius:2};
-    const textStyle={position:'relative',zIndex:1,color:this.inkOn(t.color),transition:'color .16s .12s linear'};
-    return { text: ev.title, mark: dash?'?':'', markStyle:this.markStyleFor(ev), style, textStyle, morphing:true, fillStyle };
+    const textStyle={position:'relative',zIndex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',color:this.inkOn(t.color),transition:'color .16s .12s linear'};
+    return { text: ev.title, mark: dash?'?':'', markStyle:this.markStyleFor(ev), style:this.trimBorder(style,sh), textStyle, morphing:true, fillStyle };
   }
   statusWord(ev){
     const t=this.T(ev.type);
@@ -212,13 +262,13 @@ export default class App extends React.Component {
     this.setState({screen:'detail',detailId:ev.id,returnTo:ret});
   }
   openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month'}); }
-  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,picking:null}}); }
+  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,picking:null}}); }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
     this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
       editingId:ev.id, title:ev.title, type:ev.type, status:ev.status,
       start:ev.start, end: ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end,
-      y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, picking:null }});
+      y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev), picking:null }});
   }
   askDelete(id){ this.setState({confirmDelete:id}); }
 
@@ -388,11 +438,14 @@ export default class App extends React.Component {
   save(){
     const dr=this.state.draft;
     tapLight();
+    // 日またぎは終日の予定だけ。時間指定に戻したら1日に畳む。
+    const span = dr.allDay ? Math.max(1,Math.min(60,dr.days|0||1)) : 1;
+    const spanField = span>1 ? span : undefined;
     if(dr.editingId){
       this.setState(s=>({ screen:'month', detailId:null, dayNum:null, ym:{y:dr.y,m:dr.m},
         events:s.events.map(e=>{
           if(e.id!==dr.editingId) return e;
-          const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay,
+          const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay,days:spanField,
             jobId: dr.type==='baito' ? dr.jobId : undefined};
           // 実績のときに直しているのは「実際に働いた終わりの時刻」
           return dr.status==='jisseki' ? {...base, actualEnd:dr.end} : {...base, end:dr.end, actualEnd:undefined};
@@ -400,10 +453,10 @@ export default class App extends React.Component {
       return;
     }
     // 本体の日＋えらんだ他の日、まとめて置く
-    const days=[[dr.y,dr.m,dr.day], ...(dr.extraDays||[]).map(k=>k.split('-').map(Number))];
+    const placeOn=[[dr.y,dr.m,dr.day], ...(dr.extraDays||[]).map(k=>k.split('-').map(Number))];
     const base=Date.now();
-    const made=days.map(([y,m,d],i)=>({ id:'n'+base+'-'+i, type:dr.type, title:dr.title||'無題',
-      y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay,
+    const made=placeOn.map(([y,m,d],i)=>({ id:'n'+base+'-'+i, type:dr.type, title:dr.title||'無題',
+      y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay, days:spanField,
       jobId: dr.type==='baito' ? dr.jobId : undefined,
       want: dr.status==='mikakutei' ? [dr.start,dr.end] : undefined }));
     this.setState(s=>({ screen:s.returnTo, ym:{y:dr.y,m:dr.m}, events:[...s.events,...made] }));
@@ -729,7 +782,7 @@ export default class App extends React.Component {
     const sCells=[];
     for(let i=0;i<sFirst;i++) sCells.push({ label:'', style:{} });
     for(let d=1;d<=sDim;d++){
-      const busy = st.events.some(e=>e.y===shY && e.m===shM && e.day===d && (e.status==='kakutei'||e.status==='jisseki'));
+      const busy = st.events.some(e=>evCovers(e,dayNo(shY,shM,d)) && (e.status==='kakutei'||e.status==='jisseki'));
       sCells.push({ label:d, style: busy
         ? { height:34,borderRadius:7,background:'#EDEEF0',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600,color:'#C1C5CC' }
         : { height:34,borderRadius:7,background:'#FAECE7',border:'1.5px solid #D85A30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#712B13' } });
@@ -744,43 +797,86 @@ export default class App extends React.Component {
     v.weekdays = wlRot.map(({label,dw})=>({ label, style:{textAlign:'center',fontSize:11,fontWeight:600,padding:'6px 0',
       color: dw===0 ? HOLIDAY_RED : dw===6 ? SATURDAY_BLUE : '#9AA0A6'} }));
 
-    // month cells — 前後の月も一緒に作る（スワイプで指についてくるように並べるため）
+    // month — 前後の月も一緒に作る（スワイプで指についてくるように並べるため）
     const Y=st.ym.y, M=st.ym.m;
     const rawFirst=new Date(Y,M,1).getDay();
-    const blankStyle={background:'var(--bg2)',padding:'3px 4px'};
-    const buildCells=(Y,M)=>{
-      const rawFirst=new Date(Y,M,1).getDay(), days=new Date(Y,M+1,0).getDate();
+    // 週ごとに組む。日をまたぐ予定を1本の帯にするには、
+    // マスの中にピルを積むのではなく、週の中で列をまたがせる必要がある。
+    const buildWeeks=(Y,M)=>{
+      const wFirst=new Date(Y,M,1).getDay(), dim=new Date(Y,M+1,0).getDate();
       const today=(st.today.y===Y && st.today.m===M) ? st.today.d : 0;
-      const first=(rawFirst-ws+7)%7;
-      const cells=[];
-      for(let i=0;i<first;i++) cells.push({blank:true,style:blankStyle,day:null,pills:[],numWrap:{},numStyle:{},onDay:()=>{}});
-      for(let d=1;d<=days;d++){
-        const dayEvents=st.events.filter(e=>e.y===Y && e.m===M && e.day===d && !(st.settings.hideCanceled && e.status==='nakunatta'));
-        const shown=dayEvents.slice(0,3), extra=dayEvents.length-shown.length;
-        const dow=(rawFirst+d-1)%7, isToday=d===today;
-        const hol=holidayName(Y,M,d);
-        // 祝日と日曜は赤、土曜は青。日本のカレンダーの見慣れた並びに合わせる。
-        const dayColor = (hol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)';
-        const numStyle = isToday
-          ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
-          : {fontSize:11,fontWeight:(hol||dow===0||dow===6)?700:600, color:dayColor, paddingLeft:2};
-        cells.push({
-          blank:false, day:d,
-          style:{background:'var(--card)',padding:'3px 4px',overflow:'hidden',cursor:'pointer'},
-          numWrap:{marginBottom:3,lineHeight:'20px'}, numStyle,
-          pills: shown.map(ev=>({ ...this.pillView(ev,wageOn), onClick:(e)=>{ if(e)e.stopPropagation(); this.openFor(ev,'month'); } })),
-          hasMore: extra>0, moreText:'+'+extra+'件',
-          onDay:()=>this.openDay(d),
+      const first=(wFirst-ws+7)%7;
+      const weekCount=Math.ceil((first+dim)/7);
+      const monthA=dayNo(Y,M,1), monthB=dayNo(Y,M,dim);
+      // この月にかかる予定だけを相手にする。日またぎは前の月から始まっていることもある。
+      const pool=st.events.filter(e=>
+        !(st.settings.hideCanceled && e.status==='nakunatta') &&
+        evTo(e)>=monthA && evFrom(e)<=monthB);
+
+      const weeks=[];
+      for(let w=0; w<weekCount; w++){
+        // この週の7マスに入る日。月の外は null
+        const slotDays=Array.from({length:7},(_,i)=>{ const d=w*7+i-first+1; return (d>=1&&d<=dim)?d:null; });
+        const real=slotDays.filter(d=>d!==null);
+        const weekA=dayNo(Y,M,real[0]), weekB=dayNo(Y,M,real[real.length-1]);
+        const colOf=(n)=>(n-monthA)+first-w*7; // 通し番号 → この週の何列目か
+
+        // 長い帯から先に段を決める。同じ段に居続けるので、隣のマスと横一列につながる。
+        const inWeek=pool.filter(e=>evTo(e)>=weekA && evFrom(e)<=weekB)
+          .sort((a,b)=> (evSpan(b)-evSpan(a)) || (evFrom(a)-evFrom(b))
+            || (this.mins(a.start)-this.mins(b.start)) || String(a.id).localeCompare(String(b.id)));
+
+        const lanes=[]; const bars=[]; const overflow={};
+        for(const ev of inWeek){
+          const a=Math.max(evFrom(ev),weekA), b=Math.min(evTo(ev),weekB);
+          let li=0;
+          while(lanes[li] && lanes[li].some(r=>a<=r[1] && b>=r[0])) li++;
+          if(li>=MAX_LANES){ for(let n=a;n<=b;n++) overflow[n]=(overflow[n]||0)+1; continue; }
+          (lanes[li]=lanes[li]||[]).push([a,b]);
+          const c0=colOf(a), c1=colOf(b);
+          const view=this.pillView(ev, wageOn, { startsHere:a===evFrom(ev), endsHere:b===evTo(ev) });
+          bars.push({ key:ev.id+'-'+w, ...view,
+            style:{...view.style, gridColumn:(c0+1)+' / span '+(c1-c0+1), gridRow:li+2, pointerEvents:'auto', zIndex:1},
+            onClick:(e)=>{ if(e)e.stopPropagation(); this.openFor(ev,'month'); } });
+        }
+
+        const slots=slotDays.map((d,i)=>{
+          if(d===null) return { blank:true, day:null, bgStyle:{background:'var(--bg2)'}, numWrap:{}, numStyle:{}, onDay:()=>{} };
+          const dow=(wFirst+d-1)%7, isToday=d===today;
+          const hol=holidayName(Y,M,d);
+          // 祝日と日曜は赤、土曜は青。日本のカレンダーの見慣れた並びに合わせる。
+          const dayColor = (hol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)';
+          return {
+            blank:false, day:d,
+            bgStyle:{background:'var(--card)',cursor:'pointer'},
+            numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
+            numStyle: isToday
+              ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
+              : {fontSize:11,fontWeight:(hol||dow===0||dow===6)?700:600, color:dayColor},
+            onDay:()=>this.openDay(d),
+          };
+        });
+
+        const more=Object.keys(overflow).map(n=>({
+          text:'+'+overflow[n]+'件',
+          style:{gridColumn:(colOf(Number(n))+1)+' / span 1', gridRow:MAX_LANES+2, fontSize:10,fontWeight:500,color:'var(--ink-mut)',paddingLeft:4,lineHeight:'13px',whiteSpace:'nowrap',overflow:'hidden'},
+        }));
+
+        weeks.push({
+          key:Y+'-'+M+'-w'+w, slots, bars, more,
+          // 週の区切りだけ線を引く。マスを囲む枠は引かない（予定を浮き上がらせるため）
+          rowStyle:{position:'relative', flex:'1 1 0', minHeight:92, ...(w>0?{borderTop:'1px solid var(--line)'}:{})},
+          gridStyle:{position:'relative', display:'grid', gridTemplateColumns:'repeat(7,1fr)',
+            gridTemplateRows:'22px repeat('+MAX_LANES+',19px) 13px', alignContent:'start', pointerEvents:'none', height:'100%'},
         });
       }
-      while(cells.length%7) cells.push({blank:true,style:blankStyle,day:null,pills:[],numWrap:{},numStyle:{},onDay:()=>{}});
-      return cells;
+      return weeks;
     };
     const prevYM=shiftMonth(st.ym,-1), nextYM=shiftMonth(st.ym,1);
     v.monthPages=[
-      { key:prevYM.y+'-'+prevYM.m, cells:buildCells(prevYM.y,prevYM.m) },
-      { key:st.ym.y+'-'+st.ym.m,   cells:buildCells(st.ym.y,st.ym.m) },
-      { key:nextYM.y+'-'+nextYM.m, cells:buildCells(nextYM.y,nextYM.m) },
+      { key:prevYM.y+'-'+prevYM.m, weeks:buildWeeks(prevYM.y,prevYM.m) },
+      { key:st.ym.y+'-'+st.ym.m,   weeks:buildWeeks(st.ym.y,st.ym.m) },
+      { key:nextYM.y+'-'+nextYM.m, weeks:buildWeeks(nextYM.y,nextYM.m) },
     ];
     // 指の動きぶんだけ横にずらす。離したときだけ滑らせる。
     // 絶対配置にして、flex の縮みで幅が崩れないようにする
@@ -802,14 +898,18 @@ export default class App extends React.Component {
       v.dayHoliday = dayHol || '';
       v.dayTitleStyle = {fontSize:16,fontWeight:600,
         color: (dayHol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)'};
-      const evs=st.events.filter(e=>e.y===Y && e.m===M && e.day===d).sort((a,b)=>this.mins(a.start)-this.mins(b.start));
+      // 日をまたぐ予定も、覆っている日すべてに出す。
+      // 月表示で隠している「無くなった」予定は、ここでも隠す（画面ごとに違うと混乱する）
+      const dn=dayNo(Y,M,d);
+      const evs=st.events.filter(e=>evCovers(e,dn) && !(st.settings.hideCanceled && e.status==='nakunatta'))
+        .sort((a,b)=> (evSpan(b)-evSpan(a)) || (this.mins(a.start)-this.mins(b.start)));
       v.dayEmpty = evs.length===0;
       v.dayEvents = evs.map(ev=>{
         const endShown = ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end;
         return {
           chipStyle: {...this.pillStyle(ev), height:26, lineHeight:'26px', fontSize:13, padding:'0 12px', marginBottom:0, borderRadius:6, display:'inline-block', flexShrink:0, overflow:'visible', textOverflow:'clip', width:'max-content', maxWidth:220},
           chipText: this.pillText(ev,false),
-          timeText: ev.allDay ? '終日' : ev.start+'–'+endShown,
+          timeText: ev.allDay ? (evSpan(ev)>1 ? this.spanLabel(ev)+'（終日）' : '終日') : ev.start+'–'+endShown,
           statusWord: this.statusWord(ev),
           onClick: ()=>this.openFor(ev,'day'),
         };
@@ -918,6 +1018,23 @@ export default class App extends React.Component {
     v.jobsEmpty = (st.jobs||[]).length===0;
 
     v.timed = !dr.allDay; v.allDayShown = dr.allDay;
+    // 何日間つづくか。終日のときだけ選べる（時間指定は1日で完結するもの、という決め）
+    {
+      const n=Math.max(1,Math.min(60,dr.days|0||1));
+      v.spanDays = n;
+      v.spanCountLabel = n===1 ? '1日' : n+'日間';
+      v.spanRangeLabel = n===1 ? '' : this.spanLabel({y:dr.y,m:dr.m,day:dr.day,days:n});
+      v.spanHint = n===1 ? '2日以上にすると、カレンダーで1本の帯になります' : '';
+      // 続けて押したぶんが取りこぼされないよう、今の値は state から読む
+      const bump=(d)=>()=>{ tapLight(); this.setState(s=>{
+        const cur=Math.max(1,Math.min(60,s.draft.days|0||1)), next=cur+d;
+        return (next<1||next>60) ? null : {draft:{...s.draft,days:next}};
+      }); };
+      v.onSpanMinus = bump(-1);
+      v.onSpanPlus = bump(1);
+      v.spanMinusStyle = {...stepBtn, opacity:n<=1?.35:1};
+      v.spanPlusStyle = {...stepBtn, opacity:n>=60?.35:1};
+    }
     v.spanSeg = [['timed','時間を指定'],['all','終日']].map(([k,label])=>{ const sel=(k==='all')===!!dr.allDay;
       return { label, onClick:()=>this.setState(s=>({draft:{...s.draft,allDay:k==='all',picking:null}})),
         style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:11,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
@@ -985,7 +1102,8 @@ export default class App extends React.Component {
       v.gaugeTrackStyle={ width:10,alignSelf:'stretch',background:t.paper,position:'relative',flexShrink:0 };
       v.gaugeFillStyle={ position:'absolute',left:0,right:0,bottom:0,height:pct+'%',background:t.color,transition:'height .32s cubic-bezier(.2,.9,.2,1)' };
       const endShown = ev.status==='jisseki'? (ev.actualEnd||ev.end) : ev.end;
-      v.dTimeText = ev.allDay ? '終日' : ev.start+'–'+endShown;
+      v.dTimeText = ev.allDay ? (evSpan(ev)>1 ? this.spanLabel(ev)+'　終日' : '終日') : ev.start+'–'+endShown;
+      v.dSpanText = evSpan(ev)>1 ? evSpan(ev)+'日間' : '';
       v.dTimeChanged = ev.status==='jisseki' && ev.actualEnd && ev.actualEnd!==ev.end;
       v.dWantText = ev.want ? '希望 '+ev.want[0]+'–'+ev.want[1] : (v.dTimeChanged?'予定 '+ev.start+'–'+ev.end:'');
       v.dWageShown = ev.status==='jisseki';
@@ -1074,7 +1192,7 @@ export default class App extends React.Component {
       let cO=0,cA=0,cX=0; const rows=[];
       for(let d=1;d<=dim;d++){
         const dow=(fdow+d-1)%7;
-        const evs = st.events.filter(e=>e.y===fY && e.m===fm && e.day===d && e.status!=='nakunatta');
+        const evs = st.events.filter(e=>evCovers(e,dayNo(fY,fm,d)) && e.status!=='nakunatta');
         const j=this.freeJudge(evs);
         const ok=dayKey(fY,fm,d);
         const applied = st.overrides[ok] || j.mark;
@@ -1243,7 +1361,7 @@ export default class App extends React.Component {
           cells.push({
             label: d,
             busy: st.events.some(
-              (e) => e.y === Y && e.m === M && e.day === d && (e.status === 'kakutei' || e.status === 'jisseki')
+              (e) => evCovers(e, dayNo(Y, M, d)) && (e.status === 'kakutei' || e.status === 'jisseki')
             ),
           });
         }

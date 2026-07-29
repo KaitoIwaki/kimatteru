@@ -8,6 +8,11 @@ export const KIND_INFO = 'info';
 // version はそのお知らせを出し始めた版。初回起動の人には出さない。
 export const RELEASE_NOTES = [
   {
+    version: '0.9.0',
+    title: '何日か続く予定を、1本の帯で置けます',
+    body: '合宿や旅行のように何日か続く予定は、まとめて1本の帯になりました。終日をえらぶと「何日間」が出ます。カレンダーの線を減らして、予定の名前も長く出るようにしています。',
+  },
+  {
     version: '0.5.0',
     title: '祝日と、お知らせの一覧を追加しました',
     body: 'カレンダーの祝日が赤くなりました。このベルからは、記録し忘れているシフトやアップデートのお知らせをまとめて見られます。',
@@ -61,6 +66,21 @@ export function syncShiftNotices(notices, events, now) {
   return out;
 }
 
+/**
+ * 版の新しい・古いを数として比べる。
+ * 文字列のまま比べると '0.10.0' < '0.9.0' になってしまい、
+ * 0.10 以降のお知らせが誰にも出なくなる。
+ */
+export function cmpVersion(a, b) {
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
+}
+
 /** 版が上がったときに、アップデートのお知らせを足す */
 export function syncInfoNotices(notices, currentVersion, lastSeenVersion) {
   // 初めて使う人には、過去のお知らせを出さない
@@ -68,7 +88,9 @@ export function syncInfoNotices(notices, currentVersion, lastSeenVersion) {
   if (lastSeenVersion === currentVersion) return notices;
   const out = [...notices];
   for (const r of RELEASE_NOTES) {
-    if (r.version <= lastSeenVersion) continue;
+    if (cmpVersion(r.version, lastSeenVersion) <= 0) continue;
+    // まだ配っていない版のお知らせは出さない（書きかけを取り違えないように）
+    if (cmpVersion(r.version, currentVersion) > 0) continue;
     const id = infoNoticeId(r.version);
     if (out.some((n) => n.id === id)) continue;
     out.push({ id, kind: KIND_INFO, title: r.title, body: r.body, at: Date.now(), read: false });

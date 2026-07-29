@@ -67,22 +67,26 @@ export function renderApp(v) {
               <div style={s(v.trackStyle)}>
                 {(v.monthPages || []).map((page) => (
                   <div key={page.key} style={s('flex:0 0 33.3333%;max-width:33.3333%;padding:0 6px;display:flex;flex-direction:column;box-sizing:border-box')}>
-                    <div style={s('display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(86px,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;flex:1 1 auto;min-height:0')}>
-                      {page.cells.map((c, i) => (
-                        <div key={i} style={s(c.style)} onClick={c.onDay}>
-                          {!!c.day && (
-                            <div style={s(c.numWrap)}><span style={s(c.numStyle)}>{c.day}</span></div>
-                          )}
-                          {(c.pills || []).map((p, j) => (
-                            <div key={j} style={s(p.style)} onClick={p.onClick}>
-                              {p.morphing && <span style={s(p.fillStyle)} />}
-                              {!!p.mark && <span style={s({ ...p.markStyle, position: 'relative', zIndex: 1 })}>{p.mark}</span>}
-                              <span style={s(p.textStyle)}>{p.text}</span>
-                            </div>
-                          ))}
-                          {c.hasMore && (
-                            <div style={s('font-size:10px;font-weight:600;color:var(--ink-mut);padding:1px 5px')}>{c.moreText}</div>
-                          )}
+                    <div style={s('display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;flex:1 1 auto;min-height:0')}>
+                      {page.weeks.map((wk) => (
+                        <div key={wk.key} style={s(wk.rowStyle)}>
+                          {/* 地とタップ領域。帯はこの上に載る */}
+                          <div style={s('position:absolute;inset:0;display:grid;grid-template-columns:repeat(7,1fr)')}>
+                            {wk.slots.map((sl, i) => (<div key={i} style={s(sl.bgStyle)} onClick={sl.onDay} />))}
+                          </div>
+                          <div style={s(wk.gridStyle)}>
+                            {wk.slots.map((sl, i) => (
+                              !!sl.day && <div key={'d' + i} style={s(sl.numWrap)}><span style={s(sl.numStyle)}>{sl.day}</span></div>
+                            ))}
+                            {wk.bars.map((b) => (
+                              <div key={b.key} style={s(b.style)} onClick={b.onClick}>
+                                {b.morphing && <span style={s(b.fillStyle)} />}
+                                {!!b.mark && <span style={s({ ...b.markStyle, position: 'relative', zIndex: 1 })}>{b.mark}</span>}
+                                <span style={s(b.textStyle)}>{b.text}</span>
+                              </div>
+                            ))}
+                            {wk.more.map((mo, i) => (<div key={'m' + i} style={s(mo.style)}>{mo.text}</div>))}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -343,7 +347,22 @@ export function renderApp(v) {
               </div>
             )}
             {v.allDayShown && (
-              <div style={s('background:var(--card);border-radius:17px;padding:16px;margin-bottom:22px;font-size:14px;color:var(--ink-mut);text-align:center')}>この予定は終日として置かれます</div>
+              <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px')}>
+                <div style={s('display:flex;align-items:center;justify-content:space-between;padding:13px 16px')}>
+                  <span style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
+                    <span style={s('font-size:15px;color:var(--ink)')}>何日間</span>
+                    {!!v.spanRangeLabel && <span style={s('font-size:11px;font-weight:600;color:#1D9E75;font-variant-numeric:tabular-nums')}>{v.spanRangeLabel}</span>}
+                  </span>
+                  <span style={s('display:flex;align-items:center;gap:12px')}>
+                    <span role="button" aria-label="1日減らす" style={s(v.spanMinusStyle)} onClick={v.onSpanMinus}>−</span>
+                    <span style={s('font-size:16px;font-weight:700;color:var(--ink);min-width:52px;text-align:center;font-variant-numeric:tabular-nums')}>{v.spanCountLabel}</span>
+                    <span role="button" aria-label="1日増やす" style={s(v.spanPlusStyle)} onClick={v.onSpanPlus}>＋</span>
+                  </span>
+                </div>
+                {!!v.spanHint && (
+                  <div style={s('padding:0 16px 13px;font-size:11px;color:var(--ink-faint);line-height:1.6')}>{v.spanHint}</div>
+                )}
+              </div>
             )}
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>カレンダーでの見え方</div>
