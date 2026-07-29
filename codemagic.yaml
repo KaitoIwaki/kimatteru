@@ -70,16 +70,33 @@ workflows:
       # publishing: ブロックに任せると post-processing 扱いになり、
       # 失敗しても理由が途中で切れて読めない（ビルド20・21がこれで詰まった）。
       # 同じことを普通のステップでやって、出力を全部ログに残す。
+      # Apple の API 変更に CLI が追いついていないと、アップロードが済んで
+      # Processing state: VALID になったあとの buildBetaDetail 取得が
+      #   404 There is no resource of type 'buildBetaDetails' with id '<ビルドのID>'
+      # で落ちる（ビルドのIDを buildBetaDetails のIDとして探しにいってしまう）。
+      # バイナリは無事なのに配信が失敗扱いになるので、まず CLI を上げておく。
+      - name: 配信ツールを最新にする
+        script: |
+          pip3 install --upgrade codemagic-cli-tools || echo "▶ 更新できなかったので既存のまま進む"
+          echo "▶ app-store-connect のバージョン: $(app-store-connect --version 2>&1)"
       - name: TestFlight へ配信
         script: |
           set -x
           IPA=$(ls build/ios/ipa/*.ipa | head -1)
           echo "▶ 配信するIPA: $IPA"
-          app-store-connect publish \
-            --path "$IPA" \
-            --testflight \
-            --beta-group "自分用" \
-            --max-build-processing-wait 30
+          if app-store-connect publish \
+               --path "$IPA" \
+               --testflight \
+               --beta-group "自分用" \
+               --max-build-processing-wait 30; then
+            echo "▶ 配信まで完了"
+          else
+            echo "✗ 配信ステップが失敗した。"
+            echo "  ただし Processing state: VALID まで出ていれば、バイナリは"
+            echo "  App Store Connect に届いている。TestFlight の一覧に出ているので、"
+            echo "  内部テストグループ「自分用」に手で追加すれば実機に配信できる。"
+            exit 1
+          fi
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
