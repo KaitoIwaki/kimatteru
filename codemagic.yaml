@@ -98,11 +98,17 @@ workflows:
           # を呼び、404（There is no resource of type 'buildBetaDetails'）で必ず落ちる。
           # CLI を最新に上げても直らなかった（ビルド23・24・25で確認）。
           # ビルド番号から直接ID を引いて、グループへ入れるところだけ自前でやる。
-          echo "▶ ビルド番号 $PROJECT_BUILD_NUMBER が現れるのを待つ"
+          # --processing-state VALID を必ず付ける。
+          # これが無いと、Apple がまだ処理中のビルドを拾ってしまい、
+          # グループへの追加が
+          #   There is no resource of type 'builds' with id '<ID>'
+          # で失敗する（ビルド26がこれ。一覧には出るが、まだ触れない状態だった）。
+          echo "▶ ビルド番号 $PROJECT_BUILD_NUMBER の処理が終わるのを待つ"
           BUILD_ID=""
           for i in $(seq 1 30); do
             BUILD_ID=$(app-store-connect apps builds "$APP_ID" \
-                         --build-version-number "$PROJECT_BUILD_NUMBER" --json 2>/dev/null \
+                         --build-version-number "$PROJECT_BUILD_NUMBER" \
+                         --processing-state VALID --json 2>/dev/null \
                        | python3 -c "import sys,json;d=json.load(sys.stdin);d=d.get('data',d) if isinstance(d,dict) else d;print(d[0]['id'] if d else '')" 2>/dev/null || true)
             [ -n "$BUILD_ID" ] && break
             echo "  まだ処理中。60秒待つ（$i/30）"
@@ -110,15 +116,25 @@ workflows:
           done
 
           if [ -z "$BUILD_ID" ]; then
-            echo "✗ ビルドを見つけられなかった。"
+            echo "✗ 30分待っても処理が終わらなかった。"
             echo "  アップロード自体は済んでいるので、App Store Connect の"
             echo "  TestFlight 一覧から手でグループに追加すれば実機に配信できる。"
             exit 1
           fi
 
-          echo "▶ ビルドID: $BUILD_ID"
-          app-store-connect beta-groups add-build "$BUILD_ID" --beta-group "$BETA_GROUP"
-          echo "▶ 「$BETA_GROUP」へ割り当てた。iPhone の TestFlight に出る。"
+          echo "▶ ビルドID: $BUILD_ID（処理済み）"
+          # 処理済みでも Apple 側の反映に少し遅れが出ることがあるので数回試す
+          for i in $(seq 1 5); do
+            if app-store-connect beta-groups add-build "$BUILD_ID" --beta-group "$BETA_GROUP"; then
+              echo "▶ 「$BETA_GROUP」へ割り当てた。iPhone の TestFlight に出る。"
+              exit 0
+            fi
+            echo "  追加できなかった。30秒待って試し直す（$i/5）"
+            sleep 30
+          done
+          echo "✗ グループへの追加に失敗した。アップロードは済んでいるので、"
+          echo "  App Store Connect から手で追加すれば配信できる。"
+          exit 1
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
