@@ -67,18 +67,21 @@ workflows:
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME"
+      # publishing: ブロックに任せると post-processing 扱いになり、
+      # 失敗しても理由が途中で切れて読めない（ビルド20・21がこれで詰まった）。
+      # 同じことを普通のステップでやって、出力を全部ログに残す。
+      - name: TestFlight へ配信
+        script: |
+          set -x
+          IPA=$(ls build/ios/ipa/*.ipa | head -1)
+          echo "▶ 配信するIPA: $IPA"
+          app-store-connect publish \
+            --path "$IPA" \
+            --testflight \
+            --beta-group "自分用" \
+            --max-build-processing-wait 30
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-    publishing:
-      app_store_connect:
-        auth: integration
-        # まずは TestFlight まで。審査提出は App Store Connect の画面から手動で行う
-        submit_to_testflight: true
-        # 割り当て先を明示しておく。
-        # これが無いと「アップロード → 処理待ち → グループへ割り当て」の
-        # 待ちで失敗したときに割り当てまで届かず、App Store Connect には
-        # ビルドが並んでいるのに iPhone の TestFlight には出てこない、という形になる。
-        # （ビルド20・21 が実際にそうなった）
-        beta_groups:
-          - 自分用
+    # 配信は上の「TestFlight へ配信」ステップで行うので、publishing は使わない。
+    # （publishing にすると失敗理由が post-processing に隠れて読めない）
