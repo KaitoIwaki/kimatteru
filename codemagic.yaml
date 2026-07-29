@@ -75,3 +75,10 @@ workflows:
         auth: integration
         # まずは TestFlight まで。審査提出は App Store Connect の画面から手動で行う
         submit_to_testflight: true
+        # 割り当て先を明示しておく。
+        # これが無いと「アップロード → 処理待ち → グループへ割り当て」の
+        # 待ちで失敗したときに割り当てまで届かず、App Store Connect には
+        # ビルドが並んでいるのに iPhone の TestFlight には出てこない、という形になる。
+        # （ビルド20・21 が実際にそうなった）
+        beta_groups:
+          - 自分用
