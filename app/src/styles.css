@@ -7,6 +7,9 @@
   --bg2: #F1EFE7;
   --card: #FFFDF8;
   --line: #E6E2D6;
+  /* 月表示の日と日のあいだの縦線だけに使う。1px より細くは描けないので、
+     色を地に寄せて目立たなくする。線としては見えるが、面としては効かない濃さ。 */
+  --line-faint: #F6F4EC;
   --ink: #26251F;
   --ink-soft: #55524A;
   --ink-mut: #8C887C;
@@ -19,6 +22,7 @@
   --bg2: #242320;
   --card: #26251F;
   --line: #3A392F;
+  --line-faint: #2D2C25;
   --ink: #EDEBE1;
   --ink-soft: #B6B2A6;
   --ink-mut: #8C887C;

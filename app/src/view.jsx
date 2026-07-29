@@ -79,7 +79,7 @@ export function renderApp(v) {
                               !!sl.day && <div key={'d' + i} style={s(sl.numWrap)}><span style={s(sl.numStyle)}>{sl.day}</span></div>
                             ))}
                             {wk.bars.map((b) => (
-                              <div key={b.key} style={s(b.style)} onClick={b.onClick}>
+                              <div key={b.key} style={s(b.style)}>
                                 {b.morphing && <span style={s(b.fillStyle)} />}
                                 {!!b.mark && <span style={s({ ...b.markStyle, position: 'relative', zIndex: 1 })}>{b.mark}</span>}
                                 <span style={s(b.textStyle)}>{b.text}</span>
@@ -141,13 +141,24 @@ export function renderApp(v) {
             {v.dayEmpty && (
               <div style={s('text-align:center;color:var(--ink-faint);font-size:14px;padding:48px 0')}>この日の予定はまだありません</div>
             )}
-            {(v.dayEvents || []).map((r, i) => (
-              <div key={i} style={s('display:flex;align-items:center;gap:12px;background:var(--card);border-radius:15px;padding:14px;margin-bottom:9px;border:1px solid var(--line);cursor:pointer')} onClick={r.onClick}>
-                <div style={s(r.chipStyle)}>{r.chipText}</div>
-                <div style={s('flex:1')} />
-                <div style={s('display:flex;flex-direction:column;align-items:flex-end;gap:2px')}>
-                  <span style={s('font-size:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{r.timeText}</span>
-                  <span style={s('font-size:11px;color:var(--ink-mut)')}>{r.statusWord}</span>
+            {(v.dayEvents || []).map((r) => (
+              <div key={r.key} style={s(r.wrapStyle)}>
+                <div role="button" aria-label="この予定を削除" style={s(r.delWrapStyle)} onClick={r.onDelete}>
+                  <span style={s(r.delLabelStyle)}>{r.delLabel}</span>
+                </div>
+                <div
+                  style={s(r.bodyStyle)}
+                  onClick={r.onClick}
+                  onTouchStart={r.onTouchStart}
+                  onTouchMove={r.onTouchMove}
+                  onTouchEnd={r.onTouchEnd}
+                >
+                  <div style={s(r.chipStyle)}>{r.chipText}</div>
+                  <div style={s('flex:1')} />
+                  <div style={s('display:flex;flex-direction:column;align-items:flex-end;gap:2px')}>
+                    <span style={s('font-size:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{r.timeText}</span>
+                    <span style={s('font-size:11px;color:var(--ink-mut)')}>{r.statusWord}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -212,12 +223,58 @@ export function renderApp(v) {
               <input value={v.draftTitle} placeholder="タイトル" onChange={v.onTitle} style={s('width:100%;border:none;outline:none;padding:14px 0;font-size:16px;color:var(--ink);background:transparent')} />
             </div>
 
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>種類</div>
-            <div style={s('display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px')}>
-              {(v.chips || []).map((ch, i) => (
-                <div key={i} style={s(ch.style)} onClick={ch.onClick}>{ch.label}</div>
-              ))}
-              <div style={s(v.addChipStyle)} onClick={v.onAddTypeChip}>＋ 種類</div>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
+              <div style={s('font-size:13px;color:var(--ink);padding:13px 16px 9px')}>この予定は</div>
+              <div style={s('display:flex;background:var(--bg2);border-radius:13px;padding:2px;margin:0 14px 10px')}>
+                {(v.seg || []).map((sg, i) => (
+                  <div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>
+                ))}
+              </div>
+              <div style={s('display:flex;align-items:center;gap:7px;padding:0 16px 14px')}>
+                <span style={s(v.previewDotStyle)} />
+                <span style={s('font-size:12px;color:var(--ink-mut);text-wrap:pretty')}>{v.previewExplain}</span>
+              </div>
+            </div>
+
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
+              <div style={s(`display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:${v.jobPickerShown ? '1px solid var(--line)' : 'none'}`)} onClick={v.onTapTypeRow}>
+                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>種類</span>
+                <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                  <span style={s(v.typeDotStyle)} />
+                  <span style={s(v.valType)}>{v.typeValue}</span>
+                  <span style={s(v.chevType)}>›</span>
+                </span>
+              </div>
+              {v.rowTypeOpen && (
+                <div style={s('padding:2px 14px 14px;background:var(--bg2)')}>
+                  <div style={s('display:flex;flex-wrap:wrap;gap:8px;padding-top:10px')}>
+                    {(v.chips || []).map((ch, i) => (
+                      <div key={i} style={s(ch.style)} onClick={ch.onClick}>{ch.label}</div>
+                    ))}
+                    <div style={s(v.addChipStyle)} onClick={v.onAddTypeChip}>＋ 種類</div>
+                  </div>
+                </div>
+              )}
+              {v.jobPickerShown && (
+                <>
+                  <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapJobRow}>
+                    <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>バイト先</span>
+                    <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                      <span style={s(v.valJob)}>{v.jobValue}</span>
+                      <span style={s(v.chevJob)}>›</span>
+                    </span>
+                  </div>
+                  {v.rowJobOpen && (
+                    <div style={s('padding:12px 14px 14px;background:var(--bg2)')}>
+                      <div style={s('display:flex;flex-wrap:wrap;gap:8px')}>
+                        {(v.jobChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                        <div style={s(v.jobNoneChip.style)} onClick={v.jobNoneChip.onClick}>{v.jobNoneChip.label}</div>
+                        <div style={s('padding:8px 14px;border-radius:999px;font-size:13px;color:var(--ink-mut);border:1px dashed var(--line);cursor:pointer')} onClick={v.onAddJobFromNew}>＋ バイト先</div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             {v.newTypeShown && (
@@ -235,29 +292,8 @@ export function renderApp(v) {
               </div>
             )}
 
-            <div style={s('display:flex;align-items:center;gap:9px;margin:0 2px 20px 2px')}>
-              <span style={s('font-size:11px;color:var(--ink-mut)')}>色</span>
-              {(v.recolorSwatches || []).map((sw, i) => (
-                <div key={i} style={s(sw.style)} onClick={sw.onClick} />
-              ))}
-            </div>
-
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>この予定は</div>
-            <div style={s('display:flex;background:var(--bg2);border-radius:16px;padding:2px;margin-bottom:22px')}>
-              {(v.seg || []).map((sg, i) => (
-                <div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>
-              ))}
-            </div>
-
             {v.jobPickerShown && (
               <>
-                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>バイト先</div>
-                <div style={s('display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px')}>
-                  {(v.jobChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
-                  <div style={s(v.jobNoneChip.style)} onClick={v.jobNoneChip.onClick}>{v.jobNoneChip.label}</div>
-                  <div style={s('padding:8px 14px;border-radius:999px;font-size:13px;color:var(--ink-mut);border:1px dashed var(--line);cursor:pointer')} onClick={v.onAddJobFromNew}>＋ バイト先</div>
-                </div>
-
                 {v.newJobShown && (
                   <div style={s('background:var(--card);border-radius:17px;padding:16px;margin:-10px 0 22px;border:1px solid var(--line);animation:riseUp .24s cubic-bezier(.2,.9,.2,1)')}>
                     <input value={v.newJobName} onChange={v.onNewJobName} placeholder="バイト先の名前（例：マクド、塾）" style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
@@ -281,13 +317,13 @@ export function renderApp(v) {
               </>
             )}
 
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>日付</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px')}>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:15px 16px;cursor:pointer')} onClick={v.onTapDate}>
-                <span style={s('font-size:15px;color:var(--ink)')}>日にち</span>
-                <span style={s('display:flex;align-items:baseline;gap:7px')}>
-                  {!!v.dateSummary && <span style={s('font-size:12px;font-weight:600;color:#1D9E75')}>{v.dateSummary}</span>}
-                  <span style={s(`font-size:16px;font-weight:${v.dateOpen ? '700' : '600'};color:${v.dateOpen ? '#1D9E75' : 'var(--ink)'};font-variant-numeric:tabular-nums`)}>{v.dateLabel}</span>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
+              <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line)')} onClick={v.onTapDate}>
+                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>日にち</span>
+                <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                  {!!v.dateSummary && <span style={s('font-size:12px;font-weight:600;color:#1D9E75;white-space:nowrap')}>{v.dateSummary}</span>}
+                  <span style={s(v.dateValStyle)}>{v.dateLabel}</span>
+                  <span style={s(v.chevDate)}>›</span>
                 </span>
               </div>
               {v.dateOpen && (
@@ -313,22 +349,20 @@ export function renderApp(v) {
                   </div>
                 </div>
               )}
-            </div>
 
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>時間</div>
-            <div style={s('display:flex;background:var(--bg2);border-radius:16px;padding:2px;margin-bottom:16px')}>
-              {(v.spanSeg || []).map((sg, i) => (
-                <div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>
-              ))}
-            </div>
+              <div style={s(`display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line)`)}>
+                <span style={s('font-size:15px;color:var(--ink)')}>終日予定</span>
+                <div style={s(v.allDayTrack)} onClick={v.onToggleAllDay}><div style={s(v.allDayKnob)} /></div>
+              </div>
 
-            {v.timed && (
-              <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px')}>
-                {(v.timeRows || []).map((r, i) => (
+              {v.timed && (v.timeRows || []).map((r, i) => (
                   <div key={i} style={s(r.rowStyle)}>
-                    <div style={s('display:flex;align-items:center;justify-content:space-between;padding:15px 16px;cursor:pointer')} onClick={r.onTap}>
-                      <span style={s('font-size:15px;color:var(--ink)')}>{r.label}</span>
-                      <span style={s(r.valStyle)}>{r.value}</span>
+                    <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={r.onTap}>
+                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>{r.label}</span>
+                      <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                        <span style={s(r.valStyle)}>{r.value}</span>
+                        <span style={s(r.chev)}>›</span>
+                      </span>
                     </div>
                     {r.open && (
                       <div style={s('position:relative;display:flex;align-items:center;justify-content:center;gap:4px;height:170px;background:var(--bg2)')}>
@@ -344,11 +378,9 @@ export function renderApp(v) {
                     )}
                   </div>
                 ))}
-              </div>
-            )}
-            {v.allDayShown && (
-              <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px')}>
-                <div style={s('display:flex;align-items:center;justify-content:space-between;padding:13px 16px')}>
+
+              {v.allDayShown && (
+                <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px')}>
                   <span style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
                     <span style={s('font-size:15px;color:var(--ink)')}>何日間</span>
                     {!!v.spanRangeLabel && <span style={s('font-size:11px;font-weight:600;color:#1D9E75;font-variant-numeric:tabular-nums')}>{v.spanRangeLabel}</span>}
@@ -359,28 +391,29 @@ export function renderApp(v) {
                     <span role="button" aria-label="1日増やす" style={s(v.spanPlusStyle)} onClick={v.onSpanPlus}>＋</span>
                   </span>
                 </div>
-                {!!v.spanHint && (
-                  <div style={s('padding:0 16px 13px;font-size:11px;color:var(--ink-faint);line-height:1.6')}>{v.spanHint}</div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
 
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 4px 8px 4px')}>カレンダーでの見え方</div>
-            <div style={s('background:var(--card);border-radius:17px;padding:14px;border:1px solid var(--line)')}>
-              <div style={s('display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden')}>
-                {(v.previewDays || []).map((pd, i) => (
-                  <div key={i} style={s(pd.cellStyle)}>
-                    <div style={s(pd.numStyle)}>{pd.date}</div>
-                    {(pd.pills || []).map((pp, j) => (
-                      <div key={j} style={s(pp.style)}>{pp.text}</div>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
+              <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapRemindRow}>
+                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>お知らせ</span>
+                <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                  <span style={s(v.valRemind)}>{v.remindValue}</span>
+                  <span style={s(v.chevRemind)}>›</span>
+                </span>
+              </div>
+              {v.rowRemindOpen && (
+                <div style={s('padding:12px 14px 14px;background:var(--bg2)')}>
+                  <div style={s('display:flex;gap:2px;background:var(--card);border-radius:13px;padding:2px')}>
+                    {(v.remindSeg || []).map((r, i) => (
+                      <div key={i} style={s(r.style)} onClick={r.onClick}>{r.label}</div>
                     ))}
                   </div>
-                ))}
-              </div>
-              <div style={s('display:flex;align-items:center;gap:7px;margin-top:12px')}>
-                <span style={s(v.previewDotStyle)} />
-                <span style={s('font-size:13px;color:var(--ink);text-wrap:pretty')}>{v.previewExplain}</span>
-              </div>
+                  {!!v.remindNote && (
+                    <div style={s('font-size:11px;color:var(--ink-faint);margin:9px 4px 0;line-height:1.6')}>{v.remindNote}</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -413,6 +446,15 @@ export function renderApp(v) {
                     <span style={s('font-size:12px;font-weight:600;color:#D85A30')}>→ 変更あり</span>
                   )}
                 </div>
+                {!!v.dRemindText && (
+                  <div style={s('display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-mut);margin-top:4px')}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <path d="M6 10a6 6 0 0 1 12 0c0 3.2.7 5 1.4 6a.6.6 0 0 1-.5.9H5.1a.6.6 0 0 1-.5-.9C5.3 15 6 13.2 6 10Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+                      <path d="M10.2 20.2a2 2 0 0 0 3.6 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                    {v.dRemindText}
+                  </div>
+                )}
                 {!!v.dWantText && (
                   <div style={s('font-size:12px;color:var(--ink-mut);margin-top:3px')}>{v.dWantText}</div>
                 )}

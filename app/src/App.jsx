@@ -106,6 +106,7 @@ export default class App extends React.Component {
     newType:null, overrides:{}, notif:null, editTypeKey:null, docKey:null, confirmDelete:null,
     imp:{ phase:'idle', found:[], type:'yoji', error:'' },
     swipe:{ dx:0, animating:false },
+    swipeRow:null, // 一覧で左へ開いている行 {id,dx,animating}
     notices:[], lastSeenVersion:null,
     // バイト先。名前と時給を持つ。予定に紐づけると、その時給で計算する。
     jobs:[], editJobId:null, newJob:null,
@@ -261,16 +262,52 @@ export default class App extends React.Component {
     // 無くなった予定も開ける。直したり、戻したり、消したりできるように
     this.setState({screen:'detail',detailId:ev.id,returnTo:ret});
   }
-  openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month'}); }
-  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,picking:null}}); }
+  openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month',swipeRow:null}); }
+  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,picking:null}}); }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
     this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
       editingId:ev.id, title:ev.title, type:ev.type, status:ev.status,
       start:ev.start, end: ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end,
-      y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev), picking:null }});
+      y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev),
+      remindMin: typeof ev.remindMin==='number' ? ev.remindMin : null, picking:null }});
   }
   askDelete(id){ this.setState({confirmDelete:id}); }
+
+  // ---- 一覧の行を左へスワイプして削除 ----
+  // 開くのは一度に1行だけ。開いている行があるときは、本文をタップしても
+  // 予定を開かず、まず閉じる（指の下にあるものが変わらないようにする）。
+  SWIPE_W = 84; // 削除ボタンの幅
+  rowSwipeStart(id,e){
+    const t=e.touches&&e.touches[0]; if(!t) return;
+    this._rsx=t.clientX; this._rsy=t.clientY; this._rAxis=null; this._rId=id;
+    this._rBase=(this.state.swipeRow&&this.state.swipeRow.id===id)?this.state.swipeRow.dx:0;
+  }
+  rowSwipeMove(id,e){
+    const t=e.touches&&e.touches[0]; if(!t||this._rsx==null||this._rId!==id) return;
+    const dx=t.clientX-this._rsx, dy=t.clientY-this._rsy;
+    // 最初の数pxで、横に払っているのか縦に送っているのかを決める
+    if(!this._rAxis){
+      if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
+      this._rAxis = Math.abs(dx)>Math.abs(dy)*1.2 ? 'x' : 'y';
+    }
+    if(this._rAxis!=='x') return;
+    // 縦スクロールに持っていかれないようにするのは touch-action:pan-y の役目。
+    // React の touchmove は passive なので preventDefault は効かない。
+    let d=this._rBase+dx;
+    if(d>0) d=0;                                   // 右には開かない
+    if(d<-this.SWIPE_W) d=-this.SWIPE_W-(-this.SWIPE_W-d)*0.25; // 行き過ぎは重くする
+    this.setState({swipeRow:{id, dx:d, animating:false}});
+  }
+  rowSwipeEnd(id){
+    const wasX=this._rAxis==='x'; this._rsx=null; this._rAxis=null;
+    if(!wasX) return;
+    const sr=this.state.swipeRow;
+    const dx=(sr&&sr.id===id)?sr.dx:0;
+    const open = dx < -this.SWIPE_W/2;
+    this.setState({swipeRow:{id, dx: open?-this.SWIPE_W:0, animating:true}});
+  }
+  closeSwipeRow(){ const sr=this.state.swipeRow; if(sr&&sr.dx) this.setState({swipeRow:{id:sr.id,dx:0,animating:true}}); }
 
   // ---- はじめての案内 ----
   // 点線が塗りに変わる瞬間を、その場で一度さわってもらう
@@ -394,7 +431,7 @@ export default class App extends React.Component {
   setAllImportType(type){ tapLight(); this.setState(s=>({imp:{...s.imp, found:s.imp.found.map(e=>e.on?{...e,type}:e)}})); }
   doDelete(){
     const id=this.state.confirmDelete;
-    this.setState(s=>({ events:s.events.filter(e=>e.id!==id), confirmDelete:null, dialog:null,
+    this.setState(s=>({ events:s.events.filter(e=>e.id!==id), confirmDelete:null, dialog:null, swipeRow:null,
       screen: s.detailId===id ? 'month' : s.screen, detailId: s.detailId===id ? null : s.detailId }));
   }
   openDialog(ev,mode,ret){
@@ -426,7 +463,6 @@ export default class App extends React.Component {
 
   // ---- type editor ----
   selectType(k){ this.setState(s=>({draft:{...s.draft,type:k}})); }
-  recolor(hex){ const k=this.state.draft.type; this.setState(s=>({ types:s.types.map(t=>t.key===k?{...t,color:hex,paper:this.paperFrom(hex),dark:this.darkFrom(hex)}:t) })); }
   addType(){
     const nt=this.state.newType; if(!nt) return;
     const name=(nt.name||'').trim()||'新しい種類';
@@ -441,12 +477,13 @@ export default class App extends React.Component {
     // 日またぎは終日の予定だけ。時間指定に戻したら1日に畳む。
     const span = dr.allDay ? Math.max(1,Math.min(60,dr.days|0||1)) : 1;
     const spanField = span>1 ? span : undefined;
+    const remindField = typeof dr.remindMin==='number' ? dr.remindMin : undefined;
     if(dr.editingId){
       this.setState(s=>({ screen:'month', detailId:null, dayNum:null, ym:{y:dr.y,m:dr.m},
         events:s.events.map(e=>{
           if(e.id!==dr.editingId) return e;
           const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay,days:spanField,
-            jobId: dr.type==='baito' ? dr.jobId : undefined};
+            remindMin:remindField, jobId: dr.type==='baito' ? dr.jobId : undefined};
           // 実績のときに直しているのは「実際に働いた終わりの時刻」
           return dr.status==='jisseki' ? {...base, actualEnd:dr.end} : {...base, end:dr.end, actualEnd:undefined};
         }) }));
@@ -456,7 +493,7 @@ export default class App extends React.Component {
     const placeOn=[[dr.y,dr.m,dr.day], ...(dr.extraDays||[]).map(k=>k.split('-').map(Number))];
     const base=Date.now();
     const made=placeOn.map(([y,m,d],i)=>({ id:'n'+base+'-'+i, type:dr.type, title:dr.title||'無題',
-      y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay, days:spanField,
+      y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay, days:spanField, remindMin:remindField,
       jobId: dr.type==='baito' ? dr.jobId : undefined,
       want: dr.status==='mikakutei' ? [dr.start,dr.end] : undefined }));
     this.setState(s=>({ screen:s.returnTo, ym:{y:dr.y,m:dr.m}, events:[...s.events,...made] }));
@@ -465,6 +502,11 @@ export default class App extends React.Component {
   renderVals(){
     const st=this.state, wageOn=st.wageOn;
     const stepBtn={width:30,height:30,borderRadius:15,background:'var(--bg2)',color:'var(--ink)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:500,cursor:'pointer',userSelect:'none'};
+    // たたんだ行の「›」と値。開くと右に倒れて、値が色づく。
+    const chevron=(open)=>({fontSize:16,color:'var(--ink-faint)',flexShrink:0,display:'inline-block',
+      transition:'transform .22s cubic-bezier(.2,.9,.2,1)', transform:open?'rotate(90deg)':'none'});
+    const rowVal=(open)=>({fontSize:15,fontWeight:open?700:500,color:open?'#1D9E75':'var(--ink-mut)',
+      whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',fontVariantNumeric:'tabular-nums'});
     const wl=['日','月','火','水','木','金','土'];
     const v={
       fw:402, fh:874,
@@ -835,20 +877,28 @@ export default class App extends React.Component {
           (lanes[li]=lanes[li]||[]).push([a,b]);
           const c0=colOf(a), c1=colOf(b);
           const view=this.pillView(ev, wageOn, { startsHere:a===evFrom(ev), endsHere:b===evTo(ev) });
+          // 帯はタップを受けない。マスの狙いにくい17pxの帯を正確に突くのではなく、
+          // マスのどこを押してもその日の一覧が開き、そこから選んでもらう。
+          // 日をまたぐ帯を押したときも、押した位置の下にあるマス＝その日が開く。
           bars.push({ key:ev.id+'-'+w, ...view,
-            style:{...view.style, gridColumn:(c0+1)+' / span '+(c1-c0+1), gridRow:li+2, pointerEvents:'auto', zIndex:1},
-            onClick:(e)=>{ if(e)e.stopPropagation(); this.openFor(ev,'month'); } });
+            style:{...view.style, gridColumn:(c0+1)+' / span '+(c1-c0+1), gridRow:li+2, pointerEvents:'none', zIndex:1, cursor:'default'} });
         }
 
+        // 日と日のあいだの細い縦線。地の層に引くので、日をまたぐ帯はこれを覆い隠す。
+        // 「隙間から線が見える＝切れている」「線が隠れている＝続いている」を、
+        // 文字の幅を一切削らずに成り立たせる。
+        // 週の区切り（--line）より一段薄い --line-faint を使う。
+        // 1px より細くは描けない（DPR 2/3 でも 0.8px に丸められる）ので、細さは色で作る。
+        const colLine=(i)=>i<6?{borderRight:'1px solid var(--line-faint)'}:{};
         const slots=slotDays.map((d,i)=>{
-          if(d===null) return { blank:true, day:null, bgStyle:{background:'var(--bg2)'}, numWrap:{}, numStyle:{}, onDay:()=>{} };
+          if(d===null) return { blank:true, day:null, bgStyle:{background:'var(--bg2)',...colLine(i)}, numWrap:{}, numStyle:{}, onDay:()=>{} };
           const dow=(wFirst+d-1)%7, isToday=d===today;
           const hol=holidayName(Y,M,d);
           // 祝日と日曜は赤、土曜は青。日本のカレンダーの見慣れた並びに合わせる。
           const dayColor = (hol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)';
           return {
             blank:false, day:d,
-            bgStyle:{background:'var(--card)',cursor:'pointer'},
+            bgStyle:{background:'var(--card)',cursor:'pointer',...colLine(i)},
             numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
             numStyle: isToday
               ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
@@ -904,14 +954,34 @@ export default class App extends React.Component {
       const evs=st.events.filter(e=>evCovers(e,dn) && !(st.settings.hideCanceled && e.status==='nakunatta'))
         .sort((a,b)=> (evSpan(b)-evSpan(a)) || (this.mins(a.start)-this.mins(b.start)));
       v.dayEmpty = evs.length===0;
+      const sr=st.swipeRow;
       v.dayEvents = evs.map(ev=>{
         const endShown = ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end;
+        const dx = (sr && sr.id===ev.id) ? sr.dx : 0;
+        const open = dx < -2;
         return {
+          key: ev.id,
           chipStyle: {...this.pillStyle(ev), height:26, lineHeight:'26px', fontSize:13, padding:'0 12px', marginBottom:0, borderRadius:6, display:'inline-block', flexShrink:0, overflow:'visible', textOverflow:'clip', width:'max-content', maxWidth:220},
           chipText: this.pillText(ev,false),
           timeText: ev.allDay ? (evSpan(ev)>1 ? this.spanLabel(ev)+'（終日）' : '終日') : ev.start+'–'+endShown,
           statusWord: this.statusWord(ev),
-          onClick: ()=>this.openFor(ev,'day'),
+          // 開いているときは、本文をタップしても予定を開かず、まず閉じる
+          onClick: ()=>{ if(open){ this.closeSwipeRow(); return; } this.setState({swipeRow:null}); this.openFor(ev,'day'); },
+          onTouchStart:(e)=>this.rowSwipeStart(ev.id,e),
+          onTouchMove:(e)=>this.rowSwipeMove(ev.id,e),
+          onTouchEnd:()=>this.rowSwipeEnd(ev.id),
+          // 削除ボタンは行の下に敷いておき、本文をずらして見せる
+          wrapStyle:{position:'relative',borderRadius:15,overflow:'hidden',marginBottom:9},
+          delWrapStyle:{position:'absolute',top:0,right:0,bottom:0,width:this.SWIPE_W,display:'flex',
+            alignItems:'center',justifyContent:'center',background:'#B4453A',cursor:'pointer'},
+          delLabel:'削除',
+          delLabelStyle:{fontSize:14,fontWeight:700,color:'#fff'},
+          onDelete:(e)=>{ if(e)e.stopPropagation(); tapLight(); this.askDelete(ev.id); },
+          bodyStyle:{display:'flex',alignItems:'center',gap:12,background:'var(--card)',borderRadius:15,padding:14,
+            border:'1px solid var(--line)',cursor:'pointer',position:'relative',
+            transform:'translateX('+dx+'px)',
+            transition: (sr&&sr.id===ev.id&&sr.animating)?'transform .22s cubic-bezier(.2,.9,.2,1)':'none',
+            touchAction:'pan-y'},
         };
       });
       v.onDayAdd = ()=>this.openNew(d,'day');
@@ -1035,10 +1105,58 @@ export default class App extends React.Component {
       v.spanMinusStyle = {...stepBtn, opacity:n<=1?.35:1};
       v.spanPlusStyle = {...stepBtn, opacity:n>=60?.35:1};
     }
-    v.spanSeg = [['timed','時間を指定'],['all','終日']].map(([k,label])=>{ const sel=(k==='all')===!!dr.allDay;
-      return { label, onClick:()=>this.setState(s=>({draft:{...s.draft,allDay:k==='all',picking:null}})),
-        style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:11,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
-          background:sel?'var(--card)':'transparent', color:sel?'var(--ink)':'var(--ink-mut)', border:sel?'1px solid var(--line)':'1px solid transparent'} }; });
+    // 終日の切り替え。終日と時間指定では選べるお知らせが違うので、
+    // どちらにも当てはまらない値が残っていたら「なし」に戻す（選択が消えた見た目を避ける）
+    v.onToggleAllDay = ()=>{ tapLight(); this.setState(s=>{
+      const allDay=!s.draft.allDay;
+      const ok = allDay ? [0,1440] : [10,30,60,1440];
+      const keep = ok.includes(s.draft.remindMin) ? s.draft.remindMin : null;
+      return {draft:{...s.draft, allDay, remindMin:keep, picking:null}};
+    }); };
+    v.allDayTrack = tgTrack(!!dr.allDay); v.allDayKnob = tgKnob(!!dr.allDay);
+
+    // ---------- 行にたたむ ----------
+    // 既定はすべて閉じておき、押した行だけが開く。開けるのは一度に一つ。
+    // 中身を削ったのではなく、要るまで見せないだけ。
+    const openRow=(key)=>()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, picking: s.draft.picking===key ? null : key}})); };
+
+    v.rowTypeOpen = dr.picking==='type';
+    v.onTapTypeRow = openRow('type');
+    v.typeValue = dt.name;
+    v.typeDotStyle = {width:9,height:9,borderRadius:5,background:dt.color,flexShrink:0};
+    v.chevType = chevron(v.rowTypeOpen); v.valType = rowVal(v.rowTypeOpen);
+
+    v.rowJobOpen = dr.picking==='job';
+    v.onTapJobRow = openRow('job');
+    { const j=(st.jobs||[]).find(x=>x.id===dr.jobId);
+      v.jobValue = j ? (j.name||'名前なし') : '設定の時給'; }
+    v.chevJob = chevron(v.rowJobOpen); v.valJob = rowVal(v.rowJobOpen);
+
+    v.rowRemindOpen = dr.picking==='remind';
+    v.onTapRemindRow = openRow('remind');
+    v.remindValue = (typeof dr.remindMin==='number')
+      ? (dr.allDay ? (dr.remindMin>=1440?'前日の朝':'当日の朝')
+        : dr.remindMin>=1440?'前日' : dr.remindMin>=60?Math.round(dr.remindMin/60)+'時間前' : dr.remindMin+'分前')
+      : 'なし';
+    v.chevRemind = chevron(v.rowRemindOpen); v.valRemind = rowVal(v.rowRemindOpen);
+    v.chevDate = chevron(v.dateOpen);
+    v.dateValStyle = rowVal(v.dateOpen);
+    // ---------- お知らせ（リマインダー） ----------
+    // 終日の予定は時刻を持たないので、朝9時を基準にした言い方に変える。
+    {
+      const opts = dr.allDay
+        ? [[null,'なし'],[0,'当日の朝'],[1440,'前日の朝']]
+        : [[null,'なし'],[10,'10分前'],[30,'30分前'],[60,'1時間前'],[1440,'前日']];
+      const cur = typeof dr.remindMin==='number' ? dr.remindMin : null;
+      v.remindSeg = opts.map(([val,label])=>({ label,
+        onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, remindMin:val}})); },
+        style: segCell(cur===val) }));
+      v.remindNote = cur===null ? ''
+        : dr.allDay
+          ? (cur>=1440 ? '前日の朝9時にお知らせします' : '当日の朝9時にお知らせします')
+          : (cur>=1440 ? '前日の同じ時刻にお知らせします' : `始まる${cur>=60?Math.round(cur/60)+'時間':cur+'分'}前にお知らせします`);
+    }
+
     // drum-roll wheels
     v.wheelColStyle = {width:66,height:170,overflowY:'scroll',scrollSnapType:'y mandatory',padding:'68px 0',textAlign:'center',WebkitMaskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)',maskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)'};
     v.wheelItemStyle = {height:34,lineHeight:'34px',fontSize:21,fontWeight:600,color:'var(--ink)',scrollSnapAlign:'center',fontVariantNumeric:'tabular-nums'};
@@ -1046,8 +1164,8 @@ export default class App extends React.Component {
     const minutes=Array.from({length:Math.round(60/st.settings.step)},(_,i)=>String(i*st.settings.step).padStart(2,'0'));
     const mkRow=(field,label,isFirst)=>({
       label, value:dr[field], open:dr.picking===field,
-      rowStyle:{borderBottom:isFirst?'1px solid var(--line)':'none'},
-      valStyle:{fontSize:16,fontWeight:dr.picking===field?700:600,color:dr.picking===field?dt.color:'var(--ink)',fontVariantNumeric:'tabular-nums'},
+      rowStyle:{borderBottom:'1px solid var(--line)'},
+      valStyle:rowVal(dr.picking===field), chev:chevron(dr.picking===field),
       onTap:()=>this.setState(s=>({draft:{...s.draft,picking:s.draft.picking===field?null:field}})),
       hItems:hours, mItems:minutes,
       hRef: field==='start'?this.refStartH:this.refEndH, mRef: field==='start'?this.refStartM:this.refEndM,
@@ -1062,8 +1180,7 @@ export default class App extends React.Component {
     v.addChipStyle = {textAlign:'center',whiteSpace:'nowrap',padding:'10px 14px',borderRadius:13,fontSize:14,fontWeight:600,cursor:'pointer',color:'var(--ink-soft)',background:'transparent',border:'1.5px dashed #C9CDD4'};
     v.onAddTypeChip = ()=>this.setState(s=>({newType: s.newType?null:{name:'',color:'#2F72C4'}}));
 
-    // recolor swatches (selected type)
-    v.recolorSwatches = this.PAL.map(hex=>({ style:{width:24,height:24,borderRadius:12,background:hex,cursor:'pointer',boxShadow: dt.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)',transition:'box-shadow .15s'}, onClick:()=>this.recolor(hex) }));
+    // 色を変えるのは設定画面の「種類」に一本化した（作成画面では出さない）
 
     // new type creator
     const nt=st.newType;
@@ -1082,10 +1199,7 @@ export default class App extends React.Component {
         style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:11,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
           background:sel?'var(--card)':'transparent', color:sel?'var(--ink)':'var(--ink-mut)', border:sel?'1px solid var(--line)':'1px solid transparent'} }; });
 
-    const previewEv={type:dr.type,title:dr.title||dt.name,status:dr.status};
-    const mkPrevCell=(date,center,ctx)=>({ date, cellStyle:{background:'var(--card)',padding:'4px 4px 10px',minHeight:64}, numStyle:{fontSize:10,fontWeight:600,color:'var(--ink-mut)',marginBottom:4,paddingLeft:2},
-      pills: center?[{text:this.pillText(previewEv,false),style:this.pillStyle(previewEv)}]:(ctx||[]) });
-    v.previewDays=[ mkPrevCell(dr.day-1,false,[{text:'カフェ',style:this.pillStyle({type:'baito',status:'kakutei'})}]), mkPrevCell(dr.day,true), mkPrevCell(dr.day+1,false,[]) ];
+    // 3マスのプレビューはやめ、説明の1行だけ残した（作成画面を短くするため）
     v.previewExplain = dr.status==='mikakutei' ? dt.uWord+'として、点線で置かれます' : dt.cWord+'として、塗りで置かれます';
     v.previewDotStyle = { width:10,height:10,borderRadius:3,flexShrink:0, ...(dr.status==='mikakutei'?{background:dt.paper,border:'1.5px dashed '+dt.color}:{background:dt.color}) };
 
@@ -1104,6 +1218,12 @@ export default class App extends React.Component {
       const endShown = ev.status==='jisseki'? (ev.actualEnd||ev.end) : ev.end;
       v.dTimeText = ev.allDay ? (evSpan(ev)>1 ? this.spanLabel(ev)+'　終日' : '終日') : ev.start+'–'+endShown;
       v.dSpanText = evSpan(ev)>1 ? evSpan(ev)+'日間' : '';
+      const drm = typeof ev.remindMin==='number' ? ev.remindMin : null;
+      v.dRemindText = drm===null ? ''
+        : ev.allDay ? (drm>=1440 ? '前日の朝9時にお知らせ' : '当日の朝9時にお知らせ')
+        : drm>=1440 ? '前日にお知らせ'
+        : drm>=60 ? Math.round(drm/60)+'時間前にお知らせ'
+        : drm+'分前にお知らせ';
       v.dTimeChanged = ev.status==='jisseki' && ev.actualEnd && ev.actualEnd!==ev.end;
       v.dWantText = ev.want ? '希望 '+ev.want[0]+'–'+ev.want[1] : (v.dTimeChanged?'予定 '+ev.start+'–'+ev.end:'');
       v.dWageShown = ev.status==='jisseki';
@@ -1242,9 +1362,15 @@ export default class App extends React.Component {
     }));
     this._refreshNotif();
     this._syncReminders();
-    onNotificationTap((eventId) => {
+    onNotificationTap((eventId, kind) => {
       const ev = this.state.events.find((e) => String(e.id) === String(eventId));
-      if (ev) this.openDialog(ev, 'worked', 'month');
+      if (!ev) return;
+      if (kind === 'remind') {
+        // お知らせからは、その日の一覧を開く。何をするかは本人に決めてもらう。
+        this.setState({ screen: 'day', dayNum: ev.day, ym: { y: ev.y, m: ev.m }, returnTo: 'month', swipeRow: null });
+        return;
+      }
+      this.openDialog(ev, 'worked', 'month');
     });
     // 設定アプリで許可してから戻ってきたら、そのまま読み込みを続ける
     this._onResume = async () => {
@@ -1282,7 +1408,7 @@ export default class App extends React.Component {
   }
 
   _syncReminders() {
-    syncReminders(this.state.events, this.state.settings, this.state.types);
+    syncReminders(this.state.events, this.state.settings);
   }
 
   // 終わったのにまだ実績を入れていないバイトを、お知らせに溜める
