@@ -144,7 +144,12 @@ export function renderApp(v) {
             {(v.dayEvents || []).map((r) => (
               <div key={r.key} style={s(r.wrapStyle)}>
                 <div role="button" aria-label="この予定を削除" style={s(r.delWrapStyle)} onClick={r.onDelete}>
-                  <span style={s(r.delLabelStyle)}>{r.delLabel}</span>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 7h16" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+                    <path d="M9.5 7V5.4A1.4 1.4 0 0 1 10.9 4h2.2a1.4 1.4 0 0 1 1.4 1.4V7" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+                    <path d="M6.4 7.5 7.2 19a1.4 1.4 0 0 0 1.4 1.3h6.8a1.4 1.4 0 0 0 1.4-1.3l.8-11.5" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+                    <path d="M10.4 11v5.4M13.6 11v5.4" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" />
+                  </svg>
                 </div>
                 <div
                   style={s(r.bodyStyle)}
@@ -404,7 +409,7 @@ export function renderApp(v) {
               </div>
               {v.rowRemindOpen && (
                 <div style={s('padding:12px 14px 14px;background:var(--bg2)')}>
-                  <div style={s('display:flex;gap:2px;background:var(--card);border-radius:13px;padding:2px')}>
+                  <div style={s('display:flex;flex-wrap:wrap;gap:8px')}>
                     {(v.remindSeg || []).map((r, i) => (
                       <div key={i} style={s(r.style)} onClick={r.onClick}>{r.label}</div>
                     ))}
@@ -759,12 +764,6 @@ export function renderApp(v) {
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>入力</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
-              <div style={s('padding:14px 16px;border-bottom:1px solid var(--line)')}>
-                <span style={s('font-size:15px;color:var(--ink)')}>時間の刻み幅</span>
-                <div style={s('display:flex;background:var(--bg2);border-radius:15px;padding:2px;margin-top:10px')}>
-                  {(v.stepSeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
-                </div>
-              </div>
               <div style={s('padding:14px 16px')}>
                 <span style={s('font-size:15px;color:var(--ink)')}>週のはじまり</span>
                 <div style={s('display:flex;background:var(--bg2);border-radius:15px;padding:2px;margin-top:10px')}>
@@ -1198,21 +1197,43 @@ export function renderApp(v) {
                 {''}<Jp parts={['お知らせは', 'まだありません。']} />
               </div>
             ) : (
-              (v.noticeRows || []).map((n, i) => (
-                <div key={i} style={s(`display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:17px;padding:14px;margin-bottom:9px;cursor:pointer;${n.unread ? '' : 'opacity:.72'}`)} onClick={n.onClick}>
-                  <span style={s(n.iconStyle)}>{n.icon}</span>
-                  <div style={s('flex:1;min-width:0')}>
-                    <div style={s('display:flex;align-items:baseline;justify-content:space-between;gap:8px')}>
-                      <span style={s(`font-size:14px;font-weight:${n.unread ? '700' : '600'};color:var(--ink)`)}>{n.title}</span>
-                      <span style={s('font-size:11px;color:var(--ink-faint);flex-shrink:0')}>{n.when}</span>
-                    </div>
-                    <div style={s('font-size:13px;color:var(--ink-soft);margin-top:3px;line-height:1.8')}>{n.body}</div>
-                  </div>
+              (v.noticeRows || []).map((n) => (
+                <div key={n.key} style={s(`display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:7px;cursor:pointer;${n.unread ? '' : 'opacity:.7'}`)} onClick={n.onClick}>
                   <span style={s(n.dotStyle)} />
+                  <div style={s('flex:1;min-width:0')}>
+                    <div style={s('display:flex;align-items:center;gap:6px;margin-bottom:2px')}>
+                      <span style={s(n.kindTagStyle)}>{n.kindWord}</span>
+                      <span style={s('font-size:10px;color:var(--ink-faint);flex-shrink:0')}>{n.when}</span>
+                    </div>
+                    <div style={s(`font-size:14px;font-weight:${n.unread ? '700' : '500'};color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{n.title}</div>
+                  </div>
+                  <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>›</span>
                 </div>
               ))
             )}
           </div>
+
+          {/* 押したお知らせを、画面の中ほどに開いて全文を見せる */}
+          {v.noticeSheetShown && (
+            <div style={s('position:absolute;inset:0;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;z-index:90;animation:scrimIn .2s ease')} onClick={v.onNoticeSheetClose}>
+              <div style={s('width:100%;max-width:330px;background:var(--card);border-radius:18px;padding:20px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1);max-height:78%;overflow-y:auto')} onClick={v.stop}>
+                <div style={s('display:flex;align-items:center;gap:8px;margin-bottom:12px')}>
+                  <span style={s(v.nsKindTagStyle)}>{v.nsKindWord}</span>
+                  <span style={s('font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums')}>{v.nsDate}</span>
+                  <span style={s('flex:1')} />
+                  <span style={s('font-size:11px;color:var(--ink-faint)')}>{v.nsWhen}</span>
+                </div>
+                <div style={s('font-size:17px;font-weight:700;color:var(--ink);line-height:1.55;text-wrap:pretty')}>{v.nsTitle}</div>
+                <div style={s('font-size:14px;color:var(--ink-soft);margin-top:10px;line-height:1.9;text-wrap:pretty')}>{v.nsBody}</div>
+                <div style={s('display:flex;gap:8px;margin-top:20px')}>
+                  <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:var(--bg2);color:var(--ink-soft);font-size:15px;font-weight:600;cursor:pointer')} onClick={v.onNoticeSheetClose}>閉じる</div>
+                  {!!v.nsActionLabel && (
+                    <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:#1D9E75;color:#fff;font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onNoticeAction}>{v.nsActionLabel}</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

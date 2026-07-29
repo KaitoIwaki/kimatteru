@@ -42,9 +42,12 @@ export function remindMinutes(e) {
 
 // お知らせの本文。いつ始まるかが一目でわかる言い方にする。
 function whenText(e, rm) {
-  if (e.allDay) return rm >= 1440 ? '明日は終日の予定です' : '今日は終日の予定です';
+  // 1日以上前に知らせるときは「何日後か」で言う（7日前に「明日」と言わないように）
+  const days = rm >= 1440 ? Math.round(rm / 1440) : 0;
+  const dayWord = days === 1 ? '明日' : days === 2 ? 'あさって' : `${days}日後`;
+  if (e.allDay) return days ? `${dayWord}は終日の予定です` : '今日は終日の予定です';
   const span = `${e.start}–${e.end}`;
-  if (rm >= 1440) return `明日 ${span}`;
+  if (days) return `${dayWord} ${span}`;
   if (rm >= 60) return `${Math.round(rm / 60)}時間後 ${span}`;
   if (rm > 0) return `まもなく（${rm}分後） ${span}`;
   return span;
