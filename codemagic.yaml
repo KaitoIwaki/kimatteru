@@ -19,6 +19,10 @@ workflows:
         XCODE_PROJECT: "app/ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.kimatteru.app"
+        # App Store Connect のアプリID（配信ログの "Id: ..." に出るもの）
+        APP_ID: "6794792375"
+        # 上げたビルドを入れる内部テストグループ
+        BETA_GROUP: "自分用"
       # ios_signing は既存のプロファイルを探すだけで、無いときに作ってくれない。
       # 下の「署名の準備」で --create 付きで取得する。
     scripts:
@@ -81,14 +85,40 @@ workflows:
       # Apple の API 変更に CLI が追いついていないもので、CLI を最新に上げても
       # 直らなかった（ビルド23・24で確認）。バイナリ自体は毎回 Processing state:
       # VALID まで到達しているので、この呼び出しをやめれば配信は成り立つ。
-      - name: App Store Connect へアップロード
+      - name: TestFlight へ配信
         script: |
-          set -x
+          set -e
           IPA=$(ls build/ios/ipa/*.ipa | head -1)
           echo "▶ アップロードするIPA: $IPA"
           app-store-connect publish --path "$IPA"
-          echo "▶ アップロード完了。処理が終わりしだい TestFlight に現れる。"
-          echo "  テスターへ配る設定は App Store Connect の内部テストグループ側で行う。"
+
+          # ここから先を publish の --testflight に任せない。
+          # あれは処理の完了を待つのに
+          #   GET /v1/builds/<ビルドのID>/buildBetaDetail
+          # を呼び、404（There is no resource of type 'buildBetaDetails'）で必ず落ちる。
+          # CLI を最新に上げても直らなかった（ビルド23・24・25で確認）。
+          # ビルド番号から直接ID を引いて、グループへ入れるところだけ自前でやる。
+          echo "▶ ビルド番号 $PROJECT_BUILD_NUMBER が現れるのを待つ"
+          BUILD_ID=""
+          for i in $(seq 1 30); do
+            BUILD_ID=$(app-store-connect apps builds "$APP_ID" \
+                         --build-version-number "$PROJECT_BUILD_NUMBER" --json 2>/dev/null \
+                       | python3 -c "import sys,json;d=json.load(sys.stdin);d=d.get('data',d) if isinstance(d,dict) else d;print(d[0]['id'] if d else '')" 2>/dev/null || true)
+            [ -n "$BUILD_ID" ] && break
+            echo "  まだ処理中。60秒待つ（$i/30）"
+            sleep 60
+          done
+
+          if [ -z "$BUILD_ID" ]; then
+            echo "✗ ビルドを見つけられなかった。"
+            echo "  アップロード自体は済んでいるので、App Store Connect の"
+            echo "  TestFlight 一覧から手でグループに追加すれば実機に配信できる。"
+            exit 1
+          fi
+
+          echo "▶ ビルドID: $BUILD_ID"
+          app-store-connect beta-groups add-build "$BUILD_ID" --beta-group "$BETA_GROUP"
+          echo "▶ 「$BETA_GROUP」へ割り当てた。iPhone の TestFlight に出る。"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
