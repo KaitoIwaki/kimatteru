@@ -275,6 +275,18 @@ export default class App extends React.Component {
     this.setState({screen:'detail',detailId:ev.id,returnTo:ret});
   }
   openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month',swipeRow:null}); }
+
+  // 滑り終わったスワイプ1回ぶんを、月の差し替えとして確定させる。
+  // 次のスワイプが始まったときにも呼ぶので、素早く続けて払っても
+  // 払った回数ぶん動く（以前はタイマーを消すだけで、1回ぶんが消えていた）。
+  _commitSwipe(){
+    if(!this._settle && !this._pendingDir) return; // 滑っている最中でなければ何もしない
+    if(this._settle){ clearTimeout(this._settle); this._settle=null; }
+    const dir=this._pendingDir||0;
+    this._pendingDir=0;
+    if(dir) this.setState(s=>({ym:shiftMonth(s.ym,dir), dayNum:null, swipe:{dx:0,animating:false}}));
+    else this.setState({swipe:{dx:0,animating:false}});
+  }
   openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,picking:null}}); }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
@@ -555,10 +567,12 @@ export default class App extends React.Component {
       // カレンダーは指の動きについてくる。離したところで隣の月に収まるか、元に戻る。
       onMonthTouchStart:(e)=>{
         const t=e.touches&&e.touches[0]; if(!t) return;
-        if(this._settle){ clearTimeout(this._settle); this._settle=null; }
+        // 前のスワイプがまだ収まりきる前に次が始まったら、先にその1回ぶんを確定させる。
+        // ここで捨てると、素早く2回払っても1ヶ月しか動かない。
+        this._commitSwipe();
         this._sx=t.clientX; this._sy=t.clientY; this._axis=null;
         this._trackW=(e.currentTarget&&e.currentTarget.clientWidth)||320;
-        this.setState(s=>({swipe:{dx:s.swipe?s.swipe.dx:0, animating:false}}));
+        this.setState({swipe:{dx:0, animating:false}});
       },
       onMonthTouchMove:(e)=>{
         const t=e.touches&&e.touches[0]; if(!t||this._sx==null) return;
@@ -582,12 +596,10 @@ export default class App extends React.Component {
         const w=this._trackW||320;
         const go = Math.abs(dx) > Math.min(72, w*0.22);
         const dir = dx<0 ? 1 : -1;
+        // 指を離したら滑らせる。滑り終わってから月を差し替える（_commitSwipe）
+        this._pendingDir = go ? dir : 0;
         this.setState({swipe:{dx: go ? dir*-w : 0, animating:true}});
-        this._settle=setTimeout(()=>{
-          this._settle=null;
-          if(go) this.setState(s=>({ym:shiftMonth(s.ym,dir), dayNum:null, swipe:{dx:0,animating:false}}));
-          else this.setState({swipe:{dx:0,animating:false}});
-        }, 300);
+        this._settle=setTimeout(()=>this._commitSwipe(), 300);
       },
       onShareCard:()=>{ this._shareCard(st.screen==='summary'?'summary':'free'); },
       onOpenShare:()=>this.setState({screen:'share', shareToast:false, cardFrom:st.screen}),
@@ -1430,6 +1442,7 @@ export default class App extends React.Component {
 
   componentWillUnmount() {
     if (this._tick) clearInterval(this._tick);
+    if (this._settle) clearTimeout(this._settle);
   }
 
   componentDidUpdate(prevProps, prevState) {
