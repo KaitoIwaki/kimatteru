@@ -476,6 +476,9 @@ export function renderApp(v) {
                       <span style={s('font-size:13px;color:var(--ink-mut)')}>実働時間</span>
                       <span style={s('font-size:15px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dWorkHours}</span>
                     </div>
+                    {!!v.dBreakText && (
+                      <div style={s('font-size:11px;color:var(--ink-faint);margin:-4px 0 10px;text-align:right')}>{v.dBreakText}</div>
+                    )}
                     <div style={s('display:flex;justify-content:space-between;align-items:baseline')}>
                       <span style={s('font-size:13px;color:var(--ink-mut)')}>給料</span>
                       <span style={s('font-size:24px;font-weight:700;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{v.dWage}</span>
@@ -537,6 +540,21 @@ export function renderApp(v) {
                 </div>
               ))}
             </div>
+
+            {/* 休憩を引かないと、休憩が時給に入らない勤務先では金額が多めに出る。
+                引いた結果の実働時間をその場に出して、何が起きたか見えるようにする。 */}
+            {v.dlgBreakShown && (
+              <div style={s('background:var(--bg2);border-radius:15px;padding:11px 14px 13px;margin-top:6px')}>
+                <div style={s('font-size:13px;color:var(--ink);margin-bottom:9px')}>休憩</div>
+                <div style={s('display:flex;flex-wrap:wrap;gap:6px')}>
+                  {(v.dlgBreakChips || []).map((c, i) => (
+                    <div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>
+                  ))}
+                </div>
+                <div style={s('font-size:11px;color:var(--ink-mut);margin-top:10px;font-variant-numeric:tabular-nums')}>{v.dlgPaidText}</div>
+              </div>
+            )}
+
             <div style={s('text-align:center;margin-bottom:18px;height:16px')}>
               {v.dlgChanged && (
                 <span style={s('font-size:12px;color:var(--ink-mut)')}>{v.dlgOrigText} <span style={s('color:#D85A30;font-weight:600')}>→ 変更あり</span></span>

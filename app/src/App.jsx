@@ -159,7 +159,18 @@ export default class App extends React.Component {
     const j = ev && ev.jobId ? (this.state.jobs||[]).find(x=>x.id===ev.jobId) : null;
     return j ? j.hourly : this.state.settings.hourly;
   }
-  wage(ev){ if(ev.type!=='baito')return 0; return Math.round(this.hoursBetween(ev.start, ev.actualEnd||ev.end)*this.hourlyFor(ev)); }
+  // 休憩は何分か。持っていなければ 0。
+  breakMin(ev){ const n=ev&&ev.breakMin; return typeof n==='number'&&n>0 ? Math.min(600,n) : 0; }
+  /**
+   * 給料の対象になる時間。
+   * 「開始〜終わり」から休憩を引く。時間や金額を出すところは必ずここを通す
+   * （引き忘れると、休憩が時給に入らない勤務先で金額が多めに出る）。
+   */
+  paidHours(ev){
+    const end = ev.actualEnd || ev.end;
+    return Math.max(0, this.hoursBetween(ev.start, end) - this.breakMin(ev)/60);
+  }
+  wage(ev){ if(ev.type!=='baito')return 0; return Math.round(this.paidHours(ev)*this.hourlyFor(ev)); }
   fmtHours(h){ const H=Math.floor(h); const M=Math.round((h-H)*60); return M? H+'時間'+M+'分' : H+'時間'; }
   fmtMin(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
   // お知らせの「いつ」を短い言葉にする。行にたたんだときの値にも、詳細画面にも使う。
@@ -389,7 +400,7 @@ export default class App extends React.Component {
   removeJob(id){
     // 消したバイト先を使っていた予定は、設定の時給に戻す
     this.setState(s=>({ jobs:s.jobs.filter(j=>j.id!==id), editJobId:null,
-      events:s.events.map(e=>e.jobId===id?{...e,jobId:undefined}:e) }));
+      events:s.events.map(e=>e.jobId===id?{...e,jobId:undefined,updatedAt:Date.now()}:e) }));
   }
   // バイト先を選ぶと、名前もそのまま予定の名前に使う（テンプレのように）
   pickJob(id){
@@ -462,7 +473,7 @@ export default class App extends React.Component {
     const now=Date.now();
     // 取り込んだ予定は「決まっている」扱い。あとから点線に変えられる。
     const add = on.map((e,i)=>({ id:'i'+now+'-'+i, type:e.type, title:e.title, y:e.y, m:e.m, day:e.day,
-      start:e.start, end:e.end, status:'kakutei', allDay:e.allDay }));
+      start:e.start, end:e.end, status:'kakutei', allDay:e.allDay, updatedAt:now }));
     this.setState(s=>({ events:[...s.events, ...add], imp:{...s.imp, phase:'done', added:add.length} }));
   }
   toggleImportRow(key){ this.setState(s=>({imp:{...s.imp, found:s.imp.found.map(e=>e.key===key?{...e,on:!e.on}:e)}})); }
@@ -479,7 +490,8 @@ export default class App extends React.Component {
     const again = mode==='worked' && ev.status==='jisseki';
     const origS = (mode==='confirm' && ev.want) ? ev.want[0] : ev.start;
     const origE = again ? (ev.actualEnd||ev.end) : ((mode==='confirm' && ev.want) ? ev.want[1] : ev.end);
-    this.setState({ returnTo:ret||this.state.returnTo, dialog:{ id:ev.id, mode, type:ev.type, title:ev.title, y:ev.y, m:ev.m, day:ev.day, start:origS, end:origE, origS, origE, picking:null } });
+    this.setState({ returnTo:ret||this.state.returnTo, dialog:{ id:ev.id, mode, type:ev.type, title:ev.title, y:ev.y, m:ev.m, day:ev.day, start:origS, end:origE, origS, origE,
+      breakMin:this.breakMin(ev), picking:null } });
   }
   patchDlg(k,d){ this.setState(s=>({ dialog:{...s.dialog,[k]:this.addMin(s.dialog[k],d)} })); }
   setSetting(k,val){ this.setState(s=>({ settings:{...s.settings,[k]:val} })); }
@@ -494,13 +506,18 @@ export default class App extends React.Component {
       return String(t.key).startsWith('c') ? {...t, name, uWord:'未確定の'+name, cWord:name} : {...t, name};
     })}));
   }
-  updateEvent(id,patch){ this.setState(s=>({ events:s.events.map(e=>e.id===id?{...e,...patch}:e) })); }
+  // 予定を書き換えるところは全部ここを通る。更新時刻もここで押す。
+  // （将来クラウド同期を作るとき「どちらが新しいか」の判定に要る）
+  updateEvent(id,patch){ this.setState(s=>({ events:s.events.map(e=>e.id===id?{...e,...patch,updatedAt:Date.now()}:e) })); }
 
   dlgPrimary(){
     const d=this.state.dialog;
     tapLight();
     // 実績の確定は「✓を判子で押す」— 重めのひと突き（§6）
-    if(d.mode==='worked'){ stampHeavy(); this.updateEvent(d.id,{status:'jisseki',start:d.start,actualEnd:d.end}); this.setState({dialog:null}); return; }
+    if(d.mode==='worked'){ stampHeavy();
+      this.updateEvent(d.id,{status:'jisseki',start:d.start,actualEnd:d.end,
+        breakMin: d.breakMin>0 ? d.breakMin : undefined});
+      this.setState({dialog:null}); return; }
     // 依頼A: ダイアログを閉じ→カレンダー上のピルが点線から左→右へ塗り満ちる (§6)
     this.updateEvent(d.id,{start:d.start,end:d.end,want:[d.origS,d.origE]});
     this.setState({dialog:null, screen:'month', dayNum:null, detailId:null, morph:{id:d.id, phase:'dash'}});
@@ -532,7 +549,7 @@ export default class App extends React.Component {
         events:s.events.map(e=>{
           if(e.id!==dr.editingId) return e;
           const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay,days:spanField,
-            remindMin:remindField, jobId: dr.type==='baito' ? dr.jobId : undefined};
+            remindMin:remindField, jobId: dr.type==='baito' ? dr.jobId : undefined, updatedAt:Date.now()};
           // 実績のときに直しているのは「実際に働いた終わりの時刻」
           return dr.status==='jisseki' ? {...base, actualEnd:dr.end} : {...base, end:dr.end, actualEnd:undefined};
         }) }));
@@ -544,7 +561,7 @@ export default class App extends React.Component {
     const made=placeOn.map(([y,m,d],i)=>({ id:'n'+base+'-'+i, type:dr.type, title:dr.title||'無題',
       y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay, days:spanField, remindMin:remindField,
       jobId: dr.type==='baito' ? dr.jobId : undefined,
-      want: dr.status==='mikakutei' ? [dr.start,dr.end] : undefined }));
+      want: dr.status==='mikakutei' ? [dr.start,dr.end] : undefined, updatedAt:base }));
     this.setState(s=>({ screen:s.returnTo, ym:{y:dr.y,m:dr.m}, events:[...s.events,...made] }));
   }
 
@@ -858,7 +875,7 @@ export default class App extends React.Component {
     v.shareToastMsg = st.shareMsg || '';
     // まとめは「表示している月」だけを集計する
     const jis = st.events.filter(e=>e.y===st.ym.y && e.m===st.ym.m && e.status==='jisseki');
-    const totalH = jis.reduce((a,e)=>a+this.hoursBetween(e.start,e.actualEnd||e.end),0);
+    const totalH = jis.reduce((a,e)=>a+this.paidHours(e),0);
     v.sumWage = this.fmtWage(jis.reduce((a,e)=>a+this.wage(e),0));
     v.sumHours = this.fmtHours(totalH);
     const monthEvents = st.events.filter(e=>e.y===st.ym.y && e.m===st.ym.m);
@@ -873,7 +890,7 @@ export default class App extends React.Component {
     if(v.reportShown){
       const Y=st.ym.y, M=st.ym.m;
       const sum=(list)=>{
-        const hours=list.reduce((a,e)=>a+this.hoursBetween(e.start,e.actualEnd||e.end),0);
+        const hours=list.reduce((a,e)=>a+this.paidHours(e),0);
         const wage=list.reduce((a,e)=>a+this.wage(e),0);
         return { hours, wage, days:list.length };
       };
@@ -1315,7 +1332,8 @@ export default class App extends React.Component {
       v.dTimeChanged = ev.status==='jisseki' && ev.actualEnd && ev.actualEnd!==ev.end;
       v.dWantText = ev.want ? '希望 '+ev.want[0]+'–'+ev.want[1] : (v.dTimeChanged?'予定 '+ev.start+'–'+ev.end:'');
       v.dWageShown = ev.status==='jisseki';
-      if(v.dWageShown){ v.dWorkHours=this.fmtHours(this.hoursBetween(ev.start,endShown)); v.dWage=this.fmtWage(this.wage(ev)); }
+      if(v.dWageShown){ v.dWorkHours=this.fmtHours(this.paidHours(ev)); v.dWage=this.fmtWage(this.wage(ev));
+        v.dBreakText = this.breakMin(ev) ? '休憩 '+this.breakMin(ev)+'分を引いています' : ''; }
       const primary=(label,fn)=>{ v.dPrimaryLabel=label; v.dPrimaryAction=fn;
         v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:700,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; };
       if(ev.status==='nakunatta') primary('予定として戻す',()=>{ tapLight(); this.updateEvent(ev.id,{status:'kakutei'}); });
@@ -1383,6 +1401,22 @@ export default class App extends React.Component {
         hRef: field==='start'?this.dRefStartH:this.dRefEndH, mRef: field==='start'?this.dRefStartM:this.dRefEndM,
         hScroll: field==='start'?this.dScStartH:this.dScEndH, mScroll: field==='start'?this.dScStartM:this.dScEndM });
       v.dlgTimeRows=[ dMkRow('start','開始',true), dMkRow('end','終了',false) ];
+
+      // ---------- 休憩（実績を記録するときだけ） ----------
+      // 休憩を引かないと、休憩が時給に入らない勤務先では金額が多めに出る。
+      // 引いた結果の実働時間をその場に出して、何が起きたか見えるようにする。
+      v.dlgBreakShown = d.mode==='worked';
+      if(v.dlgBreakShown){
+        const cur=d.breakMin||0;
+        v.dlgBreakChips=[[0,'なし'],[15,'15分'],[30,'30分'],[45,'45分'],[60,'60分'],[90,'90分']]
+          .map(([val,label])=>{ const sel=cur===val;
+            return { label, onClick:()=>{ tapLight(); this.setState(s=>({dialog:{...s.dialog, breakMin:val}})); },
+              style:{padding:'7px 11px',borderRadius:999,fontSize:12,fontWeight:sel?700:500,cursor:'pointer',whiteSpace:'nowrap',
+                transition:'all .18s', background:sel?t.color:'var(--card)', color:sel?'#fff':'var(--ink-mut)',
+                border:'1px solid '+(sel?t.color:'var(--line)')} }; });
+        const paid=Math.max(0, this.hoursBetween(d.start,d.end) - cur/60);
+        v.dlgPaidText = cur ? `実働 ${this.fmtHours(paid)}（休憩 ${cur}分を引いた）` : `実働 ${this.fmtHours(paid)}`;
+      }
       v.onDlgPrimary=()=>this.dlgPrimary();
       v.onDlgNakunatta=()=>this.dlgNakunatta();
       v.onDlgStillMaybe=()=>this.setState({dialog:null});
@@ -1558,7 +1592,7 @@ export default class App extends React.Component {
       let canvas, name;
       if (kind === 'summary') {
         const jis = monthEvents.filter((e) => e.status === 'jisseki');
-        const totalH = jis.reduce((a, e) => a + this.hoursBetween(e.start, e.actualEnd || e.end), 0);
+        const totalH = jis.reduce((a, e) => a + this.paidHours(e), 0);
         canvas = drawSummaryCard({
           yearMonth: `${Y}年 ${M + 1}月`,
           wage: this.fmtWage(jis.reduce((a, e) => a + this.wage(e), 0)),
