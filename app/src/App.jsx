@@ -41,6 +41,11 @@ const evCovers = (e, n) => n >= evFrom(e) && n <= evTo(e);
 // 月表示のマスに積める帯の段数。これを超えたぶんは「+N件」に回す。
 const MAX_LANES = 3;
 
+// 月表示の帯の高さと文字の大きさ。ここを変えると段の高さも一緒に付いてくる。
+const MONTH_BAR_H = 15;
+const MONTH_BAR_FS = 10;
+const MONTH_LANE_H = MONTH_BAR_H + 2; // 帯と帯のあいだの隙間ぶん
+
 // 時計の分の刻み。ホイールで選ぶので粗くする意味がなく、5分で固定する。
 // （以前は設定の「時間の刻み幅」で変えられたが、既定の30分だと 17:20 が選べなかった）
 const MIN_STEP = 5;
@@ -116,6 +121,7 @@ export default class App extends React.Component {
     jobs:[], editJobId:null, newJob:null,
     ym: thisMonth(),      // カレンダーで表示している月
     freeYM: thisMonth(),  // 「いつ空いてる？」で見ている月
+    freeDir: 0,           // 直前に月を送った向き（滑り込む向きに使う）
     today: todayParts(),
     shareChoices:{ o1:null, o2:null, o3:null }, shareSubmitted:false, shareToast:false, shareMsg:'', morph:null,
     settings:{ hourly:1120, weekStart:0, remind:true, hideCanceled:false, dark:false, onboarded:false },
@@ -244,7 +250,11 @@ export default class App extends React.Component {
     const { _L, _R, ...shape }=sh;
     const m=this.state.morph;
     // 段の高さをそろえないと、日をまたぐ帯が隣のマスでずれて見える
-    const evenOut=(st)=>({...st, height:17, lineHeight: ev.status==='mikakutei' ? '13px' : '17px'});
+    // 月表示の帯は、日一覧などで使うピルより一段細くする。
+    // 未確定は上下に 1.5px の点線枠があるぶん、中の行の高さを引く。
+    const H=MONTH_BAR_H;
+    const evenOut=(st)=>({...st, height:H, fontSize:MONTH_BAR_FS,
+      lineHeight: (ev.status==='mikakutei' ? H-3 : H)+'px'});
     if(!m || m.id!==ev.id){
       const p=this.pillParts(ev,wageOn,true);
       return { text:p.body, mark:p.mark, markStyle:this.markStyleFor(ev),
@@ -253,7 +263,7 @@ export default class App extends React.Component {
     }
     const t=this.T(ev.type);
     const dash=m.phase==='dash', filling=m.phase==='fill'||m.phase==='settle';
-    const style={height:17,boxSizing:'border-box',fontSize:11,fontWeight:500,letterSpacing:'-.04em',lineHeight:'13px',whiteSpace:'nowrap',overflow:'hidden',display:'flex',alignItems:'center',position:'relative',cursor:'pointer',
+    const style={height:H,boxSizing:'border-box',fontSize:MONTH_BAR_FS,fontWeight:500,letterSpacing:'-.04em',lineHeight:(H-3)+'px',whiteSpace:'nowrap',overflow:'hidden',display:'flex',alignItems:'center',position:'relative',cursor:'pointer',
       background:t.paper, border:'1.5px '+(dash?'dashed':'solid')+' '+this.softLine(t.color), transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none', ...shape};
     const fillStyle={position:'absolute',left:0,top:0,right:0,bottom:0,background:this.softFill(t.color),transformOrigin:'left center',transform:filling?'scaleX(1)':'scaleX(0)',animation:m.phase==='fill'?'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none',zIndex:0,borderRadius:2};
     const textStyle={position:'relative',zIndex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',color:this.inkOn(t.color),transition:'color .16s .12s linear'};
@@ -275,6 +285,12 @@ export default class App extends React.Component {
     this.setState({screen:'detail',detailId:ev.id,returnTo:ret});
   }
   openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month',swipeRow:null}); }
+
+  // 空き状況の月送り。送った向きを持っておき、一覧をその向きから滑り込ませる。
+  shiftFree(dir){
+    tapLight();
+    this.setState(s=>({ freeYM:shiftMonth(s.freeYM,dir), freeDir:dir }));
+  }
 
   // 滑り終わったスワイプ1回ぶんを、月の差し替えとして確定させる。
   // 次のスワイプが始まったときにも呼ぶので、素早く続けて払っても
@@ -607,8 +623,32 @@ export default class App extends React.Component {
       onOpenTerms:()=>this.setState({screen:'doc', docKey:'terms'}),
       onOpenPrivacy:()=>this.setState({screen:'doc', docKey:'privacy'}),
       onDocBack:()=>this.setState({screen:'settings', docKey:null}),
-      onFreePrev:()=>this.setState(s=>({freeYM:shiftMonth(s.freeYM,-1)})),
-      onFreeNext:()=>this.setState(s=>({freeYM:shiftMonth(s.freeYM,1)})),
+      onFreePrev:()=>this.shiftFree(-1),
+      onFreeNext:()=>this.shiftFree(1),
+      // 空き状況も横に払って月を送れるようにする。
+      // ここは月表示と違って縦に並ぶ一覧なので、指について動かすカルーセルにはせず、
+      // 離した時点で月を差し替えて、送った向きに滑り込ませる。
+      onFreeTouchStart:(e)=>{
+        const t=e.touches&&e.touches[0]; if(!t) return;
+        this._fsx=t.clientX; this._fsy=t.clientY; this._fAxis=null;
+      },
+      onFreeTouchMove:(e)=>{
+        const t=e.touches&&e.touches[0]; if(!t||this._fsx==null) return;
+        const dx=t.clientX-this._fsx, dy=t.clientY-this._fsy;
+        if(!this._fAxis){
+          if(Math.abs(dx)<8 && Math.abs(dy)<8) return;
+          this._fAxis = Math.abs(dx)>Math.abs(dy)*1.2 ? 'x' : 'y';
+        }
+      },
+      onFreeTouchEnd:(e)=>{
+        const t=e.changedTouches&&e.changedTouches[0];
+        const wasX=this._fAxis==='x'; const sx=this._fsx;
+        this._fsx=null; this._fAxis=null;
+        if(!t||!wasX||sx==null) return;
+        const dx=t.clientX-sx;
+        if(Math.abs(dx) < 60) return;   // 浅い払いでは動かさない
+        this.shiftFree(dx<0 ? 1 : -1);
+      },
       stop:(e)=>e&&e.stopPropagation(),
     };
 
@@ -969,9 +1009,10 @@ export default class App extends React.Component {
         weeks.push({
           key:Y+'-'+M+'-w'+w, slots, bars, more,
           // 週の区切りだけ線を引く。マスを囲む枠は引かない（予定を浮き上がらせるため）
-          rowStyle:{position:'relative', flex:'1 1 0', minHeight:92, ...(w>0?{borderTop:'1px solid var(--line)'}:{})},
+          rowStyle:{position:'relative', flex:'1 1 0', minHeight:22+MONTH_LANE_H*MAX_LANES+13,
+            ...(w>0?{borderTop:'1px solid var(--line)'}:{})},
           gridStyle:{position:'relative', display:'grid', gridTemplateColumns:'repeat(7,1fr)',
-            gridTemplateRows:'22px repeat('+MAX_LANES+',19px) 13px', alignContent:'start', pointerEvents:'none', height:'100%'},
+            gridTemplateRows:'22px repeat('+MAX_LANES+','+MONTH_LANE_H+'px) 13px', alignContent:'start', pointerEvents:'none', height:'100%'},
         });
       }
       return weeks;
@@ -1389,6 +1430,11 @@ export default class App extends React.Component {
         });
       }
       v.freeRows=rows; v.cO=cO; v.cA=cA; v.cX=cX;
+      // 月が変わるたびに key も変えて、滑り込みのアニメーションをやり直させる
+      v.freeListKey = fY+'-'+fm;
+      v.freeListStyle = {flex:1, overflowY:'auto', background:'var(--card)',
+        borderTop:'1px solid var(--line)', paddingBottom:96, touchAction:'pan-y',
+        animation: st.freeDir ? (st.freeDir>0?'slideFromRight':'slideFromLeft')+' .26s cubic-bezier(.2,.9,.2,1)' : 'none'};
     }
 
     return { v };

@@ -190,7 +190,13 @@ export function renderApp(v) {
               <span style={s('color:#C1C5CC')}>×{v.cX}</span>
             </div>
           </div>
-          <div style={s('flex:1;overflow-y:auto;background:var(--card);border-top:1px solid var(--line);padding-bottom:96px')}>
+          <div
+            key={v.freeListKey}
+            style={s(v.freeListStyle)}
+            onTouchStart={v.onFreeTouchStart}
+            onTouchMove={v.onFreeTouchMove}
+            onTouchEnd={v.onFreeTouchEnd}
+          >
             {(v.freeRows || []).map((r, i) => (
               <div key={i} style={s(r.rowStyle)}>
                 <div style={s(r.dateWrap)}>

@@ -56,6 +56,9 @@ input { font-family: inherit; }
 @keyframes dlgIn { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideIn { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+/* 月を送った向きに合わせて入ってくる。空き状況のスワイプで使う。 */
+@keyframes slideFromRight { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideFromLeft { from { transform: translateX(-30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 @keyframes notifDrop { from { transform: translateY(-90px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes haloOut { 0% { transform: translate(-50%, -50%) scale(.5); opacity: .45; } 100% { transform: translate(-50%, -50%) scale(2.1); opacity: 0; } }
 @keyframes checkPop { 0% { transform: scale(.3); opacity: 0; } 55% { transform: scale(1.18); } 100% { transform: scale(1); opacity: 1; } }
