@@ -582,9 +582,12 @@ export function renderApp(v) {
           </div>
           <div style={s('flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:10px 16px 20px')}>
             <div style={s('width:100%;max-width:340px;aspect-ratio:9/16;background:linear-gradient(180deg,#FBFBFD 0%,#F4F6F8 100%);border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.5);padding:30px 26px;display:flex;flex-direction:column;overflow:hidden')}>
+              {/* このカードは地が明色で固定（書き出す PNG と同じ見た目にするため）。
+                  中の文字にテーマ変数を使うと、ダークモードで白地に白文字になる。
+                  色は sharecard.js の定数と揃えてある。 */}
               <div style={s('display:flex;align-items:baseline;justify-content:space-between')}>
-                <span style={s('font-size:13px;font-weight:600;color:var(--ink-mut);letter-spacing:.5px')}>{v.sumYearMonth}</span>
-                <span style={s('font-size:12px;font-weight:600;color:var(--ink-mut)')}>まとめ</span>
+                <span style={s('font-size:13px;font-weight:600;color:#8C887C;letter-spacing:.5px')}>{v.sumYearMonth}</span>
+                <span style={s('font-size:12px;font-weight:600;color:#8C887C')}>まとめ</span>
               </div>
 
               <div style={s('display:flex;flex-wrap:wrap;gap:4px;margin:20px 0 22px')}>
@@ -595,10 +598,10 @@ export function renderApp(v) {
                 <span style={s('width:24px;height:24px;border-radius:15px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>✓</span>
                 <span style={s('font-size:13px;font-weight:600;color:#085041')}>稼いだ</span>
               </div>
-              <div style={s('font-size:46px;font-weight:800;color:var(--ink);letter-spacing:-1.5px;line-height:1.1')}>{v.sumWage}</div>
-              <div style={s('font-size:14px;color:var(--ink-mut);margin-top:2px')}>{v.sumHours} 働きました</div>
+              <div style={s('font-size:46px;font-weight:800;color:#26251F;letter-spacing:-1.5px;line-height:1.1')}>{v.sumWage}</div>
+              <div style={s('font-size:14px;color:#8C887C;margin-top:2px')}>{v.sumHours} 働きました</div>
 
-              <div style={s('height:1px;background:var(--line);margin:22px 0')} />
+              <div style={s('height:1px;background:#E6E2D6;margin:22px 0')} />
 
               <div style={s('display:flex;gap:14px')}>
                 <div style={s('flex:1')}>
@@ -606,29 +609,29 @@ export function renderApp(v) {
                     <span style={s('width:16px;height:16px;border-radius:11px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800')}>✓</span>
                     <span style={s('font-size:12px;font-weight:600;color:#712B13')}>果たした約束</span>
                   </div>
-                  <div style={s('font-size:34px;font-weight:800;color:var(--ink);letter-spacing:-1px')}>{v.sumPromises}</div>
+                  <div style={s('font-size:34px;font-weight:800;color:#26251F;letter-spacing:-1px')}>{v.sumPromises}</div>
                 </div>
                 <div style={s('flex:1')}>
                   <div style={s('display:flex;align-items:center;gap:6px;margin-bottom:6px')}>
-                    <span style={s('width:16px;height:16px;border-radius:11px;background:#EDEEF0;color:var(--ink-mut);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700')}>×</span>
-                    <span style={s('font-size:12px;font-weight:600;color:var(--ink-mut)')}>流れた予定</span>
+                    <span style={s('width:16px;height:16px;border-radius:11px;background:#EDEEF0;color:#8C887C;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700')}>×</span>
+                    <span style={s('font-size:12px;font-weight:600;color:#8C887C')}>流れた予定</span>
                   </div>
-                  <div style={s('font-size:34px;font-weight:800;color:var(--ink-faint);letter-spacing:-1px')}>{v.sumCanceled}</div>
+                  <div style={s('font-size:34px;font-weight:800;color:#B7B3A6;letter-spacing:-1px')}>{v.sumCanceled}</div>
                 </div>
               </div>
 
               <div style={s('flex:1')} />
               <div style={s('display:flex;align-items:center;gap:8px;padding-top:16px')}>
                 <span style={s('font-size:15px;letter-spacing:-2px')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C1C5CC')}>？</span></span>
-                <span style={s('font-size:12px;font-weight:600;color:var(--ink-soft);text-wrap:pretty')}>決まってる？ — 予定が一目でわかるカレンダー</span>
+                <span style={s('font-size:12px;font-weight:600;color:#55524A;text-wrap:pretty')}>決まってる？ — 予定が一目でわかるカレンダー</span>
               </div>
             </div>
 
             <div style={s('display:flex;gap:10px;width:100%;max-width:340px;margin-top:18px')}>
               <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" />
+                  <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 </svg>
                 ストーリーズにシェア
               </div>
@@ -649,13 +652,16 @@ export function renderApp(v) {
             <span style={s('width:44px')} />
           </div>
           <div style={s('flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:6px 16px 24px')}>
-            <div style={s('width:100%;max-width:340px;background:var(--card);border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.5);padding:24px 22px 22px;overflow:hidden')}>
+            {/* まとめカードと同じ理由で、地も文字も固定色にする。
+                マスの色（#FAECE7 / #EDEEF0）が明色固定なので、地だけテーマに
+                従わせると書き出す PNG と食い違ってしまう。 */}
+            <div style={s('width:100%;max-width:340px;background:#FFFDF8;border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.5);padding:24px 22px 22px;overflow:hidden')}>
               <div style={s('display:flex;align-items:center;gap:8px;margin-bottom:3px')}>
                 <span style={s('width:22px;height:22px;border-radius:7px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800')}>○</span>
                 <span style={s('font-size:13px;font-weight:600;color:#D85A30')}>わたしの空いてる日</span>
               </div>
-              <div style={s('font-size:22px;font-weight:800;color:var(--ink);letter-spacing:-.5px')}>{v.shareMonthLabel}月のあいてる日</div>
-              <div style={s('font-size:13px;color:var(--ink-mut);margin:2px 0 18px')}>予定の中身は出していません</div>
+              <div style={s('font-size:22px;font-weight:800;color:#26251F;letter-spacing:-.5px')}>{v.shareMonthLabel}月のあいてる日</div>
+              <div style={s('font-size:13px;color:#8C887C;margin:2px 0 18px')}>予定の中身は出していません</div>
 
               <div style={s('display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:4px')}>
                 {(v.shareWeekdays || []).map((w, i) => (<div key={i} style={s(w.style)}>{w.label}</div>))}
@@ -664,14 +670,14 @@ export function renderApp(v) {
                 {(v.shareCells || []).map((c, i) => (<div key={i} style={s(c.style)}>{c.label}</div>))}
               </div>
 
-              <div style={s('display:flex;align-items:center;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)')}>
+              <div style={s('display:flex;align-items:center;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid #E6E2D6')}>
                 <div style={s('display:flex;align-items:center;gap:6px')}>
                   <span style={s('width:16px;height:16px;border-radius:5px;background:#FAECE7;border:1.5px solid #D85A30')} />
-                  <span style={s('font-size:12px;color:var(--ink-soft)')}>空いてる</span>
+                  <span style={s('font-size:12px;color:#55524A')}>空いてる</span>
                 </div>
                 <div style={s('display:flex;align-items:center;gap:6px')}>
                   <span style={s('width:16px;height:16px;border-radius:5px;background:#EDEEF0')} />
-                  <span style={s('font-size:12px;color:var(--ink-soft)')}>予定あり</span>
+                  <span style={s('font-size:12px;color:#55524A')}>予定あり</span>
                 </div>
                 <div style={s('flex:1')} />
                 <span style={s('font-size:12px;letter-spacing:-2px')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C1C5CC')}>？</span></span>
@@ -683,8 +689,8 @@ export function renderApp(v) {
             <div style={s('display:flex;gap:10px;width:100%;max-width:340px;margin-top:16px')}>
               <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="#1A1A1A" strokeWidth="1.8" strokeLinecap="round" />
+                  <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 </svg>
                 画像で送る
               </div>
@@ -1254,7 +1260,7 @@ export function renderApp(v) {
             </span>
             <span style={s('font-size:10px;font-weight:600')}>空き状況</span>
           </div>
-          <div style={s('display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;flex:1')} onClick={v.onFab}>
+          <div role="button" aria-label="予定を追加" style={s('display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;flex:1')} onClick={v.onFab}>
             <div style={s('width:46px;height:46px;border-radius:23px;background:var(--ink);color:var(--card);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:300;box-shadow:0 4px 14px rgba(0,0,0,.24)')}>＋</div>
           </div>
           <div style={s(v.navReportStyle)} onClick={v.onNavReport}>
