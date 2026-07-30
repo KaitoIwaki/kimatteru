@@ -710,24 +710,6 @@ export function renderApp(v) {
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:8px 16px 110px')}>
 
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>給料</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
-                <div style={s('display:flex;flex-direction:column;gap:2px')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>時給</span>
-                  <span style={s('font-size:11px;color:var(--ink-mut)')}>実働から給料を計算します</span>
-                </div>
-                <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
-                  <div style={s(v.stepBtn)} onClick={v.onHourlyMinus}>−</div>
-                  <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:15px;padding:6px 12px')}>
-                    <span style={s('font-size:15px;font-weight:700;color:var(--ink-soft)')}>¥</span>
-                    <input value={v.setHourly} onChange={v.onHourlyInput} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
-                  </div>
-                  <div style={s(v.stepBtn)} onClick={v.onHourlyPlus}>＋</div>
-                </div>
-              </div>
-            </div>
-
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>バイト先</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:8px')}>
               {(v.jobRows || []).map((j, i) => (
@@ -765,21 +747,11 @@ export function renderApp(v) {
               </div>
             </div>
             <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8')}>
-              {''}<Jp parts={['バイト先ごとに', '時給を決められます。', '予定を作るときに', 'えらぶと、', 'その時給で', '計算します。']} />
-            </div>
-
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>入力</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
-              <div style={s('padding:14px 16px')}>
-                <span style={s('font-size:15px;color:var(--ink)')}>週のはじまり</span>
-                <div style={s('display:flex;background:var(--bg2);border-radius:15px;padding:2px;margin-top:10px')}>
-                  {(v.weekSeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
-                </div>
-              </div>
+              {''}<Jp parts={['時給は', 'バイト先ごとに', '決めます。']} />
             </div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>予定の種類</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:8px')}>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
               {(v.typeRows || []).map((t, i) => (
                 <div key={i} style={s(t.rowStyle)}>
                   <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={t.onTap}>
@@ -788,40 +760,58 @@ export function renderApp(v) {
                     <span style={s('font-size:12px;color:var(--ink-faint)')}>{t.hint}</span>
                   </div>
                   {t.open && (
-                    <div style={s('display:flex;flex-wrap:wrap;gap:12px;padding:4px 16px 16px')}>
-                      {(t.swatches || []).map((sw, j) => (<div key={j} style={s(sw.style)} onClick={sw.onClick} />))}
+                    <div style={s('padding:2px 16px 16px')}>
+                      <input value={t.name} onChange={t.onName} placeholder="種類の名前" style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
+                      <div style={s('display:flex;flex-wrap:wrap;gap:12px')}>
+                        {(t.swatches || []).map((sw, j) => (<div key={j} style={s(sw.style)} onClick={sw.onClick} />))}
+                      </div>
+                      <div style={s('font-size:11px;color:var(--ink-faint);margin-top:14px')}>{t.usedCount > 0 ? `${t.usedCount}件の予定で使っています` : 'まだ使っていません'}</div>
                     </div>
                   )}
                 </div>
               ))}
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onAddTypeRow}>
+                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:600')}>＋</span>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>種類を追加</span>
+              </div>
+              {v.newTypeShown && (
+                <div style={s('padding:2px 16px 16px;background:var(--bg2)')}>
+                  <input value={v.newTypeName} placeholder="種類の名前（例：ジム、勉強）" onChange={v.onNewTypeName} style={s('width:100%;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin:12px 0 14px')} />
+                  <div style={s('display:flex;flex-wrap:wrap;gap:12px')}>
+                    {(v.newTypeSwatches || []).map((sw, i) => (<div key={i} style={s(sw.style)} onClick={sw.onClick} />))}
+                  </div>
+                  <div style={s('display:flex;gap:8px;margin-top:16px')}>
+                    <div style={s('flex:1;text-align:center;padding:11px;border-radius:13px;background:var(--card);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer')} onClick={v.onCancelNewType}>やめる</div>
+                    <div style={s(v.addTypeBtnStyle)} onClick={v.onAddType}>この種類を追加</div>
+                  </div>
+                </div>
+              )}
             </div>
-            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;text-wrap:pretty')}>種類の追加や名前の変更は「＋」の新規作成画面からできます</div>
 
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>通知</div>
+            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>アプリの設定</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
+              <div style={s('display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)')}>
+                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>週のはじまり</span>
+                <div style={s('display:flex;background:var(--bg2);border-radius:13px;padding:2px;width:150px')}>
+                  {(v.weekSeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
+                </div>
+              </div>
+              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
                 <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
                   <span style={s('font-size:15px;color:var(--ink)')}>シフト後に記録をリマインド</span>
                   <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty')}>終わった時間に「実働どうだった？」を通知</span>
                 </div>
                 <div style={s(v.remindTrack)} onClick={v.onToggleRemind}><div style={s(v.remindKnob)} /></div>
               </div>
-            </div>
-
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>表示</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
+              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
                 <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
                   <span style={s('font-size:15px;color:var(--ink)')}>「無くなった」予定を隠す</span>
                   <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty')}>オフなら取り消し線で薄く残します</span>
                 </div>
                 <div style={s(v.hideTrack)} onClick={v.onToggleHide}><div style={s(v.hideKnob)} /></div>
               </div>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-top:1px solid var(--line)')}>
-                <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>ダークモード</span>
-                  <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty')}>深い墨色の紙に、点線が浮かびます</span>
-                </div>
+              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
+                <span style={s('font-size:15px;color:var(--ink)')}>ダークモード</span>
                 <div style={s(v.darkTrack)} onClick={v.onToggleDark}><div style={s(v.darkKnob)} /></div>
               </div>
             </div>

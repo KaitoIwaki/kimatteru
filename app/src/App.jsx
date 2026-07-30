@@ -456,6 +456,16 @@ export default class App extends React.Component {
   patchDlg(k,d){ this.setState(s=>({ dialog:{...s.dialog,[k]:this.addMin(s.dialog[k],d)} })); }
   setSetting(k,val){ this.setState(s=>({ settings:{...s.settings,[k]:val} })); }
   recolorKey(key,hex){ this.setState(s=>({ types:s.types.map(t=>t.key===key?{...t,color:hex,paper:this.paperFrom(hex),dark:this.darkFrom(hex)}:t) })); }
+  // 種類の名前を変える。自分で足した種類は「未確定の◯◯」「◯◯」という
+  // 言い回しも名前から作っているので、あわせて作り直す。
+  // 最初から入っている4つ（バイト・用事・遊び・その他）は、
+  // 「希望シフト／確定シフト」のような言い回しを人が選んでいるので触らない。
+  renameType(key,name){
+    this.setState(s=>({ types:s.types.map(t=>{
+      if(t.key!==key) return t;
+      return String(t.key).startsWith('c') ? {...t, name, uWord:'未確定の'+name, cWord:name} : {...t, name};
+    })}));
+  }
   updateEvent(id,patch){ this.setState(s=>({ events:s.events.map(e=>e.id===id?{...e,...patch}:e) })); }
 
   dlgPrimary(){
@@ -768,19 +778,20 @@ export default class App extends React.Component {
     // ---------- SETTINGS ----------
     const cfg=st.settings;
     v.settingsShown = st.screen==='settings';
-    v.setHourly = String(cfg.hourly);
-    v.onHourlyInput=(e)=>{ const n=parseInt((e.target.value||'').replace(/[^0-9]/g,''),10); this.setSetting('hourly', isNaN(n)?0:Math.min(99999,n)); };
-    v.onHourlyMinus=()=>this.setSetting('hourly',Math.max(0,cfg.hourly-10));
-    v.onHourlyPlus=()=>this.setSetting('hourly',cfg.hourly+10);
+    // 時給の入力は設定から外した。時給はバイト先ごとに決める。
+    // settings.hourly は、バイト先を選んでいない昔の予定のための控えとして残してある。
     const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:7,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',transition:'all .2s cubic-bezier(.2,.9,.2,1)',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
     v.weekSeg=[[0,'日曜'],[1,'月曜']].map(([n,label])=>({ label, onClick:()=>this.setSetting('weekStart',n), style:segCell(cfg.weekStart===n) }));
     v.typeRows = st.types.map((t,i)=>({
-      name:t.name, open: st.editTypeKey===t.key, hint: st.editTypeKey===t.key?'':'色を変える',
-      rowStyle:{borderBottom: i<st.types.length-1?'1px solid var(--line)':'none'},
+      name:t.name, open: st.editTypeKey===t.key, hint: st.editTypeKey===t.key?'':'名前と色',
+      rowStyle:{borderBottom:'1px solid var(--line)'},
       dotStyle:{width:18,height:18,borderRadius:12,background:t.color,flexShrink:0,boxShadow:'inset 0 0 0 1px rgba(0,0,0,.06)'},
       onTap:()=>this.setState(s=>({editTypeKey:s.editTypeKey===t.key?null:t.key})),
+      onName:(e)=>this.renameType(t.key, e.target.value),
+      usedCount: st.events.filter(e=>e.type===t.key).length,
       swatches:this.PAL.map(hex=>({ style:{width:26,height:26,borderRadius:13,background:hex,cursor:'pointer',boxShadow: t.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)'}, onClick:()=>this.recolorKey(t.key,hex) })),
     }));
+    v.onAddTypeRow = ()=>{ tapLight(); this.setState(s=>({newType: s.newType?null:{name:'',color:'#2F72C4'}, editTypeKey:null})); };
     const tgTrack=(on,col)=>({width:44,height:26,borderRadius:13,background:on?'var(--ink)':'var(--line)',padding:2,transition:'background .28s cubic-bezier(.2,.9,.2,1)',cursor:'pointer',display:'flex',flexShrink:0});
     const tgKnob=(on)=>({width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s cubic-bezier(.2,.9,.2,1)',transform:on?'translateX(18px)':'translateX(0)'});
     v.remindTrack=tgTrack(cfg.remind); v.remindKnob=tgKnob(cfg.remind);
@@ -1080,7 +1091,7 @@ export default class App extends React.Component {
         style:{padding:'8px 14px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',
           background:sel?'#1D9E75':'var(--card)', color:sel?'#fff':'var(--ink-mut)',
           border:'1px solid '+(sel?'#1D9E75':'var(--line)'), fontVariantNumeric:'tabular-nums'} }; });
-    v.jobNoneChip = { label:'設定の時給（¥'+cfg.hourly+'）', onClick:()=>this.clearJob(),
+    v.jobNoneChip = { label:'バイト先なし', onClick:()=>this.clearJob(),
       style:{padding:'8px 14px',borderRadius:999,fontSize:13,fontWeight:!dr.jobId?700:500,cursor:'pointer',
         background:!dr.jobId?'#1D9E75':'var(--card)', color:!dr.jobId?'#fff':'var(--ink-mut)',
         border:'1px solid '+(!dr.jobId?'#1D9E75':'var(--line)'), fontVariantNumeric:'tabular-nums'} };

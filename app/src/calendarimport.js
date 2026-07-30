@@ -87,9 +87,14 @@ export async function readCalendarEvents({ monthsBack = 1, monthsAhead = 12 } = 
       if (isNaN(sd.getTime())) return null;
       // iPhone に入っている「日本の祝日」カレンダーは取り込まない。
       // このアプリは祝日を日付の色で示すので、予定として重ねる意味がない。
+      //
+      // 以前は isAllDay も条件にしていたが、それだと終日として渡ってこない
+      // 祝日を弾けず、日付の色と予定の帯で二重に出てしまっていた（山の日が実例）。
+      // その日の祝日名と名前が一致するなら、終日かどうかに関わらず祝日とみなす。
       const title = (e.title || '').trim();
       const hol = holidayName(sd.getFullYear(), sd.getMonth(), sd.getDate());
-      if (e.isAllDay && hol && title === hol) return null;
+      const squash = (s) => s.replace(/\s+/g, ''); // 比較のときだけ空白を無視する
+      if (hol && squash(title) === squash(hol)) return null;
       return {
         srcId: String(e.id),
         title: title || '無題',
