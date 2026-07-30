@@ -19,10 +19,6 @@ workflows:
         XCODE_PROJECT: "app/ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.kimatteru.app"
-        # App Store Connect のアプリID（配信ログの "Id: ..." に出るもの）
-        APP_ID: "6794792375"
-        # 上げたビルドを入れる内部テストグループ
-        BETA_GROUP: "自分用"
       # ios_signing は既存のプロファイルを探すだけで、無いときに作ってくれない。
       # 下の「署名の準備」で --create 付きで取得する。
     scripts:
@@ -71,72 +67,34 @@ workflows:
           xcode-project build-ipa \
             --project "$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME"
-      # publishing: ブロックに任せると post-processing 扱いになり、
-      # 失敗しても理由が途中で切れて読めない（ビルド20・21がこれで詰まった）。
-      # 同じことを普通のステップでやって、出力を全部ログに残す。
-      # アップロードまでで止める。テスターへの配信は App Store Connect 側の
-      # 「自動配信」に任せる。
+      # ここは「アップロードするだけ」。テスターへ配るところまではやらない。
       #
-      # --testflight や --beta-group を付けると、CLI が処理の完了を待つために
-      #   GET /v1/builds/<ビルドのID>/buildBetaDetail
-      # を呼び、これが 404 を返して落ちる
-      #   （There is no resource of type 'buildBetaDetails' with id '<ビルドのID>'
-      #     ＝ ビルドのIDを buildBetaDetails のIDとして探しにいっている）。
-      # Apple の API 変更に CLI が追いついていないもので、CLI を最新に上げても
-      # 直らなかった（ビルド23・24で確認）。バイナリ自体は毎回 Processing state:
-      # VALID まで到達しているので、この呼び出しをやめれば配信は成り立つ。
-      - name: TestFlight へ配信
+      # 過去に3通り試して、いずれも Apple 側に断られた（ビルド20〜28）。
+      #   publishing: ブロック  → post-processing 扱いで、失敗理由が途中で切れて読めない
+      #   publish --testflight → GET /v1/builds/<ID>/buildBetaDetail が 404
+      #   beta-groups add-build → Builds cannot be assigned to this internal group.
+      #                           - Cannot add internal group to a build.
+      #
+      # 最後のエラーが答えで、**内部テストグループにビルドを外から割り当てることは
+      # Apple が許していない**。配信するかどうかは、グループ側の設定が決める。
+      #
+      #   App Store Connect → TestFlight → 内部テストグループ → Settings
+      #     → Build Distribution
+      #
+      # ここが「Xcode から上げたビルドだけ」になっていると、
+      # Codemagic のように API で上げたビルドは配られない。
+      # 配信されないときは、コードではなくこの設定を見ること。
+      - name: App Store Connect へアップロード
         script: |
           set -e
           IPA=$(ls build/ios/ipa/*.ipa | head -1)
           echo "▶ アップロードするIPA: $IPA"
           app-store-connect publish --path "$IPA"
-
-          # ここから先を publish の --testflight に任せない。
-          # あれは処理の完了を待つのに
-          #   GET /v1/builds/<ビルドのID>/buildBetaDetail
-          # を呼び、404（There is no resource of type 'buildBetaDetails'）で必ず落ちる。
-          # CLI を最新に上げても直らなかった（ビルド23・24・25で確認）。
-          # ビルド番号から直接ID を引いて、グループへ入れるところだけ自前でやる。
-          # --processing-state VALID を必ず付ける。
-          # これが無いと、Apple がまだ処理中のビルドを拾ってしまい、
-          # グループへの追加が
-          #   There is no resource of type 'builds' with id '<ID>'
-          # で失敗する（ビルド26がこれ。一覧には出るが、まだ触れない状態だった）。
-          echo "▶ ビルド番号 $PROJECT_BUILD_NUMBER の処理が終わるのを待つ"
-          BUILD_ID=""
-          for i in $(seq 1 30); do
-            BUILD_ID=$(app-store-connect apps builds "$APP_ID" \
-                         --build-version-number "$PROJECT_BUILD_NUMBER" \
-                         --processing-state VALID --json 2>/dev/null \
-                       | python3 -c "import sys,json;d=json.load(sys.stdin);d=d.get('data',d) if isinstance(d,dict) else d;print(d[0]['id'] if d else '')" 2>/dev/null || true)
-            [ -n "$BUILD_ID" ] && break
-            echo "  まだ処理中。60秒待つ（$i/30）"
-            sleep 60
-          done
-
-          if [ -z "$BUILD_ID" ]; then
-            echo "✗ 30分待っても処理が終わらなかった。"
-            echo "  アップロード自体は済んでいるので、App Store Connect の"
-            echo "  TestFlight 一覧から手でグループに追加すれば実機に配信できる。"
-            exit 1
-          fi
-
-          echo "▶ ビルドID: $BUILD_ID（処理済み）"
-          # 処理済みでも Apple 側の反映に少し遅れが出ることがあるので数回試す
-          for i in $(seq 1 5); do
-            if app-store-connect beta-groups add-build "$BUILD_ID" --beta-group "$BETA_GROUP"; then
-              echo "▶ 「$BETA_GROUP」へ割り当てた。iPhone の TestFlight に出る。"
-              exit 0
-            fi
-            echo "  追加できなかった。30秒待って試し直す（$i/5）"
-            sleep 30
-          done
-          echo "✗ グループへの追加に失敗した。アップロードは済んでいるので、"
-          echo "  App Store Connect から手で追加すれば配信できる。"
-          exit 1
+          echo "▶ アップロード完了。処理が終わりしだい TestFlight に現れる。"
+          echo "  テスターへ配るかどうかは、内部テストグループの"
+          echo "  Build Distribution の設定が決める（APIからは指定できない）。"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-    # 配信は上の「TestFlight へ配信」ステップで行うので、publishing は使わない。
+    # 配信は上のステップで行うので publishing は使わない
     # （publishing にすると失敗理由が post-processing に隠れて読めない）
