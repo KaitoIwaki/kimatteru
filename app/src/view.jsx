@@ -1161,13 +1161,16 @@ export function renderApp(v) {
             <span style={s('font-size:16px;font-weight:600;color:var(--ink)')}>{v.docTitle}</span>
             <span style={s('width:44px')} />
           </div>
-          <div style={s('flex:1;overflow-y:auto;padding:14px 22px 60px 22px;animation:slideIn .28s cubic-bezier(.2,.9,.2,1)')}>
-            <p style={s('font-size:14px;line-height:1.9;color:var(--ink-soft);margin:0 0 26px;text-wrap:pretty')}>{v.docLead}</p>
+          {/* 長い日本語の本文は両端揃えにする。左揃えのままだと行末がそろわず、
+              文章が左に寄って見える。text-wrap:pretty は行を短くする方向に働くので、
+              ここでは使わない（短いUI文言では引き続き使う）。 */}
+          <div style={s('flex:1;overflow-y:auto;padding:14px 18px 60px 18px;animation:slideIn .28s cubic-bezier(.2,.9,.2,1)')}>
+            <p style={s('font-size:14px;line-height:1.9;color:var(--ink-soft);margin:0 0 26px;text-align:justify')}>{v.docLead}</p>
             {(v.docSections || []).map((sec, i) => (
               <div key={i} style={s('margin-bottom:26px')}>
                 <h2 style={s('font-size:14px;font-weight:700;color:var(--ink);margin:0 0 8px;letter-spacing:.01em')}>{sec.h}</h2>
                 {sec.p.map((t, j) => (
-                  <p key={j} style={s('font-size:13.5px;line-height:1.95;color:var(--ink-soft);margin:0 0 10px;text-wrap:pretty')}>{t}</p>
+                  <p key={j} style={s('font-size:13.5px;line-height:1.95;color:var(--ink-soft);margin:0 0 10px;text-align:justify')}>{t}</p>
                 ))}
               </div>
             ))}
@@ -1211,8 +1214,8 @@ export function renderApp(v) {
 
           {/* 押したお知らせを、画面の中ほどに開いて全文を見せる */}
           {v.noticeSheetShown && (
-            <div style={s('position:absolute;inset:0;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;z-index:90;animation:scrimIn .2s ease')} onClick={v.onNoticeSheetClose}>
-              <div style={s('width:100%;max-width:330px;background:var(--card);border-radius:18px;padding:20px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1);max-height:78%;overflow-y:auto')} onClick={v.stop}>
+            <div style={s('position:absolute;inset:0;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:16px;z-index:90;animation:scrimIn .2s ease')} onClick={v.onNoticeSheetClose}>
+              <div style={s('width:100%;max-width:400px;background:var(--card);border-radius:18px;padding:20px 18px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1);max-height:78%;overflow-y:auto')} onClick={v.stop}>
                 <div style={s('display:flex;align-items:center;gap:8px;margin-bottom:12px')}>
                   <span style={s(v.nsKindTagStyle)}>{v.nsKindWord}</span>
                   <span style={s('font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums')}>{v.nsDate}</span>
@@ -1220,7 +1223,7 @@ export function renderApp(v) {
                   <span style={s('font-size:11px;color:var(--ink-faint)')}>{v.nsWhen}</span>
                 </div>
                 <div style={s('font-size:17px;font-weight:700;color:var(--ink);line-height:1.55;text-wrap:pretty')}>{v.nsTitle}</div>
-                <div style={s('font-size:14px;color:var(--ink-soft);margin-top:10px;line-height:1.9;text-wrap:pretty')}>{v.nsBody}</div>
+                <div style={s('font-size:14px;color:var(--ink-soft);margin-top:10px;line-height:1.9;text-align:justify')}>{v.nsBody}</div>
                 <div style={s('display:flex;gap:8px;margin-top:20px')}>
                   <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:var(--bg2);color:var(--ink-soft);font-size:15px;font-weight:600;cursor:pointer')} onClick={v.onNoticeSheetClose}>閉じる</div>
                   {!!v.nsActionLabel && (

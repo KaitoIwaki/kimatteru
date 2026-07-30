@@ -19,9 +19,11 @@
   .mark .q{color:#C1C5CC}
   .mark span.name{font-size:.8rem;font-weight:600;color:var(--ink-soft);letter-spacing:0;margin-left:.5em}
   h1{font-size:1.6rem;font-weight:700;letter-spacing:-.01em;margin:0 0 1rem;text-wrap:balance}
-  .lead{color:var(--ink-soft);font-size:.94rem;margin:0 0 2.4rem;text-wrap:pretty}
+  /* 長い日本語の本文は両端揃え。左揃えだと行末がそろわず左に寄って見える。
+     text-wrap:pretty は行を短くする方向に働くので、本文では使わない。 */
+  .lead{color:var(--ink-soft);font-size:.94rem;margin:0 0 2.4rem;text-align:justify}
   h2{font-size:.94rem;font-weight:700;margin:2.2rem 0 .5rem}
-  p{font-size:.9rem;color:var(--ink-soft);margin:0 0 .7rem;text-wrap:pretty}
+  p{font-size:.9rem;color:var(--ink-soft);margin:0 0 .7rem;text-align:justify}
   hr{border:0;border-top:1px solid var(--line);margin:2.6rem 0 1.2rem}
   .meta{font-size:.78rem;color:var(--ink-faint);margin:0}
   a{color:var(--ink-soft)}
@@ -45,8 +47,9 @@
   <p>読み取り専用の許可です。あなたのカレンダーに書き込んだり、変更したりすることはありません。</p>
   <p>読み込んだ予定は、他の予定と同じく利用者の端末の中だけに保存されます。開発者を含む第三者に送られることはありません。</p>
   <h2>通知について</h2>
-  <p>シフト後の記録を促す通知は、端末の中だけで予約・表示されるものです（ローカル通知）。通知のために予定の内容が外部へ送られることはありません。</p>
-  <p>通知は設定画面からいつでも止められます。</p>
+  <p>本アプリの通知は2種類です。ひとつはシフトが終わった時刻に実働の記録を促すもの、もうひとつは予定ごとに「何分前に知らせるか」を選んだときに出るものです。</p>
+  <p>どちらも端末の中だけで予約・表示されます（ローカル通知）。通知のために予定の内容が端末の外へ送られることはありません。</p>
+  <p>シフト後の通知は設定画面から、予定ごとの通知はその予定の編集画面から、いつでも止められます。</p>
   <h2>画像の共有について</h2>
   <p>「今月のまとめ」「空いてる日」の画像は、利用者の端末の中で作られます。作った画像を誰かに送るかどうかは、利用者が共有シートで選んだときにだけ行われます。</p>
   <p>「空いてる日」の画像には、予定の名前や時間は含まれません。空いているかどうかだけが示されます。</p>
@@ -57,7 +60,7 @@
   <h2>お問い合わせ</h2>
   <p>本方針についてのご質問は、voidlabs.work@gmail.com までご連絡ください。</p>
   <hr>
-  <p class="meta">最終更新：2026年7月26日</p>
+  <p class="meta">最終更新：2026年7月30日</p>
   <nav><a href="./terms.html">利用規約</a></nav>
 </main>
 </body>

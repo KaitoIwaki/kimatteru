@@ -33,9 +33,11 @@ const page = (doc, other) => `<!doctype html>
   .mark .q{color:#C1C5CC}
   .mark span.name{font-size:.8rem;font-weight:600;color:var(--ink-soft);letter-spacing:0;margin-left:.5em}
   h1{font-size:1.6rem;font-weight:700;letter-spacing:-.01em;margin:0 0 1rem;text-wrap:balance}
-  .lead{color:var(--ink-soft);font-size:.94rem;margin:0 0 2.4rem;text-wrap:pretty}
+  /* 長い日本語の本文は両端揃え。左揃えだと行末がそろわず左に寄って見える。
+     text-wrap:pretty は行を短くする方向に働くので、本文では使わない。 */
+  .lead{color:var(--ink-soft);font-size:.94rem;margin:0 0 2.4rem;text-align:justify}
   h2{font-size:.94rem;font-weight:700;margin:2.2rem 0 .5rem}
-  p{font-size:.9rem;color:var(--ink-soft);margin:0 0 .7rem;text-wrap:pretty}
+  p{font-size:.9rem;color:var(--ink-soft);margin:0 0 .7rem;text-align:justify}
   hr{border:0;border-top:1px solid var(--line);margin:2.6rem 0 1.2rem}
   .meta{font-size:.78rem;color:var(--ink-faint);margin:0}
   a{color:var(--ink-soft)}
