@@ -51,8 +51,9 @@ export function renderApp(v) {
           </div>
 
           {/* 曜日の見出しとマスは、左右の余白を必ず同じにする。
-              違うと列が横にずれる（以前は左端で7px、右端で-5pxずれていた）。 */}
-          <div style={s('display:grid;grid-template-columns:repeat(7,1fr);padding:8px 0 4px 0')}>
+              違うと列が横にずれる（以前は左端で7px、右端で-5pxずれていた）。
+              下に週の区切りと同じ線を引いて、宙に浮かせず「表の見出し」にする。 */}
+          <div style={s('display:grid;grid-template-columns:repeat(7,1fr);padding:6px 0 5px 0;border-bottom:1px solid var(--line)')}>
             {(v.weekdays || []).map((w, i) => (
               <div key={i} style={s(w.style)}>{w.label}</div>
             ))}

@@ -39,7 +39,10 @@ const evTo = (e) => evFrom(e) + evSpan(e) - 1;
 const evCovers = (e, n) => n >= evFrom(e) && n <= evTo(e);
 
 // 月表示のマスに積める帯の段数。これを超えたぶんは「+N件」に回す。
-const MAX_LANES = 3;
+// 段が空のときは何も描かないので、増やしても普段の見た目は変わらない。
+// 3 だとマスの下 3分の1 が構造的に余っていたので、そこまで使い切る。
+// （6週の月でも 22 + 17×4 + 13 = 103px で収まる）
+const MAX_LANES = 4;
 
 // 月表示の帯の高さと文字の大きさ。ここを変えると段の高さも一緒に付いてくる。
 const MONTH_BAR_H = 15;
@@ -240,11 +243,13 @@ export default class App extends React.Component {
   // 「ここで終わっていない」が言葉なしで伝わる。
   segShape(seg){
     const L=!seg || seg.startsHere!==false, R=!seg || seg.endsHere!==false;
+    // グリッドの角を直角にしたので、帯の角も詰める（4px だと1つだけ丸くて浮く）
+    const r=3;
     return {
       marginBottom:0,
       // マスの幅いっぱいに置く。端だけ 1px 空けて、隣の日の別の予定とくっつかないようにする。
       padding:'0 3px', marginLeft:L?1:0, marginRight:R?1:0,
-      borderRadius:`${L?4:0}px ${R?4:0}px ${R?4:0}px ${L?4:0}px`,
+      borderRadius:`${L?r:0}px ${R?r:0}px ${R?r:0}px ${L?r:0}px`,
       _L:L, _R:R,
     };
   }
@@ -1002,7 +1007,9 @@ export default class App extends React.Component {
         // 1px より細くは描けない（DPR 2/3 でも 0.8px に丸められる）ので、細さは色で作る。
         const colLine=(i)=>i<6?{borderRight:'1px solid var(--line-faint)'}:{};
         const slots=slotDays.map((d,i)=>{
-          if(d===null) return { blank:true, day:null, bgStyle:{background:'var(--bg2)',...colLine(i)}, numWrap:{}, numStyle:{}, onDay:()=>{} };
+          // 前後の月のマスに面を敷かない。情報がゼロなのに罫線より主張していて、
+          // グリッドの端がギザギザに見えていた（紙とのコントラスト 1.133 ＞ 縦線 1.083）。
+          if(d===null) return { blank:true, day:null, bgStyle:{background:'var(--card)',...colLine(i)}, numWrap:{}, numStyle:{}, onDay:()=>{} };
           const dow=(wFirst+d-1)%7, isToday=d===today;
           const hol=holidayName(Y,M,d);
           // 祝日と日曜は赤、土曜は青。日本のカレンダーの見慣れた並びに合わせる。
@@ -1011,8 +1018,11 @@ export default class App extends React.Component {
             blank:false, day:d,
             bgStyle:{background:'var(--card)',cursor:'pointer',...colLine(i)},
             numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
+            // 今日は「塗りつぶした黒丸」だったが、それが画面で一番濃いインクになり、
+            // 予定より先に目を引いていた。輪郭だけにして、曜日の色もそのまま残す。
             numStyle: isToday
-              ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
+              ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,
+                 border:'1.5px solid '+dayColor, color:dayColor, fontSize:11, fontWeight:700, boxSizing:'border-box'}
               : {fontSize:11,fontWeight:(hol||dow===0||dow===6)?700:600, color:dayColor},
             onDay:()=>this.openDay(d),
           };
