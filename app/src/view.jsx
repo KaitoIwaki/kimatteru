@@ -1183,28 +1183,33 @@ export function renderApp(v) {
 
             {v.obStep === 0 && (
               <div>
-                {/* 紙にペンで書かれていくように、一行ずつ現れる。
-                    明朝にしているのは、これがインクの字だと分からせるため。 */}
-                <div style={s("font-family:'Hiragino Mincho ProN','Yu Mincho',serif;font-size:20px;font-weight:600;color:var(--ink);line-height:2.05;letter-spacing:.02em;margin-top:26px")}>
-                  <span style={s(v.obInk1)}>予定を、少しだけ</span>
-                  <span style={s(v.obInk2)}>書いておきました。</span>
+                {/* 一字ずつ、薄い墨から本来の濃さへ。遅れは renderVals が決めている */}
+                <div style={s({ ...v.obLineStyle, marginTop: 24 })}>
+                  {(v.obLine1 || []).map((c, i) => (<span key={i} style={s(c.style)}>{c.ch}</span>))}
+                </div>
+                <div style={s(v.obLineStyle)}>
+                  {(v.obLine2 || []).map((c, i) => (<span key={i} style={s(c.style)}>{c.ch}</span>))}
                 </div>
 
                 <div style={s(v.obPaperStyle)}>
-                  <div style={s('font-size:11px;font-weight:600;color:var(--ink-faint);margin-bottom:10px')}>7月25日（土）</div>
-                  <div style={s(v.obSolidPillStyle)}>{v.obSolidLabel}</div>
-                  <div style={s(v.obDemoPillStyle)} onClick={v.onObDemoTap}>
-                    <span style={s(v.obDemoFillStyle)} />
-                    <span style={s(v.obDemoTextStyle)}>{v.obDemoLabel}</span>
+                  <div style={s(v.obDateStyle)}>7月25日（土）</div>
+                  <div style={s(v.obSolidWrap)}>
+                    <div style={s(v.obSolidPillStyle)}>{v.obSolidLabel}</div>
                   </div>
-                  <div style={s(`font-size:12.5px;margin-top:14px;line-height:1.7;color:${v.obDemoDone ? '#0F6E56' : 'var(--ink-mut)'}`)}>{v.obDemoCaption}</div>
+                  <div style={s(v.obDashWrap)}>
+                    <div style={s(v.obDemoPillStyle)} onClick={v.onObDemoTap}>
+                      <span style={s(v.obDemoFillStyle)} />
+                      <span style={s(v.obDemoTextStyle)}>{v.obDemoLabel}</span>
+                    </div>
+                  </div>
+                  <div style={s(`font-size:12.5px;margin-top:14px;line-height:1.7;color:${v.obDemoDone ? '#0F6E56' : 'var(--ink-soft)'}`)}>{v.obDemoCaption}</div>
                   {v.obDemoDone && (
-                    <div style={s('font-size:12px;color:var(--ink-faint);margin-top:8px;cursor:pointer')} onClick={v.onObDemoReset}>もう一度みる</div>
+                    <div style={s('font-size:12px;color:var(--ink-mut);margin-top:8px;cursor:pointer')} onClick={v.onObDemoReset}>もう一度みる</div>
                   )}
                 </div>
 
                 <div style={s(v.obCaptionDelay)}>
-                  <div style={s('font-size:13px;color:var(--ink-mut);line-height:2;margin-top:16px')}>
+                  <div style={s('font-size:13px;color:var(--ink-soft);line-height:2;margin-top:16px')}>
                     {''}<Jp parts={['決まっている予定は', '塗り、', 'まだ分からない予定は', '点線です。']} />
                   </div>
                 </div>

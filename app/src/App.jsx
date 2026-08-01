@@ -778,15 +778,32 @@ export default class App extends React.Component {
       v.onObSkip = ()=>this.finishOnboard(false);
 
       // 1枚目：しくみを、さわって知ってもらう。
-      // 紙に書かれていくように、上から順に出す。手書きの書体は iOS に
-      // 日本語のものが無いので、書体ではなく「書かれる動き」と明朝で作る。
-      // 数字は「何番目に出るか」で、遅らせるほど後から現れる。
-      const ink=(order)=>({ display:'block', animation:`inkWrite .62s cubic-bezier(.25,.6,.3,1) ${0.15+order*0.5}s both` });
-      v.obInk1 = ink(0); v.obInk2 = ink(1);
-      // 紙そのものは、字が書き終わってから静かに現れる
-      v.obPaperStyle = { marginTop:30, background:'var(--card)', border:'1px solid var(--line)',
-        borderRadius:18, padding:18, animation:'riseUp .5s cubic-bezier(.2,.9,.2,1) 1.25s both' };
-      v.obCaptionDelay = { animation:'capRise .45s cubic-bezier(.2,.9,.2,1) 1.75s both' };
+      //
+      // 一字ずつ、薄い墨から本来の濃さへ沈み込むように現れる。
+      // 「ペンで書かれる」のではなく「すでに紙の中にあった字が、見えてくる」。
+      // 手書きの書体は iOS に日本語のものが無いので、書体ではなく色と動きで作る。
+      //
+      // 遅れは全部ここに並べてある。上から順に、約2.9秒で出そろう。
+      const EASE='cubic-bezier(.2,.7,.25,1)';
+      const chars=(text,start,step)=>text.split('').map((ch,i)=>({ ch,
+        style:{ display:'inline-block',
+          animation:`inkRise .5s ${EASE} ${(start+i*step).toFixed(2)}s both` } }));
+      v.obLine1 = chars('予定を、少しだけ', 0.15, 0.06);
+      v.obLine2 = chars('書いておきました。', 0.62, 0.05);
+      // 折り返させない。一字ずつ inline-block にすると日本語の行末処理が効かず、
+      // 「、」や「。」が行頭に来てしまう（この長さなら1行に収まる）
+      v.obLineStyle = { fontFamily:"'Hiragino Mincho ProN','Yu Mincho',serif", fontSize:27,
+        lineHeight:1.6, letterSpacing:'.05em', color:'var(--ink)', whiteSpace:'nowrap' };
+      const at=(name,dur,delay)=>({ animation:`${name} ${dur}s ${EASE} ${delay}s both` });
+      v.obPaperStyle = { marginTop:34, background:'var(--card)', border:'1px solid var(--line)',
+        borderRadius:18, padding:18, ...at('obLift',.6,1.7) };
+      // 日付は --ink-faint だとコントラスト比 2.06 しかなく、11px では読みにくい。
+      // --ink-mut に上げて 3.4／ダーク 4.9（見出しより弱い、という関係は保つ）
+      v.obDateStyle = { fontSize:11, fontWeight:600, color:'var(--ink-mut)', marginBottom:10,
+        ...at('capRise',.5,1.85) };
+      v.obSolidWrap = at('obLift',.55,1.95);
+      v.obDashWrap = at('obLift',.55,2.1);
+      v.obCaptionDelay = at('capRise',.45,2.4);
       const filled = ob.demo!=='dash';
       v.obDemoDone = ob.demo==='done';
       v.onObDemoTap = ()=>this.onboardDemoTap();

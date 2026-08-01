@@ -65,12 +65,17 @@ input { font-family: inherit; }
 @keyframes qFade { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(.4); opacity: 0; } }
 @keyframes capRise { 0% { transform: translateY(8px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
 @keyframes sweepFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-/* 紙にインクが引かれていく動き。はじめての案内の1枚目で使う。
-   手書きフォントは iOS に日本語のものが無いので、書体ではなく「書かれる動き」で作る。
-   左から出すだけだと字が伸びて見えるので、わずかに沈み込ませて重さを出す。 */
-@keyframes inkWrite {
-  from { clip-path: inset(0 100% -20% 0); transform: translateY(2px); }
-  to { clip-path: inset(0 -6% -20% 0); transform: translateY(0); }
+/* はじめての案内の1枚目。一字ずつ、薄い墨から本来の濃さへ沈み込むように現れる。
+   「ペンで書かれる」のではなく「すでに紙の中にあった字が、見えてくる」という考え方。
+   手書きフォントは iOS に日本語のものが無いので、書体ではなく色と動きで紙を感じさせる。 */
+@keyframes inkRise {
+  from { opacity: 0; transform: translateY(9px); color: var(--ink-faint); }
+  to { opacity: 1; transform: translateY(0); color: var(--ink); }
+}
+/* 紙や予定が、下から静かに置かれる */
+@keyframes obLift {
+  from { opacity: 0; transform: translateY(14px) scale(.988); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes pillSettle { 0% { transform: scale(1); } 45% { transform: scale(1.04); } 100% { transform: scale(1); } }
 @keyframes gaugeWave { 0% { height: var(--g0); } 70% { height: var(--g1); } 100% { height: var(--gf); } }
