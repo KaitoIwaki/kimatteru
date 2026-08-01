@@ -1018,11 +1018,10 @@ export default class App extends React.Component {
             blank:false, day:d,
             bgStyle:{background:'var(--card)',cursor:'pointer',...colLine(i)},
             numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
-            // 今日は「塗りつぶした黒丸」だったが、それが画面で一番濃いインクになり、
-            // 予定より先に目を引いていた。輪郭だけにして、曜日の色もそのまま残す。
+            // 今日は塗りつぶした丸。一度これを輪郭だけにしてみたが、
+            // 弱すぎたので戻した（画面で一番濃いインクでよい、という判断）。
             numStyle: isToday
-              ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,
-                 border:'1.5px solid '+dayColor, color:dayColor, fontSize:11, fontWeight:700, boxSizing:'border-box'}
+              ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
               : {fontSize:11,fontWeight:(hol||dow===0||dow===6)?700:600, color:dayColor},
             onDay:()=>this.openDay(d),
           };
