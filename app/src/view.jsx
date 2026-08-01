@@ -1252,7 +1252,7 @@ export function renderApp(v) {
               </div>
             )}
 
-            {/* 2枚目：空き状況とシェア。このアプリのもう一つの軸 */}
+            {/* 2枚目：空き状況。記号の説明を並べるより、本物の一覧の形で見せる */}
             {v.obStep === 1 && (
               <div>
                 <div style={s({ ...v.obLineStyle, marginTop: 24 })}>
@@ -1263,23 +1263,62 @@ export function renderApp(v) {
                 </div>
 
                 <div style={s(v.obFreeCardStyle)}>
-                  {(v.obFreeMarks || []).map((m, i) => (
-                    <div key={i} style={s({ ...m.style, display:'flex', alignItems:'center', gap:12, padding:'7px 0' })}>
-                      <span style={s({ fontSize:19, fontWeight:700, color:m.color, width:24, textAlign:'center', flexShrink:0 })}>{m.mark}</span>
-                      <span style={s('font-size:14px;color:var(--ink-soft)')}>{m.label}</span>
+                  {(v.obFreeRows || []).map((r, i) => (
+                    <div key={i} style={s({ ...r.style, display:'flex', alignItems:'center', gap:13, padding:'11px 0',
+                      ...(i ? { borderTop:'1px solid var(--line)' } : {}) })}>
+                      <span style={s('display:flex;flex-direction:column;align-items:center;width:26px;flex-shrink:0')}>
+                        <span style={s('font-size:9px;color:var(--ink-faint);line-height:1.3')}>{r.dow}</span>
+                        <span style={s('font-size:16px;font-weight:700;color:var(--ink);line-height:1.2;font-variant-numeric:tabular-nums')}>{r.day}</span>
+                      </span>
+                      <span style={s('flex:1;font-size:12.5px;color:var(--ink-soft);min-width:0')}>{r.note}</span>
+                      <span style={s({ fontSize:19, fontWeight:700, color:r.color, flexShrink:0 })}>{r.mark}</span>
                     </div>
                   ))}
                 </div>
                 <div style={s(v.obFreeNote)}>
                   <div style={s('font-size:13px;color:var(--ink-soft);line-height:2;margin-top:16px')}>
-                    {''}<Jp parts={['空いてる日だけを', '画像にして', '送れます。', '何の予定かは', '相手に伝わりません。']} />
+                    {''}<Jp parts={['予定を入れておくだけで、', 'その日が', '空いているかどうかが', '出ます。']} />
                   </div>
                 </div>
               </div>
             )}
 
-            {/* 3枚目：取り込み */}
+            {/* 3枚目：シェア。送られる画像そのものを見せる */}
             {v.obStep === 2 && (
+              <div>
+                <div style={s({ ...v.obLineStyle, marginTop: 24 })}>
+                  {(v.obShareLine1 || []).map((c, i) => (<span key={i} style={s(c.style)}>{c.ch}</span>))}
+                </div>
+                <div style={s(v.obLineStyle)}>
+                  {(v.obShareLine2 || []).map((c, i) => (<span key={i} style={s(c.style)}>{c.ch}</span>))}
+                </div>
+
+                <div style={s(v.obShareCardStyle)}>
+                  <div style={s('font-size:12px;font-weight:700;color:#D85A30;margin-bottom:11px')}>わたしの空いてる日</div>
+                  <div style={s('display:grid;grid-template-columns:repeat(7,1fr);gap:5px')}>
+                    {(v.obShareCells || []).map((c, i) => (<div key={i} style={s(c.style)} />))}
+                  </div>
+                  <div style={s('display:flex;align-items:center;gap:14px;margin-top:13px')}>
+                    <span style={s('display:flex;align-items:center;gap:6px')}>
+                      <span style={s('width:13px;height:13px;border-radius:4px;background:#FAECE7;border:1.5px solid #D85A30')} />
+                      <span style={s('font-size:11px;color:#55524A')}>空いてる</span>
+                    </span>
+                    <span style={s('display:flex;align-items:center;gap:6px')}>
+                      <span style={s('width:13px;height:13px;border-radius:4px;background:#EDEEF0')} />
+                      <span style={s('font-size:11px;color:#55524A')}>予定あり</span>
+                    </span>
+                  </div>
+                </div>
+                <div style={s(v.obShareNote)}>
+                  <div style={s('font-size:13px;color:var(--ink-soft);line-height:2;margin-top:16px')}>
+                    {''}<Jp parts={['カレンダーごと送ると、', '見せたくない予定まで', '写ってしまいます。', '空いている日だけの', '画像を作れます。']} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 4枚目：取り込み */}
+            {v.obStep === 3 && (
               <div>
                 <div style={s({ ...v.obLineStyle, marginTop: 24 })}>
                   {(v.obImpLine1 || []).map((c, i) => (<span key={i} style={s(c.style)}>{c.ch}</span>))}
@@ -1311,10 +1350,10 @@ export function renderApp(v) {
             {v.obStep === 0 && (
               <div style={s(v.obNextStyle)} onClick={v.onObNext}>{v.obNextLabel}</div>
             )}
-            {v.obStep === 1 && (
+            {(v.obStep === 1 || v.obStep === 2) && (
               <div style={s('padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer')} onClick={v.onObNext}>つぎへ</div>
             )}
-            {v.obStep === 2 && (
+            {v.obStep === 3 && (
               <>
                 {v.obCanImport && (
                   <div style={s('padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:9px')} onClick={v.onObImport}>カレンダーから取り込む</div>

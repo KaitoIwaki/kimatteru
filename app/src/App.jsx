@@ -784,7 +784,7 @@ export default class App extends React.Component {
     if(v.onboardShown){
       const ob=st.onboard, teal='#1D9E75';
       v.obStep = ob.step;
-      v.obDots = [0,1,2].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
+      v.obDots = [0,1,2,3].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
         background:i===ob.step?'var(--ink)':'var(--line)',transition:'all .3s cubic-bezier(.2,.9,.2,1)'} }));
       v.onObNext = ()=>{ if(this.state.onboard.demo==='dash') return; this.onboardNext(); };
       v.onObBack = ()=>this.onboardBack();
@@ -869,20 +869,38 @@ export default class App extends React.Component {
       // 時給の画面はやめた。バイトをしない人には無関係な入力で、
       // そこに1枚使うのは重い。時給はバイト先を作るときに聞く。
 
-      // 2枚目：空き状況とシェア。このアプリのもう一つの軸なので、
-      // 「そういう機能がある」ことだけは先に知らせておく。
-      v.obFreeLine1 = chars('空いてる日は、', 0.1, 0.06);
-      v.obFreeLine2 = chars('見せずに送れる。', 0.55, 0.05);
+      // 2枚目：空き状況。3枚目：シェア。
+      // もとは1枚に押し込んでいたが、別の話がふたつ入って読みにくかった。
+      // 1枚に1つだけ言う。
+      v.obFreeLine1 = chars('空いてる日が、', 0.1, 0.06);
+      v.obFreeLine2 = chars('ひと目でわかる。', 0.55, 0.05);
       v.obFreeCardStyle = { marginTop:30, background:'var(--card)', border:'1px solid var(--line)',
-        borderRadius:18, padding:'18px 18px 20px', ...at('obLift',.6,1.5) };
-      v.obFreeMarks = [
-        { mark:'○', label:'空いてる', color:'#1D9E75', style:at('obLift',.5,1.75) },
-        { mark:'△', label:'一部だけ', color:'#B9770F', style:at('obLift',.5,1.9) },
-        { mark:'×', label:'埋まってる', color:'#8C887C', style:at('obLift',.5,2.05) },
+        borderRadius:18, padding:'6px 16px 10px', ...at('obLift',.6,1.5) };
+      // 記号の説明を並べるより、本物の一覧の形で見せるほうが早い
+      v.obFreeRows = [
+        { day:'3', dow:'月', mark:'○', color:'#1D9E75', note:'まる1日あいてます', style:at('obLift',.5,1.75) },
+        { day:'4', dow:'火', mark:'△', color:'#B9770F', note:'17:00 以降なら空いてます', style:at('obLift',.5,1.9) },
+        { day:'5', dow:'水', mark:'×', color:'#C1C5CC', note:'ふさがっています', style:at('obLift',.5,2.05) },
       ];
       v.obFreeNote = at('capRise',.45,2.3);
 
-      // 3枚目：取り込み
+      // 3枚目：シェア。カレンダーごと送ると見られたくない予定まで写る、
+      // という困りごとに対する答えなので、その絵をそのまま見せる。
+      v.obShareLine1 = chars('予定は見せずに、', 0.1, 0.06);
+      v.obShareLine2 = chars('空きだけ送れる。', 0.55, 0.05);
+      v.obShareCardStyle = { marginTop:30, background:'#FFFDF8', border:'1px solid var(--line)',
+        borderRadius:18, padding:'16px 16px 18px', ...at('obLift',.6,1.5) };
+      // 送られる画像そっくりの見本。数字も名前も無いことが、見れば分かる
+      {
+        const free={height:26,borderRadius:6,background:'#FAECE7',border:'1.5px solid #D85A30'};
+        const busy={height:26,borderRadius:6,background:'#EDEEF0'};
+        const pattern=[1,0,0,1,1,0,1, 1,1,0,1,0,0,1, 0,1,1,1,0,1,1];
+        v.obShareCells = pattern.map((f,i)=>({ style:{ ...(f?free:busy),
+          animation:`obLift .4s ${EASE} ${(1.7+i*0.022).toFixed(2)}s both` } }));
+      }
+      v.obShareNote = at('capRise',.45,2.5);
+
+      // 4枚目：取り込み
       v.obImpLine1 = chars('いまの予定を、', 0.1, 0.06);
       v.obImpLine2 = chars('持ってきますか。', 0.55, 0.05);
       v.obImpBodyStyle = at('capRise',.5,1.4);
