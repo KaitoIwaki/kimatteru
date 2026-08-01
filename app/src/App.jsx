@@ -120,6 +120,15 @@ const sanitizeJobs = (list) => (Array.isArray(list) ? list.filter(
   (j) => j && typeof j.id === 'string' && isNum(j.hourly)
 ) : []);
 
+// 保存済みの種類に、組み込みの種類の項目を埋め戻す。
+// 種類に新しい項目（既定の時間帯など）を足しても、すでに使っている人の
+// 保存データには入っていない。合成しないと、新しい項目が誰にも届かない。
+// 名前と色は本人が変えている可能性があるので、保存側を優先する。
+const mergeTypes = (saved, builtin) => saved.map((t) => {
+  const base = builtin.find((b) => b.key === t.key);
+  return base ? { ...base, ...t } : t;
+});
+
 const todayParts = () => {
   const n = new Date();
   return { y: n.getFullYear(), m: n.getMonth(), d: n.getDate() };
@@ -149,7 +158,7 @@ export default class App extends React.Component {
         this.state = {
           ...this.state,
           events: sanitizeEvents(saved.events),
-          types: typesOk(saved.types) ? saved.types : this.state.types,
+          types: typesOk(saved.types) ? mergeTypes(saved.types, this.state.types) : this.state.types,
           overrides: saved.overrides || this.state.overrides,
           // すでに使っている人には案内を出さない
           settings: { ...this.state.settings, onboarded: true, ...(saved.settings || {}) },
@@ -197,9 +206,9 @@ export default class App extends React.Component {
     settings:{ hourly:1120, weekStart:0, remind:true, hideCanceled:false, dark:false, onboarded:false },
     // はじめての案内。step は 0=しくみ 1=時給 2=取り込み
     onboard:{ step:0, demo:'dash' },
-    draft:{ title:'', type:'baito', status:'kakutei', start:'17:00', end:'22:00', y:todayParts().y, m:todayParts().m, day:todayParts().d, allDay:false, picking:null },
+    draft:{ title:'', type:'yoji', status:'kakutei', start:'10:00', end:'11:00', y:todayParts().y, m:todayParts().m, day:todayParts().d, allDay:false, picking:null },
     types:[
-      {key:'baito', name:'バイト', color:'#1D9E75', paper:'rgba(225,245,238,.72)', dark:'#085041', uWord:'希望シフト', cWord:'確定シフト'},
+      {key:'baito', name:'バイト', color:'#1D9E75', paper:'rgba(225,245,238,.72)', dark:'#085041', uWord:'希望シフト', cWord:'確定シフト', defStart:'17:00', defEnd:'22:00'},
       {key:'yoji',  name:'用事',   color:'#534AB7', paper:'rgba(238,237,254,.72)', dark:'#3C3489', uWord:'まだ分からない用事', cWord:'確定した用事'},
       {key:'asobi', name:'遊び',   color:'#D85A30', paper:'rgba(250,236,231,.72)', dark:'#712B13', uWord:'候補日', cWord:'約束'},
       {key:'other', name:'その他', color:'#5A6570', paper:'rgba(233,235,238,.72)', dark:'#374151', uWord:'未確定の予定', cWord:'予定'},
@@ -386,7 +395,13 @@ export default class App extends React.Component {
     if(dir) this.setState(s=>({ym:shiftMonth(s.ym,dir), dayNum:null, swipe:{dx:0,animating:false}}));
     else this.setState({swipe:{dx:0,animating:false}});
   }
-  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',repEvery:null,repWeeks:4,added:[],picking:null}}); }
+  // 既定の種類は「用事」。バイトをしない人のほうが多いのに、
+  // 何もしなければシフトになる作りだった。
+  // 時間もその種類のものから始める（用事が 17:00–22:00 で始まると面食らう）。
+  defTimes(key){ const t=(this.state.types||[]).find(x=>x.key===key)||{};
+    return { start: t.defStart || '10:00', end: t.defEnd || '11:00' }; }
+  openNew(day,ret){ const ym=this.state.ym; const dt=this.defTimes('yoji');
+    this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'yoji',status:'kakutei',start:dt.start,end:dt.end,y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',repEvery:null,repWeeks:4,added:[],picking:null}}); }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
     this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
@@ -601,7 +616,16 @@ export default class App extends React.Component {
   dlgNakunatta(){ const d=this.state.dialog; this.updateEvent(d.id,{status:'nakunatta'}); this.setState(s=>({dialog:null, screen: s.detailId===d.id ? s.returnTo : s.screen, detailId: s.detailId===d.id?null:s.detailId})); }
 
   // ---- type editor ----
-  selectType(k){ this.setState(s=>({draft:{...s.draft,type:k}})); }
+  // 種類を変えたら、時間もその種類の既定に合わせる。
+  // ただし本人が時刻をいじっていたら、そのまま残す（勝手に戻さない）。
+  selectType(k){
+    this.setState(s=>{
+      const dr=s.draft;
+      const cur=this.defTimes(dr.type), next=this.defTimes(k);
+      const untouched = dr.start===cur.start && dr.end===cur.end;
+      return { draft:{...dr, type:k, ...(untouched ? {start:next.start, end:next.end} : {})} };
+    });
+  }
   addType(){
     const nt=this.state.newType; if(!nt) return;
     const name=(nt.name||'').trim()||'新しい種類';
@@ -2012,7 +2036,7 @@ export default class App extends React.Component {
     const d = r.data;
     this.setState((s) => ({
       events: sanitizeEvents(d.events),
-      types: typesOk(d.types) ? d.types : s.types,
+      types: typesOk(d.types) ? mergeTypes(d.types, s.types) : s.types,
       jobs: sanitizeJobs(d.jobs),
       overrides: d.overrides || {},
       notices: d.notices || [],
@@ -2120,7 +2144,7 @@ export default class App extends React.Component {
     if (!events.length) return;
     this.setState((s) => ({
       events,
-      types: typesOk(saved.types) ? saved.types : s.types,
+      types: typesOk(saved.types) ? mergeTypes(saved.types, s.types) : s.types,
       overrides: saved.overrides || s.overrides,
       settings: { ...s.settings, onboarded: true, ...(saved.settings || {}) },
       notices: saved.notices || s.notices,
