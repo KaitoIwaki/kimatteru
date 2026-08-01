@@ -100,31 +100,26 @@ export function renderApp(v) {
               </div>
             </div>
 
-            {v.showFirstRunHint && (
-              <div style={s('flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:10px;padding:30px 34px 8px;text-align:center')}>
-                <div style={s('display:flex;align-items:center;gap:8px')}>
-                  <span style={s('display:inline-block;width:52px;height:15px;border-radius:5px;background:#1D9E75')} />
-                  <span style={s('display:inline-block;width:52px;height:15px;border-radius:5px;background:rgba(29,158,117,.10);border:1.4px dashed #1D9E75')} />
-                </div>
-                <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.7;text-wrap:pretty')}>
-                  {''}<Jp parts={['決まっている予定は','塗り、','まだ分からない予定は','点線で','並びます。']} />
-                </div>
-                <div style={s('font-size:12px;color:var(--ink-faint)')}>＋ から最初の予定を置いてみてください</div>
-                {v.importAvailable && (
-                  <div style={s('margin-top:14px;padding:12px 20px;border-radius:15px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer')} onClick={v.onOpenImport}>
-                    iPhone のカレンダーから取り込む
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* まだ1件も無いとき。案内を読み終えて空の画面に放り出さない。
-              下の「＋」を指しているので、位置はタブバーのすぐ上に置く。 */}
-          {v.calEmptyShown && (
-            <div className="empty-hint" style={s('position:absolute;left:0;right:0;bottom:78px;display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;animation:capRise .5s cubic-bezier(.2,.9,.2,1) .35s both')}>
-              <span style={s('font-size:13px;color:var(--ink-soft)')}>＋ から、最初の予定を入れてみましょう</span>
-              <span style={s('font-size:14px;color:var(--ink-mut);line-height:1')}>▾</span>
+          {/* まだ1件も無いときの案内。
+              前は列の中に置いていて、カレンダーの高さを奪って最終週を切っていた。
+              予定がゼロなら下半分は空なので、上に浮かせて隠すほうが害が少ない。 */}
+          {v.showFirstRunHint && (
+            <div className="first-run" style={s('position:absolute;left:16px;right:16px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:20px 22px 18px;border-radius:20px;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--line);text-align:center;box-shadow:0 10px 30px rgba(38,37,31,.10);animation:riseUp .4s cubic-bezier(.2,.9,.2,1) .2s both')}>
+              <div style={s('display:flex;align-items:center;gap:8px')}>
+                <span style={s('display:inline-block;width:52px;height:15px;border-radius:5px;background:#1D9E75')} />
+                <span style={s('display:inline-block;width:52px;height:15px;border-radius:5px;background:rgba(29,158,117,.10);border:1.4px dashed #1D9E75')} />
+              </div>
+              <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.7;text-wrap:pretty')}>
+                {''}<Jp parts={['決まっている予定は','塗り、','まだ分からない予定は','点線で','並びます。']} />
+              </div>
+              <div style={s('font-size:12.5px;color:var(--ink-mut)')}>下の ＋ から、最初の予定を置いてみてください</div>
+              {v.importAvailable && (
+                <div style={s('margin-top:8px;padding:12px 20px;border-radius:15px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer')} onClick={v.onOpenImport}>
+                  iPhone のカレンダーから取り込む
+                </div>
+              )}
             </div>
           )}
 
@@ -1225,7 +1220,7 @@ export function renderApp(v) {
                       <span style={s(v.obDemoTextStyle)}>{v.obDemoLabel}</span>
                     </div>
                   </div>
-                  <div style={s(`font-size:12.5px;margin-top:14px;line-height:1.7;color:${v.obDemoDone ? '#0F6E56' : 'var(--ink-soft)'}`)}>{v.obDemoCaption}</div>
+                  <div style={s({ fontSize:13, marginTop:14, lineHeight:1.7, fontWeight:600, color:v.obDemoCaptionColor })}>{v.obDemoCaption}</div>
                   {v.obDemoDone && (
                     <div style={s('font-size:12px;color:var(--ink-mut);margin-top:8px;cursor:pointer')} onClick={v.onObDemoReset}>もう一度みる</div>
                   )}
@@ -1239,15 +1234,47 @@ export function renderApp(v) {
               </div>
             )}
 
+            {/* 2枚目：空き状況とシェア。このアプリのもう一つの軸 */}
             {v.obStep === 1 && (
-              <div style={s('animation:riseUp .32s cubic-bezier(.2,.9,.2,1)')}>
-                <div style={s('font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.5px;line-height:1.5;margin-top:18px')}>
-                  {''}<Jp parts={['いまの予定を', '持ってきますか']} />
+              <div>
+                <div style={s({ ...v.obLineStyle, marginTop: 24 })}>
+                  {(v.obFreeLine1 || []).map((c, i) => (<span key={i} style={s(c.style)}>{c.ch}</span>))}
                 </div>
-                <div style={s('font-size:14px;color:var(--ink-soft);line-height:2;margin-top:12px')}>
-                  {''}<Jp parts={['iPhone のカレンダーから', '読み込めます。', 'はじめから', '作り直さなくて', '済みます。']} />
+                <div style={s(v.obLineStyle)}>
+                  {(v.obFreeLine2 || []).map((c, i) => (<span key={i} style={s(c.style)}>{c.ch}</span>))}
                 </div>
-                <div style={s('margin-top:24px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 18px')}>
+
+                <div style={s(v.obFreeCardStyle)}>
+                  {(v.obFreeMarks || []).map((m, i) => (
+                    <div key={i} style={s({ ...m.style, display:'flex', alignItems:'center', gap:12, padding:'7px 0' })}>
+                      <span style={s({ fontSize:19, fontWeight:700, color:m.color, width:24, textAlign:'center', flexShrink:0 })}>{m.mark}</span>
+                      <span style={s('font-size:14px;color:var(--ink-soft)')}>{m.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={s(v.obFreeNote)}>
+                  <div style={s('font-size:13px;color:var(--ink-soft);line-height:2;margin-top:16px')}>
+                    {''}<Jp parts={['空いてる日だけを', '画像にして', '送れます。', '何の予定かは', '相手に伝わりません。']} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 3枚目：取り込み */}
+            {v.obStep === 2 && (
+              <div>
+                <div style={s({ ...v.obLineStyle, marginTop: 24 })}>
+                  {(v.obImpLine1 || []).map((c, i) => (<span key={i} style={s(c.style)}>{c.ch}</span>))}
+                </div>
+                <div style={s(v.obLineStyle)}>
+                  {(v.obImpLine2 || []).map((c, i) => (<span key={i} style={s(c.style)}>{c.ch}</span>))}
+                </div>
+                <div style={s(v.obImpBodyStyle)}>
+                  <div style={s('font-size:14px;color:var(--ink-soft);line-height:2;margin-top:14px')}>
+                    {''}<Jp parts={['iPhone のカレンダーから', '読み込めます。', 'はじめから', '作り直さなくて', '済みます。']} />
+                  </div>
+                </div>
+                <div style={s(v.obImpCardStyle)}>
                   <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95')}>
                     {['読むだけです。書き込みはしません', '入れるものは1件ずつ選べます', 'あとから設定でもできます'].map((t, i) => (
                       <div key={i} style={s('display:flex;gap:6px')}><span>・</span><span style={s('flex:1')}>{t}</span></div>
@@ -1264,9 +1291,12 @@ export function renderApp(v) {
             </div>
 
             {v.obStep === 0 && (
-              <div style={s('padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer')} onClick={v.onObNext}>つぎへ</div>
+              <div style={s(v.obNextStyle)} onClick={v.onObNext}>{v.obNextLabel}</div>
             )}
             {v.obStep === 1 && (
+              <div style={s('padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer')} onClick={v.onObNext}>つぎへ</div>
+            )}
+            {v.obStep === 2 && (
               <>
                 {v.obCanImport && (
                   <div style={s('padding:16px;border-radius:17px;background:var(--ink);color:var(--card);text-align:center;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:9px')} onClick={v.onObImport}>カレンダーから取り込む</div>
@@ -1294,8 +1324,13 @@ export function renderApp(v) {
               <div style={s('text-align:center;padding:56px 10px')}>
                 <div style={s('width:56px;height:56px;border-radius:28px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;animation:checkPop .5s cubic-bezier(.2,.9,.2,1) both')}>✓</div>
                 <div style={s('font-size:19px;font-weight:700;color:var(--ink);margin-top:18px')}>{v.impAdded}件を取り込みました</div>
-                <div style={s('font-size:13px;color:var(--ink-mut);margin-top:8px;line-height:1.9;text-wrap:pretty')}>
+                <div style={s('font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.9;text-wrap:pretty')}>
                   {''}<Jp parts={['すべて','「決まってる」として','置きました。','まだ分からない予定は、','タップして','点線に','変えられます。']} />
+                </div>
+                {/* 取り込んだ瞬間に案内が消えるので、ここで新しい予定の入れ方を伝える。
+                    前は取り込んだあと、追加のしかたがどこにも出ていなかった。 */}
+                <div style={s('margin-top:20px;padding:14px 16px;border-radius:15px;background:var(--bg2);font-size:13px;color:var(--ink-soft);line-height:1.9;text-wrap:pretty')}>
+                  {''}<Jp parts={['新しい予定は、','下の ＋ から','入れられます。']} />
                 </div>
                 <div style={s('margin-top:28px;padding:15px;border-radius:16px;background:var(--ink);color:var(--card);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onImportDone}>カレンダーを見る</div>
               </div>

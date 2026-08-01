@@ -77,6 +77,11 @@ input { font-family: inherit; }
   from { opacity: 0; transform: translateY(14px) scale(.988); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+/* 押してほしいものが、静かに息をする。跳ねさせない（紙の上の話なので） */
+@keyframes tapBreath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.022); }
+}
 @keyframes pillSettle { 0% { transform: scale(1); } 45% { transform: scale(1.04); } 100% { transform: scale(1); } }
 @keyframes gaugeWave { 0% { height: var(--g0); } 70% { height: var(--g1); } 100% { height: var(--gf); } }
 
@@ -121,10 +126,9 @@ input { font-family: inherit; }
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
-/* 「＋」を指す案内は、タブバーのすぐ上に置く（タブバーは浮いている） */
-.empty-hint {
-  /* タブバーは safe + 4px から高さ 64px。その上端より 14px 上に置く */
-  bottom: calc(env(safe-area-inset-bottom) + 90px) !important;
+/* まだ1件も無いときの案内。タブバーの上に浮かせる（グリッドの高さを奪わない） */
+.first-run {
+  bottom: calc(env(safe-area-inset-bottom) + 84px) !important;
 }
 
 .wagebar {

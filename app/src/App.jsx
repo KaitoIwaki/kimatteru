@@ -759,9 +759,9 @@ export default class App extends React.Component {
     if(v.onboardShown){
       const ob=st.onboard, teal='#1D9E75';
       v.obStep = ob.step;
-      v.obDots = [0,1].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
+      v.obDots = [0,1,2].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
         background:i===ob.step?'var(--ink)':'var(--line)',transition:'all .3s cubic-bezier(.2,.9,.2,1)'} }));
-      v.onObNext = ()=>this.onboardNext();
+      v.onObNext = ()=>{ if(this.state.onboard.demo==='dash') return; this.onboardNext(); };
       v.onObBack = ()=>this.onboardBack();
       v.onObSkip = ()=>this.finishOnboard(false);
 
@@ -793,9 +793,12 @@ export default class App extends React.Component {
       v.obDateStyle = { fontSize:11, fontWeight:600, color:'var(--ink-mut)', marginBottom:10,
         ...at('capRise',.5,1.85) };
       v.obSolidWrap = at('obLift',.55,1.95);
-      v.obDashWrap = at('obLift',.55,2.1);
       v.obCaptionDelay = at('capRise',.45,2.4);
       const filled = ob.demo!=='dash';
+      // このアプリで一番覚えてほしい操作なので、押されるまで待つ。
+      // 押されるまでは、点線が静かに息をする（出そろってから始める）。
+      v.obDashWrap = { animation: `obLift .55s ${EASE} 2.1s both`
+        + (filled ? '' : `, tapBreath 2.6s ease-in-out 2.9s infinite`) };
       v.obDemoDone = ob.demo==='done';
       v.onObDemoTap = ()=>this.onboardDemoTap();
       v.onObDemoReset = ()=>this.onboardResetDemo();
@@ -816,7 +819,17 @@ export default class App extends React.Component {
         animation: ob.demo==='fill' ? 'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none', zIndex:0 };
       v.obDemoTextStyle = { position:'relative', zIndex:1 };
       v.obDemoLabel = filled ? 'カフェバイト' : '？カフェバイト';
-      v.obDemoCaption = filled ? '決まった、が形になりました。' : '点線の予定をタップしてみてください';
+      v.obDemoCaption = filled ? '決まった、が形になりました。' : '↑ 点線の予定をタップしてみてください';
+      v.obDemoCaptionColor = filled ? '#0F6E56' : 'var(--ink)';
+      // 押すまで進ませない。ここを飛ばされると、このアプリの一番の要が
+      // 伝わらないまま日常に入る。押してあれば普通の黒いボタン。
+      v.obNextLocked = !filled;
+      v.obNextStyle = { padding:16, borderRadius:17, textAlign:'center', fontSize:16, fontWeight:700,
+        transition:'all .3s cubic-bezier(.2,.9,.2,1)',
+        ...(filled
+          ? { background:'var(--ink)', color:'var(--card)', cursor:'pointer' }
+          : { background:'var(--bg2)', color:'var(--ink-faint)', cursor:'default' }) };
+      v.obNextLabel = filled ? 'つぎへ' : '点線をタップすると進めます';
       // 上に確定した予定を1本置く。違いは、並べて初めて見える。
       // 点線だけを出しても「点線が普通の形」と思われてしまう。
       {
@@ -829,27 +842,39 @@ export default class App extends React.Component {
       }
 
       // 時給の画面はやめた。バイトをしない人には無関係な入力で、
-      // 3枚のうち1枚をそこに使うのは重い。時給はバイト先を作るときに聞く。
+      // そこに1枚使うのは重い。時給はバイト先を作るときに聞く。
 
-      // 2枚目：取り込み
+      // 2枚目：空き状況とシェア。このアプリのもう一つの軸なので、
+      // 「そういう機能がある」ことだけは先に知らせておく。
+      v.obFreeLine1 = chars('空いてる日は、', 0.1, 0.06);
+      v.obFreeLine2 = chars('見せずに送れる。', 0.55, 0.05);
+      v.obFreeCardStyle = { marginTop:30, background:'var(--card)', border:'1px solid var(--line)',
+        borderRadius:18, padding:'18px 18px 20px', ...at('obLift',.6,1.5) };
+      v.obFreeMarks = [
+        { mark:'○', label:'空いてる', color:'#1D9E75', style:at('obLift',.5,1.75) },
+        { mark:'△', label:'一部だけ', color:'#B9770F', style:at('obLift',.5,1.9) },
+        { mark:'×', label:'埋まってる', color:'#8C887C', style:at('obLift',.5,2.05) },
+      ];
+      v.obFreeNote = at('capRise',.45,2.3);
+
+      // 3枚目：取り込み
+      v.obImpLine1 = chars('いまの予定を、', 0.1, 0.06);
+      v.obImpLine2 = chars('持ってきますか。', 0.55, 0.05);
+      v.obImpBodyStyle = at('capRise',.5,1.4);
+      v.obImpCardStyle = { marginTop:24, background:'var(--card)', border:'1px solid var(--line)',
+        borderRadius:18, padding:'16px 18px', ...at('obLift',.6,1.65) };
       v.obCanImport = canImport();
       v.onObImport = ()=>this.finishOnboard(true);
       v.onObStart = ()=>this.finishOnboard(false);
     }
 
     // ---------- 何も無いときの案内 ----------
-    // 案内を読み終わったあと、空のカレンダーに放り出される。
-    // 1枚目であれだけ丁寧に教えたのに、最初の1件を入れる導線が無かった。
-    // 出すのは本当に0件のときだけ。1件でも入れたら、もう黙る。
-    {
-      const empty = st.events.length===0 && !v.onboardShown;
-      v.calEmptyShown = empty && st.screen==='month';
-      // 空き状況は、予定が無いと全部「○」で意味を持たない。
-      // ここが取り込みを勧めるのに一番いい場所（寂しい画面を見た、その瞬間）
-      v.freeEmptyShown = empty && st.screen==='free';
-      v.freeEmptyCanImport = canImport();
-      v.onFreeEmptyImport = ()=>this.openImport();
-    }
+    // 月表示のぶんは showFirstRunHint（前からある）。二重に出さない。
+    // 空き状況は、予定が無いと全部「○」で意味を持たない。
+    // ここが取り込みを勧めるのに一番いい場所（寂しい画面を見た、その瞬間）。
+    v.freeEmptyShown = st.events.length===0 && !v.onboardShown && st.screen==='free';
+    v.freeEmptyCanImport = canImport();
+    v.onFreeEmptyImport = ()=>this.openImport();
 
     // ---------- 予定の取り込み ----------
     v.importAvailable = canImport();
