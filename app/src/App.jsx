@@ -195,7 +195,7 @@ export default class App extends React.Component {
     shareChoices:{ o1:null, o2:null, o3:null }, shareSubmitted:false, shareToast:false, shareMsg:'', morph:null,
     settings:{ hourly:1120, weekStart:0, remind:true, hideCanceled:false, dark:false, onboarded:false },
     // はじめての案内。step は 0=しくみ 1=時給 2=取り込み
-    onboard:{ step:0, demo:'dash', jobName:'', jobHourly:1120 },
+    onboard:{ step:0, demo:'dash' },
     draft:{ title:'', type:'baito', status:'kakutei', start:'17:00', end:'22:00', y:todayParts().y, m:todayParts().m, day:todayParts().d, allDay:false, picking:null },
     types:[
       {key:'baito', name:'バイト', color:'#1D9E75', paper:'rgba(225,245,238,.72)', dark:'#085041', uWord:'希望シフト', cWord:'確定シフト'},
@@ -446,18 +446,6 @@ export default class App extends React.Component {
   onboardResetDemo(){ this.setState(s=>({onboard:{...s.onboard, demo:'dash'}})); }
   onboardNext(){ tapLight(); this.setState(s=>({onboard:{...s.onboard, step:s.onboard.step+1}})); }
   onboardBack(){ this.setState(s=>({onboard:{...s.onboard, step:Math.max(0,s.onboard.step-1)}})); }
-  // 時給の入力を、そのままバイト先として登録する
-  onboardSaveJob(){
-    const {jobName,jobHourly}=this.state.onboard;
-    const name=(jobName||'').trim();
-    if(name){
-      const id=uid('j');
-      this.setState(s=>({ jobs:[...s.jobs,{id,name,hourly:jobHourly}] }));
-    } else {
-      this.setSetting('hourly', jobHourly);
-    }
-    this.onboardNext();
-  }
   finishOnboard(goImport){
     stampHeavy();
     this.setState(s=>({ settings:{...s.settings, onboarded:true}, screen: goImport ? 'import' : 'month' }));
@@ -771,7 +759,7 @@ export default class App extends React.Component {
     if(v.onboardShown){
       const ob=st.onboard, teal='#1D9E75';
       v.obStep = ob.step;
-      v.obDots = [0,1,2].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
+      v.obDots = [0,1].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
         background:i===ob.step?'var(--ink)':'var(--line)',transition:'all .3s cubic-bezier(.2,.9,.2,1)'} }));
       v.onObNext = ()=>this.onboardNext();
       v.onObBack = ()=>this.onboardBack();
@@ -837,20 +825,27 @@ export default class App extends React.Component {
         v.obSolidLabel = '映画';
       }
 
-      // 2枚目：時給
-      v.obJobName = ob.jobName;
-      v.obJobHourly = String(ob.jobHourly);
-      v.onObJobName = (e)=>{ const val=e.target.value; this.setState(s=>({onboard:{...s.onboard, jobName:val}})); };
-      v.onObHourly = (e)=>{ const n=parseInt((e.target.value||'').replace(/[^0-9]/g,''),10);
-        this.setState(s=>({onboard:{...s.onboard, jobHourly:isNaN(n)?0:Math.min(99999,n)}})); };
-      v.onObHourlyMinus = ()=>this.setState(s=>({onboard:{...s.onboard, jobHourly:Math.max(0,s.onboard.jobHourly-10)}}));
-      v.onObHourlyPlus = ()=>this.setState(s=>({onboard:{...s.onboard, jobHourly:s.onboard.jobHourly+10}}));
-      v.onObSaveJob = ()=>this.onboardSaveJob();
+      // 時給の画面はやめた。バイトをしない人には無関係な入力で、
+      // 3枚のうち1枚をそこに使うのは重い。時給はバイト先を作るときに聞く。
 
-      // 3枚目：取り込み
+      // 2枚目：取り込み
       v.obCanImport = canImport();
       v.onObImport = ()=>this.finishOnboard(true);
       v.onObStart = ()=>this.finishOnboard(false);
+    }
+
+    // ---------- 何も無いときの案内 ----------
+    // 案内を読み終わったあと、空のカレンダーに放り出される。
+    // 1枚目であれだけ丁寧に教えたのに、最初の1件を入れる導線が無かった。
+    // 出すのは本当に0件のときだけ。1件でも入れたら、もう黙る。
+    {
+      const empty = st.events.length===0 && !v.onboardShown;
+      v.calEmptyShown = empty && st.screen==='month';
+      // 空き状況は、予定が無いと全部「○」で意味を持たない。
+      // ここが取り込みを勧めるのに一番いい場所（寂しい画面を見た、その瞬間）
+      v.freeEmptyShown = empty && st.screen==='free';
+      v.freeEmptyCanImport = canImport();
+      v.onFreeEmptyImport = ()=>this.openImport();
     }
 
     // ---------- 予定の取り込み ----------
