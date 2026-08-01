@@ -776,8 +776,11 @@ export default class App extends React.Component {
       const chars=(text,start,step)=>text.split('').map((ch,i)=>({ ch,
         style:{ display:'inline-block',
           animation:`inkRise .5s ${EASE} ${(start+i*step).toFixed(2)}s both` } }));
-      v.obLine1 = chars('予定を、少しだけ', 0.15, 0.06);
-      v.obLine2 = chars('書いておきました。', 0.62, 0.05);
+      // 「予定を、少しだけ書いておきました。」と書いていた時期があるが、
+      // 実際には1件も書いていない（案内の中の見本を見せているだけ）ので嘘だった。
+      // 最初の一文は、このアプリが何なのかを言う。
+      v.obLine1 = chars('決まった予定も、', 0.15, 0.06);
+      v.obLine2 = chars('まだの予定も。', 0.62, 0.05);
       // 折り返させない。一字ずつ inline-block にすると日本語の行末処理が効かず、
       // 「、」や「。」が行頭に来てしまう（この長さなら1行に収まる）
       v.obLineStyle = { fontFamily:"'Hiragino Mincho ProN','Yu Mincho',serif", fontSize:27,
