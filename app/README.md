@@ -3,7 +3,7 @@
 不確定な予定と決まっている予定が、カレンダーを開いた瞬間に見分けられるアプリ。
 Windows で開発し、iOS のビルドと署名は Codemagic のクラウド Mac で行う（Capacitor）。
 
-**いまの版：v0.16.0 / TestFlight 配信中 / App Store 未提出**
+**いまの版：v0.17.0 / TestFlight 配信中 / App Store 未提出**
 
 ---
 
