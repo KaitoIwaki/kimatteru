@@ -631,7 +631,14 @@ export function renderApp(v) {
               <span style={s('font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;min-width:72px;text-align:center')}>{v.ymSheetYear}</span>
               <span role="button" aria-label="次の年" style={s('width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:21px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYmSheetNextYear}>›</span>
             </div>
-            <div style={s('display:grid;grid-template-columns:repeat(4,1fr);gap:8px')}>
+            {/* 横に払っても年が変わる。‹ › だけだと的が小さい */}
+            <div
+              key={v.ymSheetGridKey}
+              style={s(v.ymSheetGridStyle)}
+              onTouchStart={v.onYmSheetTouchStart}
+              onTouchMove={v.onYmSheetTouchMove}
+              onTouchEnd={v.onYmSheetTouchEnd}
+            >
               {(v.ymSheetMonths || []).map((mo, i) => (
                 <div key={i} style={s(mo.style)} onClick={mo.onClick}>{mo.label}</div>
               ))}

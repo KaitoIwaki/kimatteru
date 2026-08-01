@@ -982,8 +982,31 @@ export default class App extends React.Component {
         const sy = sh.y;
         v.ymSheetYear = String(sy);
         v.onYmSheetClose = ()=>this.setState({ymSheet:null});
-        v.onYmSheetPrevYear = ()=>this.setState(s=>({ymSheet:{y:s.ymSheet.y-1}}));
-        v.onYmSheetNextYear = ()=>this.setState(s=>({ymSheet:{y:s.ymSheet.y+1}}));
+        const shiftYear=(d)=>this.setState(s=>({ymSheet:{y:s.ymSheet.y+d, dir:d}}));
+        v.onYmSheetPrevYear = ()=>{ tapLight(); shiftYear(-1); };
+        v.onYmSheetNextYear = ()=>{ tapLight(); shiftYear(1); };
+        // 月の並びを横に払っても年が変わる。‹ › の的が小さいので、
+        // 空き状況の一覧と同じ「離したときに切り替える」やり方に合わせる。
+        v.onYmSheetTouchStart = (e)=>{ const t=e.touches&&e.touches[0]; if(!t) return;
+          this._ysx=t.clientX; this._ysy=t.clientY; this._yAxis=null; };
+        v.onYmSheetTouchMove = (e)=>{ const t=e.touches&&e.touches[0]; if(!t||this._ysx==null) return;
+          const dx=t.clientX-this._ysx, dy=t.clientY-this._ysy;
+          if(!this._yAxis){
+            if(Math.abs(dx)<8 && Math.abs(dy)<8) return;
+            this._yAxis = Math.abs(dx)>Math.abs(dy)*1.2 ? 'x' : 'y';
+          } };
+        v.onYmSheetTouchEnd = (e)=>{ const t=e.changedTouches&&e.changedTouches[0];
+          const wasX=this._yAxis==='x', sx=this._ysx;
+          this._ysx=null; this._yAxis=null;
+          if(!t||!wasX||sx==null) return;
+          const dx=t.clientX-sx;
+          if(Math.abs(dx)<60) return;   // 浅い払いでは動かさない
+          tapLight(); shiftYear(dx<0 ? 1 : -1); };
+        // 年が変わるたびに key も変えて、滑り込みをやり直させる
+        v.ymSheetGridKey = String(sy);
+        v.ymSheetGridStyle = {display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8,
+          touchAction:'pan-y',
+          animation: sh.dir ? (sh.dir>0?'slideFromRight':'slideFromLeft')+' .24s cubic-bezier(.2,.9,.2,1)' : 'none'};
         const t=st.today;
         v.onYmSheetToday = ()=>{ tapLight(); this.setState({ym:{y:t.y,m:t.m}, dayNum:null, ymSheet:null}); };
         v.ymSheetTodayLabel = `今月（${t.y}年${t.m+1}月）`;
