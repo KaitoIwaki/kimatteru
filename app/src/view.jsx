@@ -107,6 +107,7 @@ export function renderApp(v) {
               予定がゼロなら下半分は空なので、上に浮かせて隠すほうが害が少ない。 */}
           {v.showFirstRunHint && (
             <div className="first-run" style={s('position:absolute;left:16px;right:16px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:20px 22px 18px;border-radius:20px;background:var(--glass);backdrop-filter:blur(14px);border:1px solid var(--line);text-align:center;box-shadow:0 10px 30px rgba(38,37,31,.10);animation:riseUp .4s cubic-bezier(.2,.9,.2,1) .2s both')}>
+              <span role="button" aria-label="この案内を閉じる" style={s('position:absolute;top:4px;right:4px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--ink-faint);cursor:pointer;user-select:none')} onClick={v.onCloseFirstRunHint}>✕</span>
               <div style={s('display:flex;align-items:center;gap:8px')}>
                 <span style={s('display:inline-block;width:52px;height:15px;border-radius:5px;background:#1D9E75')} />
                 <span style={s('display:inline-block;width:52px;height:15px;border-radius:5px;background:rgba(29,158,117,.10);border:1.4px dashed #1D9E75')} />

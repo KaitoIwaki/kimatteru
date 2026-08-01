@@ -1331,7 +1331,11 @@ export default class App extends React.Component {
     // 給料バーが出ているぶん、下に余白を足して最終週が隠れないようにする
     v.monthPadBottom = (wageOn ? 168 : 104)+'px';
     // まだ何も置かれていないときだけ、静かに使い方を添える
-    v.showFirstRunHint = st.events.length===0;
+    // 予定が無いあいだ出る案内。✕ で消したら、もう出さない。
+    // 消した人は「分かっている」と言っているので、予定をぜんぶ消して
+    // また0件になっても掘り返さない。
+    v.showFirstRunHint = st.events.length===0 && !st.settings.hintClosed;
+    v.onCloseFirstRunHint = (e)=>{ if(e) e.stopPropagation(); tapLight(); this.setSetting('hintClosed', true); };
     v.monthTotal = this.fmtWage(st.events.filter(e=>e.y===Y && e.m===M && e.status==='jisseki').reduce((a,e)=>a+this.wage(e),0));
 
     // ---------- DAY ----------
