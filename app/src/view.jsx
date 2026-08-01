@@ -870,6 +870,15 @@ export function renderApp(v) {
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>プライバシーポリシー</span>
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
               </div>
+              {/* 連絡先はリンクにしつつ、住所そのものも出す。
+                  リンクが開かない環境でも、長押しでコピーできるように。 */}
+              <a href={v.contactHref} style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
+                <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
+                  <span style={s('font-size:15px;color:var(--ink)')}>お問い合わせ</span>
+                  <span style={s('font-size:11px;color:var(--ink-mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{v.contactEmail}</span>
+                </span>
+                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+              </a>
               <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px')}>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バージョン</span>
                 <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>{v.appVersion}</span>
@@ -900,7 +909,7 @@ export function renderApp(v) {
                 <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>{v.repMonthLabel}</div>
                 <div style={s('background:var(--card);border-radius:17px;padding:18px 18px 20px;margin-bottom:22px;border:1px solid var(--line)')}>
                   <div style={s('display:flex;align-items:baseline;gap:8px;margin-bottom:2px')}>
-                    <span style={s('font-size:34px;font-weight:800;color:var(--ink);letter-spacing:-.8px;font-variant-numeric:tabular-nums')}>{v.repMonthWage}</span>
+                    <span style={s('font-size:34px;font-weight:700;color:var(--ink);letter-spacing:-.6px;font-variant-numeric:tabular-nums')}>{v.repMonthWage}</span>
                   </div>
                   <div style={s('font-size:13px;color:var(--ink-mut)')}>{v.repMonthHours}・{v.repMonthDays}日</div>
                 </div>
@@ -909,7 +918,7 @@ export function renderApp(v) {
                 <div style={s('background:var(--card);border-radius:17px;padding:16px 12px 12px;margin-bottom:22px;border:1px solid var(--line)')}>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:0 4px 12px')}>
                     <span role="button" aria-label="前の年" style={s('width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onRepPrevYear}>‹</span>
-                    <span style={s('font-size:14px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearLabel}</span>
+                    <span style={s('font-size:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearLabel}</span>
                     <span role="button" aria-label="次の年" style={s('width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onRepNextYear}>›</span>
                   </div>
                   <div style={s('display:flex;align-items:flex-end;justify-content:space-between;gap:3px;height:96px;padding:0 2px')}>
@@ -930,15 +939,15 @@ export function renderApp(v) {
                 <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px;border:1px solid var(--line)')}>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
                     <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた時間</span>
-                    <span style={s('font-size:17px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearHours}</span>
+                    <span style={s('font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearHours}</span>
                   </div>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
                     <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた日数</span>
-                    <span style={s('font-size:17px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearDays}日</span>
+                    <span style={s('font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearDays}日</span>
                   </div>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
                     <span style={s('font-size:14px;color:var(--ink-mut)')}>稼いだ額</span>
-                    <span style={s('font-size:17px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearWage}</span>
+                    <span style={s('font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearWage}</span>
                   </div>
                 </div>
               </>

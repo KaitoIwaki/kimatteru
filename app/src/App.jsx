@@ -4,7 +4,7 @@ import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
 import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
-import { DOCS, EFFECTIVE } from './docs';
+import { DOCS, EFFECTIVE, CONTACT, APP_NAME } from './docs';
 import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, openAppSettings } from './calendarimport';
 import { holidayName } from './holidays';
@@ -793,6 +793,11 @@ export default class App extends React.Component {
       v.docEffective = EFFECTIVE;
     }
     v.appVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.1.0';
+    // 困ったときの連絡先。アプリ内に無いと、メールではなくレビュー欄に書かれる。
+    // 版を件名に入れておくと、どの版の話か聞き返さずに済む。
+    v.contactEmail = CONTACT;
+    v.contactHref = 'mailto:'+CONTACT
+      +'?subject='+encodeURIComponent(APP_NAME+' について（v'+v.appVersion+'）');
 
     v.wageLabelColor = wageOn ? 'var(--ink)' : 'var(--ink-mut)';
     v.theme = st.settings.dark ? 'dark' : 'light';
@@ -1007,9 +1012,16 @@ export default class App extends React.Component {
         // 1px より細くは描けない（DPR 2/3 でも 0.8px に丸められる）ので、細さは色で作る。
         const colLine=(i)=>i<6?{borderRight:'1px solid var(--line-faint)'}:{};
         const slots=slotDays.map((d,i)=>{
-          // 前後の月のマスに面を敷かない。情報がゼロなのに罫線より主張していて、
-          // グリッドの端がギザギザに見えていた（紙とのコントラスト 1.133 ＞ 縦線 1.083）。
-          if(d===null) return { blank:true, day:null, bgStyle:{background:'var(--card)',...colLine(i)}, numWrap:{}, numStyle:{}, onDay:()=>{} };
+          // 前後の月のマスに面は敷かない（情報がゼロなのに罫線より主張していた）。
+          // ただし日付は薄く出す。月の切れ目が分かり、週の並びも読みやすくなる。
+          if(d===null){
+            const out=fromDayNo(monthA + (w*7 + i - first));
+            return { blank:true, day:out.d,
+              bgStyle:{background:'var(--card)',...colLine(i)},
+              numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
+              numStyle:{fontSize:11, fontWeight:500, color:'var(--ink-faint)'},
+              onDay:()=>{} };
+          }
           const dow=(wFirst+d-1)%7, isToday=d===today;
           const hol=holidayName(Y,M,d);
           // 祝日と日曜は赤、土曜は青。日本のカレンダーの見慣れた並びに合わせる。
