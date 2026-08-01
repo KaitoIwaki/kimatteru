@@ -4,7 +4,7 @@ import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
 import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
-import { DOCS, EFFECTIVE, CONTACT, APP_NAME } from './docs';
+import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
 import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, openAppSettings } from './calendarimport';
 import { holidayName } from './holidays';
@@ -16,7 +16,7 @@ const SATURDAY_BLUE = '#3D6E9C'; // 土曜
 
 // 予定の塗りをどれだけ白に寄せるか。0 = 原色のまま、0.45 くらいでかなり淡い。
 const FILL_SOFT = 0.32;
-import { shareCanvas } from './shareimg';
+import { shareCanvas, shareText } from './shareimg';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
 const SAVE_KEY = 'kimatteru.v2';
@@ -798,6 +798,18 @@ export default class App extends React.Component {
     v.contactEmail = CONTACT;
     v.contactHref = 'mailto:'+CONTACT
       +'?subject='+encodeURIComponent(APP_NAME+' について（v'+v.appVersion+'）');
+    // App Store のレビュー欄を直接開く
+    v.reviewHref = 'https://apps.apple.com/app/id'+APP_STORE_ID+'?action=write-review';
+
+    // ---------- 控え（バックアップ） ----------
+    v.onExportBackup = ()=>this.exportBackup();
+    v.backupOpen = !!st.backupOpen;
+    v.onToggleRestore = ()=>{ tapLight(); this.setState(s=>({backupOpen:!s.backupOpen, backupText:'', backupError:''})); };
+    v.backupText = st.backupText||'';
+    v.onBackupText = (e)=>{ const val=e.target.value; this.setState({backupText:val, backupError:''}); };
+    v.backupError = st.backupError||'';
+    v.onAskRestore = ()=>this.askRestore();
+    v.restoreDisabled = !(st.backupText||'').trim();
 
     v.wageLabelColor = wageOn ? 'var(--ink)' : 'var(--ink-mut)';
     v.theme = st.settings.dark ? 'dark' : 'light';
@@ -1369,14 +1381,26 @@ export default class App extends React.Component {
       v.dDeleteLabel = ev.status==='jisseki' ? 'この実績を削除' : 'この予定を削除';
     } else { v.dTitle=''; v.dPrimaryLabel=null; }
 
-    // ---------- 削除の確認 ----------
-    v.confirmShown = !!st.confirmDelete;
-    if(v.confirmShown){
+    // ---------- 取り返しのつかない操作の確認 ----------
+    // 削除と、控えからの復元。どちらも同じ覆いを使う。
+    v.confirmShown = !!st.confirmDelete || !!st.confirmRestore;
+    if(st.confirmRestore){
+      const r=st.confirmRestore;
+      const at = r.at ? new Date(r.at) : null;
+      v.confirmTitle = '控えから戻しますか？';
+      v.confirmBody = `いま入っている${st.events.length}件は、控えの${r.count}件に置き換わります。`
+        + (at ? `（控えは ${at.getFullYear()}年${at.getMonth()+1}月${at.getDate()}日 のもの）` : '')
+        + ' 元に戻せません。';
+      v.confirmOkLabel = '戻す';
+      v.onConfirmDelete = ()=>this.doRestore();
+      v.onCancelDelete = ()=>this.setState({confirmRestore:null});
+    } else if(v.confirmShown){
       const target = st.events.find(e=>e.id===st.confirmDelete);
       v.confirmTitle = target ? `「${target.title}」を削除しますか？` : '削除しますか？';
       v.confirmBody = target && target.status==='jisseki'
         ? '働いた記録も一緒に消えます。元に戻せません。'
         : '元に戻せません。';
+      v.confirmOkLabel = '削除する';
       v.onConfirmDelete = ()=>this.doDelete();
       v.onCancelDelete = ()=>this.setState({confirmDelete:null});
     }
@@ -1579,6 +1603,65 @@ export default class App extends React.Component {
   openNotices() {
     tapLight();
     this.setState({ screen: 'notices' });
+  }
+
+  // ---- 控え（バックアップ） ----
+  // 規約に「大切な予定は控えを取ってください」と書いてある以上、
+  // 取る手段と戻す手段はアプリ側が持っていないと筋が通らない。
+  BACKUP_MARK = 'kimatteru';
+
+  async exportBackup() {
+    tapLight();
+    const { events, types, overrides, settings, notices, lastSeenVersion, jobs } = this.state;
+    const ver = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
+    const now = new Date();
+    const stamp = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+    const text = JSON.stringify(
+      { app: this.BACKUP_MARK, format: 2, appVersion: ver, exportedAt: now.toISOString(),
+        data: { events, types, overrides, settings, notices, lastSeenVersion, jobs } },
+      null, 2
+    );
+    const msg = await shareText(text, `kimatteru-backup-${stamp}.json`);
+    if (msg) {
+      this.setState({ shareToast: true, shareMsg: msg });
+      setTimeout(() => this.setState({ shareToast: false }), 2400);
+    }
+  }
+
+  // 貼り付けられた文字列を確かめる。おかしければ理由を返す。
+  parseBackup(text) {
+    let obj;
+    try { obj = JSON.parse(text); } catch (e) { return { error: '控えの中身を読めませんでした。全文が貼れているか確かめてください。' }; }
+    if (!obj || obj.app !== this.BACKUP_MARK) return { error: 'このアプリの控えではないようです。' };
+    const d = obj.data;
+    if (!d || !Array.isArray(d.events)) return { error: '控えに予定が入っていません。' };
+    return { data: d, count: d.events.length, at: obj.exportedAt };
+  }
+
+  askRestore() {
+    const r = this.parseBackup(this.state.backupText || '');
+    if (r.error) { this.setState({ backupError: r.error }); return; }
+    tapLight();
+    this.setState({ backupError: '', confirmRestore: r });
+  }
+
+  doRestore() {
+    const r = this.state.confirmRestore;
+    if (!r) return;
+    stampHeavy();
+    const d = r.data;
+    this.setState((s) => ({
+      events: d.events || [],
+      types: Array.isArray(d.types) && d.types.length ? d.types : s.types,
+      jobs: d.jobs || [],
+      overrides: d.overrides || {},
+      notices: d.notices || [],
+      settings: { ...s.settings, ...(d.settings || {}) },
+      lastSeenVersion: d.lastSeenVersion || s.lastSeenVersion,
+      confirmRestore: null, backupOpen: false, backupText: '', backupError: '',
+      screen: 'month', shareToast: true, shareMsg: `${(d.events || []).length}件の予定を戻しました`,
+    }));
+    setTimeout(() => this.setState({ shareToast: false }), 2400);
   }
 
   // 一覧では中身を出しきらず、押したら中央に開いて全文を見せる。

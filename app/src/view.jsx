@@ -508,7 +508,7 @@ export function renderApp(v) {
             <div style={s('font-size:17px;font-weight:700;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.confirmTitle}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:8px 0 20px;text-wrap:pretty')}>{v.confirmBody}</div>
             <div style={s('display:flex;flex-direction:column;gap:8px')}>
-              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onConfirmDelete}>削除する</div>
+              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onConfirmDelete}>{v.confirmOkLabel}</div>
               <div style={s('padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancelDelete}>やめる</div>
             </div>
           </div>
@@ -860,6 +860,40 @@ export function renderApp(v) {
               </>
             )}
 
+            {/* 規約に「大切な予定は控えを取ってください」と書いてある以上、
+                取る手段と戻す手段はアプリ側が持っていないと筋が通らない。 */}
+            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>控え</div>
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:8px')}>
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onExportBackup}>
+                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↑</span>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えを書き出す</span>
+                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+              </div>
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onToggleRestore}>
+                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えから戻す</span>
+                <span style={s('font-size:16px;color:var(--ink-faint)')}>{v.backupOpen ? '⌄' : '›'}</span>
+              </div>
+              {v.backupOpen && (
+                <div style={s('padding:2px 14px 14px;background:var(--bg2)')}>
+                  <div style={s('font-size:11px;color:var(--ink-mut);line-height:1.7;margin:10px 2px 8px;text-wrap:pretty')}>
+                    書き出した控えのファイルを開いて、中身を全部コピーしてここに貼ってください。
+                  </div>
+                  <textarea value={v.backupText} onChange={v.onBackupText} placeholder="控えの中身を貼り付け" rows={4}
+                    style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:12px;color:var(--ink);font-family:inherit;resize:none;line-height:1.6')} />
+                  {!!v.backupError && (
+                    <div style={s('font-size:11px;color:#A8452B;margin:8px 2px 0;line-height:1.6')}>{v.backupError}</div>
+                  )}
+                  <div style={s(`margin-top:12px;padding:12px;border-radius:13px;text-align:center;font-size:14px;font-weight:700;cursor:pointer;background:var(--card);color:var(--ink);border:1px solid var(--line);${v.restoreDisabled ? 'opacity:.4' : ''}`)} onClick={v.restoreDisabled ? undefined : v.onAskRestore}>
+                    この控えから戻す
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8;text-wrap:pretty')}>
+              {''}<Jp parts={['予定は', 'この端末の中だけに', 'あります。', '機種変更や', '紛失にそなえて、', 'ときどき控えを', '取っておいてください。']} />
+            </div>
+
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
               <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenTerms}>
@@ -872,6 +906,10 @@ export function renderApp(v) {
               </div>
               {/* 連絡先はリンクにしつつ、住所そのものも出す。
                   リンクが開かない環境でも、長押しでコピーできるように。 */}
+              <a href={v.reviewHref} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>App Store でレビューする</span>
+                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+              </a>
               <a href={v.contactHref} style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
                 <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
                   <span style={s('font-size:15px;color:var(--ink)')}>お問い合わせ</span>
