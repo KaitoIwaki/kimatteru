@@ -65,6 +65,13 @@ input { font-family: inherit; }
 @keyframes qFade { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(.4); opacity: 0; } }
 @keyframes capRise { 0% { transform: translateY(8px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
 @keyframes sweepFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+/* 紙にインクが引かれていく動き。はじめての案内の1枚目で使う。
+   手書きフォントは iOS に日本語のものが無いので、書体ではなく「書かれる動き」で作る。
+   左から出すだけだと字が伸びて見えるので、わずかに沈み込ませて重さを出す。 */
+@keyframes inkWrite {
+  from { clip-path: inset(0 100% -20% 0); transform: translateY(2px); }
+  to { clip-path: inset(0 -6% -20% 0); transform: translateY(0); }
+}
 @keyframes pillSettle { 0% { transform: scale(1); } 45% { transform: scale(1.04); } 100% { transform: scale(1); } }
 @keyframes gaugeWave { 0% { height: var(--g0); } 70% { height: var(--g1); } 100% { height: var(--gf); } }
 
@@ -126,5 +133,9 @@ input { font-family: inherit; }
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
+    /* 遅れも消す。消さないと、はじめての案内で1.75秒ぶん
+       何も出ていない画面を見せることになる（間を置く演出こそ、
+       動きを減らしたい人が避けたいもの） */
+    animation-delay: 0s !important;
   }
 }

@@ -777,7 +777,16 @@ export default class App extends React.Component {
       v.onObBack = ()=>this.onboardBack();
       v.onObSkip = ()=>this.finishOnboard(false);
 
-      // 1枚目：しくみを、さわって知ってもらう
+      // 1枚目：しくみを、さわって知ってもらう。
+      // 紙に書かれていくように、上から順に出す。手書きの書体は iOS に
+      // 日本語のものが無いので、書体ではなく「書かれる動き」と明朝で作る。
+      // 数字は「何番目に出るか」で、遅らせるほど後から現れる。
+      const ink=(order)=>({ display:'block', animation:`inkWrite .62s cubic-bezier(.25,.6,.3,1) ${0.15+order*0.5}s both` });
+      v.obInk1 = ink(0); v.obInk2 = ink(1);
+      // 紙そのものは、字が書き終わってから静かに現れる
+      v.obPaperStyle = { marginTop:30, background:'var(--card)', border:'1px solid var(--line)',
+        borderRadius:18, padding:18, animation:'riseUp .5s cubic-bezier(.2,.9,.2,1) 1.25s both' };
+      v.obCaptionDelay = { animation:'capRise .45s cubic-bezier(.2,.9,.2,1) 1.75s both' };
       const filled = ob.demo!=='dash';
       v.obDemoDone = ob.demo==='done';
       v.onObDemoTap = ()=>this.onboardDemoTap();
@@ -786,7 +795,9 @@ export default class App extends React.Component {
         position:'relative', overflow:'hidden', display:'block', width:'100%', boxSizing:'border-box',
         height:34, lineHeight:'30px', borderRadius:9, padding:'0 12px', fontSize:15, fontWeight:700,
         cursor: filled ? 'default' : 'pointer',
-        background: filled ? this.softFill(teal) : 'rgba(29,158,117,.09)',
+        // 本物の未確定のピルと同じ地色を使う（paperFrom）。
+        // ここだけ薄い色を直に書いていたので、ダークモードで文字が沈んでいた
+        background: filled ? this.softFill(teal) : this.paperFrom(teal),
         border: '1.6px '+(filled?'solid':'dashed')+' '+this.softLine(teal),
         color: this.inkOn(teal),
         animation: ob.demo==='done' ? 'pillSettle .24s cubic-bezier(.3,1.4,.5,1)' : 'none',
@@ -798,6 +809,16 @@ export default class App extends React.Component {
       v.obDemoTextStyle = { position:'relative', zIndex:1 };
       v.obDemoLabel = filled ? 'カフェバイト' : '？カフェバイト';
       v.obDemoCaption = filled ? '決まった、が形になりました。' : '点線の予定をタップしてみてください';
+      // 上に確定した予定を1本置く。違いは、並べて初めて見える。
+      // 点線だけを出しても「点線が普通の形」と思われてしまう。
+      {
+        const at=(st.types||[]).find(t=>t.key==='asobi') || {color:'#B4453A'};
+        v.obSolidPillStyle = { display:'block', width:'100%', boxSizing:'border-box', marginBottom:8,
+          height:34, lineHeight:'30px', borderRadius:9, padding:'0 12px', fontSize:15, fontWeight:700,
+          background:this.softFill(at.color), border:'1.6px solid '+this.softLine(at.color),
+          color:this.inkOn(at.color) };
+        v.obSolidLabel = '映画';
+      }
 
       // 2枚目：時給
       v.obJobName = ob.jobName;

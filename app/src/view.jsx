@@ -1182,16 +1182,17 @@ export function renderApp(v) {
           <div style={s('flex:1;overflow-y:auto;padding:12px 26px 20px;display:flex;flex-direction:column')}>
 
             {v.obStep === 0 && (
-              <div style={s('animation:riseUp .32s cubic-bezier(.2,.9,.2,1)')}>
-                <div style={s('font-size:26px;font-weight:800;color:var(--ink);letter-spacing:-.5px;line-height:1.5;margin-top:18px')}>
-                  {''}<Jp parts={['決まってる？', 'まだ？']} />
-                </div>
-                <div style={s('font-size:14.5px;color:var(--ink-soft);line-height:2;margin-top:14px')}>
-                  {''}<Jp parts={['決まっている予定は', '塗り、', 'まだ分からない予定は', '点線。', 'カレンダーを開いた', 'その瞬間に', '見分けられます。']} />
+              <div>
+                {/* 紙にペンで書かれていくように、一行ずつ現れる。
+                    明朝にしているのは、これがインクの字だと分からせるため。 */}
+                <div style={s("font-family:'Hiragino Mincho ProN','Yu Mincho',serif;font-size:20px;font-weight:600;color:var(--ink);line-height:2.05;letter-spacing:.02em;margin-top:26px")}>
+                  <span style={s(v.obInk1)}>予定を、少しだけ</span>
+                  <span style={s(v.obInk2)}>書いておきました。</span>
                 </div>
 
-                <div style={s('margin-top:34px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px')}>
+                <div style={s(v.obPaperStyle)}>
                   <div style={s('font-size:11px;font-weight:600;color:var(--ink-faint);margin-bottom:10px')}>7月25日（土）</div>
+                  <div style={s(v.obSolidPillStyle)}>{v.obSolidLabel}</div>
                   <div style={s(v.obDemoPillStyle)} onClick={v.onObDemoTap}>
                     <span style={s(v.obDemoFillStyle)} />
                     <span style={s(v.obDemoTextStyle)}>{v.obDemoLabel}</span>
@@ -1200,6 +1201,12 @@ export function renderApp(v) {
                   {v.obDemoDone && (
                     <div style={s('font-size:12px;color:var(--ink-faint);margin-top:8px;cursor:pointer')} onClick={v.onObDemoReset}>もう一度みる</div>
                   )}
+                </div>
+
+                <div style={s(v.obCaptionDelay)}>
+                  <div style={s('font-size:13px;color:var(--ink-mut);line-height:2;margin-top:16px')}>
+                    {''}<Jp parts={['決まっている予定は', '塗り、', 'まだ分からない予定は', '点線です。']} />
+                  </div>
                 </div>
               </div>
             )}
