@@ -347,7 +347,7 @@ export default class App extends React.Component {
     if(dir) this.setState(s=>({ym:shiftMonth(s.ym,dir), dayNum:null, swipe:{dx:0,animating:false}}));
     else this.setState({swipe:{dx:0,animating:false}});
   }
-  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',repEvery:null,repWeeks:4,picking:null}}); }
+  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',repEvery:null,repWeeks:4,added:[],picking:null}}); }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
     this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
@@ -355,7 +355,9 @@ export default class App extends React.Component {
       start:ev.start, end: ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end,
       y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev),
       remindMin: typeof ev.remindMin==='number' ? ev.remindMin : null,
-      place:ev.place||'', memo:ev.memo||'', repEvery:null, repWeeks:4, picking:null }});
+      place:ev.place||'', memo:ev.memo||'', repEvery:null, repWeeks:4,
+      // 入っている項目だけ行を出す。空のものまで並べない
+      added:[...(ev.place?['place']:[]), ...(ev.memo?['memo']:[])], picking:null }});
   }
   askDelete(id){ this.setState({confirmDelete:id, deleteRest:false}); }
 
@@ -932,6 +934,16 @@ export default class App extends React.Component {
       swatches:this.PAL.map(hex=>({ style:{width:26,height:26,borderRadius:13,background:hex,cursor:'pointer',boxShadow: t.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)'}, onClick:()=>this.recolorKey(t.key,hex) })),
     }));
     v.onAddTypeRow = ()=>{ tapLight(); this.setState(s=>({newType: s.newType?null:{name:'',color:'#2F72C4'}, editTypeKey:null})); };
+    // 種類は増えていくもの。ぜんぶ並べると、それだけで設定画面が埋まる。
+    // ふだんはたたんで、色の点だけ出しておく（何があるかは点で分かる）。
+    v.typeListOpen = !!st.typeListOpen;
+    v.onToggleTypeList = ()=>{ tapLight(); this.setState(s=>({typeListOpen:!s.typeListOpen,
+      editTypeKey:null, newType:null})); };
+    v.typeCountLabel = st.types.length+'つ';
+    v.typeDots = st.types.slice(0,8).map(t=>({
+      style:{width:13,height:13,borderRadius:7,background:t.color,flexShrink:0,
+        boxShadow:'inset 0 0 0 1px rgba(0,0,0,.06)'} }));
+    v.typeMoreLabel = st.types.length>8 ? '+'+(st.types.length-8) : '';
     const tgTrack=(on,col)=>({width:44,height:26,borderRadius:13,background:on?'var(--ink)':'var(--line)',padding:2,transition:'background .28s cubic-bezier(.2,.9,.2,1)',cursor:'pointer',display:'flex',flexShrink:0});
     const tgKnob=(on)=>({width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s cubic-bezier(.2,.9,.2,1)',transform:on?'translateX(18px)':'translateX(0)'});
     v.remindTrack=tgTrack(cfg.remind); v.remindKnob=tgKnob(cfg.remind);
@@ -1336,6 +1348,44 @@ export default class App extends React.Component {
       v.jobValue = j ? (j.name||'名前なし') : '設定の時給'; }
     v.chevJob = chevron(v.rowJobOpen); v.valJob = rowVal(v.rowJobOpen);
 
+    // ---------- ＋ で足す項目 ----------
+    // くり返し・場所・メモは、いつも使うものではない。
+    // 最初から行を並べると、ただシフトを1件入れたいだけの人に
+    // 6行ぶんスクロールさせることになる。押したぶんだけ生やす。
+    {
+      const added = dr.added||[];
+      const addable = [
+        // 直している予定にくり返しは出さない。すでに1件ずつの予定になっていて、
+        // ここで触らせると、どれが変わるのか分からなくなる。
+        { key:'rep', label:'くり返し', hide:!!dr.editingId },
+        { key:'place', label:'場所' },
+        { key:'memo', label:'メモ' },
+      ];
+      v.addChips = addable.filter(o=>!o.hide && !added.includes(o.key)).map(o=>({
+        label:o.label,
+        // 押したらその場で開く。もう一度たたませない。
+        onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft,
+          added:[...(s.draft.added||[]), o.key], picking:o.key}})); },
+        style:{padding:'8px 14px',borderRadius:999,fontSize:13,color:'var(--ink-mut)',
+          border:'1px dashed var(--line)',cursor:'pointer',whiteSpace:'nowrap'},
+      }));
+      v.addRowShown = v.addChips.length>0;
+      // ✕ で消す。値も一緒に捨てる（行だけ消えて中身が残ると、保存されて驚く）
+      const drop=(key,clear)=>()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, ...clear,
+        added:(s.draft.added||[]).filter(k=>k!==key),
+        picking: s.draft.picking===key ? null : s.draft.picking}})); };
+      v.onRemoveRep = drop('rep',{repEvery:null});
+      v.onRemovePlace = drop('place',{place:''});
+      v.onRemoveMemo = drop('memo',{memo:''});
+      v.repRowShown = added.includes('rep') && !dr.editingId;
+      v.placeRowShown = added.includes('place');
+      v.memoRowShown = added.includes('memo');
+      v.addedAny = v.repRowShown || v.placeRowShown || v.memoRowShown;
+      v.removeStyle = {width:26,height:26,borderRadius:13,flexShrink:0,display:'flex',
+        alignItems:'center',justifyContent:'center',fontSize:13,color:'var(--ink-faint)',
+        background:'var(--bg2)',cursor:'pointer'};
+    }
+
     // ---------- 場所とメモ ----------
     // どちらも予定の中身そのもの。持ち物はメモに書く。
     v.rowPlaceOpen = dr.picking==='place';
@@ -1354,9 +1404,6 @@ export default class App extends React.Component {
     v.chevMemo = chevron(v.rowMemoOpen); v.valMemo = rowVal(v.rowMemoOpen);
 
     // ---------- くり返し ----------
-    // 直すときは出さない。すでに1件ずつの予定になっているので、
-    // ここで「くり返し」を触らせると、どれが変わるのか分からなくなる。
-    v.repRowShown = !dr.editingId;
     v.rowRepOpen = dr.picking==='rep';
     v.onTapRepRow = openRow('rep');
     {

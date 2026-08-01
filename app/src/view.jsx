@@ -432,63 +432,6 @@ export function renderApp(v) {
               )}
             </div>
 
-            {/* 場所とメモ。持ち物はメモに書く。どちらも普段はたたんでおく */}
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line)')} onClick={v.onTapPlaceRow}>
-                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>場所</span>
-                <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
-                  <span style={s(v.valPlace)}>{v.placeValue}</span>
-                  <span style={s(v.chevPlace)}>›</span>
-                </span>
-              </div>
-              {v.rowPlaceOpen && (
-                <div style={s('padding:12px 14px 14px;background:var(--bg2);border-bottom:1px solid var(--line)')}>
-                  <input value={v.placeText} onChange={v.onPlaceText} placeholder="店名や住所（例：渋谷駅、○○カフェ）"
-                    style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit')} />
-                  <div style={s('font-size:11px;color:var(--ink-faint);margin:9px 4px 0;line-height:1.6')}>入れておくと、予定を開いたときに地図で開けます</div>
-                </div>
-              )}
-              <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapMemoRow}>
-                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>メモ</span>
-                <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
-                  <span style={s(v.valMemo)}>{v.memoValue}</span>
-                  <span style={s(v.chevMemo)}>›</span>
-                </span>
-              </div>
-              {v.rowMemoOpen && (
-                <div style={s('padding:12px 14px 14px;background:var(--bg2)')}>
-                  <textarea value={v.memoText} onChange={v.onMemoText} placeholder="持ち物や覚えておきたいこと" rows={4}
-                    style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;resize:none;line-height:1.7')} />
-                </div>
-              )}
-            </div>
-
-            {v.repRowShown && (
-              <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
-                <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapRepRow}>
-                  <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>くり返し</span>
-                  <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
-                    <span style={s(v.valRep)}>{v.repValue}</span>
-                    <span style={s(v.chevRep)}>›</span>
-                  </span>
-                </div>
-                {v.rowRepOpen && (
-                  <div style={s('padding:13px 14px 15px;background:var(--bg2)')}>
-                    <div style={s('display:flex;flex-wrap:wrap;gap:8px')}>
-                      {v.repEveryChips.map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
-                    </div>
-                    {v.repUntilShown && (<>
-                      <div style={s('font-size:12px;color:var(--ink-faint);margin:15px 4px 8px')}>いつまで</div>
-                      <div style={s('display:flex;flex-wrap:wrap;gap:8px')}>
-                        {v.repWeekChips.map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
-                      </div>
-                      <div style={s('font-size:11px;color:var(--ink-faint);margin:11px 4px 0;line-height:1.6')}>{v.repHint}</div>
-                    </>)}
-                  </div>
-                )}
-              </div>
-            )}
-
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
               <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapRemindRow}>
                 <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>お知らせ</span>
@@ -510,6 +453,82 @@ export function renderApp(v) {
                 </div>
               )}
             </div>
+
+            {/* ＋ で足した項目。足した順ではなく、いつも同じ並びで出す
+                （足すたびに順が変わると、どこを触ればいいか分からなくなる） */}
+            {v.addedAny && (
+              <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
+                {v.repRowShown && (
+                  <div style={s(v.placeRowShown || v.memoRowShown ? 'border-bottom:1px solid var(--line)' : '')}>
+                    <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
+                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapRepRow}>くり返し</span>
+                      <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                        <span style={s(v.valRep)} onClick={v.onTapRepRow}>{v.repValue}</span>
+                        <span role="button" aria-label="くり返しを外す" style={s(v.removeStyle)} onClick={v.onRemoveRep}>✕</span>
+                      </span>
+                    </div>
+                    {v.rowRepOpen && (
+                      <div style={s('padding:2px 14px 15px;background:var(--bg2)')}>
+                        <div style={s('display:flex;flex-wrap:wrap;gap:8px;padding-top:11px')}>
+                          {v.repEveryChips.map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                        </div>
+                        {v.repUntilShown && (<>
+                          <div style={s('font-size:12px;color:var(--ink-faint);margin:15px 4px 8px')}>いつまで</div>
+                          <div style={s('display:flex;flex-wrap:wrap;gap:8px')}>
+                            {v.repWeekChips.map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                          </div>
+                          <div style={s('font-size:11px;color:var(--ink-faint);margin:11px 4px 0;line-height:1.6')}>{v.repHint}</div>
+                        </>)}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {v.placeRowShown && (
+                  <div style={s(v.memoRowShown ? 'border-bottom:1px solid var(--line)' : '')}>
+                    <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
+                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapPlaceRow}>場所</span>
+                      <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                        <span style={s(v.valPlace)} onClick={v.onTapPlaceRow}>{v.placeValue}</span>
+                        <span role="button" aria-label="場所を外す" style={s(v.removeStyle)} onClick={v.onRemovePlace}>✕</span>
+                      </span>
+                    </div>
+                    {v.rowPlaceOpen && (
+                      <div style={s('padding:2px 14px 14px;background:var(--bg2)')}>
+                        <input value={v.placeText} onChange={v.onPlaceText} placeholder="店名や住所（例：渋谷駅、○○カフェ）"
+                          style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;margin-top:11px;font-size:15px;color:var(--ink);font-family:inherit')} />
+                        <div style={s('font-size:11px;color:var(--ink-faint);margin:9px 4px 0;line-height:1.6')}>入れておくと、予定を開いたときに地図で開けます</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {v.memoRowShown && (
+                  <div>
+                    <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
+                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapMemoRow}>メモ</span>
+                      <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                        <span style={s(v.valMemo)} onClick={v.onTapMemoRow}>{v.memoValue}</span>
+                        <span role="button" aria-label="メモを外す" style={s(v.removeStyle)} onClick={v.onRemoveMemo}>✕</span>
+                      </span>
+                    </div>
+                    {v.rowMemoOpen && (
+                      <div style={s('padding:2px 14px 14px;background:var(--bg2)')}>
+                        <textarea value={v.memoText} onChange={v.onMemoText} placeholder="持ち物や覚えておきたいこと" rows={4}
+                          style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;margin-top:11px;font-size:15px;color:var(--ink);font-family:inherit;resize:none;line-height:1.7')} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {v.addRowShown && (
+              <div style={s('display:flex;align-items:flex-start;gap:10px;margin:0 2px 18px')}>
+                <span style={s('width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ink-faint)')}>＋</span>
+                <div style={s('display:flex;flex-wrap:wrap;gap:8px;flex:1;padding-top:1px')}>
+                  {(v.addChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -880,6 +899,16 @@ export function renderApp(v) {
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>予定の種類</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
+              {/* たたんでいるあいだも、色の点だけは出しておく */}
+              <div style={s(`display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;${v.typeListOpen ? 'border-bottom:1px solid var(--line)' : ''}`)} onClick={v.onToggleTypeList}>
+                <span style={s('display:flex;align-items:center;gap:5px;flex:1;min-width:0;flex-wrap:wrap')}>
+                  {(v.typeDots || []).map((d, i) => (<span key={i} style={s(d.style)} />))}
+                  {!!v.typeMoreLabel && <span style={s('font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums')}>{v.typeMoreLabel}</span>}
+                </span>
+                <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums;flex-shrink:0')}>{v.typeCountLabel}</span>
+                <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>{v.typeListOpen ? '⌄' : '›'}</span>
+              </div>
+              {v.typeListOpen && (<>
               {(v.typeRows || []).map((t, i) => (
                 <div key={i} style={s(t.rowStyle)}>
                   <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={t.onTap}>
@@ -914,6 +943,7 @@ export function renderApp(v) {
                   </div>
                 </div>
               )}
+              </>)}
             </div>
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>アプリの設定</div>
