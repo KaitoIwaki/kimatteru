@@ -75,6 +75,12 @@ const repeatAfter = (fromN, every, weeks) => {
   return out;
 };
 
+// 予定につける名前（id）。時刻だけで作ると、端末の時計を戻したときや、
+// いつか誰かとカレンダーを混ぜるときに、別々の予定が同じ名前になりうる。
+// 混ぜる側は名前で見分けるしかないので、ぶつかると黙って片方が消える。
+// 5文字の乱数を足しておけば、あとから何をしても困らない。
+const uid = (prefix) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
 const todayParts = () => {
   const n = new Date();
   return { y: n.getFullYear(), m: n.getMonth(), d: n.getDate() };
@@ -405,7 +411,7 @@ export default class App extends React.Component {
     const {jobName,jobHourly}=this.state.onboard;
     const name=(jobName||'').trim();
     if(name){
-      const id='j'+Date.now();
+      const id=uid('j');
       this.setState(s=>({ jobs:[...s.jobs,{id,name,hourly:jobHourly}] }));
     } else {
       this.setSetting('hourly', jobHourly);
@@ -421,7 +427,7 @@ export default class App extends React.Component {
   // ---- バイト先 ----
   addJob(){
     tapLight();
-    const id='j'+Date.now();
+    const id=uid('j');
     this.setState(s=>({ jobs:[...s.jobs,{id,name:'',hourly:s.settings.hourly}], editJobId:id }));
   }
   patchJob(id,patch){ this.setState(s=>({ jobs:s.jobs.map(j=>j.id===id?{...j,...patch}:j) })); }
@@ -448,7 +454,7 @@ export default class App extends React.Component {
   commitNewJob(){
     const nj=this.state.newJob; if(!nj) return;
     tapLight();
-    const id='j'+Date.now();
+    const id=uid('j');
     const name=(nj.name||'').trim()||'バイト先';
     this.setState(s=>{
       const prev=s.jobs.find(j=>j.id===s.draft.jobId);
@@ -500,7 +506,8 @@ export default class App extends React.Component {
     stampHeavy();
     const now=Date.now();
     // 取り込んだ予定は「決まっている」扱い。あとから点線に変えられる。
-    const add = on.map((e,i)=>({ id:'i'+now+'-'+i, type:e.type, title:e.title, y:e.y, m:e.m, day:e.day,
+    const tag = uid('i');
+    const add = on.map((e,i)=>({ id:tag+'-'+i, type:e.type, title:e.title, y:e.y, m:e.m, day:e.day,
       start:e.start, end:e.end, status:'kakutei', allDay:e.allDay, updatedAt:now }));
     this.setState(s=>({ events:[...s.events, ...add], imp:{...s.imp, phase:'done', added:add.length} }));
   }
@@ -569,7 +576,7 @@ export default class App extends React.Component {
   addType(){
     const nt=this.state.newType; if(!nt) return;
     const name=(nt.name||'').trim()||'新しい種類';
-    const key='c'+Date.now(), hex=nt.color;
+    const key=uid('c'), hex=nt.color;
     const t={key,name,color:hex,paper:this.paperFrom(hex),dark:this.darkFrom(hex),uWord:'未確定の'+name,cWord:name};
     this.setState(s=>({ types:[...s.types,t], draft:{...s.draft,type:key}, newType:null }));
   }
@@ -601,9 +608,10 @@ export default class App extends React.Component {
       .map(n=>{ const o=fromDayNo(n); return [o.y,o.m,o.d]; });
     const placeOn=[[dr.y,dr.m,dr.day], ...(dr.extraDays||[]).map(k=>k.split('-').map(Number)), ...rep];
     const base=Date.now();
+    const tag=uid('n');
     // くり返しで作ったものには同じ印をつけておく。あとでまとめて消せる。
-    const repId = rep.length ? 'r'+base : undefined;
-    const made=placeOn.map(([y,m,d],i)=>({ id:'n'+base+'-'+i, type:dr.type, title:dr.title||'無題',
+    const repId = rep.length ? uid('r') : undefined;
+    const made=placeOn.map(([y,m,d],i)=>({ id:tag+'-'+i, type:dr.type, title:dr.title||'無題',
       y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay, days:spanField, remindMin:remindField,
       place:placeField, memo:memoField, repId,
       jobId: dr.type==='baito' ? dr.jobId : undefined,
@@ -1733,6 +1741,8 @@ export default class App extends React.Component {
   // 規約に「大切な予定は控えを取ってください」と書いてある以上、
   // 取る手段と戻す手段はアプリ側が持っていないと筋が通らない。
   BACKUP_MARK = 'kimatteru';
+  // 控えの形。中身の並びを変えたら1つ上げる。古い版は上の版の控えを読まない。
+  BACKUP_FORMAT = 2;
 
   async exportBackup() {
     tapLight();
@@ -1741,7 +1751,7 @@ export default class App extends React.Component {
     const now = new Date();
     const stamp = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
     const text = JSON.stringify(
-      { app: this.BACKUP_MARK, format: 2, appVersion: ver, exportedAt: now.toISOString(),
+      { app: this.BACKUP_MARK, format: this.BACKUP_FORMAT, appVersion: ver, exportedAt: now.toISOString(),
         data: { events, types, overrides, settings, notices, lastSeenVersion, jobs } },
       null, 2
     );
@@ -1757,6 +1767,12 @@ export default class App extends React.Component {
     let obj;
     try { obj = JSON.parse(text); } catch (e) { return { error: '控えの中身を読めませんでした。全文が貼れているか確かめてください。' }; }
     if (!obj || obj.app !== this.BACKUP_MARK) return { error: 'このアプリの控えではないようです。' };
+    // 先の版で書かれた控えは読まない。中身の形が変わっているかもしれず、
+    // 黙って読むと、戻したつもりで壊れた予定が並ぶ。
+    // 「読めない」と言われるほうが、気づけるぶんましだと考える。
+    if ((obj.format | 0) > this.BACKUP_FORMAT) {
+      return { error: 'この控えは新しい版のアプリで作られています。アプリを最新にしてから戻してください。' };
+    }
     const d = obj.data;
     if (!d || !Array.isArray(d.events)) return { error: '控えに予定が入っていません。' };
     return { data: d, count: d.events.length, at: obj.exportedAt };
