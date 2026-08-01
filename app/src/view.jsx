@@ -50,7 +50,9 @@ export function renderApp(v) {
             </div>
           </div>
 
-          <div style={s('display:grid;grid-template-columns:repeat(7,1fr);padding:8px 6px 4px 6px')}>
+          {/* 曜日の見出しとマスは、左右の余白を必ず同じにする。
+              違うと列が横にずれる（以前は左端で7px、右端で-5pxずれていた）。 */}
+          <div style={s('display:grid;grid-template-columns:repeat(7,1fr);padding:8px 0 4px 0')}>
             {(v.weekdays || []).map((w, i) => (
               <div key={i} style={s(w.style)}>{w.label}</div>
             ))}
@@ -58,7 +60,7 @@ export function renderApp(v) {
 
           <div
             className="month-scroll"
-            style={s(`flex:1;overflow-y:auto;overflow-x:hidden;padding:0 6px ${v.monthPadBottom} 6px;display:flex;flex-direction:column`)}
+            style={s(`flex:1;overflow-y:auto;overflow-x:hidden;padding:0 0 ${v.monthPadBottom} 0;display:flex;flex-direction:column`)}
             onTouchStart={v.onMonthTouchStart}
             onTouchMove={v.onMonthTouchMove}
             onTouchEnd={v.onMonthTouchEnd}
@@ -66,8 +68,9 @@ export function renderApp(v) {
             <div style={s('flex:1 1 auto;min-height:0;position:relative;overflow:hidden')}>
               <div style={s(v.trackStyle)}>
                 {(v.monthPages || []).map((page) => (
-                  <div key={page.key} style={s('flex:0 0 33.3333%;max-width:33.3333%;padding:0 6px;display:flex;flex-direction:column;box-sizing:border-box')}>
-                    <div style={s('display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;flex:1 1 auto;min-height:0')}>
+                  <div key={page.key} style={s('flex:0 0 33.3333%;max-width:33.3333%;display:flex;flex-direction:column;box-sizing:border-box')}>
+                    {/* 外枠も角丸も付けない。画面の横いっぱいまで使う */}
+                    <div style={s('display:flex;flex-direction:column;background:var(--card);overflow:hidden;flex:1 1 auto;min-height:0')}>
                       {page.weeks.map((wk) => (
                         <div key={wk.key} style={s(wk.rowStyle)}>
                           {/* 地とタップ領域。帯はこの上に載る */}
