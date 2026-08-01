@@ -928,8 +928,11 @@ export default class App extends React.Component {
 
     // ---------- 控え（バックアップ） ----------
     v.onExportBackup = ()=>this.exportBackup();
-    v.backupOpen = !!st.backupOpen;
-    v.onToggleRestore = ()=>{ tapLight(); this.setState(s=>({backupOpen:!s.backupOpen, backupText:'', backupError:''})); };
+    // 戻すのは「ファイルをえらぶ」が本筋。貼り付けは、えらべなかったときの逃げ道。
+    v.onPickBackup = ()=>this.pickBackupFile();
+    v.onBackupFile = (e)=>this.readBackupFile(e);
+    v.pasteOpen = !!st.pasteOpen;
+    v.onTogglePaste = ()=>{ tapLight(); this.setState(s=>({pasteOpen:!s.pasteOpen, backupText:'', backupError:''})); };
     v.backupText = st.backupText||'';
     v.onBackupText = (e)=>{ const val=e.target.value; this.setState({backupText:val, backupError:''}); };
     v.backupError = st.backupError||'';
@@ -1131,6 +1134,15 @@ export default class App extends React.Component {
 
     // ---------- 空いてる日シェア (C) ----------
     v.shareShown = st.screen==='share';
+
+    // ---------- 知らせのひとこと ----------
+    // これまで、まとめ／空きシェアの画面の中にしか置いていなかった。
+    // 控えから戻すと月表示に移るので、予定が丸ごと置き換わったのに何も出ていなかった。
+    // 取り返しのつかない操作こそ、済んだことを言う。
+    v.toastShown = !!st.shareToast && !v.summaryShown && !v.shareShown;
+    v.toastMsg = st.shareMsg || '';
+    // ナビの島に隠れない高さに置く
+    v.toastBottom = v.navShown ? 96 : 30;
     const swl=['日','月','火','水','木','金','土'];
     const sws=cfg.weekStart;
     v.shareWeekdays = Array.from({length:7},(_,i)=>{ const dw=(i+sws)%7; return { label:swl[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,color:dw===0?'var(--ink-mut)':dw===6?'var(--ink-mut)':'#B0B4BB'} }; });
@@ -1933,6 +1945,42 @@ export default class App extends React.Component {
     }
   }
 
+  // 控えのファイルをじかにえらんで戻す。
+  // 「控えを開いて全文をコピーして貼る」は、書き出した本人でも手が止まる手順だった。
+  // input[type=file] は WKWebView からでもファイルアプリを開けるので、
+  // これだけのためにプラグインを増やさない（増やすと iOS 側の同期も要る）。
+  BACKUP_INPUT_ID = 'backup-file';
+  // 控えは予定200件でも数十KBにしかならない。桁違いのものを読みに行かない。
+  BACKUP_MAX_BYTES = 5 * 1024 * 1024;
+
+  pickBackupFile() {
+    tapLight();
+    const el = document.getElementById(this.BACKUP_INPUT_ID);
+    // ファイルをえらべない環境なら、黙って何も起きないのではなく貼り付けを開く
+    if (!el) { this.setState({ pasteOpen: true, backupError: 'ファイルをえらべませんでした。貼り付けで戻してください。' }); return; }
+    el.click();
+  }
+
+  async readBackupFile(e) {
+    const el = e.target;
+    const file = el.files && el.files[0];
+    // 同じファイルをもう一度えらんでも change が起きるように、値を空に戻しておく
+    el.value = '';
+    if (!file) return;
+    if (file.size > this.BACKUP_MAX_BYTES) {
+      this.setState({ backupError: 'このファイルは控えにしては大きすぎます。書き出した控えをえらんでください。' });
+      return;
+    }
+    let text;
+    try { text = await file.text(); }
+    catch (err) { this.setState({ backupError: 'ファイルを読めませんでした。もう一度えらんでください。' }); return; }
+    const r = this.parseBackup(text);
+    // 読めなかった理由は、貼り付けのときと同じ言い方で出す
+    if (r.error) { this.setState({ backupError: r.error }); return; }
+    tapLight();
+    this.setState({ backupError: '', confirmRestore: r });
+  }
+
   // 貼り付けられた文字列を確かめる。おかしければ理由を返す。
   parseBackup(text) {
     let obj;
@@ -1972,7 +2020,7 @@ export default class App extends React.Component {
       notices: d.notices || [],
       settings: { ...s.settings, ...(d.settings || {}) },
       lastSeenVersion: d.lastSeenVersion || s.lastSeenVersion,
-      confirmRestore: null, backupOpen: false, backupText: '', backupError: '',
+      confirmRestore: null, pasteOpen: false, backupText: '', backupError: '',
       screen: 'month', shareToast: true, shareMsg: `${(d.events || []).length}件の予定を戻しました`,
     }));
     setTimeout(() => this.setState({ shareToast: false }), 2400);

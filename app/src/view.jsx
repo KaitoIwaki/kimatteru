@@ -1056,30 +1056,39 @@ export function renderApp(v) {
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えを書き出す</span>
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
               </div>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onToggleRestore}>
+              {/* 押したらそのままファイルをえらべる。中身をコピーして貼る手順は挟まない */}
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onPickBackup}>
                 <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えから戻す</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>{v.backupOpen ? '⌄' : '›'}</span>
+                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
               </div>
-              {v.backupOpen && (
-                <div style={s('padding:2px 14px 14px;background:var(--bg2)')}>
-                  <div style={s('font-size:11px;color:var(--ink-mut);line-height:1.7;margin:10px 2px 8px;text-wrap:pretty')}>
-                    書き出した控えのファイルを開いて、中身を全部コピーしてここに貼ってください。
-                  </div>
-                  <textarea value={v.backupText} onChange={v.onBackupText} placeholder="控えの中身を貼り付け" rows={4}
-                    style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:12px;color:var(--ink);font-family:inherit;resize:none;line-height:1.6')} />
-                  {!!v.backupError && (
-                    <div style={s('font-size:11px;color:#A8452B;margin:8px 2px 0;line-height:1.6')}>{v.backupError}</div>
-                  )}
-                  <div style={s(`margin-top:12px;padding:12px;border-radius:13px;text-align:center;font-size:14px;font-weight:700;cursor:pointer;background:var(--card);color:var(--ink);border:1px solid var(--line);${v.restoreDisabled ? 'opacity:.4' : ''}`)} onClick={v.restoreDisabled ? undefined : v.onAskRestore}>
-                    この控えから戻す
-                  </div>
-                </div>
-              )}
             </div>
-            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8;text-wrap:pretty')}>
+            {/* 見えない入力。行から click() で開く */}
+            <input id="backup-file" type="file" accept=".json,application/json" onChange={v.onBackupFile}
+              style={s('display:none')} />
+            {!!v.backupError && (
+              <div style={s('font-size:11px;color:#A8452B;margin:0 8px 8px;line-height:1.6;text-wrap:pretty')}>{v.backupError}</div>
+            )}
+            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 8px;line-height:1.8;text-wrap:pretty')}>
               {''}<Jp parts={['予定は', 'この端末の中だけに', 'あります。', '機種変更や', '紛失にそなえて、', 'ときどき控えを', '取っておいてください。']} />
             </div>
+            {/* えらべなかった人が行き止まりにならないように、逃げ道は残しておく */}
+            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 8px;line-height:1.8;cursor:pointer;text-decoration:underline')} onClick={v.onTogglePaste}>
+              ファイルをえらべないときは、貼り付けでも戻せます
+            </div>
+            {v.pasteOpen && (
+              <div style={s('background:var(--card);border-radius:17px;padding:14px;margin-bottom:8px')}>
+                <div style={s('font-size:11px;color:var(--ink-mut);line-height:1.7;margin:0 2px 8px;text-wrap:pretty')}>
+                  書き出した控えのファイルを開いて、中身を全部コピーしてここに貼ってください。
+                </div>
+                <textarea value={v.backupText} onChange={v.onBackupText} placeholder="控えの中身を貼り付け" rows={4}
+                  style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:12px;color:var(--ink);font-family:inherit;resize:none;line-height:1.6')} />
+                <div style={s(`margin-top:12px;padding:12px;border-radius:13px;text-align:center;font-size:14px;font-weight:700;cursor:pointer;background:var(--bg2);color:var(--ink);border:1px solid var(--line);${v.restoreDisabled ? 'opacity:.4' : ''}`)} onClick={v.restoreDisabled ? undefined : v.onAskRestore}>
+                  この控えから戻す
+                </div>
+              </div>
+            )}
+            <div style={s('margin-bottom:16px')} />
 
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
@@ -1471,6 +1480,14 @@ export function renderApp(v) {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ===================== 知らせのひとこと ===================== */}
+      {/* 画面をふさがない。タップも受けない（下のものを押せなくしない） */}
+      {v.toastShown && (
+        <div style={s(`position:absolute;left:0;right:0;bottom:${v.toastBottom}px;z-index:70;display:flex;justify-content:center;padding:0 24px;pointer-events:none;animation:capRise .24s ease`)}>
+          <div style={s('background:var(--ink);color:var(--card);font-size:13px;font-weight:600;padding:11px 18px;border-radius:14px;text-align:center;text-wrap:pretty;line-height:1.5')}>{v.toastMsg}</div>
         </div>
       )}
 
