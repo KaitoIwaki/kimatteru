@@ -1035,10 +1035,12 @@ export default class App extends React.Component {
         weeks.push({
           key:Y+'-'+M+'-w'+w, slots, bars, more,
           // 週の区切りだけ線を引く。マスを囲む枠は引かない（予定を浮き上がらせるため）
-          rowStyle:{position:'relative', flex:'1 1 0', minHeight:22+MONTH_LANE_H*MAX_LANES+13,
+          // 「+N件」の行は auto にする。固定で13px取ると、その日に溢れが無くても
+          // 高さを食い、6週の月が実機で下にはみ出す（段を4に増やしたときに起きた）。
+          rowStyle:{position:'relative', flex:'1 1 0', minHeight:22+MONTH_LANE_H*MAX_LANES,
             ...(w>0?{borderTop:'1px solid var(--line)'}:{})},
           gridStyle:{position:'relative', display:'grid', gridTemplateColumns:'repeat(7,1fr)',
-            gridTemplateRows:'22px repeat('+MAX_LANES+','+MONTH_LANE_H+'px) 13px', alignContent:'start', pointerEvents:'none', height:'100%'},
+            gridTemplateRows:'22px repeat('+MAX_LANES+','+MONTH_LANE_H+'px) auto', alignContent:'start', pointerEvents:'none', height:'100%'},
         });
       }
       return weeks;
