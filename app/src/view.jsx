@@ -523,8 +523,11 @@ export function renderApp(v) {
 
             {v.addRowShown && (
               <div style={s('display:flex;align-items:flex-start;gap:10px;margin:0 2px 18px')}>
-                <span style={s('width:26px;height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ink-faint)')}>＋</span>
-                <div style={s('display:flex;flex-wrap:wrap;gap:8px;flex:1;padding-top:1px')}>
+                {/* ＋ はチップと同じ高さにする（padding 8px＋行 17px＋枠 1px）。
+                    高さを決め打ちにすると、チップの寸法を変えたときに縦がずれる。
+                    チップ側を触ったら、ここも合わせること。 */}
+                <span style={s('width:26px;flex-shrink:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:8px 0;border:1px solid transparent;font-size:17px;line-height:17px;color:var(--ink-faint)')}>＋</span>
+                <div style={s('display:flex;flex-wrap:wrap;gap:8px;flex:1')}>
                   {(v.addChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
                 </div>
               </div>
