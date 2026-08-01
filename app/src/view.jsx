@@ -27,7 +27,8 @@ export function renderApp(v) {
           <div className="month-head" style={s('padding:0 16px 10px 12px;display:flex;align-items:center;justify-content:space-between')}>
             <div style={s('display:flex;align-items:center;gap:2px')}>
               <span role="button" aria-label="前の月" tabIndex={0} style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onPrevMonth}>‹</span>
-              <div style={s('display:flex;align-items:baseline;gap:7px')}>
+              {/* 押すと年月をえらべる。‹ › だけだと来年の3月に7回かかる */}
+              <div role="button" aria-label="年と月をえらぶ" style={s('display:flex;align-items:baseline;gap:7px;cursor:pointer;user-select:none;padding:2px 4px;margin:-2px -4px')} onClick={v.onTapMonthHead}>
                 <span style={s('font-size:28px;font-weight:700;color:var(--ink);letter-spacing:-.5px')}>{v.monthLabel}月</span>
                 <span style={s('font-size:14px;font-weight:500;color:var(--ink-mut)')}>{v.year}</span>
               </div>
@@ -179,8 +180,12 @@ export function renderApp(v) {
       {/* ===================== いつ空いてる？ ===================== */}
       {v.freeShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
-          <div className="scr-head-solo" style={s('padding:0 18px 6px;text-align:center')}>
+          {/* シェアはこの画面に置く。空いている日を見ながら、そのまま送る。
+              まとめタブに置いていたころは、見ている月と送る月が別だった。 */}
+          <div className="scr-head" style={s('padding:0 18px 6px')}>
+            <span />
             <span style={s('font-size:16px;font-weight:700;color:var(--ink)')}>いつ空いてる？</span>
+            <span role="button" style={s('font-size:14px;color:var(--ink-mut);cursor:pointer;padding:6px 0 6px 12px;user-select:none;white-space:nowrap')} onClick={v.onOpenShare}>シェア</span>
           </div>
           <div style={s('padding:6px 18px 12px;display:flex;align-items:center;justify-content:space-between')}>
             <div style={s('display:flex;align-items:center;gap:14px')}>
@@ -613,6 +618,25 @@ export function renderApp(v) {
             )}
 
             <div style={s('margin-top:28px;padding:14px;text-align:center;font-size:14px;color:#A8452B;cursor:pointer')} onClick={v.onDelete}>{v.dDeleteLabel}</div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== 年月をえらぶ（月表示） ===================== */}
+      {v.ymSheetShown && (
+        <div style={s('position:absolute;inset:0;z-index:88;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onYmSheetClose}>
+          <div style={s('width:100%;max-width:320px;background:var(--bg);border-radius:20px;padding:18px 18px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
+            <div style={s('display:flex;align-items:center;justify-content:center;gap:22px;padding:2px 0 16px')}>
+              <span role="button" aria-label="前の年" style={s('width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:21px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYmSheetPrevYear}>‹</span>
+              <span style={s('font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;min-width:72px;text-align:center')}>{v.ymSheetYear}</span>
+              <span role="button" aria-label="次の年" style={s('width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:21px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYmSheetNextYear}>›</span>
+            </div>
+            <div style={s('display:grid;grid-template-columns:repeat(4,1fr);gap:8px')}>
+              {(v.ymSheetMonths || []).map((mo, i) => (
+                <div key={i} style={s(mo.style)} onClick={mo.onClick}>{mo.label}</div>
+              ))}
+            </div>
+            <div style={s('padding:14px 0 4px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onYmSheetToday}>{v.ymSheetTodayLabel}</div>
           </div>
         </div>
       )}
@@ -1124,16 +1148,13 @@ export function renderApp(v) {
               </>
             )}
 
+            {/* 「空いてる日をシェア」はここには置かない。この画面の数字と関係がなく、
+                どの月を送るのかも分からなくなる。空き状況の画面に置いてある。 */}
             <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>シェア</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line)')}>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenSummaryCard}>
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onOpenSummaryCard}>
                 <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>今月のまとめカード</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onOpenFreeShare}>
-                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>↗</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>空いてる日をシェア</span>
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
               </div>
             </div>

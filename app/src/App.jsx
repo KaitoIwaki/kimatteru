@@ -81,6 +81,44 @@ const repeatAfter = (fromN, every, weeks) => {
 // 5文字の乱数を足しておけば、あとから何をしても困らない。
 const uid = (prefix) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
+// 保存されている予定に壊れたものが1件でも混じると、描いている途中で落ちる。
+// しかも壊れたまま保存されているので、開き直しても同じところで落ちる——
+// アプリを消すまで戻れなくなる。読むときに必ずここを通す。
+//
+// 捨てるのは「日付が読めないもの」だけにする。それ以外は直して残す。
+// 利用者の予定を黙って消すほうが、表示が少し変になるより悪い。
+const isNum = (n) => typeof n === 'number' && Number.isFinite(n);
+const HHMM = /^([01]?\d|2[0-3]):[0-5]\d$/;
+const fixTime = (t, fallback) => (typeof t === 'string' && HHMM.test(t) ? t : fallback);
+const sanitizeEvents = (list) => {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const e of list) {
+    if (!e || typeof e !== 'object') continue;
+    if (!isNum(e.y) || !isNum(e.m) || !isNum(e.day)) continue;
+    if (e.m < 0 || e.m > 11 || e.day < 1 || e.day > 31) continue;
+    const start = fixTime(e.start, '09:00');
+    out.push({
+      ...e,
+      id: typeof e.id === 'string' && e.id ? e.id : uid('x'),
+      title: typeof e.title === 'string' ? e.title : '無題',
+      start,
+      end: fixTime(e.end, start),
+      actualEnd: typeof e.actualEnd === 'string' && HHMM.test(e.actualEnd) ? e.actualEnd : undefined,
+      want: Array.isArray(e.want) && e.want.length === 2 ? e.want : undefined,
+    });
+  }
+  return out;
+};
+// 種類は色を引くのに使う。1つでも形が違うと月表示が丸ごと落ちるので、
+// 揃っていなければ既定に戻す（数が少なく、作り直すのも簡単なため）
+const typesOk = (list) => Array.isArray(list) && list.length > 0 && list.every(
+  (t) => t && typeof t.key === 'string' && typeof t.name === 'string' && typeof t.color === 'string'
+);
+const sanitizeJobs = (list) => (Array.isArray(list) ? list.filter(
+  (j) => j && typeof j.id === 'string' && isNum(j.hourly)
+) : []);
+
 const todayParts = () => {
   const n = new Date();
   return { y: n.getFullYear(), m: n.getMonth(), d: n.getDate() };
@@ -109,14 +147,14 @@ export default class App extends React.Component {
         const saved = JSON.parse(raw);
         this.state = {
           ...this.state,
-          events: saved.events || this.state.events,
-          types: saved.types || this.state.types,
+          events: sanitizeEvents(saved.events),
+          types: typesOk(saved.types) ? saved.types : this.state.types,
           overrides: saved.overrides || this.state.overrides,
           // すでに使っている人には案内を出さない
           settings: { ...this.state.settings, onboarded: true, ...(saved.settings || {}) },
           notices: saved.notices || this.state.notices,
           lastSeenVersion: saved.lastSeenVersion || null,
-          jobs: saved.jobs || this.state.jobs,
+          jobs: sanitizeJobs(saved.jobs),
         };
       }
     } catch (e) {
@@ -637,6 +675,9 @@ export default class App extends React.Component {
       onPrevMonth:()=>this.setState(s=>({ym:shiftMonth(s.ym,-1), dayNum:null})),
       onNextMonth:()=>this.setState(s=>({ym:shiftMonth(s.ym,1), dayNum:null})),
       onToggleWage:()=>this.setState(s=>({wageOn:!s.wageOn})),
+      // 見出しの「8月 2026」を押すと年月をえらべる。
+      // ‹ › だけだと、来年の3月に行くのに7回押すことになる。
+      onTapMonthHead:()=>{ tapLight(); this.setState(s=>({ymSheet:s.ymSheet?null:{y:s.ym.y}})); },
       // 今月を見ているなら今日、別の月を見ているならその月の1日から始める
       onFab:()=>{ const t=st.today; const same=st.ym.y===t.y&&st.ym.m===t.m; this.openNew(same?t.d:1,'month'); },
       onCancel:()=>this.setState({screen:st.returnTo}),
@@ -933,6 +974,33 @@ export default class App extends React.Component {
       usedCount: st.events.filter(e=>e.type===t.key).length,
       swatches:this.PAL.map(hex=>({ style:{width:26,height:26,borderRadius:13,background:hex,cursor:'pointer',boxShadow: t.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)'}, onClick:()=>this.recolorKey(t.key,hex) })),
     }));
+    // ---------- 月表示の年月えらび ----------
+    {
+      const sh = st.ymSheet;
+      v.ymSheetShown = !!sh;
+      if(sh){
+        const sy = sh.y;
+        v.ymSheetYear = String(sy);
+        v.onYmSheetClose = ()=>this.setState({ymSheet:null});
+        v.onYmSheetPrevYear = ()=>this.setState(s=>({ymSheet:{y:s.ymSheet.y-1}}));
+        v.onYmSheetNextYear = ()=>this.setState(s=>({ymSheet:{y:s.ymSheet.y+1}}));
+        const t=st.today;
+        v.onYmSheetToday = ()=>{ tapLight(); this.setState({ym:{y:t.y,m:t.m}, dayNum:null, ymSheet:null}); };
+        v.ymSheetTodayLabel = `今月（${t.y}年${t.m+1}月）`;
+        v.ymSheetMonths = Array.from({length:12},(_,i)=>{
+          const sel = sy===st.ym.y && i===st.ym.m;
+          const isThis = sy===t.y && i===t.m;
+          return { label:(i+1)+'月',
+            onClick:()=>{ tapLight(); this.setState({ym:{y:sy,m:i}, dayNum:null, ymSheet:null}); },
+            style:{padding:'13px 0',textAlign:'center',borderRadius:12,fontSize:15,cursor:'pointer',
+              fontWeight:sel?700:500, transition:'all .18s',
+              background: sel?'var(--ink)':'var(--card)',
+              color: sel?'var(--card)':'var(--ink-soft)',
+              border:'1px solid '+(sel?'var(--ink)':(isThis?'var(--ink-faint)':'var(--line)'))} };
+        });
+      }
+    }
+
     v.onAddTypeRow = ()=>{ tapLight(); this.setState(s=>({newType: s.newType?null:{name:'',color:'#2F72C4'}, editTypeKey:null})); };
     // 種類は増えていくもの。ぜんぶ並べると、それだけで設定画面が埋まる。
     // ふだんはたたんで、色の点だけ出しておく（何があるかは点で分かる）。
@@ -1003,7 +1071,6 @@ export default class App extends React.Component {
       v.onRepPrevYear = ()=>this.setState(s=>({ym:{y:s.ym.y-1,m:s.ym.m}}));
       v.onRepNextYear = ()=>this.setState(s=>({ym:{y:s.ym.y+1,m:s.ym.m}}));
       v.onOpenSummaryCard = ()=>this.setState({screen:'summary', shareToast:false, cardFrom:'report'});
-      v.onOpenFreeShare = ()=>this.setState({screen:'share', shareToast:false, cardFrom:'report'});
     }
 
     // ---------- 空いてる日シェア (C) ----------
@@ -1106,8 +1173,8 @@ export default class App extends React.Component {
             // 今日は塗りつぶした丸。一度これを輪郭だけにしてみたが、
             // 弱すぎたので戻した（画面で一番濃いインクでよい、という判断）。
             numStyle: isToday
-              ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:700}
-              : {fontSize:11,fontWeight:(hol||dow===0||dow===6)?700:600, color:dayColor},
+              ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:600}
+              : {fontSize:11,fontWeight:(hol||dow===0||dow===6)?600:500, color:dayColor},
             onDay:()=>this.openDay(d),
           };
         });
@@ -1553,6 +1620,7 @@ export default class App extends React.Component {
       v.confirmTitle = '控えから戻しますか？';
       v.confirmBody = `いま入っている${st.events.length}件は、控えの${r.count}件に置き換わります。`
         + (at ? `（控えは ${at.getFullYear()}年${at.getMonth()+1}月${at.getDate()}日 のもの）` : '')
+        + (r.dropped ? ` 読めない予定が${r.dropped}件あり、それは戻せません。` : '')
         + ' 元に戻せません。';
       v.confirmOkLabel = '戻す';
       v.onConfirmDelete = ()=>this.doRestore();
@@ -1822,7 +1890,10 @@ export default class App extends React.Component {
     }
     const d = obj.data;
     if (!d || !Array.isArray(d.events)) return { error: '控えに予定が入っていません。' };
-    return { data: d, count: d.events.length, at: obj.exportedAt };
+    // 数える前にふるいにかける。ここで出す件数と、実際に戻る件数を合わせる。
+    const events = sanitizeEvents(d.events);
+    return { data: { ...d, events }, count: events.length,
+      dropped: d.events.length - events.length, at: obj.exportedAt };
   }
 
   askRestore() {
@@ -1838,9 +1909,9 @@ export default class App extends React.Component {
     stampHeavy();
     const d = r.data;
     this.setState((s) => ({
-      events: d.events || [],
-      types: Array.isArray(d.types) && d.types.length ? d.types : s.types,
-      jobs: d.jobs || [],
+      events: sanitizeEvents(d.events),
+      types: typesOk(d.types) ? d.types : s.types,
+      jobs: sanitizeJobs(d.jobs),
       overrides: d.overrides || {},
       notices: d.notices || [],
       settings: { ...s.settings, ...(d.settings || {}) },
