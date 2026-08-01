@@ -343,11 +343,32 @@ export function renderApp(v) {
               </div>
               {v.dateOpen && (
                 <div style={s('padding:2px 12px 14px;background:var(--bg2)')}>
+                  {/* 年月の表示はボタン。押すと年と月を直接えらべる。
+                      1ヶ月ずつしか動けないと、来年3月に行くのに8回タップになる。 */}
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:6px 2px 8px')}>
-                    <span role="button" aria-label="前の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDatePrev}>‹</span>
-                    <span style={s('font-size:14px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.datePickLabel}</span>
-                    <span role="button" aria-label="次の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDateNext}>›</span>
+                    <span role="button" aria-label="前の月" style={s(`width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none;${v.ymPickOpen ? 'opacity:0;pointer-events:none' : ''}`)} onClick={v.onDatePrev}>‹</span>
+                    <span role="button" aria-label="年と月をえらぶ" style={s(`display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:11px;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;user-select:none;transition:all .18s;${v.ymPickOpen ? 'background:var(--ink);color:var(--card)' : 'background:var(--card);color:var(--ink);border:1px solid var(--line)'}`)} onClick={v.onTapYM}>
+                      {v.datePickLabel}
+                      <span style={s(`font-size:10px;display:inline-block;transition:transform .2s;${v.ymPickOpen ? 'transform:rotate(180deg)' : ''}`)}>▾</span>
+                    </span>
+                    <span role="button" aria-label="次の月" style={s(`width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none;${v.ymPickOpen ? 'opacity:0;pointer-events:none' : ''}`)} onClick={v.onDateNext}>›</span>
                   </div>
+
+                  {v.ymPickOpen ? (
+                    <div style={s('padding:2px 0 6px')}>
+                      <div style={s('display:flex;align-items:center;justify-content:center;gap:22px;padding:4px 0 12px')}>
+                        <span role="button" aria-label="前の年" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYearPrev}>‹</span>
+                        <span style={s('font-size:19px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;min-width:64px;text-align:center')}>{v.ymYearLabel}</span>
+                        <span role="button" aria-label="次の年" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYearNext}>›</span>
+                      </div>
+                      <div style={s('display:grid;grid-template-columns:repeat(4,1fr);gap:7px')}>
+                        {(v.ymMonths || []).map((mo, i) => (
+                          <div key={i} style={s(mo.style)} onClick={mo.onClick}>{mo.label}</div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                  <>
                   <div style={s('display:grid;grid-template-columns:repeat(7,1fr)')}>
                     {(v.dateWeekdays || []).map((w, i) => (<div key={i} style={s(w.style)}>{w.label}</div>))}
                   </div>
@@ -362,6 +383,8 @@ export function renderApp(v) {
                       <span style={s('font-size:12px;color:var(--ink-mut);cursor:pointer;white-space:nowrap')} onClick={v.onClearExtraDays}>ほかの日を外す</span>
                     )}
                   </div>
+                  </>
+                  )}
                 </div>
               )}
 
@@ -405,6 +428,37 @@ export function renderApp(v) {
                     <span style={s('font-size:16px;font-weight:700;color:var(--ink);min-width:52px;text-align:center;font-variant-numeric:tabular-nums')}>{v.spanCountLabel}</span>
                     <span role="button" aria-label="1日増やす" style={s(v.spanPlusStyle)} onClick={v.onSpanPlus}>＋</span>
                   </span>
+                </div>
+              )}
+            </div>
+
+            {/* 場所とメモ。持ち物はメモに書く。どちらも普段はたたんでおく */}
+            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
+              <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line)')} onClick={v.onTapPlaceRow}>
+                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>場所</span>
+                <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                  <span style={s(v.valPlace)}>{v.placeValue}</span>
+                  <span style={s(v.chevPlace)}>›</span>
+                </span>
+              </div>
+              {v.rowPlaceOpen && (
+                <div style={s('padding:12px 14px 14px;background:var(--bg2);border-bottom:1px solid var(--line)')}>
+                  <input value={v.placeText} onChange={v.onPlaceText} placeholder="店名や住所（例：渋谷駅、○○カフェ）"
+                    style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit')} />
+                  <div style={s('font-size:11px;color:var(--ink-faint);margin:9px 4px 0;line-height:1.6')}>入れておくと、予定を開いたときに地図で開けます</div>
+                </div>
+              )}
+              <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapMemoRow}>
+                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>メモ</span>
+                <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                  <span style={s(v.valMemo)}>{v.memoValue}</span>
+                  <span style={s(v.chevMemo)}>›</span>
+                </span>
+              </div>
+              {v.rowMemoOpen && (
+                <div style={s('padding:12px 14px 14px;background:var(--bg2)')}>
+                  <textarea value={v.memoText} onChange={v.onMemoText} placeholder="持ち物や覚えておきたいこと" rows={4}
+                    style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;resize:none;line-height:1.7')} />
                 </div>
               )}
             </div>
@@ -472,6 +526,20 @@ export function renderApp(v) {
                 )}
                 {!!v.dWantText && (
                   <div style={s('font-size:12px;color:var(--ink-mut);margin-top:3px')}>{v.dWantText}</div>
+                )}
+
+                {!!v.dPlace && (
+                  <a href={v.dPlaceHref} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;gap:8px;margin-top:16px;padding:13px 14px;border-radius:13px;background:var(--bg2);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                      <path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11Z" stroke="var(--ink-mut)" strokeWidth="1.7" strokeLinejoin="round" />
+                      <circle cx="12" cy="10" r="2.5" stroke="var(--ink-mut)" strokeWidth="1.7" />
+                    </svg>
+                    <span style={s('flex:1;font-size:14px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{v.dPlace}</span>
+                    <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>地図</span>
+                  </a>
+                )}
+                {!!v.dMemo && (
+                  <div style={s('margin-top:10px;padding:12px 14px;border-radius:13px;background:var(--bg2);font-size:14px;color:var(--ink-soft);line-height:1.9;white-space:pre-wrap;text-align:justify')}>{v.dMemo}</div>
                 )}
 
                 {v.dWageShown && (

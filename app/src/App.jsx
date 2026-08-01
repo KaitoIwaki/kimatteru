@@ -319,14 +319,15 @@ export default class App extends React.Component {
     if(dir) this.setState(s=>({ym:shiftMonth(s.ym,dir), dayNum:null, swipe:{dx:0,animating:false}}));
     else this.setState({swipe:{dx:0,animating:false}});
   }
-  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,picking:null}}); }
+  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',picking:null}}); }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
     this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
       editingId:ev.id, title:ev.title, type:ev.type, status:ev.status,
       start:ev.start, end: ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end,
       y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev),
-      remindMin: typeof ev.remindMin==='number' ? ev.remindMin : null, picking:null }});
+      remindMin: typeof ev.remindMin==='number' ? ev.remindMin : null,
+      place:ev.place||'', memo:ev.memo||'', picking:null }});
   }
   askDelete(id){ this.setState({confirmDelete:id}); }
 
@@ -549,12 +550,16 @@ export default class App extends React.Component {
     const span = dr.allDay ? Math.max(1,Math.min(60,dr.days|0||1)) : 1;
     const spanField = span>1 ? span : undefined;
     const remindField = typeof dr.remindMin==='number' ? dr.remindMin : undefined;
+    // 空文字は持たせない（あとで「入っているか」を見るだけで済む）
+    const placeField = (dr.place||'').trim() || undefined;
+    const memoField = (dr.memo||'').trim() || undefined;
     if(dr.editingId){
       this.setState(s=>({ screen:'month', detailId:null, dayNum:null, ym:{y:dr.y,m:dr.m},
         events:s.events.map(e=>{
           if(e.id!==dr.editingId) return e;
           const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay,days:spanField,
-            remindMin:remindField, jobId: dr.type==='baito' ? dr.jobId : undefined, updatedAt:Date.now()};
+            remindMin:remindField, place:placeField, memo:memoField,
+            jobId: dr.type==='baito' ? dr.jobId : undefined, updatedAt:Date.now()};
           // 実績のときに直しているのは「実際に働いた終わりの時刻」
           return dr.status==='jisseki' ? {...base, actualEnd:dr.end} : {...base, end:dr.end, actualEnd:undefined};
         }) }));
@@ -565,6 +570,7 @@ export default class App extends React.Component {
     const base=Date.now();
     const made=placeOn.map(([y,m,d],i)=>({ id:'n'+base+'-'+i, type:dr.type, title:dr.title||'無題',
       y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay, days:spanField, remindMin:remindField,
+      place:placeField, memo:memoField,
       jobId: dr.type==='baito' ? dr.jobId : undefined,
       want: dr.status==='mikakutei' ? [dr.start,dr.end] : undefined, updatedAt:base }));
     this.setState(s=>({ screen:s.returnTo, ym:{y:dr.y,m:dr.m}, events:[...s.events,...made] }));
@@ -1146,7 +1152,7 @@ export default class App extends React.Component {
     const dDate=new Date(dr.y,dr.m,dr.day);
     v.dateLabel = `${dr.y}年${dr.m+1}月${dr.day}日（${DOW[dDate.getDay()]}）`;
     v.dateOpen = dr.picking==='date';
-    v.onTapDate = ()=>this.setState(s=>({draft:{...s.draft, picking:s.draft.picking==='date'?null:'date', pickY:s.draft.y, pickM:s.draft.m, pickedOnce:false}}));
+    v.onTapDate = ()=>this.setState(s=>({draft:{...s.draft, picking:s.draft.picking==='date'?null:'date', pickY:s.draft.y, pickM:s.draft.m, pickedOnce:false, pickYM:false}}));
     // 複数日えらんだときの表示
     const extras=(dr.extraDays||[]).length;
     v.dateExtraCount = extras;
@@ -1157,6 +1163,18 @@ export default class App extends React.Component {
     v.datePickLabel = `${pY}年${pM+1}月`;
     v.onDatePrev = ()=>this.setState(s=>{ const n=shiftMonth({y:pY,m:pM},-1); return {draft:{...s.draft,pickY:n.y,pickM:n.m}}; });
     v.onDateNext = ()=>this.setState(s=>{ const n=shiftMonth({y:pY,m:pM},1); return {draft:{...s.draft,pickY:n.y,pickM:n.m}}; });
+    // 「2026年7月」を押すと、年と月を直接えらべる。
+    // 1ヶ月ずつしか動けないと、来年3月に行くのに8回タップすることになる。
+    v.ymPickOpen = !!dr.pickYM;
+    v.onTapYM = ()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, pickYM:!s.draft.pickYM}})); };
+    v.ymYearLabel = String(pY);
+    v.onYearPrev = ()=>this.setState(s=>({draft:{...s.draft, pickY:pY-1}}));
+    v.onYearNext = ()=>this.setState(s=>({draft:{...s.draft, pickY:pY+1}}));
+    v.ymMonths = Array.from({length:12},(_,i)=>{ const sel=i===pM;
+      return { label:(i+1)+'月', onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, pickM:i, pickYM:false}})); },
+        style:{padding:'11px 0',textAlign:'center',borderRadius:11,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',
+          transition:'all .18s', background:sel?'var(--ink)':'var(--card)', color:sel?'var(--card)':'var(--ink-soft)',
+          border:'1px solid '+(sel?'var(--ink)':'var(--line)')} }; });
     const dws=st.settings.weekStart;
     v.dateWeekdays = Array.from({length:7},(_,i)=>{ const dw=(i+dws)%7;
       return { label:DOW[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,padding:'4px 0',
@@ -1275,6 +1293,23 @@ export default class App extends React.Component {
       v.jobValue = j ? (j.name||'名前なし') : '設定の時給'; }
     v.chevJob = chevron(v.rowJobOpen); v.valJob = rowVal(v.rowJobOpen);
 
+    // ---------- 場所とメモ ----------
+    // どちらも予定の中身そのもの。持ち物はメモに書く。
+    v.rowPlaceOpen = dr.picking==='place';
+    v.onTapPlaceRow = openRow('place');
+    v.placeValue = (dr.place||'').trim() || 'なし';
+    v.placeText = dr.place||'';
+    v.onPlaceText = (e)=>{ const val=e.target.value; this.setState(s=>({draft:{...s.draft, place:val}})); };
+    v.chevPlace = chevron(v.rowPlaceOpen); v.valPlace = rowVal(v.rowPlaceOpen);
+
+    v.rowMemoOpen = dr.picking==='memo';
+    v.onTapMemoRow = openRow('memo');
+    { const t=(dr.memo||'').trim();
+      v.memoValue = t ? (t.split('\n')[0].slice(0,12)+(t.length>12||t.includes('\n')?'…':'')) : 'なし'; }
+    v.memoText = dr.memo||'';
+    v.onMemoText = (e)=>{ const val=e.target.value; this.setState(s=>({draft:{...s.draft, memo:val}})); };
+    v.chevMemo = chevron(v.rowMemoOpen); v.valMemo = rowVal(v.rowMemoOpen);
+
     v.rowRemindOpen = dr.picking==='remind';
     v.onTapRemindRow = openRow('remind');
     v.remindValue = (typeof dr.remindMin==='number') ? this.remindLabel(dr.remindMin, dr.allDay) : 'なし';
@@ -1364,6 +1399,12 @@ export default class App extends React.Component {
       v.dSpanText = evSpan(ev)>1 ? evSpan(ev)+'日間' : '';
       const drm = typeof ev.remindMin==='number' ? ev.remindMin : null;
       v.dRemindText = drm===null ? '' : this.remindLabel(drm, ev.allDay)+'にお知らせ';
+      // 場所は地図で開けるようにする。地図アプリを持っていなくても
+      // ブラウザの Google マップに落ちるので、リンク1本で済む。
+      v.dPlace = (ev.place||'').trim();
+      v.dPlaceHref = v.dPlace
+        ? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(v.dPlace) : '';
+      v.dMemo = (ev.memo||'').trim();
       v.dTimeChanged = ev.status==='jisseki' && ev.actualEnd && ev.actualEnd!==ev.end;
       v.dWantText = ev.want ? '希望 '+ev.want[0]+'–'+ev.want[1] : (v.dTimeChanged?'予定 '+ev.start+'–'+ev.end:'');
       v.dWageShown = ev.status==='jisseki';
