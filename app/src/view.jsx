@@ -1188,6 +1188,23 @@ export function renderApp(v) {
         </div>
       )}
 
+      {/* ===================== 保存についての知らせ =====================
+          予定が消えることは、機能がひとつ動かないのとは重さが違う。
+          保存できていないことを黙っていると、いちばん悪い形で気づく——
+          画面には出ているのに、閉じて開いたら消えている。 */}
+      {v.saveFailedShown && (
+        <div className="save-warn" style={s('position:absolute;left:14px;right:14px;z-index:96;padding:13px 16px;border-radius:16px;background:#7A2E1C;color:#FFF3EE;box-shadow:0 10px 30px rgba(0,0,0,.3);cursor:pointer;animation:notifDrop .4s cubic-bezier(.2,.9,.2,1)')} onClick={v.onSaveFailedTap}>
+          <div style={s('font-size:14px;font-weight:700')}>予定を保存できていません</div>
+          <div style={s('font-size:12px;line-height:1.7;margin-top:3px;opacity:.9')}>端末の空き容量を確かめてください。念のため、いま控えを書き出しておくことをおすすめします。</div>
+        </div>
+      )}
+      {v.recoveredShown && (
+        <div className="save-warn" style={s('position:absolute;left:14px;right:14px;z-index:96;padding:13px 16px;border-radius:16px;background:var(--ink);color:var(--card);box-shadow:0 10px 30px rgba(0,0,0,.25);cursor:pointer;animation:notifDrop .4s cubic-bezier(.2,.9,.2,1)')} onClick={v.onRecoveredClose}>
+          <div style={s('font-size:14px;font-weight:700')}>{v.recoveredText}</div>
+          <div style={s('font-size:12px;line-height:1.7;margin-top:3px;opacity:.85')}>端末の保存領域が整理されたようです。中身を確かめてください。</div>
+        </div>
+      )}
+
       {/* ===================== はじめての案内 ===================== */}
       {v.onboardShown && (
         <div style={s('position:absolute;top:0;right:0;bottom:0;left:0;z-index:95;background:var(--bg);display:flex;flex-direction:column')}>

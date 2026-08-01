@@ -2,6 +2,7 @@
 import { renderApp } from './view.jsx';
 import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
+import { readLocal, readFile, saveLocal, saveFile } from './store';
 import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
@@ -19,7 +20,7 @@ const FILL_SOFT = 0.32;
 import { shareCanvas, shareText } from './shareimg';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
-const SAVE_KEY = 'kimatteru.v2';
+// 保存は store.js に閉じている（localStorage とファイルの二重書き）
 
 // 予定は y（西暦）・m（0始まりの月）・day で持つ。表示中の月も同じ形。
 // days は「その日から何日続くか」。無いか 1 なら1日だけの予定。
@@ -142,9 +143,9 @@ export default class App extends React.Component {
     super(props);
     // クラスフィールド（state など）は super() 直後に初期化済みなので、ここで上書きできる
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
+      const saved = readLocal();
+      if (saved) {
+        this._hadLocal = true;
         this.state = {
           ...this.state,
           events: sanitizeEvents(saved.events),
@@ -867,6 +868,16 @@ export default class App extends React.Component {
       v.onObImport = ()=>this.finishOnboard(true);
       v.onObStart = ()=>this.finishOnboard(false);
     }
+
+    // ---------- 保存についての知らせ ----------
+    // 保存できていないことを黙っていると、いちばん悪い形で気づく——
+    // 画面には出ているのに、閉じて開いたら消えている。必ず出す。
+    v.saveFailedShown = !!st.saveFailed;
+    v.onSaveFailedTap = ()=>this.setState({screen:'settings', backupOpen:false});
+    // ファイルから戻したときは、黙っていると「勝手に戻った」と見える
+    v.recoveredShown = !!st.recovered;
+    v.recoveredText = `保存されていた${st.recovered}件の予定を戻しました`;
+    v.onRecoveredClose = ()=>this.setState({recovered:null});
 
     // ---------- 何も無いときの案内 ----------
     // 月表示のぶんは showFirstRunHint（前からある）。二重に出さない。
@@ -1886,8 +1897,15 @@ export default class App extends React.Component {
       if (perm === 'granted') this.runScan();
     };
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) this._onResume();
+      if (!document.hidden) { this._onResume(); return; }
+      // 背景に回った。このまま終了されることがあるので、待たずに書く
+      this._flushFile();
     });
+
+    // localStorage は OS の判断で消されることがある。消えていたら、
+    // ファイルに残っている最後の内容から戻す。
+    // localStorage が生きているときは触らない（いま編集中の内容を消さないため）。
+    if (!this._hadLocal) this._recoverFromFile();
 
     // 日付が変わったら「今日」の位置と記録の催促を更新する
     this._tick = setInterval(() => {
@@ -2091,13 +2109,44 @@ export default class App extends React.Component {
     }
   }
 
+  // localStorage が空だったときに、ファイルから戻す。
+  // 初めて使う人はファイルも無いので、そのまま何も起きない。
+  async _recoverFromFile() {
+    const saved = await readFile();
+    if (!saved || !Array.isArray(saved.events) || !saved.events.length) return;
+    // 起動してから何か作っていたら、上書きしない
+    if (this.state.events.length) return;
+    const events = sanitizeEvents(saved.events);
+    if (!events.length) return;
+    this.setState((s) => ({
+      events,
+      types: typesOk(saved.types) ? saved.types : s.types,
+      overrides: saved.overrides || s.overrides,
+      settings: { ...s.settings, onboarded: true, ...(saved.settings || {}) },
+      notices: saved.notices || s.notices,
+      jobs: sanitizeJobs(saved.jobs),
+      recovered: events.length,
+    }));
+  }
+
+  // 予定が消えることは、機能がひとつ動かないのとは重さが違う。
+  // すぐ書くほう（localStorage）と、消えにくいほう（ファイル）の両方に書く。
   _persist() {
-    try {
-      const { events, types, overrides, settings, notices, lastSeenVersion, jobs } = this.state;
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ events, types, overrides, settings, notices, lastSeenVersion, jobs }));
-    } catch (e) {
-      // 容量オーバーなどは黙って諦める（保存できなくても操作は続けられる）
-    }
+    const ok = saveLocal(this.state);
+    // 書けなかったことを黙って飲み込まない。画面に出して、控えを促す。
+    if (ok === !!this.state.saveFailed) this.setState({ saveFailed: !ok });
+    this._scheduleFileSave();
+  }
+
+  // ファイルは毎打鍵で書くと重いので、手が止まってから書く。
+  // アプリが背景に回るときは待たずに書く（そのまま終了されることがある）。
+  _scheduleFileSave() {
+    clearTimeout(this._fileTimer);
+    this._fileTimer = setTimeout(() => this._flushFile(), 1200);
+  }
+  _flushFile() {
+    clearTimeout(this._fileTimer);
+    saveFile(this.state);
   }
 
   render() {

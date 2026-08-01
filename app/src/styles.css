@@ -126,6 +126,11 @@ input { font-family: inherit; }
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
+/* 保存についての知らせ。ステータスバーの下に出す */
+.save-warn {
+  top: calc(env(safe-area-inset-top) + 10px) !important;
+}
+
 /* まだ1件も無いときの案内。タブバーの上に浮かせる（グリッドの高さを奪わない） */
 .first-run {
   bottom: calc(env(safe-area-inset-bottom) + 84px) !important;
