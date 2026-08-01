@@ -53,6 +53,28 @@ const MONTH_LANE_H = MONTH_BAR_H + 2; // 帯と帯のあいだの隙間ぶん
 // （以前は設定の「時間の刻み幅」で変えられたが、既定の30分だと 17:20 が選べなかった）
 const MIN_STEP = 5;
 
+// くり返しは「規則」ではなく、その場で予定の実体を並べて作る。
+// 1回ごとに確定／未確定が違うのがこのアプリの要なので、
+// あとから1件だけ直せない形（規則で持つ形）にはできない。
+// 選べる長さ。半年ぶん毎日で 182 件。これ以上は作れないようにする。
+const REPEAT_WEEKS = [
+  { key: 2, label: '2週間' },
+  { key: 4, label: '1か月' },
+  { key: 12, label: '3か月' },
+  { key: 26, label: '半年' },
+];
+const MAX_REPEAT = 200;
+
+// 本体の日のあとに続く日を、日番号の配列で返す（本体そのものは含まない）
+const repeatAfter = (fromN, every, weeks) => {
+  if (every !== 'day' && every !== 'week') return [];
+  const step = every === 'day' ? 1 : 7;
+  const last = fromN + weeks * 7;
+  const out = [];
+  for (let n = fromN + step; n <= last && out.length < MAX_REPEAT; n += step) out.push(n);
+  return out;
+};
+
 const todayParts = () => {
   const n = new Date();
   return { y: n.getFullYear(), m: n.getMonth(), d: n.getDate() };
@@ -319,7 +341,7 @@ export default class App extends React.Component {
     if(dir) this.setState(s=>({ym:shiftMonth(s.ym,dir), dayNum:null, swipe:{dx:0,animating:false}}));
     else this.setState({swipe:{dx:0,animating:false}});
   }
-  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',picking:null}}); }
+  openNew(day,ret){ const ym=this.state.ym; this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'baito',status:'kakutei',start:'17:00',end:'22:00',y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',repEvery:null,repWeeks:4,picking:null}}); }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
     this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
@@ -327,9 +349,9 @@ export default class App extends React.Component {
       start:ev.start, end: ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end,
       y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev),
       remindMin: typeof ev.remindMin==='number' ? ev.remindMin : null,
-      place:ev.place||'', memo:ev.memo||'', picking:null }});
+      place:ev.place||'', memo:ev.memo||'', repEvery:null, repWeeks:4, picking:null }});
   }
-  askDelete(id){ this.setState({confirmDelete:id}); }
+  askDelete(id){ this.setState({confirmDelete:id, deleteRest:false}); }
 
   // ---- 一覧の行を左へスワイプして削除 ----
   // 開くのは一度に1行だけ。開いている行があるときは、本文をタップしても
@@ -488,7 +510,16 @@ export default class App extends React.Component {
   setAllImportType(type){ tapLight(); this.setState(s=>({imp:{...s.imp, found:s.imp.found.map(e=>e.on?{...e,type}:e)}})); }
   doDelete(){
     const id=this.state.confirmDelete;
-    this.setState(s=>({ events:s.events.filter(e=>e.id!==id), confirmDelete:null, dialog:null, swipeRow:null,
+    const all=this.state.deleteRest;
+    const ev=this.state.events.find(e=>e.id===id);
+    // 「これ以降ぜんぶ」のとき、同じくり返しで作った、その日以降のものを消す。
+    // 前の分を残すのは、もう済んだ予定まで消えると困るため。
+    const gone = (e)=>{
+      if(e.id===id) return true;
+      if(!all || !ev || !ev.repId) return false;
+      return e.repId===ev.repId && evFrom(e)>=evFrom(ev);
+    };
+    this.setState(s=>({ events:s.events.filter(e=>!gone(e)), confirmDelete:null, deleteRest:false, dialog:null, swipeRow:null,
       screen: s.detailId===id ? 'month' : s.screen, detailId: s.detailId===id ? null : s.detailId }));
   }
   openDialog(ev,mode,ret){
@@ -565,12 +596,16 @@ export default class App extends React.Component {
         }) }));
       return;
     }
-    // 本体の日＋えらんだ他の日、まとめて置く
-    const placeOn=[[dr.y,dr.m,dr.day], ...(dr.extraDays||[]).map(k=>k.split('-').map(Number))];
+    // 本体の日＋えらんだ他の日＋くり返しの日、まとめて置く
+    const rep = repeatAfter(dayNo(dr.y,dr.m,dr.day), dr.repEvery, dr.repWeeks|0)
+      .map(n=>{ const o=fromDayNo(n); return [o.y,o.m,o.d]; });
+    const placeOn=[[dr.y,dr.m,dr.day], ...(dr.extraDays||[]).map(k=>k.split('-').map(Number)), ...rep];
     const base=Date.now();
+    // くり返しで作ったものには同じ印をつけておく。あとでまとめて消せる。
+    const repId = rep.length ? 'r'+base : undefined;
     const made=placeOn.map(([y,m,d],i)=>({ id:'n'+base+'-'+i, type:dr.type, title:dr.title||'無題',
       y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay, days:spanField, remindMin:remindField,
-      place:placeField, memo:memoField,
+      place:placeField, memo:memoField, repId,
       jobId: dr.type==='baito' ? dr.jobId : undefined,
       want: dr.status==='mikakutei' ? [dr.start,dr.end] : undefined, updatedAt:base }));
     this.setState(s=>({ screen:s.returnTo, ym:{y:dr.y,m:dr.m}, events:[...s.events,...made] }));
@@ -1310,6 +1345,38 @@ export default class App extends React.Component {
     v.onMemoText = (e)=>{ const val=e.target.value; this.setState(s=>({draft:{...s.draft, memo:val}})); };
     v.chevMemo = chevron(v.rowMemoOpen); v.valMemo = rowVal(v.rowMemoOpen);
 
+    // ---------- くり返し ----------
+    // 直すときは出さない。すでに1件ずつの予定になっているので、
+    // ここで「くり返し」を触らせると、どれが変わるのか分からなくなる。
+    v.repRowShown = !dr.editingId;
+    v.rowRepOpen = dr.picking==='rep';
+    v.onTapRepRow = openRow('rep');
+    {
+      const DOWJ=['日','月','火','水','木','金','土'];
+      const dowLabel = DOWJ[new Date(dr.y,dr.m,dr.day).getDay()];
+      const weeks = dr.repWeeks|0 || 4;
+      const made = repeatAfter(dayNo(dr.y,dr.m,dr.day), dr.repEvery, weeks);
+      v.repValue = dr.repEvery==='day' ? '毎日' : dr.repEvery==='week' ? ('毎週'+dowLabel+'曜') : 'なし';
+      v.repEveryChips = [
+        {key:null, label:'なし'}, {key:'day', label:'毎日'}, {key:'week', label:'毎週'+dowLabel+'曜'},
+      ].map(o=>{ const sel=(dr.repEvery||null)===o.key;
+        return { label:o.label, onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, repEvery:o.key}})); },
+          style:{padding:'9px 15px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',
+            background:sel?'#1D9E75':'var(--card)', color:sel?'#fff':'var(--ink-mut)',
+            border:'1px solid '+(sel?'#1D9E75':'var(--line)')} }; });
+      v.repUntilShown = !!dr.repEvery;
+      v.repWeekChips = REPEAT_WEEKS.map(o=>{ const sel=weeks===o.key;
+        return { label:o.label, onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, repWeeks:o.key}})); },
+          style:{padding:'9px 15px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',
+            background:sel?'var(--ink)':'var(--card)', color:sel?'var(--card)':'var(--ink-mut)',
+            border:'1px solid '+(sel?'var(--ink)':'var(--line)')} }; });
+      if(made.length){
+        const last=fromDayNo(made[made.length-1]);
+        v.repHint = `${last.m+1}月${last.d}日まで、ぜんぶで${made.length+1}件つくります`;
+      } else v.repHint = '';
+    }
+    v.chevRep = chevron(v.rowRepOpen); v.valRep = rowVal(v.rowRepOpen);
+
     v.rowRemindOpen = dr.picking==='remind';
     v.onTapRemindRow = openRow('remind');
     v.remindValue = (typeof dr.remindMin==='number') ? this.remindLabel(dr.remindMin, dr.allDay) : 'なし';
@@ -1443,7 +1510,23 @@ export default class App extends React.Component {
         : '元に戻せません。';
       v.confirmOkLabel = '削除する';
       v.onConfirmDelete = ()=>this.doDelete();
-      v.onCancelDelete = ()=>this.setState({confirmDelete:null});
+      v.onCancelDelete = ()=>this.setState({confirmDelete:null, deleteRest:false});
+      // くり返しで作ったものなら、「これ以降ぜんぶ」もえらべるようにする。
+      // 90件を1件ずつ消させるわけにいかない。
+      if(target && target.repId){
+        const rest=st.events.filter(e=>e.repId===target.repId && evFrom(e)>=evFrom(target)).length;
+        if(rest>1){
+          v.repDeleteShown = true;
+          v.repDeleteOn = !!st.deleteRest;
+          v.repDeleteLabel = `この日から先のくり返しも消す（${rest}件）`;
+          v.onToggleRepDelete = ()=>{ tapLight(); this.setState(s=>({deleteRest:!s.deleteRest})); };
+          v.repDeleteBox = {width:20,height:20,borderRadius:6,flexShrink:0,
+            border:'1.5px solid '+(st.deleteRest?'#C0392B':'var(--line)'),
+            background:st.deleteRest?'#C0392B':'transparent',
+            color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700};
+          if(st.deleteRest) v.confirmOkLabel = `${rest}件を削除する`;
+        }
+      }
     }
 
     // ---------- DIALOG ----------

@@ -463,6 +463,32 @@ export function renderApp(v) {
               )}
             </div>
 
+            {v.repRowShown && (
+              <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
+                <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapRepRow}>
+                  <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>くり返し</span>
+                  <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                    <span style={s(v.valRep)}>{v.repValue}</span>
+                    <span style={s(v.chevRep)}>›</span>
+                  </span>
+                </div>
+                {v.rowRepOpen && (
+                  <div style={s('padding:13px 14px 15px;background:var(--bg2)')}>
+                    <div style={s('display:flex;flex-wrap:wrap;gap:8px')}>
+                      {v.repEveryChips.map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                    </div>
+                    {v.repUntilShown && (<>
+                      <div style={s('font-size:12px;color:var(--ink-faint);margin:15px 4px 8px')}>いつまで</div>
+                      <div style={s('display:flex;flex-wrap:wrap;gap:8px')}>
+                        {v.repWeekChips.map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                      </div>
+                      <div style={s('font-size:11px;color:var(--ink-faint);margin:11px 4px 0;line-height:1.6')}>{v.repHint}</div>
+                    </>)}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
               <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapRemindRow}>
                 <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>お知らせ</span>
@@ -575,6 +601,12 @@ export function renderApp(v) {
           <div style={s('width:100%;max-width:300px;background:var(--card);border-radius:16px;padding:22px 20px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
             <div style={s('font-size:17px;font-weight:700;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.confirmTitle}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:8px 0 20px;text-wrap:pretty')}>{v.confirmBody}</div>
+            {v.repDeleteShown && (
+              <div style={s('display:flex;align-items:center;gap:10px;padding:12px 13px;margin-bottom:14px;border-radius:13px;background:var(--bg2);cursor:pointer')} onClick={v.onToggleRepDelete}>
+                <span style={s(v.repDeleteBox)}>{v.repDeleteOn ? '✓' : ''}</span>
+                <span style={s('font-size:13px;color:var(--ink-soft);line-height:1.5')}>{v.repDeleteLabel}</span>
+              </div>
+            )}
             <div style={s('display:flex;flex-direction:column;gap:8px')}>
               <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onConfirmDelete}>{v.confirmOkLabel}</div>
               <div style={s('padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancelDelete}>やめる</div>
