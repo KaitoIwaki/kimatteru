@@ -724,7 +724,7 @@ export default class App extends React.Component {
       // 控えを貼りつけている間はナビを隠す。浮かせてあるので、
       // キーボードが上がると入力欄に重なって、貼りつけの邪魔になる。
       navShown: (st.screen==='month' || st.screen==='free' || st.screen==='report'
-        || (st.screen==='settings' && !st.backupOpen)),
+        || (st.screen==='settings' && !st.pasteOpen)),
       onBell:()=>this.openNotices(),
       navCur: st.screen,
       onNavCal:()=>this.setState({screen:'month', dayNum:null, detailId:null}),
@@ -959,7 +959,7 @@ export default class App extends React.Component {
     // 保存できていないことを黙っていると、いちばん悪い形で気づく——
     // 画面には出ているのに、閉じて開いたら消えている。必ず出す。
     v.saveFailedShown = !!st.saveFailed;
-    v.onSaveFailedTap = ()=>this.setState({screen:'settings', backupOpen:false});
+    v.onSaveFailedTap = ()=>this.setState({screen:'settings', pasteOpen:false});
     // ファイルから戻したときは、黙っていると「勝手に戻った」と見える
     v.recoveredShown = !!st.recovered;
     v.recoveredText = `保存されていた${st.recovered}件の予定を戻しました`;
