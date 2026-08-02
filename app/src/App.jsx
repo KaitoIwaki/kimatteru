@@ -7,7 +7,7 @@ import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
 import { applyStatusBarTheme } from './statusbar';
-import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, openAppSettings } from './calendarimport';
+import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, guessTypes, openAppSettings } from './calendarimport';
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
 
@@ -537,8 +537,11 @@ export default class App extends React.Component {
     try{
       const all = await readCalendarEvents({monthsBack:1, monthsAhead:12});
       const fresh = dedupe(all, this.state.events);
-      // 1件ずつ、入れるかどうかと種類を持たせる。既定は全部入れる・用事あつかい。
-      const picked = fresh.map((e,i)=>({...e, key:'k'+i, on:true, type:'yoji'}));
+      // 1件ずつ、入れるかどうかと種類を持たせる。種類は名前から当てにいく。
+      // 当たらなかったものは用事に置く（これまでと同じ）。
+      const guesses = guessTypes(fresh, this.state.types);
+      const picked = fresh.map((e,i)=>({...e, key:'k'+i, on:true,
+        type:guesses[i].key, guessed:!!guesses[i].why}));
       this.setState(s=>({imp:{...s.imp, phase:'found', found:picked}}));
     }catch(e){
       this.setState(s=>({imp:{...s.imp, phase:'idle', error:'予定を読めませんでした。時間をおいて試してください。'}}));
@@ -947,6 +950,12 @@ export default class App extends React.Component {
       v.impCount=String((im.found||[]).length);
       v.impOnCount=String((im.found||[]).filter(e=>e.on).length);
       v.impAllOn=(im.found||[]).length>0 && (im.found||[]).every(e=>e.on);
+      // どれだけ当たったかを見せる。当たらなかったものは用事に置いてあるので、
+      // 「何件を自分で直せばいいか」がこの数から分かる。
+      { const g=(im.found||[]).filter(e=>e.guessed).length;
+        v.impGuessedCount = g;
+        v.impGuessText = g ? `名前から${g}件の種類を当てました。ちがっていたら押して直せます。`
+                           : ''; }
       v.onToggleAll=()=>this.setAllImport(!v.impAllOn);
       // 選んでいるものをまとめて種類変更
       v.impBulkChips = st.types.map(t=>({ label:t.name, onClick:()=>this.setAllImportType(t.key),
@@ -956,7 +965,7 @@ export default class App extends React.Component {
       v.impRows = (im.found||[]).map(e=>{
         const ty=st.types.find(t=>t.key===e.type)||st.types[0];
         return {
-          key:e.key, title:e.title, on:e.on,
+          key:e.key, title:e.title, on:e.on, guessed:!!e.guessed,
           when:`${e.m+1}/${e.day}　${e.allDay?'終日':e.start+'–'+e.end}`,
           onToggle:()=>this.toggleImportRow(e.key),
           rowStyle:{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:'1px solid var(--line)',

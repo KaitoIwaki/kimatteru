@@ -1397,9 +1397,12 @@ export function renderApp(v) {
             ) : v.impPhase === 'found' ? (
               <>
                 <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>{v.impCount}件の予定が見つかりました</div>
-                <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-bottom:22px;text-wrap:pretty')}>
+                <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.9;margin-bottom:14px;text-wrap:pretty')}>
                   {''}<Jp parts={['先月から','1年ぶんを','読みました。','すでに入っている予定は','除いてあります。']} />
                 </div>
+                {!!v.impGuessText && (
+                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.8;margin-bottom:20px;padding:11px 13px;border-radius:13px;background:var(--bg2);text-wrap:pretty')}>{v.impGuessText}</div>
+                )}
 
                 <div style={s('display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 8px')}>
                   <span style={s('font-size:12px;font-weight:600;color:var(--ink-mut)')}>入れるものをえらぶ</span>
