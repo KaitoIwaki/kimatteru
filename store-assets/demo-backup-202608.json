@@ -1,0 +1,275 @@
+{
+  "app": "kimatteru",
+  "format": 2,
+  "appVersion": "demo",
+  "exportedAt": "2026-08-01T00:00:00.000Z",
+  "data": {
+    "events": [
+      {
+        "day": 1,
+        "type": "baito",
+        "title": "カフェ",
+        "start": "17:00",
+        "end": "22:00",
+        "status": "jisseki",
+        "actualEnd": "22:30",
+        "breakMin": 30,
+        "jobId": "demo-job-cafe",
+        "id": "demo-202608-0",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 3,
+        "type": "baito",
+        "title": "カフェ",
+        "start": "17:00",
+        "end": "21:00",
+        "status": "jisseki",
+        "jobId": "demo-job-cafe",
+        "id": "demo-202608-1",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 4,
+        "type": "asobi",
+        "title": "映画",
+        "start": "19:00",
+        "end": "22:00",
+        "status": "kakutei",
+        "id": "demo-202608-2",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 6,
+        "type": "baito",
+        "title": "カフェ",
+        "start": "10:00",
+        "end": "15:00",
+        "status": "jisseki",
+        "actualEnd": "15:15",
+        "breakMin": 45,
+        "jobId": "demo-job-cafe",
+        "id": "demo-202608-3",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 8,
+        "type": "baito",
+        "title": "倉庫",
+        "start": "09:00",
+        "end": "17:00",
+        "status": "nakunatta",
+        "jobId": "demo-job-souko",
+        "id": "demo-202608-4",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 11,
+        "type": "asobi",
+        "title": "BBQ",
+        "start": "12:00",
+        "end": "17:00",
+        "status": "mikakutei",
+        "id": "demo-202608-5",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 13,
+        "type": "yoji",
+        "title": "歯医者",
+        "start": "18:00",
+        "end": "19:00",
+        "status": "kakutei",
+        "place": "東京都渋谷区道玄坂1-2-3",
+        "memo": "保険証を持っていく",
+        "id": "demo-202608-6",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 14,
+        "type": "baito",
+        "title": "カフェ",
+        "start": "17:00",
+        "end": "22:00",
+        "status": "jisseki",
+        "breakMin": 30,
+        "jobId": "demo-job-cafe",
+        "id": "demo-202608-7",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 15,
+        "type": "yoji",
+        "title": "研修",
+        "start": "09:00",
+        "end": "17:00",
+        "status": "kakutei",
+        "id": "demo-202608-8",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 16,
+        "type": "baito",
+        "title": "カフェ",
+        "start": "17:00",
+        "end": "22:00",
+        "status": "jisseki",
+        "actualEnd": "23:00",
+        "breakMin": 30,
+        "jobId": "demo-job-cafe",
+        "id": "demo-202608-9",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 18,
+        "type": "asobi",
+        "title": "ライブ",
+        "start": "18:00",
+        "end": "22:00",
+        "status": "mikakutei",
+        "remindMin": 1440,
+        "id": "demo-202608-10",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 20,
+        "type": "yoji",
+        "title": "健康診断",
+        "start": "09:00",
+        "end": "11:00",
+        "status": "kakutei",
+        "id": "demo-202608-11",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 21,
+        "type": "baito",
+        "title": "カフェ",
+        "start": "17:00",
+        "end": "22:00",
+        "status": "kakutei",
+        "jobId": "demo-job-cafe",
+        "id": "demo-202608-12",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 22,
+        "type": "asobi",
+        "title": "合宿",
+        "start": "09:00",
+        "end": "18:00",
+        "status": "kakutei",
+        "allDay": true,
+        "days": 3,
+        "id": "demo-202608-13",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 24,
+        "type": "baito",
+        "title": "カフェ",
+        "start": "17:00",
+        "end": "22:00",
+        "status": "mikakutei",
+        "want": [
+          "17:00",
+          "22:00"
+        ],
+        "jobId": "demo-job-cafe",
+        "id": "demo-202608-14",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 25,
+        "type": "baito",
+        "title": "カフェ",
+        "start": "12:00",
+        "end": "18:00",
+        "status": "mikakutei",
+        "jobId": "demo-job-cafe",
+        "id": "demo-202608-15",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 26,
+        "type": "asobi",
+        "title": "花火大会",
+        "start": "18:00",
+        "end": "22:00",
+        "status": "mikakutei",
+        "id": "demo-202608-16",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 27,
+        "type": "yoji",
+        "title": "区役所",
+        "start": "13:00",
+        "end": "14:00",
+        "status": "mikakutei",
+        "id": "demo-202608-17",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 28,
+        "type": "baito",
+        "title": "カフェ",
+        "start": "17:00",
+        "end": "22:00",
+        "status": "kakutei",
+        "jobId": "demo-job-cafe",
+        "id": "demo-202608-18",
+        "y": 2026,
+        "m": 7
+      },
+      {
+        "day": 31,
+        "type": "baito",
+        "title": "倉庫",
+        "start": "09:00",
+        "end": "17:00",
+        "status": "mikakutei",
+        "jobId": "demo-job-souko",
+        "id": "demo-202608-19",
+        "y": 2026,
+        "m": 7
+      }
+    ],
+    "jobs": [
+      {
+        "id": "demo-job-cafe",
+        "name": "カフェ",
+        "hourly": 1200
+      },
+      {
+        "id": "demo-job-souko",
+        "name": "倉庫",
+        "hourly": 1300
+      }
+    ],
+    "overrides": {},
+    "settings": {
+      "onboarded": true
+    },
+    "notices": [],
+    "lastSeenVersion": "0.17.0"
+  }
+}
