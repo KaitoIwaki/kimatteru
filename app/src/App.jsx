@@ -1482,7 +1482,7 @@ export default class App extends React.Component {
     const extras=(dr.extraDays||[]).length;
     v.dateExtraCount = extras;
     v.dateSummary = extras ? `ほか${extras}日` : '';
-    v.dateHint = v.dateOpen ? (extras || dr.pickedOnce ? '別の日もタップすると、まとめて置けます' : '日をえらんでください') : '';
+    v.dateHint = v.dateOpen ? '日をえらんでください' : '';
     v.onClearExtraDays = ()=>this.setState(s=>({draft:{...s.draft, extraDays:[]}}));
     const pY = dr.pickY==null?dr.y:dr.pickY, pM = dr.pickM==null?dr.m:dr.pickM;
     v.datePickLabel = `${pY}年${pM+1}月`;
@@ -1524,10 +1524,14 @@ export default class App extends React.Component {
             background: isMain?'var(--ink)': isExtra?'var(--bg2)':'transparent',
             color: isMain?'var(--card)':c2,
             border: isExtra ? '1.5px solid var(--ink)' : (!sel&&isToday)?'1px solid var(--line)':'1px solid transparent'},
-          // 1回目のタップで本体の日、2回目以降は追加の日として足していく
+          // 押した日だけを選ぶ。
+          // 以前は2回目以降を「追加の日」として足していたが、
+          // 12日を押すつもりで13日を押したとき、押し直すと両方が選ばれてしまい、
+          // 間違いを直す手段が無かった。押し間違いは必ず起きるので、
+          // 直せないほうを取り除いた。複数日は別の入口で作る。
           onClick:()=>{ if(isMain) return;
-            if(dr.picking==='date' && !dr.pickedOnce) this.setState(s=>({draft:{...s.draft,y:pY,m:pM,day:d2,pickedOnce:true}}));
-            else this.toggleExtraDay(pY,pM,d2); } });
+            tapLight();
+            this.setState(s=>({draft:{...s.draft, y:pY, m:pM, day:d2, extraDays:[], pickedOnce:true}})); } });
       }
       v.dateCells=cells;
     }
