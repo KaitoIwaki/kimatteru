@@ -215,9 +215,11 @@ cd app && npx cap sync ios
 
 ## 検証のしかた（重要）
 
-この環境ではスクリーンショット生成（html2canvas）が
+スクリーンショット生成に html2canvas を使うと、
 **アニメーション中の要素・transform・重なりを正しく描けない**。
 過去にこれを「描画ツールの制約」と誤判断して、実機に崩れたまま出してしまったことがある。
+確認ダイアログの1枚が長らく撮れなかったのもこれが理由。
+**いまは `tools/make-shots.mjs` が本物のブラウザで撮るので、重なりもぼかしも出る。**
 
 **レイアウトは必ず実寸で確かめる。**
 
@@ -244,6 +246,18 @@ npm i -D sharp && node tools/make-icon.mjs
 ```
 アプリアイコンを作り直す。
 
+```bash
+npm run build && npm run preview          # 別のターミナルで動かしておく
+npm i -D playwright && npx playwright install chromium
+node tools/make-shots.mjs
+```
+App Store 用のスクリーンショットを撮り直す（6.9インチ・1290×2796）。
+`store-assets/screenshots-6.9/` に8枚書き出す。予定は `?demo=1` のサンプル。
+
+**playwright は `package.json` に入れていない。** postinstall がブラウザ本体
+（150MBほど）を落としに行くので、常設すると Codemagic のビルドが重くなる。
+撮るときだけ入れて、済んだら消してよい。
+
 ## 公開しているもの
 
 - リポジトリ: https://github.com/KaitoIwaki/kimatteru
@@ -255,7 +269,7 @@ npm i -D sharp && node tools/make-icon.mjs
 `store-assets/app-store-metadata.md` に説明文・キーワード・審査メモ・チェックリストがある。
 
 1. 実機で最終確認
-2. **確認ダイアログのスクリーンショットを実機で撮る**（生成できなかった1枚）
+2. ~~確認ダイアログのスクリーンショットを実機で撮る~~ → `tools/make-shots.mjs` で生成できるようになった
 3. App Store Connect に説明文とスクショを登録
 4. EU の trader status を申告
 5. 審査に提出
