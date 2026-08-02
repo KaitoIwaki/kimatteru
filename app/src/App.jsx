@@ -721,7 +721,10 @@ export default class App extends React.Component {
       onDayBack:()=>this.setState({screen:'month', dayNum:null}),
       onOpenFree:()=>this.setState({screen:'free'}),
       onFreeBack:()=>this.setState({screen:'month'}),
-      navShown: st.screen==='month' || st.screen==='free' || st.screen==='report' || st.screen==='settings',
+      // 控えを貼りつけている間はナビを隠す。浮かせてあるので、
+      // キーボードが上がると入力欄に重なって、貼りつけの邪魔になる。
+      navShown: (st.screen==='month' || st.screen==='free' || st.screen==='report'
+        || (st.screen==='settings' && !st.backupOpen)),
       onBell:()=>this.openNotices(),
       navCur: st.screen,
       onNavCal:()=>this.setState({screen:'month', dayNum:null, detailId:null}),

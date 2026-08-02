@@ -821,9 +821,14 @@ export function renderApp(v) {
               </div>
 
               <div style={s('flex:1')} />
+              {/* 1行に続けると折り返しがどこで起きるか分からず、
+                  「決まってる？」がどこまでなのか読めなかった。2段に分ける。 */}
               <div style={s('display:flex;align-items:center;gap:8px;padding-top:16px')}>
-                <span style={s('font-size:15px;letter-spacing:-2px')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C1C5CC')}>？</span></span>
-                <span style={s('font-size:12px;font-weight:600;color:#55524A;text-wrap:pretty')}>決まってる？ — 一目でわかるカレンダー</span>
+                <span style={s('font-size:15px;letter-spacing:-2px;flex-shrink:0')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C1C5CC')}>？</span></span>
+                <span style={s('display:flex;flex-direction:column;gap:1px;min-width:0')}>
+                  <span style={s('font-size:12px;font-weight:600;color:#55524A;white-space:nowrap')}>決まってる？</span>
+                  <span style={s('font-size:11px;font-weight:500;color:#8C887C;white-space:nowrap')}>予定が一目でわかるカレンダー</span>
+                </span>
               </div>
             </div>
 

@@ -41,7 +41,9 @@ function badge(ctx, x, y, d, bg, glyph, fg, fontSize) {
 }
 
 // 末尾の合印「✓？」— アプリの署名
-function signature(ctx, x, y, size, label) {
+// sub を渡すと2段になる。1行に続けると長すぎて、
+// 「決まってる？」がどこまでなのか分からなくなる。
+function signature(ctx, x, y, size, label, sub) {
   ctx.font = f(size, 700);
   ctx.textBaseline = 'middle';
   ctx.fillStyle = TEAL;
@@ -50,9 +52,15 @@ function signature(ctx, x, y, size, label) {
   ctx.fillStyle = '#C1C5CC';
   ctx.fillText('？', x + w - size * 0.1, y);
   const w2 = ctx.measureText('？').width;
+  const tx = x + w + w2 + size * 0.25;
   ctx.font = f(size * 0.62, 600);
   ctx.fillStyle = '#55524A';
-  ctx.fillText(label, x + w + w2 + size * 0.25, y);
+  ctx.fillText(label, tx, sub ? y - size * 0.34 : y);
+  if (sub) {
+    ctx.font = f(size * 0.52, 500);
+    ctx.fillStyle = INK_MUT;
+    ctx.fillText(sub, tx, y + size * 0.38);
+  }
   ctx.textBaseline = 'alphabetic';
 }
 
@@ -148,7 +156,7 @@ export function drawSummaryCard({ yearMonth, wage, hours, promises, canceled, rh
   ctx.fillStyle = INK_FAINT;
   ctx.fillText(String(canceled), PAD + colW, y);
 
-  signature(ctx, PAD, H - 210, 46, '決まってる？ — 一目でわかるカレンダー');
+  signature(ctx, PAD, H - 210, 46, '決まってる？', '予定が一目でわかるカレンダー');
 
   return c;
 }
