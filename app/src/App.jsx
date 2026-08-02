@@ -1632,6 +1632,9 @@ export default class App extends React.Component {
         // 直している予定にくり返しは出さない。すでに1件ずつの予定になっていて、
         // ここで触らせると、どれが変わるのか分からなくなる。
         { key:'rep', label:'くり返し', hide:!!dr.editingId },
+        // 複数日もくり返しと同じで、作るときだけ。
+        // 直している1件を触っているのに、別の日に予定が生えるのはおかしい。
+        { key:'multi', label:'複数日', hide:!!dr.editingId },
         { key:'place', label:'場所' },
         { key:'memo', label:'メモ' },
       ];
@@ -1649,12 +1652,14 @@ export default class App extends React.Component {
         added:(s.draft.added||[]).filter(k=>k!==key),
         picking: s.draft.picking===key ? null : s.draft.picking}})); };
       v.onRemoveRep = drop('rep',{repEvery:null});
+      v.onRemoveMulti = drop('multi',{extraDays:[]});
       v.onRemovePlace = drop('place',{place:''});
       v.onRemoveMemo = drop('memo',{memo:''});
       v.repRowShown = added.includes('rep') && !dr.editingId;
+      v.multiRowShown = added.includes('multi') && !dr.editingId;
       v.placeRowShown = added.includes('place');
       v.memoRowShown = added.includes('memo');
-      v.addedAny = v.repRowShown || v.placeRowShown || v.memoRowShown;
+      v.addedAny = v.repRowShown || v.multiRowShown || v.placeRowShown || v.memoRowShown;
       v.removeStyle = {width:26,height:26,borderRadius:13,flexShrink:0,display:'flex',
         alignItems:'center',justifyContent:'center',fontSize:13,color:'var(--ink-faint)',
         background:'var(--bg2)',cursor:'pointer'};
@@ -1676,6 +1681,55 @@ export default class App extends React.Component {
     v.memoText = dr.memo||'';
     v.onMemoText = (e)=>{ const val=e.target.value; this.setState(s=>({draft:{...s.draft, memo:val}})); };
     v.chevMemo = chevron(v.rowMemoOpen); v.valMemo = rowVal(v.rowMemoOpen);
+
+    // ---------- 複数日 ----------
+    // 日にちの画面から外した「まとめて置く」を、専用の入口として作り直したもの。
+    // ここなら、選んだ日をもう一度押せば外せる。日にちの画面で足していたころは
+    // 押し間違いを直せなかった（12日のつもりで13日を押すと両方入る）。
+    v.rowMultiOpen = dr.picking==='multi';
+    v.onTapMultiRow = ()=>{ tapLight(); this.setState(s=>({draft:{...s.draft,
+      picking: s.draft.picking==='multi' ? null : 'multi',
+      pickY:s.draft.y, pickM:s.draft.m, pickYM:false}})); };
+    {
+      const n=(dr.extraDays||[]).length;
+      v.multiValue = n ? `ほか${n}日` : 'なし';
+      v.multiClearShown = n>0;
+      v.onClearMulti = ()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, extraDays:[]}})); };
+      v.multiHint = n
+        ? `この予定を、ぜんぶで${n+1}日に置きます`
+        : '同じ予定を置きたい日を、タップしてえらんでください';
+      const mY = dr.pickY==null?dr.y:dr.pickY, mM = dr.pickM==null?dr.m:dr.pickM;
+      v.multiPickLabel = `${mY}年${mM+1}月`;
+      v.onMultiPrev = ()=>this.setState(s=>{ const o=shiftMonth({y:mY,m:mM},-1); return {draft:{...s.draft,pickY:o.y,pickM:o.m}}; });
+      v.onMultiNext = ()=>this.setState(s=>{ const o=shiftMonth({y:mY,m:mM},1); return {draft:{...s.draft,pickY:o.y,pickM:o.m}}; });
+      const mws=st.settings.weekStart;
+      v.multiWeekdays = Array.from({length:7},(_,i)=>{ const dw=(i+mws)%7;
+        return { label:DOW[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,padding:'4px 0',
+          color: dw===0 ? HOLIDAY_RED : dw===6 ? SATURDAY_BLUE : 'var(--ink-faint)'} }; });
+      const first=(new Date(mY,mM,1).getDay()-mws+7)%7;
+      const dim=new Date(mY,mM+1,0).getDate();
+      const cells=[];
+      for(let i=0;i<first;i++) cells.push({ label:'', style:{height:36} });
+      for(let d2=1;d2<=dim;d2++){
+        const isMain = mY===dr.y && mM===dr.m && d2===dr.day;
+        const isExtra = (dr.extraDays||[]).includes(mY+'-'+mM+'-'+d2);
+        const dw2 = new Date(mY,mM,d2).getDay();
+        const hol2 = holidayName(mY,mM,d2);
+        const c2 = (hol2||dw2===0) ? HOLIDAY_RED : dw2===6 ? SATURDAY_BLUE : 'var(--ink-soft)';
+        cells.push({ label:d2,
+          style:{height:36,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:12,
+            cursor: isMain?'default':'pointer', fontSize:14, fontVariantNumeric:'tabular-nums',
+            fontWeight:(isMain||isExtra)?700:500,
+            // 本体の日は「もう選ばれている」ことだけ示して、外させない。
+            // ここで外せると、予定の日そのものが消えてしまう。
+            background: isMain?'var(--ink)': isExtra?'var(--bg2)':'transparent',
+            color: isMain?'var(--card)':c2,
+            opacity: isMain?0.55:1,
+            border: isExtra ? '1.5px solid var(--ink)' : '1px solid transparent'},
+          onClick: isMain ? (()=>{}) : (()=>{ tapLight(); this.toggleExtraDay(mY,mM,d2); }) });
+      }
+      v.multiCells=cells;
+    }
 
     // ---------- くり返し ----------
     v.rowRepOpen = dr.picking==='rep';
@@ -1705,6 +1759,7 @@ export default class App extends React.Component {
       } else v.repHint = '';
     }
     v.chevRep = chevron(v.rowRepOpen); v.valRep = rowVal(v.rowRepOpen);
+    v.valMulti = rowVal(v.rowMultiOpen);
 
     v.rowRemindOpen = dr.picking==='remind';
     v.onTapRemindRow = openRow('remind');

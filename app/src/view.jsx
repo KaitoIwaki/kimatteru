@@ -482,6 +482,40 @@ export function renderApp(v) {
                 （足すたびに順が変わると、どこを触ればいいか分からなくなる） */}
             {v.addedAny && (
               <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
+                {/* 複数日。日にちの画面から外した「まとめて置く」を、ここに作り直した。
+                    選んだ日をもう一度押せば外せるので、押し間違いを直せる。 */}
+                {v.multiRowShown && (
+                  <div style={s(v.repRowShown || v.placeRowShown || v.memoRowShown ? 'border-bottom:1px solid var(--line)' : '')}>
+                    <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
+                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapMultiRow}>複数日</span>
+                      <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
+                        <span style={s(v.valMulti)} onClick={v.onTapMultiRow}>{v.multiValue}</span>
+                        <span role="button" aria-label="複数日を外す" style={s(v.removeStyle)} onClick={v.onRemoveMulti}>✕</span>
+                      </span>
+                    </div>
+                    {v.rowMultiOpen && (
+                      <div style={s('padding:2px 12px 14px;background:var(--bg2)')}>
+                        <div style={s('display:flex;align-items:center;justify-content:space-between;padding:6px 2px 8px')}>
+                          <span role="button" aria-label="前の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onMultiPrev}>‹</span>
+                          <span style={s('font-size:14px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.multiPickLabel}</span>
+                          <span role="button" aria-label="次の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onMultiNext}>›</span>
+                        </div>
+                        <div style={s('display:grid;grid-template-columns:repeat(7,1fr)')}>
+                          {(v.multiWeekdays || []).map((w, i) => (<div key={i} style={s(w.style)}>{w.label}</div>))}
+                        </div>
+                        <div style={s('display:grid;grid-template-columns:repeat(7,1fr);gap:2px')}>
+                          {(v.multiCells || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                        </div>
+                        <div style={s('display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 2px 2px')}>
+                          <span style={s('font-size:11px;color:var(--ink-faint);line-height:1.6')}>{v.multiHint}</span>
+                          {v.multiClearShown && (
+                            <span style={s('font-size:12px;color:var(--ink-mut);cursor:pointer;white-space:nowrap')} onClick={v.onClearMulti}>ぜんぶ外す</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {v.repRowShown && (
                   <div style={s(v.placeRowShown || v.memoRowShown ? 'border-bottom:1px solid var(--line)' : '')}>
                     <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
