@@ -124,10 +124,20 @@ const sanitizeJobs = (list) => (Array.isArray(list) ? list.filter(
 // 種類に新しい項目（既定の時間帯など）を足しても、すでに使っている人の
 // 保存データには入っていない。合成しないと、新しい項目が誰にも届かない。
 // 名前と色は本人が変えている可能性があるので、保存側を優先する。
-const mergeTypes = (saved, builtin) => saved.map((t) => {
-  const base = builtin.find((b) => b.key === t.key);
-  return base ? { ...base, ...t } : t;
-});
+const mergeTypes = (saved, builtin) => {
+  const filled = saved.map((t) => {
+    const base = builtin.find((b) => b.key === t.key);
+    return base ? { ...base, ...t } : t;
+  });
+  // 並び順も組み込みに合わせる。並びは画面のチップの順そのものなので、
+  // 先頭を入れ替えたら、すでに使っている人にも届かないと意味がない。
+  // 自分で足した種類は、足した順のまま後ろに置く。
+  const order = (k) => { const i = builtin.findIndex((b) => b.key === k); return i < 0 ? 999 : i; };
+  return filled
+    .map((t, i) => ({ t, i }))
+    .sort((a, b) => (order(a.t.key) - order(b.t.key)) || (a.i - b.i))
+    .map((x) => x.t);
+};
 
 const todayParts = () => {
   const n = new Date();
@@ -207,9 +217,10 @@ export default class App extends React.Component {
     // はじめての案内。step は 0=しくみ 1=時給 2=取り込み
     onboard:{ step:0, demo:'dash' },
     draft:{ title:'', type:'yoji', status:'kakutei', start:'10:00', end:'11:00', y:todayParts().y, m:todayParts().m, day:todayParts().d, allDay:false, picking:null },
+    // 並び順がそのまま画面のチップの並びになる。既定が用事なので、用事を先頭に置く。
     types:[
-      {key:'baito', name:'バイト', color:'#1D9E75', paper:'rgba(225,245,238,.72)', dark:'#085041', uWord:'希望シフト', cWord:'確定シフト', defStart:'17:00', defEnd:'22:00'},
       {key:'yoji',  name:'用事',   color:'#534AB7', paper:'rgba(238,237,254,.72)', dark:'#3C3489', uWord:'まだ分からない用事', cWord:'確定した用事'},
+      {key:'baito', name:'バイト', color:'#1D9E75', paper:'rgba(225,245,238,.72)', dark:'#085041', uWord:'希望シフト', cWord:'確定シフト', defStart:'17:00', defEnd:'22:00'},
       {key:'asobi', name:'遊び',   color:'#D85A30', paper:'rgba(250,236,231,.72)', dark:'#712B13', uWord:'候補日', cWord:'約束'},
       {key:'other', name:'その他', color:'#5A6570', paper:'rgba(233,235,238,.72)', dark:'#374151', uWord:'未確定の予定', cWord:'予定'},
     ],
@@ -452,8 +463,17 @@ export default class App extends React.Component {
 
   // ---- はじめての案内 ----
   // 点線が塗りに変わる瞬間を、その場で一度さわってもらう
+  // 本物と同じ形にしてある。点線を押すと「どうなりました？」と聞かれ、
+  // 「確定した」を押して初めて塗りになる。案内で1回で変わるようにしていると、
+  // 実際に触ったときに一手多く感じる。しかもその一手は省けない——
+  // 確定するときは時刻が変わることが多く、そこで直させたいので。
   onboardDemoTap(){
     if(this.state.onboard.demo!=='dash') return;
+    tapLight();
+    this.setState(s=>({onboard:{...s.onboard, demo:'asking'}}));
+  }
+  onboardDemoConfirm(){
+    if(this.state.onboard.demo!=='asking') return;
     tapLight();
     this.setState(s=>({onboard:{...s.onboard, demo:'fill'}}));
     setTimeout(()=>{ penTick(); }, 120);
@@ -789,7 +809,7 @@ export default class App extends React.Component {
       v.obStep = ob.step;
       v.obDots = [0,1,2,3].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
         background:i===ob.step?'var(--ink)':'var(--line)',transition:'all .3s cubic-bezier(.2,.9,.2,1)'} }));
-      v.onObNext = ()=>{ if(this.state.onboard.demo==='dash') return; this.onboardNext(); };
+      v.onObNext = ()=>{ if(this.state.onboard.step===0 && this.state.onboard.demo!=='done') return; this.onboardNext(); };
       v.onObBack = ()=>this.onboardBack();
       v.onObSkip = ()=>this.finishOnboard(false);
 
@@ -822,12 +842,20 @@ export default class App extends React.Component {
         ...at('capRise',.5,1.85) };
       v.obSolidWrap = at('obLift',.55,1.95);
       v.obCaptionDelay = at('capRise',.45,2.4);
-      const filled = ob.demo!=='dash';
+      // 点線のまま = dash / asking。塗りになるのは fill から。
+      const asking = ob.demo==='asking';
+      const filled = ob.demo==='fill' || ob.demo==='done';
       // このアプリで一番覚えてほしい操作なので、押されるまで待つ。
       // 押されるまでは、点線が静かに息をする（出そろってから始める）。
       v.obDashWrap = { animation: `obLift .55s ${EASE} 2.1s both`
-        + (filled ? '' : `, tapBreath 2.6s ease-in-out 2.9s infinite`) };
-      v.obDemoDone = ob.demo==='done';
+        + (ob.demo==='dash' ? `, tapBreath 2.6s ease-in-out 2.9s infinite` : '') };
+      // 押したあとに出る「確定した」。本物のダイアログと同じ言葉にしてある。
+      v.obAsking = asking;
+      v.onObDemoConfirm = ()=>this.onboardDemoConfirm();
+      v.obAskHeading = 'この用事、どうなりました？';
+      v.obConfirmStyle = { marginTop:11, padding:'11px 14px', borderRadius:12, textAlign:'center',
+        fontSize:14, fontWeight:700, color:'#fff', background:teal, cursor:'pointer',
+        animation:`capRise .3s ${EASE} both` };
       v.onObDemoTap = ()=>this.onboardDemoTap();
       v.onObDemoReset = ()=>this.onboardResetDemo();
       v.obDemoPillStyle = {
@@ -847,17 +875,20 @@ export default class App extends React.Component {
         animation: ob.demo==='fill' ? 'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none', zIndex:0 };
       v.obDemoTextStyle = { position:'relative', zIndex:1 };
       v.obDemoLabel = filled ? 'カフェバイト' : '？カフェバイト';
-      v.obDemoCaption = filled ? '決まった、が形になりました。' : '↑ 点線の予定をタップしてみてください';
+      v.obDemoCaption = filled ? '決まった、が形になりました。'
+        : asking ? '押すと、この予定が塗りに変わります。'
+        : '↑ 点線の予定をタップしてみてください';
       v.obDemoCaptionColor = filled ? '#0F6E56' : 'var(--ink)';
+      v.obDemoDone = ob.demo==='done';
       // 押すまで進ませない。ここを飛ばされると、このアプリの一番の要が
       // 伝わらないまま日常に入る。押してあれば普通の黒いボタン。
-      v.obNextLocked = !filled;
+      v.obNextLocked = ob.demo!=='done';
       v.obNextStyle = { padding:16, borderRadius:17, textAlign:'center', fontSize:16, fontWeight:700,
         transition:'all .3s cubic-bezier(.2,.9,.2,1)',
-        ...(filled
+        ...(ob.demo==='done'
           ? { background:'var(--ink)', color:'var(--card)', cursor:'pointer' }
           : { background:'var(--bg2)', color:'var(--ink-faint)', cursor:'default' }) };
-      v.obNextLabel = filled ? 'つぎへ' : '点線をタップすると進めます';
+      v.obNextLabel = ob.demo==='done' ? 'つぎへ' : '点線をタップすると進めます';
       // 上に確定した予定を1本置く。違いは、並べて初めて見える。
       // 点線だけを出しても「点線が普通の形」と思われてしまう。
       {

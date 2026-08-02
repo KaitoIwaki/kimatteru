@@ -1238,6 +1238,14 @@ export function renderApp(v) {
                       <span style={s(v.obDemoTextStyle)}>{v.obDemoLabel}</span>
                     </div>
                   </div>
+                  {/* 本物では、押すとこの問いが出て「確定した」で塗りになる。
+                      案内で1回で変えてしまうと、実際に触ったとき一手多く感じる。 */}
+                  {v.obAsking && (
+                    <div style={s('margin-top:12px;padding:12px 13px 13px;border-radius:13px;background:var(--bg2);animation:capRise .28s cubic-bezier(.2,.9,.2,1) both')}>
+                      <div style={s('font-size:13px;font-weight:700;color:var(--ink)')}>{v.obAskHeading}</div>
+                      <div style={s(v.obConfirmStyle)} onClick={v.onObDemoConfirm}>確定した</div>
+                    </div>
+                  )}
                   <div style={s({ fontSize:13, marginTop:14, lineHeight:1.7, fontWeight:600, color:v.obDemoCaptionColor })}>{v.obDemoCaption}</div>
                   {v.obDemoDone && (
                     <div style={s('font-size:12px;color:var(--ink-mut);margin-top:8px;cursor:pointer')} onClick={v.onObDemoReset}>もう一度みる</div>
