@@ -148,7 +148,7 @@ export function drawSummaryCard({ yearMonth, wage, hours, promises, canceled, rh
   ctx.fillStyle = INK_FAINT;
   ctx.fillText(String(canceled), PAD + colW, y);
 
-  signature(ctx, PAD, H - 210, 46, '決まってる？ — 予定が一目でわかるカレンダー');
+  signature(ctx, PAD, H - 210, 46, 'Ink — 予定が一目でわかるカレンダー');
 
   return c;
 }
@@ -250,7 +250,7 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
   ctx.fillStyle = '#55524A';
   ctx.fillText('予定あり', PAD + 296, y);
 
-  signature(ctx, PAD, H - 96, 40, '決まってる？');
+  signature(ctx, PAD, H - 96, 40, 'Ink');
 
   return c;
 }

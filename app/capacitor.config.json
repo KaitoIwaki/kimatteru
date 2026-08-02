@@ -1,6 +1,6 @@
 {
   "appId": "com.kimatteru.app",
-  "appName": "Kimatteru",
+  "appName": "Ink",
   "webDir": "dist",
   "ios": {
     "contentInset": "never",

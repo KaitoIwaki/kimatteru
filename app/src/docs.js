@@ -1,7 +1,7 @@
 // 規約とプライバシーポリシーの本文。
 // アプリ内の表示と、公開用HTML（tools/build-legal.mjs）で同じ原稿を使う。
 export const CONTACT = 'voidlabs.work@gmail.com';
-export const APP_NAME = '決まってる？';
+export const APP_NAME = 'Ink';
 // App Store のアプリID。レビュー画面へ飛ばすのに使う（配信ログの "Id:" に出るもの）
 export const APP_STORE_ID = '6794792375';
 export const EFFECTIVE = '2026年8月1日';
