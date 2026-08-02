@@ -1,4 +1,5 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { endMoment } from './whenlib';
 import { Capacitor } from '@capacitor/core';
 
 const native = () => {
@@ -65,8 +66,9 @@ function buildSchedule(events, settings) {
     if (e.status === 'nakunatta') continue;
 
     if (settings.remind && e.type === 'baito' && e.status === 'kakutei' && !e.allDay) {
-      const [hh, mm] = String(e.end).split(':').map(Number);
-      const at = new Date(e.y, e.m, e.day, hh, mm, 0, 0);
+      // 22:00–1:00 のような深夜の勤務は、終わるのが翌日。
+      // ここで日をまたがないと、シフトが始まる前に「おつかれさま」が飛ぶ。
+      const at = endMoment(e);
       if (at.getTime() > now) {
         out.push({
           id: numericId('w' + e.id),

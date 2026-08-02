@@ -3,6 +3,7 @@ import { renderApp } from './view.jsx';
 import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
 import { readLocal, readFile, saveLocal, saveFile } from './store';
+import { endsNextDay, busyEndMin } from './whenlib';
 import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
@@ -317,7 +318,9 @@ export default class App extends React.Component {
     if(!conf.length){ const u=unc[0]; return {mark:'△',variant:'adjust',note:u.type==='baito'?'まだ希望を出しただけです':'まだ候補なので調整できます'}; }
     if(conf.some(e=>e.allDay)) return {mark:'×'};
     const WS=540, WE=1320;
-    const iv=conf.map(e=>[this.mins(e.start), this.mins(e.status==='jisseki'?(e.actualEnd||e.end):e.end)]).sort((a,b)=>a[0]-b[0]);
+    // 日をまたぐ勤務は、その日は24時までふさがっている。
+    // そのまま [22:00, 1:00] と置くと前後が逆になり、重なりの計算が崩れる。
+    const iv=conf.map(e=>[this.mins(e.start), busyEndMin(e)]).sort((a,b)=>a[0]-b[0]);
     const merged=[]; iv.forEach(x=>{ const last=merged[merged.length-1]; if(last&&x[0]<=last[1]) last[1]=Math.max(last[1],x[1]); else merged.push([x[0],x[1]]); });
     const full = merged.length===1 && merged[0][0]<=WS && merged[0][1]>=WE;
     if(full) return {mark:'×'};
@@ -1862,6 +1865,29 @@ export default class App extends React.Component {
       hScroll: field==='start'?this.scStartH:this.scEndH, mScroll: field==='start'?this.scStartM:this.scEndM,
     });
     v.timeRows=[ mkRow('start','開始',true), mkRow('end','終了',false) ];
+
+    // 開始と終了に日付を添える。
+    // 終わりの時刻が始まりより前なら、終わるのは翌日——22:00–1:00 の深夜勤務。
+    // 給料はもともと日またぎで計算していたのに、画面がそれを言っていなかった。
+    // 終了日は選ばせない。自由に選ばせると「3日後の11:00」のような、
+    // 予定ではなく期間になってしまい、実働時間の計算が意味を失う。
+    {
+      const DOWJ=['日','月','火','水','木','金','土'];
+      const fmtDay=(o)=>`${o.m+1}月${o.d}日（${DOWJ[new Date(o.y,o.m,o.d).getDay()]}）`;
+      const from={y:dr.y,m:dr.m,d:dr.day};
+      v.startDateText = fmtDay(from);
+      // 終日は「何日間」で終わりが決まる。時間指定は日またぎだけ見る。
+      const span = dr.allDay ? Math.max(1,Math.min(60,dr.days|0||1)) : 1;
+      const wraps = !dr.allDay && endsNextDay({start:dr.start, end:dr.end});
+      const endN = dayNo(dr.y,dr.m,dr.day) + (dr.allDay ? span-1 : (wraps?1:0));
+      v.endDateText = fmtDay(fromDayNo(endN));
+      v.endNextDay = wraps;
+      // 翌日にずれたときだけ、そう言う。ふだんは静かにしておく。
+      v.crossNote = wraps ? '日をまたぐので、終わりは翌日です' : '';
+      v.onTapStartDate = ()=>this.setState(s=>({draft:{...s.draft,
+        picking: s.draft.picking==='date' ? null : 'date',
+        pickY:s.draft.y, pickM:s.draft.m, pickedOnce:false, pickYM:false}}));
+    }
 
     v.chips = st.types.map(t=>{ const sel=dr.type===t.key;
       return { label:t.name, onClick:()=>this.selectType(t.key),

@@ -419,11 +419,18 @@ export function renderApp(v) {
 
               {v.timed && (v.timeRows || []).map((r, i) => (
                   <div key={i} style={s(r.rowStyle)}>
-                    <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={r.onTap}>
+                    {/* 日付と時刻を並べる。開始の日付は押すとカレンダー、
+                        時刻は押すとドラムロール。終了の日付は押せない——
+                        自由に選ばせると「3日後の11:00」のような、予定ではなく
+                        期間になってしまい、実働時間の計算が意味を失う。 */}
+                    <div style={s('display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 16px')}>
                       <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>{r.label}</span>
                       <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
-                        <span style={s(r.valStyle)}>{r.value}</span>
-                        <span style={s(r.chev)}>›</span>
+                        <span style={s(i === 0
+                          ? 'font-size:13.5px;color:var(--ink-soft);background:var(--bg2);border-radius:10px;padding:7px 11px;white-space:nowrap;cursor:pointer'
+                          : `font-size:13.5px;border-radius:10px;padding:7px 11px;white-space:nowrap;${v.endNextDay ? 'color:#0F6E56;background:rgba(29,158,117,.12);font-weight:700' : 'color:var(--ink-faint);background:transparent'}`)}
+                          onClick={i === 0 ? v.onTapStartDate : undefined}>{i === 0 ? v.startDateText : v.endDateText}</span>
+                        <span style={s(`${r.valStyle && ''}font-size:15px;font-weight:${r.open ? 700 : 600};color:${r.open ? '#1D9E75' : 'var(--ink)'};background:var(--bg2);border-radius:10px;padding:7px 12px;font-variant-numeric:tabular-nums;cursor:pointer`)} onClick={r.onTap}>{r.value}</span>
                       </span>
                     </div>
                     {r.open && (
@@ -440,6 +447,10 @@ export function renderApp(v) {
                     )}
                   </div>
                 ))}
+
+              {!!v.crossNote && (
+                <div style={s('padding:0 16px 12px;font-size:11.5px;color:#0F6E56;line-height:1.6')}>{v.crossNote}</div>
+              )}
 
               {v.allDayShown && (
                 <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px')}>

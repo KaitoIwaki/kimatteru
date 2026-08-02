@@ -1,3 +1,4 @@
+import { endMoment } from './whenlib';
 // ベルに溜まるお知らせ。
 // 種類は2つだけ ——「シフトの記録を促すもの」と「アップデートのお知らせ」。
 
@@ -92,18 +93,13 @@ export const infoNoticeId = (version) => 'info-' + version;
  * すでに同じものがあれば作らない。記録済みになったものは取り除く。
  */
 export function syncShiftNotices(notices, events, now) {
-  const t = { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() };
-  const mins = now.getHours() * 60 + now.getMinutes();
-  const toMin = (s) => { const [h, mm] = String(s).split(':').map(Number); return h * 60 + mm; };
-
-  // 「終わったのにまだ記録していない」バイト（今日より前の日も含める）
+  // 「終わったのにまだ記録していない」バイト。
+  // 年月日を1段ずつ比べていたが、それだと 22:00–1:00 の深夜勤務で
+  // 「1:00 はもう過ぎている」と判定され、シフトが始まる前の朝に催促が出ていた。
+  // 終わる瞬間を出してから、いまと比べる。
   const due = events.filter((e) => {
     if (e.type !== 'baito' || e.status !== 'kakutei' || e.allDay) return false;
-    if (e.y > t.y) return false;
-    if (e.y === t.y && e.m > t.m) return false;
-    if (e.y === t.y && e.m === t.m && e.day > t.d) return false;
-    if (e.y === t.y && e.m === t.m && e.day === t.d && toMin(e.end) > mins) return false;
-    return true;
+    return endMoment(e).getTime() <= now.getTime();
   });
 
   const dueIds = new Set(due.map((e) => shiftNoticeId(e.id)));
@@ -119,7 +115,7 @@ export function syncShiftNotices(notices, events, now) {
       eventId: e.id,
       title: `${e.title}、おつかれさま`,
       body: `実働時間はどうでしたか？タップして記録しよう（${e.start}–${e.end}）`,
-      at: new Date(e.y, e.m, e.day, ...String(e.end).split(':').map(Number)).getTime(),
+      at: endMoment(e).getTime(),
       read: false,
     });
   }
