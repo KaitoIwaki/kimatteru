@@ -57,22 +57,56 @@ const MIN_STEP = 5;
 // くり返しは「規則」ではなく、その場で予定の実体を並べて作る。
 // 1回ごとに確定／未確定が違うのがこのアプリの要なので、
 // あとから1件だけ直せない形（規則で持つ形）にはできない。
-// 選べる長さ。半年ぶん毎日で 182 件。これ以上は作れないようにする。
-const REPEAT_WEEKS = [
-  { key: 2, label: '2週間' },
-  { key: 4, label: '1か月' },
-  { key: 12, label: '3か月' },
-  { key: 26, label: '半年' },
+const REPEAT_UNITS = [
+  { key: 'day', label: '毎日' },
+  { key: 'week', label: '毎週' },
+  { key: 'month', label: '毎月' },
+  { key: 'year', label: '毎年' },
 ];
+// いつまで続けるかは「月数」で持つ。単位ごとに現実的な長さだけ出す——
+// 毎日で2年を選べてしまうと 730 件になり、上限で黙って切られる。
+const REPEAT_SPANS = {
+  day: [{ m: 1, label: '1か月' }, { m: 3, label: '3か月' }, { m: 6, label: '半年' }],
+  week: [{ m: 1, label: '1か月' }, { m: 3, label: '3か月' }, { m: 6, label: '半年' }, { m: 12, label: '1年' }],
+  month: [{ m: 6, label: '半年' }, { m: 12, label: '1年' }, { m: 24, label: '2年' }],
+  year: [{ m: 36, label: '3年' }, { m: 60, label: '5年' }],
+};
+const spansFor = (every) => REPEAT_SPANS[every] || REPEAT_SPANS.week;
 const MAX_REPEAT = 200;
 
-// 本体の日のあとに続く日を、日番号の配列で返す（本体そのものは含まない）
-const repeatAfter = (fromN, every, weeks) => {
-  if (every !== 'day' && every !== 'week') return [];
-  const step = every === 'day' ? 1 : 7;
-  const last = fromN + weeks * 7;
+// 本体の日のあとに続く日を、日番号の配列で返す（本体そのものは含まない）。
+// 月と年は日数で刻めないので、暦の上で進める。
+// 「毎月31日」の2月のように、その月に無い日は飛ばす。
+// 近い日に寄せると、頼んでいない日付に予定が置かれることになる。
+const repeatAfter = (y, m, d, every, spanMonths, dows) => {
+  if (!REPEAT_UNITS.some((u) => u.key === every)) return [];
+  const fromN = dayNo(y, m, d);
+  const limitN = dayNo(y, m + (spanMonths | 0), d);
   const out = [];
-  for (let n = fromN + step; n <= last && out.length < MAX_REPEAT; n += step) out.push(n);
+  const push = (n) => { if (n > fromN && n <= limitN && out.length < MAX_REPEAT) out.push(n); };
+
+  if (every === 'day') {
+    for (let n = fromN + 1; n <= limitN && out.length < MAX_REPEAT; n++) out.push(n);
+    return out;
+  }
+  if (every === 'week') {
+    // 曜日を選んでいれば、その曜日を毎週。選んでいなければ本体と同じ曜日。
+    const want = (dows && dows.length) ? dows : [new Date(y, m, d).getDay()];
+    for (let n = fromN + 1; n <= limitN && out.length < MAX_REPEAT; n++) {
+      const o = fromDayNo(n);
+      if (want.includes(new Date(o.y, o.m, o.d).getDay())) out.push(n);
+    }
+    return out;
+  }
+  const step = every === 'month' ? 1 : 12;
+  for (let i = step; out.length < MAX_REPEAT; i += step) {
+    const t = new Date(y, m + i, 1);
+    const dim = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
+    if (dayNo(t.getFullYear(), t.getMonth(), 1) > limitN) break;
+    if (d > dim) continue; // その月に無い日（2月31日など）は置かない
+    push(dayNo(t.getFullYear(), t.getMonth(), d));
+    if (dayNo(t.getFullYear(), t.getMonth(), Math.min(d, dim)) > limitN) break;
+  }
   return out;
 };
 
@@ -412,7 +446,7 @@ export default class App extends React.Component {
   defTimes(key){ const t=(this.state.types||[]).find(x=>x.key===key)||{};
     return { start: t.defStart || '10:00', end: t.defEnd || '11:00' }; }
   openNew(day,ret){ const ym=this.state.ym; const dt=this.defTimes('yoji');
-    this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'yoji',status:'kakutei',start:dt.start,end:dt.end,y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',repEvery:null,repWeeks:4,added:[],picking:null}}); }
+    this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'yoji',status:'kakutei',start:dt.start,end:dt.end,y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',repEvery:null,repSpan:3,repDows:[],added:[],picking:null}}); }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
     this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
@@ -420,7 +454,7 @@ export default class App extends React.Component {
       start:ev.start, end: ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end,
       y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev),
       remindMin: typeof ev.remindMin==='number' ? ev.remindMin : null,
-      place:ev.place||'', memo:ev.memo||'', repEvery:null, repWeeks:4,
+      place:ev.place||'', memo:ev.memo||'', repEvery:null, repSpan:3, repDows:[],
       // 入っている項目だけ行を出す。空のものまで並べない
       added:[...(ev.place?['place']:[]), ...(ev.memo?['memo']:[])], picking:null }});
   }
@@ -680,7 +714,7 @@ export default class App extends React.Component {
       return;
     }
     // 本体の日＋えらんだ他の日＋くり返しの日、まとめて置く
-    const rep = repeatAfter(dayNo(dr.y,dr.m,dr.day), dr.repEvery, dr.repWeeks|0)
+    const rep = repeatAfter(dr.y, dr.m, dr.day, dr.repEvery, dr.repSpan|0, dr.repDows)
       .map(n=>{ const o=fromDayNo(n); return [o.y,o.m,o.d]; });
     const placeOn=[[dr.y,dr.m,dr.day], ...(dr.extraDays||[]).map(k=>k.split('-').map(Number)), ...rep];
     const base=Date.now();
@@ -1651,7 +1685,7 @@ export default class App extends React.Component {
       const drop=(key,clear)=>()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, ...clear,
         added:(s.draft.added||[]).filter(k=>k!==key),
         picking: s.draft.picking===key ? null : s.draft.picking}})); };
-      v.onRemoveRep = drop('rep',{repEvery:null});
+      v.onRemoveRep = drop('rep',{repEvery:null, repDows:[]});
       v.onRemoveMulti = drop('multi',{extraDays:[]});
       v.onRemovePlace = drop('place',{place:''});
       v.onRemoveMemo = drop('memo',{memo:''});
@@ -1736,27 +1770,53 @@ export default class App extends React.Component {
     v.onTapRepRow = openRow('rep');
     {
       const DOWJ=['日','月','火','水','木','金','土'];
-      const dowLabel = DOWJ[new Date(dr.y,dr.m,dr.day).getDay()];
-      const weeks = dr.repWeeks|0 || 4;
-      const made = repeatAfter(dayNo(dr.y,dr.m,dr.day), dr.repEvery, weeks);
-      v.repValue = dr.repEvery==='day' ? '毎日' : dr.repEvery==='week' ? ('毎週'+dowLabel+'曜') : 'なし';
-      v.repEveryChips = [
-        {key:null, label:'なし'}, {key:'day', label:'毎日'}, {key:'week', label:'毎週'+dowLabel+'曜'},
-      ].map(o=>{ const sel=(dr.repEvery||null)===o.key;
-        return { label:o.label, onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, repEvery:o.key}})); },
-          style:{padding:'9px 15px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',
+      const myDow = new Date(dr.y,dr.m,dr.day).getDay();
+      const dows = dr.repDows||[];
+      const span = dr.repSpan|0 || 3;
+      const made = repeatAfter(dr.y, dr.m, dr.day, dr.repEvery, span, dows);
+      // 行にたたんだときの言い方。何がくり返されるのか、開かなくても分かるように。
+      v.repValue = !dr.repEvery ? 'なし'
+        : dr.repEvery==='day' ? '毎日'
+        : dr.repEvery==='week' ? ('毎週' + (dows.length ? dows.slice().sort().map(i=>DOWJ[i]).join('・') : DOWJ[myDow]))
+        : dr.repEvery==='month' ? `毎月${dr.day}日`
+        : `毎年${dr.m+1}月${dr.day}日`;
+      const chip=(sel,dark)=>({padding:'9px 15px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,
+        cursor:'pointer',whiteSpace:'nowrap',
+        background: sel ? (dark?'var(--ink)':'#1D9E75') : 'var(--card)',
+        color: sel ? (dark?'var(--card)':'#fff') : 'var(--ink-mut)',
+        border:'1px solid '+(sel ? (dark?'var(--ink)':'#1D9E75') : 'var(--line)')});
+      v.repEveryChips = [{key:null,label:'なし'}, ...REPEAT_UNITS].map(o=>{
+        const sel=(dr.repEvery||null)===o.key;
+        return { label:o.label, style:chip(sel,false),
+          onClick:()=>{ tapLight(); this.setState(s=>{
+            // 単位ごとに選べる長さが違うので、いまの値が無ければ真ん中に寄せる
+            const list=spansFor(o.key);
+            const keep=list.some(x=>x.m===(s.draft.repSpan|0));
+            return {draft:{...s.draft, repEvery:o.key,
+              repSpan: keep ? s.draft.repSpan : list[Math.min(1,list.length-1)].m}};
+          }); } };
+      });
+      v.repUntilShown = !!dr.repEvery;
+      // 曜日えらびは「毎週」のときだけ。何も選ばなければ本体と同じ曜日。
+      v.repDowShown = dr.repEvery==='week';
+      v.repDowChips = DOWJ.map((label,i)=>{ const sel = dows.length ? dows.includes(i) : i===myDow;
+        return { label, onClick:()=>{ tapLight(); this.setState(s=>{
+            const cur=(s.draft.repDows||[]);
+            const base=cur.length?cur:[myDow];
+            const next=base.includes(i)?base.filter(x=>x!==i):[...base,i];
+            // ぜんぶ外すと何も作れないので、最後の1つは残す
+            return {draft:{...s.draft, repDows: next.length?next:base}};
+          }); },
+          style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:11,fontSize:13,
+            fontWeight:sel?700:500,cursor:'pointer',
             background:sel?'#1D9E75':'var(--card)', color:sel?'#fff':'var(--ink-mut)',
             border:'1px solid '+(sel?'#1D9E75':'var(--line)')} }; });
-      v.repUntilShown = !!dr.repEvery;
-      v.repWeekChips = REPEAT_WEEKS.map(o=>{ const sel=weeks===o.key;
-        return { label:o.label, onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, repWeeks:o.key}})); },
-          style:{padding:'9px 15px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',
-            background:sel?'var(--ink)':'var(--card)', color:sel?'var(--card)':'var(--ink-mut)',
-            border:'1px solid '+(sel?'var(--ink)':'var(--line)')} }; });
+      v.repWeekChips = spansFor(dr.repEvery).map(o=>({ label:o.label, style:chip(span===o.m,true),
+        onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, repSpan:o.m}})); } }));
       if(made.length){
         const last=fromDayNo(made[made.length-1]);
-        v.repHint = `${last.m+1}月${last.d}日まで、ぜんぶで${made.length+1}件つくります`;
-      } else v.repHint = '';
+        v.repHint = `${last.y!==dr.y?last.y+'年':''}${last.m+1}月${last.d}日まで、ぜんぶで${made.length+1}件つくります`;
+      } else v.repHint = dr.repEvery ? 'この長さでは、ほかに置ける日がありません' : '';
     }
     v.chevRep = chevron(v.rowRepOpen); v.valRep = rowVal(v.rowRepOpen);
     v.valMulti = rowVal(v.rowMultiOpen);

@@ -530,6 +530,11 @@ export function renderApp(v) {
                         <div style={s('display:flex;flex-wrap:wrap;gap:8px;padding-top:11px')}>
                           {v.repEveryChips.map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
                         </div>
+                        {v.repDowShown && (
+                          <div style={s('display:flex;gap:5px;margin-top:13px')}>
+                            {(v.repDowChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                          </div>
+                        )}
                         {v.repUntilShown && (<>
                           <div style={s('font-size:12px;color:var(--ink-faint);margin:15px 4px 8px')}>いつまで</div>
                           <div style={s('display:flex;flex-wrap:wrap;gap:8px')}>
