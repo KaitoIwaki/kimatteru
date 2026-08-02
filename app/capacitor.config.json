@@ -1,6 +1,6 @@
 {
   "appId": "com.kimatteru.app",
-  "appName": "Penciled In",
+  "appName": "Kimatteru",
   "webDir": "dist",
   "ios": {
     "contentInset": "never",

@@ -823,7 +823,7 @@ export function renderApp(v) {
               <div style={s('flex:1')} />
               <div style={s('display:flex;align-items:center;gap:8px;padding-top:16px')}>
                 <span style={s('font-size:15px;letter-spacing:-2px')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C1C5CC')}>？</span></span>
-                <span style={s('font-size:12px;font-weight:600;color:#55524A;text-wrap:pretty')}>Penciled In — 一目でわかるカレンダー</span>
+                <span style={s('font-size:12px;font-weight:600;color:#55524A;text-wrap:pretty')}>決まってる？ — 一目でわかるカレンダー</span>
               </div>
             </div>
 
