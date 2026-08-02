@@ -1294,9 +1294,12 @@ export function renderApp(v) {
                 </div>
 
                 <div style={s(v.obShareCardStyle)}>
-                  <div style={s('font-size:12px;font-weight:700;color:#D85A30;margin-bottom:11px')}>わたしの空いてる日</div>
+                  <div style={s('font-size:12px;font-weight:700;color:#D85A30;margin-bottom:9px')}>わたしの空いてる日</div>
+                  <div style={s('display:grid;grid-template-columns:repeat(7,1fr)')}>
+                    {(v.obShareWeekdays || []).map((w, i) => (<div key={i} style={s(w.style)}>{w.label}</div>))}
+                  </div>
                   <div style={s('display:grid;grid-template-columns:repeat(7,1fr);gap:5px')}>
-                    {(v.obShareCells || []).map((c, i) => (<div key={i} style={s(c.style)} />))}
+                    {(v.obShareCells || []).map((c, i) => (<div key={i} style={s(c.style)}>{c.label}</div>))}
                   </div>
                   <div style={s('display:flex;align-items:center;gap:14px;margin-top:13px')}>
                     <span style={s('display:flex;align-items:center;gap:6px')}>

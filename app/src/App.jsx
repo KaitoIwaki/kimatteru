@@ -890,19 +890,26 @@ export default class App extends React.Component {
       v.obShareLine2 = chars('空きだけ送れる。', 0.55, 0.05);
       v.obShareCardStyle = { marginTop:30, background:'#FFFDF8', border:'1px solid var(--line)',
         borderRadius:18, padding:'16px 16px 18px', ...at('obLift',.6,1.5) };
-      // 送られる画像そっくりの見本。数字も名前も無いことが、見れば分かる
+      // 送られる画像そっくりの見本。
+      // 日付は本物の画像にも入っている（隠しているのは予定の名前だけ）。
+      // 数字を抜くと、そもそもカレンダーだと分からなかった。
       {
-        const free={height:26,borderRadius:6,background:'#FAECE7',border:'1.5px solid #D85A30'};
-        const busy={height:26,borderRadius:6,background:'#EDEEF0'};
+        const box={height:27,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',
+          fontVariantNumeric:'tabular-nums'};
+        const free={...box,background:'#FAECE7',border:'1.5px solid #D85A30',fontSize:12,fontWeight:700,color:'#712B13'};
+        const busy={...box,background:'#EDEEF0',fontSize:12,fontWeight:600,color:'#C1C5CC'};
         const pattern=[1,0,0,1,1,0,1, 1,1,0,1,0,0,1, 0,1,1,1,0,1,1];
-        v.obShareCells = pattern.map((f,i)=>({ style:{ ...(f?free:busy),
+        v.obShareCells = pattern.map((f,i)=>({ label:String(i+1), style:{ ...(f?free:busy),
           animation:`obLift .4s ${EASE} ${(1.7+i*0.022).toFixed(2)}s both` } }));
+        v.obShareWeekdays = ['日','月','火','水','木','金','土'].map((d,i)=>({ label:d,
+          style:{textAlign:'center',fontSize:9,fontWeight:600,paddingBottom:3,
+            color: i===0||i===6 ? '#8C887C' : '#B0B4BB'} }));
       }
       v.obShareNote = at('capRise',.45,2.5);
 
       // 4枚目：取り込み
       v.obImpLine1 = chars('いまの予定を、', 0.1, 0.06);
-      v.obImpLine2 = chars('持ってきますか。', 0.55, 0.05);
+      v.obImpLine2 = chars('持っていきますか？', 0.55, 0.05);
       v.obImpBodyStyle = at('capRise',.5,1.4);
       v.obImpCardStyle = { marginTop:24, background:'var(--card)', border:'1px solid var(--line)',
         borderRadius:18, padding:'16px 18px', ...at('obLift',.6,1.65) };
