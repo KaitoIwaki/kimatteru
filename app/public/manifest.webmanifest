@@ -1,6 +1,6 @@
 {
-  "name": "Ink",
-  "short_name": "Ink",
+  "name": "Penciled In",
+  "short_name": "Penciled",
   "description": "不確定な予定と決まっている予定が一目でわかるカレンダー",
   "start_url": "./",
   "scope": "./",
