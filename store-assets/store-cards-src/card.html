@@ -1,68 +1,72 @@
 <!DOCTYPE html>
 <html lang="ja"><head><meta charset="UTF-8">
 <style>
-/* 背景は生成した写真（端末ごと）。緑ベタの領域だけを実機キャプチャに差し替える。
-   背景は 853×1844 なので cover で 1.51627 倍に拡大され、横に3.4px はみ出す（左に-1.7px） */
+/* 背景は生成した写真（端末ごと）。緑ベタだった領域に実機キャプチャを差し込む。
+   背景ごとに端末の位置・大きさが違うので、画面の幅が常に同じになるよう寄せる。 */
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:1290px;height:2796px;overflow:hidden}
-.art{position:relative;width:1290px;height:2796px;overflow:hidden;
-  background:url("bg-phone-clean.png") no-repeat;
-  background-size:1293.4px 2796px; background-position:-1.7px 0;}
-
-/* 上の文字が乗る面を、ごくわずかに起こす */
+.art{position:relative;width:1290px;height:2796px;overflow:hidden;background-repeat:no-repeat}
 .veil{position:absolute;left:0;right:0;top:0;height:1060px;
-  background:linear-gradient(rgba(252,250,245,.46),rgba(252,250,245,.16) 70%,rgba(252,250,245,0));}
-
+  background:linear-gradient(rgba(252,250,245,.46),rgba(252,250,245,.16) 70%,rgba(252,250,245,0))}
 .rule{position:absolute;left:150px;right:150px;height:1px;background:rgba(60,55,45,.22);top:250px}
 .rule2{position:absolute;height:1px;background:rgba(60,55,45,.22);width:390px}
 .rule2.l{left:150px} .rule2.r{right:150px}
 .dot{position:absolute;left:50%;transform:translateX(-50%);width:9px;height:9px;
   border-radius:50%;background:rgba(60,55,45,.32)}
-
 .head{position:absolute;left:96px;right:96px;text-align:center}
 h1{font-family:"IPAPMincho","IPAMincho",serif;font-size:104px;line-height:1.34;
    font-weight:700;color:#1F3A2E;letter-spacing:.01em}
 .sub{margin-top:34px;font-family:"IPAPGothic","IPAGothic",sans-serif;
    font-size:42px;line-height:1.75;color:#5B564C}
-
-/* 実測した緑の領域にキャプチャをはめる */
-.screen{position:absolute;left:430.4px;top:921.9px;width:464px;height:1013px;
-  overflow:hidden;border-radius:57.6px;background:#FAF9F4}
-.screen img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
-
-/* 島を写真から切り出して上に戻す（背景と同じ拡大率・位置で貼るとぴたりと合う） */
+.screen{position:absolute;overflow:hidden;background:#FAF9F4}
+.screen img{display:block;width:100%}
 .island{position:absolute;background:#0B0B0B;border-radius:999px}
 </style></head>
 <body>
 <div class="art">
-  <div class="veil"></div>
-  <div class="rule"></div>
+  <div class="veil"></div><div class="rule"></div>
   <div class="rule2 l" id="r2l"></div><div class="rule2 r" id="r2r"></div><div class="dot" id="dot"></div>
   <div class="head" id="head"><h1 id="h1"></h1><div class="sub" id="sub"></div></div>
-  <div class="screen"><img id="cap"></div>
-  <div class="island"></div>
+  <div class="screen" id="sc"><img id="cap"></div>
+  <div class="island" id="is"></div>
 </div>
 <script>
-  const p=new URLSearchParams(location.search);
-  // 1x のときの実測値（背景 853×1844 を cover で 1290×2796 に伸ばした座標）
-  const BW=1293.4, BH=2796, BX=-1.7;
-  const S={l:430.4,t:921.9,w:464,h:1013};        // 画面（緑だった領域）
-  const I={dx:162.3,dy:12.1,w:136.5,h:42.5};     // 島（画面の左上からの相対）
-  const k=Number(p.get('zoom')||1);
-  const sw=S.w*k, sh=S.h*k;
-  const sl=(1290-sw)/2, st=Number(p.get('py')||S.t);
-  const art=document.querySelector('.art');
-  art.style.backgroundSize=(BW*k)+'px '+(BH*k)+'px';
-  art.style.backgroundPosition=(sl-(S.l-BX)*k)+'px '+(st-S.t*k)+'px';
-  const sc=document.querySelector('.screen');
-  sc.style.cssText+=`left:${sl}px;top:${st}px;width:${sw}px;height:${sh}px;border-radius:${57.6*k}px`;
-  const is=document.querySelector('.island');
-  is.style.cssText+=`left:${sl+I.dx*k}px;top:${st+I.dy*k}px;width:${I.w*k}px;height:${I.h*k}px`;
-  h1.innerHTML=(p.get('h')||'').replace(/\|/g,'<br>');
-  sub.innerHTML=(p.get('s')||'').replace(/\|/g,'<br>');
-  cap.src=p.get('cap')||'cap-1096.png';
-  head.style.top=(p.get('ht')||'300')+'px';
-  const dt=Number(p.get('dt')||790);
-  dot.style.top=dt+'px'; r2l.style.top=(dt+4)+'px'; r2r.style.top=(dt+4)+'px';
+// 背景ごとの実測値。緑の領域・島の位置・画面の角丸を、写真から測って入れてある。
+// 背景を差し替えたら測り直すこと（tools の計測スクリプトが同じ形の値を出す）。
+const BG = {
+  bg1: {img:'bg1-clean.png', BW:1293.4, BH:2796, BX:-1.7,
+        S:{l:430.4,t:921.9,w:464.0,h:1012.9}, I:{dx:162.2,dy:12.1,w:136.5,h:42.5}, r:57.6},
+  bg2: {img:'bg2-clean.png', BW:1293.4, BH:2796, BX:-1.7,
+        S:{l:439.5,t:935.5,w:418.5,h:959.8}, I:{dx:150.1,dy:12.1,w:122.8,h:39.4}, r:57.6},
+  bg3: {img:'bg3-clean.png', BW:1293.4, BH:2796, BX:-1.7,
+        S:{l:441.1,t:920.4,w:438.2,h:982.5}, I:{dx:157.7,dy:12.1,w:127.4,h:40.9}, r:60.7},
+};
+const p=new URLSearchParams(location.search);
+const b=BG[p.get('bg')||'bg1'];
+// 5枚で端末の大きさと高さをそろえる。背景ごとに元の大きさが違うので、ここで吸収する。
+const TARGET_W=Number(p.get('sw')||659), TOP=Number(p.get('py')||1050);
+const k=TARGET_W/b.S.w;
+const sw=b.S.w*k, sh=b.S.h*k, sl=(1290-sw)/2;
+const art=document.querySelector('.art');
+art.style.backgroundImage=`url("${b.img}")`;
+art.style.backgroundSize=(b.BW*k)+'px '+(b.BH*k)+'px';
+art.style.backgroundPosition=(sl-(b.S.l-b.BX)*k)+'px '+(TOP-b.S.t*k)+'px';
+const CAP_RATIO=1179/2556;          // 実機キャプチャの縦横比
+const fit=p.get('fit')||'stretch';
+const imgH=sw/CAP_RATIO;            // 幅を合わせたときのキャプチャの高さ
+let boxTop=TOP, boxH=sh;
+if(fit==='keep'){ boxH=imgH; boxTop=TOP+(sh-imgH)/2; }   // 余りは上下に均等（＝ベゼルが厚く見える）
+Object.assign(sc.style,{left:sl+'px',top:boxTop+'px',width:sw+'px',height:boxH+'px',
+  borderRadius:(b.r*k)+'px'});
+cap.style.height = fit==='stretch' ? sh+'px' : 'auto';
+if(fit==='stretch') cap.style.width=sw+'px';
+Object.assign(is.style,{left:(sl+b.I.dx*k)+'px',top:(boxTop+b.I.dy*k)+'px',
+  width:(b.I.w*k)+'px',height:(b.I.h*k)+'px'});
+h1.innerHTML=(p.get('h')||'').replace(/\|/g,'<br>');
+sub.innerHTML=(p.get('s')||'').replace(/\|/g,'<br>');
+cap.src=p.get('cap')||'cap-1096-full.png';
+head.style.top=(p.get('ht')||'300')+'px';
+const dt=Number(p.get('dt')||790);
+dot.style.top=dt+'px'; r2l.style.top=(dt+4)+'px'; r2r.style.top=(dt+4)+'px';
 </script>
 </body></html>
