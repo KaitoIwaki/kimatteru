@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8">
+<style>
+/* 背景は生成した写真（端末ごと）。緑ベタの領域だけを実機キャプチャに差し替える。
+   背景は 853×1844 なので cover で 1.51627 倍に拡大され、横に3.4px はみ出す（左に-1.7px） */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1290px;height:2796px;overflow:hidden}
+.art{position:relative;width:1290px;height:2796px;overflow:hidden;
+  background:url("bg-phone-clean.png") no-repeat;
+  background-size:1293.4px 2796px; background-position:-1.7px 0;}
+
+/* 上の文字が乗る面を、ごくわずかに起こす */
+.veil{position:absolute;left:0;right:0;top:0;height:1060px;
+  background:linear-gradient(rgba(252,250,245,.46),rgba(252,250,245,.16) 70%,rgba(252,250,245,0));}
+
+.rule{position:absolute;left:150px;right:150px;height:1px;background:rgba(60,55,45,.22);top:250px}
+.rule2{position:absolute;height:1px;background:rgba(60,55,45,.22);width:390px}
+.rule2.l{left:150px} .rule2.r{right:150px}
+.dot{position:absolute;left:50%;transform:translateX(-50%);width:9px;height:9px;
+  border-radius:50%;background:rgba(60,55,45,.32)}
+
+.head{position:absolute;left:96px;right:96px;text-align:center}
+h1{font-family:"IPAPMincho","IPAMincho",serif;font-size:104px;line-height:1.34;
+   font-weight:700;color:#1F3A2E;letter-spacing:.01em}
+.sub{margin-top:34px;font-family:"IPAPGothic","IPAGothic",sans-serif;
+   font-size:42px;line-height:1.75;color:#5B564C}
+
+/* 実測した緑の領域にキャプチャをはめる */
+.screen{position:absolute;left:430.4px;top:921.9px;width:464px;height:1013px;
+  overflow:hidden;border-radius:57.6px;background:#FAF9F4}
+.screen img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+
+/* 島を写真から切り出して上に戻す（背景と同じ拡大率・位置で貼るとぴたりと合う） */
+.island{position:absolute;background:#0B0B0B;border-radius:999px}
+</style></head>
+<body>
+<div class="art">
+  <div class="veil"></div>
+  <div class="rule"></div>
+  <div class="rule2 l" id="r2l"></div><div class="rule2 r" id="r2r"></div><div class="dot" id="dot"></div>
+  <div class="head" id="head"><h1 id="h1"></h1><div class="sub" id="sub"></div></div>
+  <div class="screen"><img id="cap"></div>
+  <div class="island"></div>
+</div>
+<script>
+  const p=new URLSearchParams(location.search);
+  // 1x のときの実測値（背景 853×1844 を cover で 1290×2796 に伸ばした座標）
+  const BW=1293.4, BH=2796, BX=-1.7;
+  const S={l:430.4,t:921.9,w:464,h:1013};        // 画面（緑だった領域）
+  const I={dx:162.3,dy:12.1,w:136.5,h:42.5};     // 島（画面の左上からの相対）
+  const k=Number(p.get('zoom')||1);
+  const sw=S.w*k, sh=S.h*k;
+  const sl=(1290-sw)/2, st=Number(p.get('py')||S.t);
+  const art=document.querySelector('.art');
+  art.style.backgroundSize=(BW*k)+'px '+(BH*k)+'px';
+  art.style.backgroundPosition=(sl-(S.l-BX)*k)+'px '+(st-S.t*k)+'px';
+  const sc=document.querySelector('.screen');
+  sc.style.cssText+=`left:${sl}px;top:${st}px;width:${sw}px;height:${sh}px;border-radius:${57.6*k}px`;
+  const is=document.querySelector('.island');
+  is.style.cssText+=`left:${sl+I.dx*k}px;top:${st+I.dy*k}px;width:${I.w*k}px;height:${I.h*k}px`;
+  h1.innerHTML=(p.get('h')||'').replace(/\|/g,'<br>');
+  sub.innerHTML=(p.get('s')||'').replace(/\|/g,'<br>');
+  cap.src=p.get('cap')||'cap-1096.png';
+  head.style.top=(p.get('ht')||'300')+'px';
+  const dt=Number(p.get('dt')||790);
+  dot.style.top=dt+'px'; r2l.style.top=(dt+4)+'px'; r2r.style.top=(dt+4)+'px';
+</script>
+</body></html>
