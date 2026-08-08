@@ -18,6 +18,7 @@ let package = Package(
         .package(name: "CapacitorLocalNotifications", path: "..\..\..\node_modules\@capacitor\local-notifications"),
         .package(name: "CapacitorShare", path: "..\..\..\node_modules\@capacitor\share"),
         .package(name: "CapacitorStatusBar", path: "..\..\..\node_modules\@capacitor\status-bar"),
+        .package(name: "CapgoNativePurchases", path: "..\..\..\node_modules\@capgo\native-purchases"),
         .package(name: "EbarooniCapacitorCalendar", path: "..\..\..\node_modules\@ebarooni\capacitor-calendar"),
         .package(name: "CapacitorNativeSettings", path: "..\..\..\node_modules\capacitor-native-settings")
     ],
@@ -33,6 +34,7 @@ let package = Package(
                 .product(name: "CapacitorLocalNotifications", package: "CapacitorLocalNotifications"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
                 .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar"),
+                .product(name: "CapgoNativePurchases", package: "CapgoNativePurchases"),
                 .product(name: "EbarooniCapacitorCalendar", package: "EbarooniCapacitorCalendar"),
                 .product(name: "CapacitorNativeSettings", package: "CapacitorNativeSettings")
             ]

@@ -4,6 +4,7 @@ import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
 import { readLocal, readFile, saveLocal, saveFile } from './store';
 import { endsNextDay, busyEndMin } from './whenlib';
+import { loadTips, buyTip } from './tipjar';
 import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
@@ -463,6 +464,22 @@ export default class App extends React.Component {
   }
   askDelete(id){ this.setState({confirmDelete:id, deleteRest:false}); }
 
+  // ---- 開発応援 ----
+  // 値段は起動時ではなく、設定画面を開いたときに取りにいく。
+  // 使い始めの人に、いきなり買えるものを見せたくない。
+  async _loadTips(){
+    if(this._tipsTried) return;
+    this._tipsTried = true;
+    const list = await loadTips();
+    if(list && list.length) this.setState({tips:list});
+  }
+  async buyTip(id){
+    tapLight();
+    const r = await buyTip(id);
+    if(r.msg) this.setState({shareToast:true, shareMsg:r.msg},
+      ()=>setTimeout(()=>this.setState({shareToast:false}), 2400));
+  }
+
   // ---- 一覧の行を左へスワイプして削除 ----
   // 開くのは一度に1行だけ。開いている行があるときは、本文をタップしても
   // 予定を開かず、まず閉じる（指の下にあるものが変わらないようにする）。
@@ -767,7 +784,7 @@ export default class App extends React.Component {
       onNavCal:()=>this.setState({screen:'month', dayNum:null, detailId:null}),
       onNavFree:()=>this.setState({screen:'free'}),
       onNavReport:()=>this.setState({screen:'report'}),
-      onNavSettings:()=>this.setState({screen:'settings', editTypeKey:null}),
+      onNavSettings:()=>{ this.setState({screen:'settings', editTypeKey:null}); this._loadTips(); },
       onOpenSummary:()=>this.setState({screen:'summary', shareToast:false, cardFrom:st.screen}),
       onSummaryClose:()=>this.setState(s=>({screen:s.cardFrom||'month'})),
       // カレンダーは指の動きについてくる。離したところで隣の月に収まるか、元に戻る。
@@ -1086,6 +1103,17 @@ export default class App extends React.Component {
       v.docEffective = EFFECTIVE;
     }
     v.appVersion = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.1.0';
+
+    // ---------- 開発応援（投げ銭） ----------
+    // 値段は App Store から取れたときだけ出す。取れないときは行ごと出さない——
+    // 押しても買えない行が並ぶより、無いほうがいい。
+    v.tipShown = Array.isArray(st.tips) && st.tips.length > 0;
+    v.tipRows = (st.tips||[]).map((t,i)=>({
+      label:t.label, price:t.price,
+      rowStyle:{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',
+        ...(i < (st.tips.length-1) ? {borderBottom:'1px solid var(--line)'} : {})},
+      onClick:()=>this.buyTip(t.id),
+    }));
     // 困ったときの連絡先。アプリ内に無いと、メールではなくレビュー欄に書かれる。
     // 版を件名に入れておくと、どの版の話か聞き返さずに済む。
     v.contactEmail = CONTACT;

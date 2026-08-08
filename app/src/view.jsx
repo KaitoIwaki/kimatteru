@@ -1173,6 +1173,29 @@ export function renderApp(v) {
               {''}<Jp parts={['予定はこの端末の','中だけに','保存されます。','外部に','送られることは','ありません。']} />
             </div>
 
+            {/* 開発応援。規約の下に静かに置く。探した人だけが見つければいい。
+                起動時に出したり、赤い点で気づかせたりはしない——
+                新しい人に見せると物乞いに見える。
+                商品が取れないときは、行ごと出さない。 */}
+            {v.tipShown && (
+              <>
+                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>開発を応援する</div>
+                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:10px')}>
+                  {(v.tipRows || []).map((t, i) => (
+                    <div key={i} style={s(t.rowStyle)} onClick={t.onClick}>
+                      <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
+                        <span style={s('font-size:15px;color:var(--ink)')}>{t.label}</span>
+                      </span>
+                      <span style={s('font-size:15px;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums')}>{t.price}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8;text-wrap:pretty')}>
+                  {''}<Jp parts={['応援しても、','増える機能は','ありません。','広告なし・通信なしの','ままで','作りつづけます。']} />
+                </div>
+              </>
+            )}
+
           </div>
         </div>
       )}
