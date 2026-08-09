@@ -4,7 +4,7 @@ import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
 import { readLocal, readFile, saveLocal, saveFile } from './store';
 import { endsNextDay, busyEndMin } from './whenlib';
-import { loadTips, buyTip } from './tipjar';
+import { loadTips, buyTip, TIPS } from './tipjar';
 import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
@@ -152,6 +152,11 @@ const sanitizeEvents = (list) => {
 const typesOk = (list) => Array.isArray(list) && list.length > 0 && list.every(
   (t) => t && typeof t.key === 'string' && typeof t.name === 'string' && typeof t.color === 'string'
 );
+// 応援の記録。壊れていても起動を止めない（ここで落ちたら本末転倒）
+const sanitizeSupports = (list) => (Array.isArray(list) ? list.filter(
+  (x) => x && typeof x === 'object' && isNum(x.yen) && isNum(x.at)
+) : []);
+
 const sanitizeJobs = (list) => (Array.isArray(list) ? list.filter(
   (j) => j && typeof j.id === 'string' && isNum(j.hourly)
 ) : []);
@@ -211,6 +216,7 @@ export default class App extends React.Component {
           notices: saved.notices || this.state.notices,
           lastSeenVersion: saved.lastSeenVersion || null,
           jobs: sanitizeJobs(saved.jobs),
+          supports: sanitizeSupports(saved.supports),
         };
       }
     } catch (e) {
@@ -243,7 +249,7 @@ export default class App extends React.Component {
     swipeRow:null, // 一覧で左へ開いている行 {id,dx,animating}
     notices:[], lastSeenVersion:null, noticeOpen:null,
     // バイト先。名前と時給を持つ。予定に紐づけると、その時給で計算する。
-    jobs:[], editJobId:null, newJob:null,
+    jobs:[], editJobId:null, newJob:null, supports:[],
     ym: thisMonth(),      // カレンダーで表示している月
     freeYM: thisMonth(),  // 「いつ空いてる？」で見ている月
     freeDir: 0,           // 直前に月を送った向き（滑り込む向きに使う）
@@ -476,6 +482,12 @@ export default class App extends React.Component {
   async buyTip(id){
     tapLight();
     const r = await buyTip(id);
+    if(r.ok){
+      // 消耗型は Apple 側で復元できない。自前で持たないと機種変更で消えるので、
+      // 予定と同じ入れ物に入れる（控えにも入る）。
+      const t=TIPS.find(x=>x.id===id);
+      this.setState(s=>({supports:[...(s.supports||[]), {id, yen:(t&&t.yen)||0, at:Date.now()}]}));
+    }
     if(r.msg) this.setState({shareToast:true, shareMsg:r.msg},
       ()=>setTimeout(()=>this.setState({shareToast:false}), 2400));
   }
@@ -1107,6 +1119,21 @@ export default class App extends React.Component {
     // ---------- 開発応援（投げ銭） ----------
     // 値段は App Store から取れたときだけ出す。取れないときは行ごと出さない——
     // 押しても買えない行が並ぶより、無いほうがいい。
+    // サポーターカード。応援したことがある人にだけ出る。
+    // 機能ではなく「自分がやったことの記録」——レシートに近い。
+    // 消耗型のまま渡せるのは、何も解放していないから。
+    {
+      const sup = st.supports || [];
+      v.supporterShown = sup.length > 0;
+      if(v.supporterShown){
+        const total = sup.reduce((a,x)=>a+(x.yen|0), 0);
+        const first = new Date(Math.min(...sup.map(x=>x.at)));
+        v.supporterCount = sup.length===1 ? '1回' : sup.length+'回';
+        v.supporterTotal = '¥'+total.toLocaleString('ja-JP');
+        v.supporterSince = `${first.getFullYear()}年${first.getMonth()+1}月から`;
+      }
+    }
+
     v.tipShown = Array.isArray(st.tips) && st.tips.length > 0;
     v.tipRows = (st.tips||[]).map((t,i)=>({
       label:t.label, price:t.price,
@@ -2244,13 +2271,13 @@ export default class App extends React.Component {
 
   async exportBackup() {
     tapLight();
-    const { events, types, overrides, settings, notices, lastSeenVersion, jobs } = this.state;
+    const { events, types, overrides, settings, notices, lastSeenVersion, jobs, supports } = this.state;
     const ver = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
     const now = new Date();
     const stamp = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
     const text = JSON.stringify(
       { app: this.BACKUP_MARK, format: this.BACKUP_FORMAT, appVersion: ver, exportedAt: now.toISOString(),
-        data: { events, types, overrides, settings, notices, lastSeenVersion, jobs } },
+        data: { events, types, overrides, settings, notices, lastSeenVersion, jobs, supports } },
       null, 2
     );
     const msg = await shareText(text, `kimatteru-backup-${stamp}.json`);
@@ -2331,6 +2358,7 @@ export default class App extends React.Component {
       events: sanitizeEvents(d.events),
       types: typesOk(d.types) ? mergeTypes(d.types, s.types) : s.types,
       jobs: sanitizeJobs(d.jobs),
+      supports: sanitizeSupports(d.supports),
       overrides: d.overrides || {},
       notices: d.notices || [],
       settings: { ...s.settings, ...(d.settings || {}) },
@@ -2442,6 +2470,7 @@ export default class App extends React.Component {
       settings: { ...s.settings, onboarded: true, ...(saved.settings || {}) },
       notices: saved.notices || s.notices,
       jobs: sanitizeJobs(saved.jobs),
+      supports: sanitizeSupports(saved.supports),
       recovered: events.length,
     }));
   }

@@ -1173,6 +1173,23 @@ export function renderApp(v) {
               {''}<Jp parts={['予定はこの端末の','中だけに','保存されます。','外部に','送られることは','ありません。']} />
             </div>
 
+            {/* サポーターカード。応援したことがある人にだけ出る。
+                機能ではなく「自分がやったことの記録」なので、消耗型のままでいい。
+                派手にしない——受け取った側が気恥ずかしくならない濃さで。 */}
+            {v.supporterShown && (
+              <div style={s('background:var(--card);border:1px solid var(--line);border-radius:17px;padding:18px 18px 16px;margin-bottom:14px')}>
+                <div style={s('display:flex;align-items:center;gap:9px;margin-bottom:9px')}>
+                  <span style={s('width:22px;height:22px;border-radius:11px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0')}>✓</span>
+                  <span style={s('font-size:14px;font-weight:700;color:var(--ink)')}>応援ありがとうございます</span>
+                </div>
+                <div style={s('display:flex;align-items:baseline;gap:10px;padding-left:31px')}>
+                  <span style={s('font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.supporterTotal}</span>
+                  <span style={s('font-size:12px;color:var(--ink-soft)')}>{v.supporterCount}</span>
+                  <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.supporterSince}</span>
+                </div>
+              </div>
+            )}
+
             {/* 開発応援。規約の下に静かに置く。探した人だけが見つければいい。
                 起動時に出したり、赤い点で気づかせたりはしない——
                 新しい人に見せると物乞いに見える。

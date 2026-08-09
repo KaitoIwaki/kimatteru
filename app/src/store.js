@@ -31,8 +31,8 @@ const native = () => {
 };
 
 const pack = (state) => {
-  const { events, types, overrides, settings, notices, lastSeenVersion, jobs } = state;
-  return { events, types, overrides, settings, notices, lastSeenVersion, jobs, savedAt: Date.now() };
+  const { events, types, overrides, settings, notices, lastSeenVersion, jobs, supports } = state;
+  return { events, types, overrides, settings, notices, lastSeenVersion, jobs, supports, savedAt: Date.now() };
 };
 
 /** localStorage に書く。書けたかどうかを返す（失敗を黙って捨てない） */
