@@ -101,12 +101,22 @@ export async function buyTip(id) {
   const p = plugin();
   if (!p) return { ok: false, msg: '' };
   try {
-    await withLimit(p.purchaseProduct({ productIdentifier: id }), 'purchaseProduct');
+    // ここに待ち時間の上限をかけてはいけない。
+    // 購入は確認ダイアログやパスワード入力を挟む——人が操作している時間で、
+    // 何秒かかるか決められない。上限をかけていたら、Apple 側が「完了しました」と
+    // 言っているのに、こちらは「購入できませんでした」と出していた。
+    // 上限が要るのは、返事を待つだけの処理（商品の取得）だけ。
+    await p.purchaseProduct({ productIdentifier: id });
     return { ok: true, msg: 'ありがとうございます。' };
   } catch (e) {
-    // 「キャンセルした」も例外で来る。押し間違いを咎めない。
+    // 「やめた」も例外で来る。押し間違いを咎めない。
+    // 文面は端末の言語で変わるので、英語と日本語の両方を見る
+    // （Apple の paymentCancelled は 2 番）。
     const m = String((e && e.message) || '');
-    if (/cancel/i.test(m)) return { ok: false, msg: '' };
+    const code = e && (e.code || e.errorCode);
+    if (/cancel/i.test(m) || m.includes('キャンセル') || String(code) === '2') {
+      return { ok: false, msg: '' };
+    }
     return { ok: false, msg: '購入できませんでした。時間をおいて試してください。' };
   }
 }
