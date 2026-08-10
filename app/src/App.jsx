@@ -4,7 +4,7 @@ import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
 import { readLocal, readFile, saveLocal, saveFile } from './store';
 import { endsNextDay, busyEndMin } from './whenlib';
-import { loadTips, buyTip, TIPS } from './tipjar';
+import { loadTips, buyTip, probeTips, TIPS } from './tipjar';
 import { syncReminders, onNotificationTap } from './notify';
 import { drawSummaryCard, drawFreeCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
@@ -478,6 +478,23 @@ export default class App extends React.Component {
     this._tipsTried = true;
     const list = await loadTips();
     if(list && list.length) this.setState({tips:list});
+  }
+  // バージョンを5回叩くと出る診断。ふつうに使う人には見えない。
+  // 課金がうまくいかないとき、画面には何も出ない作りにしてあるので、
+  // そのままだと原因が誰にも見えない。ここだけは全部見せる。
+  tapVersion(){
+    const n = (this._verTaps||0) + 1;
+    this._verTaps = n;
+    clearTimeout(this._verTimer);
+    this._verTimer = setTimeout(()=>{ this._verTaps = 0; }, 1500);
+    if(n >= 5){ this._verTaps = 0; this.runProbe(); }
+  }
+  async runProbe(){
+    tapLight();
+    this.setState({probe:{running:true}});
+    const r = await probeTips();
+    this.setState({probe:r});
+    if(r.tips && r.tips.length) this.setState({tips:r.tips});
   }
   async buyTip(id){
     tapLight();
@@ -1132,6 +1149,23 @@ export default class App extends React.Component {
         v.supporterTotal = '¥'+total.toLocaleString('ja-JP');
         v.supporterSince = `${first.getFullYear()}年${first.getMonth()+1}月から`;
       }
+    }
+
+    // 診断（バージョンを5回叩くと出る）
+    v.onTapVersion = ()=>this.tapVersion();
+    v.probeShown = !!st.probe;
+    if(st.probe){
+      const p = st.probe;
+      v.onProbeClose = ()=>this.setState({probe:null});
+      v.onProbeRetry = ()=>this.runProbe();
+      v.probeRows = p.running ? [{k:'', val:'読み込み中…'}] : [
+        {k:'ネイティブか', val: p.native ? 'はい' : 'いいえ（ブラウザ）'},
+        {k:'課金が使えるか', val: p.billing===null ? '—' : (p.billing ? 'はい' : 'いいえ')},
+        {k:'聞いた製品ID', val: (p.asked||[]).join(String.fromCharCode(10))},
+        {k:'返ってきた数', val: String((p.got||[]).length)},
+        {k:'返ってきたID', val: (p.got||[]).length ? p.got.join(String.fromCharCode(10)) : '（なし）'},
+        {k:'エラー', val: p.error || '（なし）'},
+      ];
     }
 
     v.tipShown = Array.isArray(st.tips) && st.tips.length > 0;

@@ -1164,7 +1164,8 @@ export function renderApp(v) {
                 </span>
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
               </a>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px')}>
+              {/* 5回叩くと診断が出る。ふつうに使う人には何も起きない */}
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:default')} onClick={v.onTapVersion}>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バージョン</span>
                 <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>{v.appVersion}</span>
               </div>
@@ -1289,6 +1290,27 @@ export function renderApp(v) {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ===================== 課金の診断（開発用） =====================
+          うまくいかないとき、画面には何も出ない作りにしてある。
+          そのままだと原因が誰にも見えないので、ここだけは全部見せる。 */}
+      {v.probeShown && (
+        <div style={s('position:absolute;inset:0;z-index:97;background:rgba(20,20,22,.5);display:flex;align-items:center;justify-content:center;padding:20px;animation:scrimIn .2s ease')} onClick={v.onProbeClose}>
+          <div style={s('width:100%;max-width:340px;max-height:80%;overflow-y:auto;background:var(--card);border-radius:18px;padding:18px;animation:dlgIn .25s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
+            <div style={s('font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px')}>課金の状態</div>
+            {(v.probeRows || []).map((r, i) => (
+              <div key={i} style={s('margin-bottom:10px')}>
+                {!!r.k && <div style={s('font-size:11px;color:var(--ink-mut);margin-bottom:2px')}>{r.k}</div>}
+                <div style={s('font-size:12.5px;color:var(--ink);line-height:1.6;white-space:pre-wrap;word-break:break-all;font-family:ui-monospace,monospace')}>{r.val}</div>
+              </div>
+            ))}
+            <div style={s('display:flex;gap:8px;margin-top:14px')}>
+              <div style={s('flex:1;text-align:center;padding:11px;border-radius:12px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer')} onClick={v.onProbeRetry}>もう一度読む</div>
+              <div style={s('flex:1;text-align:center;padding:11px;border-radius:12px;background:var(--ink);color:var(--card);font-size:14px;font-weight:700;cursor:pointer')} onClick={v.onProbeClose}>閉じる</div>
+            </div>
           </div>
         </div>
       )}

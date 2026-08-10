@@ -41,18 +41,44 @@ const plugin = async () => {
  * 取れなければ null を返す。呼ぶ側は「いま買えない」として扱う。
  */
 export async function loadTips() {
+  const r = await probeTips();
+  return r.tips;
+}
+
+/**
+ * 値段を取りにいって、何が起きたかも返す。
+ * うまくいかないとき、画面には何も出ない作りにしてある（買えない行を並べないため）。
+ * そのままだと原因が誰にも見えないので、診断用にここだけは全部返す。
+ */
+export async function probeTips() {
+  const out = { native: native(), billing: null, asked: TIPS.map((t) => t.id), got: [], error: '', tips: null };
   const p = await plugin();
-  if (!p) return null;
+  if (!p) { out.error = 'ネイティブではない（ブラウザ）'; return out; }
+  try {
+    const b = await p.isBillingSupported();
+    out.billing = !!(b && b.isBillingSupported);
+  } catch (e) {
+    out.billing = false;
+    out.error = '課金が使えるか調べられない: ' + ((e && e.message) || String(e));
+  }
   try {
     const r = await p.getProducts({ productIdentifiers: TIPS.map((t) => t.id) });
     const found = (r && r.products) || [];
-    if (!found.length) return null;
-    return TIPS.map((t) => {
+    out.got = found.map((x) => x.identifier || x.id || '(識別子なし)');
+    if (!found.length) {
+      if (!out.error) out.error = '商品が0件。App Store Connect 側が未完成か、製品IDがちがう。';
+      return out;
+    }
+    const tips = TIPS.map((t) => {
       const got = found.find((x) => (x.identifier || x.id) === t.id);
       return got ? { ...t, price: got.priceString || got.displayPrice || `¥${t.yen}` } : null;
     }).filter(Boolean);
+    out.tips = tips.length ? tips : null;
+    if (!out.tips) out.error = '取れた商品の識別子が、こちらの製品IDと一致しない。';
+    return out;
   } catch (e) {
-    return null;
+    out.error = '取得でエラー: ' + ((e && e.message) || String(e));
+    return out;
   }
 }
 
