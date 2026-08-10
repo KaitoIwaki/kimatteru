@@ -9,6 +9,7 @@
 // App Store の「データを収集しない」という申告を、どちらも書き換えることになる。
 // このプラグインは Apple としか話さない。
 import { Capacitor } from '@capacitor/core';
+import { NativePurchases } from '@capgo/native-purchases';
 
 const native = () => {
   try {
@@ -27,12 +28,12 @@ export const TIPS = [
   { id: 'com.kimatteru.app.tip1000', yen: 1000, label: 'しっかり応援' },
 ];
 
-let mod = null;
-const plugin = async () => {
-  if (!native()) return null;
-  if (!mod) mod = await import('@capgo/native-purchases');
-  return mod.NativePurchases;
-};
+// 動的に読み込んでいたが、実機で import() が返ってこないまま止まった。
+// チャンクは iOS の中に確かに入っていたのに、読み込みが完了しない。
+// Capacitor のプラグインは静的に import するのが普通で、
+// 動的にする理由も無かった（呼ぶ側は native() で止めている）。
+// 失敗しうる経路を自分で増やしていた。
+const plugin = () => (native() ? NativePurchases : null);
 
 // ネイティブ側が黙ったままになることがある（例外も返らず、ただ返事が来ない）。
 // 待ち続けると画面が「読み込み中…」のまま固まり、何が起きたか分からない。
@@ -62,13 +63,7 @@ export async function loadTips() {
  */
 export async function probeTips() {
   const out = { native: native(), billing: null, asked: TIPS.map((t) => t.id), got: [], error: '', tips: null };
-  let p = null;
-  try {
-    p = await withLimit(plugin(), 'プラグインの読み込み');
-  } catch (e) {
-    out.error = 'プラグインを読み込めない: ' + ((e && e.message) || String(e));
-    return out;
-  }
+  const p = plugin();
   if (!p) { out.error = 'ネイティブではない（ブラウザ）'; return out; }
   try {
     const b = await withLimit(p.isBillingSupported(), 'isBillingSupported');
@@ -103,8 +98,7 @@ export async function probeTips() {
  * 途中でやめたときは何も言わない（失敗として騒がない）。
  */
 export async function buyTip(id) {
-  let p = null;
-  try { p = await plugin(); } catch (e) { return { ok: false, msg: '購入できませんでした。' }; }
+  const p = plugin();
   if (!p) return { ok: false, msg: '' };
   try {
     await withLimit(p.purchaseProduct({ productIdentifier: id }), 'purchaseProduct');
