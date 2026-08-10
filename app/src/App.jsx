@@ -476,8 +476,13 @@ export default class App extends React.Component {
   async _loadTips(){
     if(this._tipsTried) return;
     this._tipsTried = true;
-    const list = await loadTips();
-    if(list && list.length) this.setState({tips:list});
+    try{
+      const list = await loadTips();
+      if(list && list.length) this.setState({tips:list});
+    }catch(e){
+      // 黙って諦める（利用者に見せるものではない）。診断からは見える。
+      this._tipsTried = false;
+    }
   }
   // バージョンを5回叩くと出る診断。ふつうに使う人には見えない。
   // 課金がうまくいかないとき、画面には何も出ない作りにしてあるので、
@@ -492,9 +497,15 @@ export default class App extends React.Component {
   async runProbe(){
     tapLight();
     this.setState({probe:{running:true}});
-    const r = await probeTips();
-    this.setState({probe:r});
-    if(r.tips && r.tips.length) this.setState({tips:r.tips});
+    try{
+      const r = await probeTips();
+      this.setState({probe:r});
+      if(r.tips && r.tips.length) this.setState({tips:r.tips});
+    }catch(e){
+      // ここで落ちると「読み込み中…」のまま固まる。必ず何か出す。
+      this.setState({probe:{ native:true, billing:null, asked:[], got:[],
+        error:'診断そのものが落ちた: '+((e&&e.message)||String(e)), tips:null }});
+    }
   }
   async buyTip(id){
     tapLight();
