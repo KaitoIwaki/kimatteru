@@ -91,6 +91,15 @@ input { font-family: inherit; }
   0%   { transform: translateX(-120%) rotate(18deg); }
   100% { transform: translateX(220%) rotate(18deg); }
 }
+/* 箔の粒。下から昇って、ちらついて消える。
+   金ぴかにしないための決めごと：小さく、少なく、遅く。
+   点滅ではなく「現れて、昇って、消える」——舞っている埃に光が当たる感じ。 */
+@keyframes fleck {
+  0%   { opacity: 0; transform: translateY(6px) scale(.5); }
+  22%  { opacity: .85; }
+  62%  { opacity: .5; }
+  100% { opacity: 0; transform: translateY(-38px) scale(1); }
+}
 /* 裏返し。奥行きを持たせて、紙を1枚めくる速さで */
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(18px) scale(.97); }

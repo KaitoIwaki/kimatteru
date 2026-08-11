@@ -1321,6 +1321,8 @@ export function renderApp(v) {
                 {/* 表 */}
                 <div style={s(v.cardFaceStyle)}>
                   <div style={s(v.foilStyle)} />
+                  <div style={s(v.glintStyle)} />
+                  {(v.cardFlecks || []).map((f) => <div key={f.key} style={s(f.style)} />)}
                   <div style={s('position:relative;z-index:1;display:flex;flex-direction:column;height:100%;justify-content:space-between')}>
                     <div style={s('display:flex;align-items:flex-start;justify-content:space-between')}>
                       <span style={s('display:flex;flex-direction:column;gap:3px')}>

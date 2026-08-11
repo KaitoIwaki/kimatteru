@@ -129,16 +129,31 @@ const repeatAfter = (y, m, d, every, spanMonths, dows) => {
 // 明と暗が何度か折り返すところなので、明→暗→明→暗→明 と振っている。
 // 暗い帯は斜めに走って字のある四隅を外れる（実際に描いて拾った地の色は
 // 名前のうしろ rgb(249,238,196)、金額のうしろ rgb(220,192,110)）。
+// glint は「カードの向きに連れて動く光」の帯。sheen（ひとりでに流れる帯）とは別。
+// 2本を強いまま重ねると、真ん中が白く飛んで金に見えなくなったので、
+// 流れるほうを弱めてある（.9 → .45）。
+// ゴールドの glint だけ真ん中がわずかに緑へ振れる。本物の金箔は浅い角度で
+// 緑に転ぶので、虹色を全部出すより、そこだけ拾ったほうが金に見える。
+// fleck は箔の粒。生成りの紙には撒かない（紙に金粉は嘘になる）。
 const CARD_TIERS = [
   { key: 'normal', min: 0, name: 'ノーマル',
     paper: ['#F3EEE2', '#E7DFCE', '#F3EEE2'], foil: '#6B582F', mark: '#C8BFA6',
-    sheen: 'rgba(255,252,240,.72)', edge: 'rgba(107,88,47,.3)' },
+    sheen: 'rgba(255,252,240,.5)', edge: 'rgba(107,88,47,.3)', fleck: null,
+    glint: 'rgba(255,255,255,0) 32%, rgba(255,252,238,.42) 50%, rgba(255,255,255,0) 68%' },
   { key: 'gold', min: 1000, name: 'ゴールド',
     paper: ['#FDF6D6', '#D9B85F', '#F7E8AC', '#C9A544', '#F2DE9B'], foil: '#513706', mark: '#A9862C',
-    sheen: 'rgba(255,250,214,.9)', edge: 'rgba(81,55,6,.44)' },
+    sheen: 'rgba(255,250,214,.45)', edge: 'rgba(81,55,6,.44)', fleck: '#FFFDF0',
+    glint: 'rgba(255,255,255,0) 30%, rgba(255,246,200,.5) 44%, rgba(237,251,217,.6) 50%, rgba(255,239,192,.5) 56%, rgba(255,255,255,0) 70%' },
   { key: 'black', min: 3000, name: 'ブラック',
     paper: ['#2B2823', '#1B1915', '#2B2823'], foil: '#D8BC72', mark: '#7C6E4C',
-    sheen: 'rgba(255,240,196,.30)', edge: 'rgba(216,188,114,.38)' },
+    sheen: 'rgba(255,240,196,.24)', edge: 'rgba(216,188,114,.38)', fleck: '#F0DFA8',
+    glint: 'rgba(255,255,255,0) 32%, rgba(255,240,196,.22) 50%, rgba(255,255,255,0) 68%' },
+];
+// 箔の粒の居場所（％）と、光りはじめるまでの間（秒）。
+// 毎回ばらばらに置くと、指で回すたびに粒が飛び移ってしまうので、決め打ちにする。
+const FLECKS = [
+  [12,72,0], [26,34,1.4], [38,82,2.9], [47,18,0.6], [58,62,3.7], [66,28,1.9],
+  [74,90,4.6], [83,46,2.3], [91,66,5.4], [19,50,3.1], [53,40,6.2], [88,20,4.1],
 ];
 // 色の並びを、等間隔に置いたグラデーションにする
 const paperStops = (paper) =>
@@ -1339,6 +1354,23 @@ export default class App extends React.Component {
       v.foilStyle = { position:'absolute', top:'-60%', left:0, width:'42%', height:'220%',
         background:`linear-gradient(90deg, rgba(255,255,255,0) 0%, ${tier.sheen} 50%, rgba(255,255,255,0) 100%)`,
         animation:'foilSweep 4.6s linear infinite', pointerEvents:'none', zIndex:0 };
+      // カードの向きに連れて動く光。端末のジャイロは使わない——指で回すぶんだけで、
+      // 「傾けると光が動く」は出せる。正面では真ん中、回すと光が逆へ滑る。
+      {
+        const gx = Math.sin((ang * Math.PI) / 180);          // 正面 0 → 真横 ±1
+        const gy = Math.sin((tilt * Math.PI) / 180) * 3;     // 傾きは浅いので効きを強める
+        v.glintStyle = { position:'absolute', inset:0, pointerEvents:'none', zIndex:0,
+          background:`linear-gradient(${112 - tilt * 2}deg, ${tier.glint})`,
+          backgroundSize:'250% 250%',
+          backgroundPosition:`${(50 - gx * 42).toFixed(1)}% ${(50 - gy * 42).toFixed(1)}%` };
+      }
+      // 箔の粒。下から昇って、ちらついて消える。ゴールドと黒だけ
+      v.cardFlecks = tier.fleck ? FLECKS.map(([x,y,d],i)=>({
+        key:i,
+        style:{ position:'absolute', left:x+'%', top:y+'%',
+          width:i%3===0?3:2, height:i%3===0?3:2, borderRadius:'50%',
+          background:tier.fleck, opacity:0, pointerEvents:'none', zIndex:0,
+          animation:`fleck ${6+(i%4)}s ease-in-out ${d}s infinite` } })) : [];
       const stamped = { color:foil,
         textShadow: tier.key==='black' ? '0 1px 0 rgba(0,0,0,.5)' : '0 1px 0 rgba(255,255,255,.6)' };
       v.foilTextStyle = { ...stamped, fontSize:17, fontWeight:800, letterSpacing:'.02em' };
@@ -2644,7 +2676,7 @@ export default class App extends React.Component {
         total: '¥' + total.toLocaleString('ja-JP'),
         times: sup.length + '回',
         paper: tier.paper, foil: tier.foil, mark: tier.mark,
-        sheen: tier.sheen, edge: tier.edge,
+        sheen: tier.sheen, edge: tier.edge, tier: tier.key, fleck: tier.fleck,
       });
       const msg = await shareCanvas(canvas, 'kimatteru-supporter.png');
       if (msg) {

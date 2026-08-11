@@ -268,7 +268,7 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
  * 画面のカードと同じ見立て（生成りの紙に真鍮の箔）で、キャンバスに直接描く。
  * 通し番号と人数は入れない——全員を数える場所が無いので、書けば嘘になる。
  */
-export function drawSupporterCard({ owner, since, total, times, paper, foil, mark, sheen, edge }) {
+export function drawSupporterCard({ owner, since, total, times, paper, foil, mark, sheen, edge, tier, fleck }) {
   const W = 1080;
   const H = Math.round(W / 1.586);
   const c = document.createElement('canvas');
@@ -288,6 +288,21 @@ export function drawSupporterCard({ owner, since, total, times, paper, foil, mar
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
+  // 向きに連れて動く光。画面では指で回すと滑るが、静止画では正面のとき——
+  // つまり真ん中に一本置く。ゴールドだけ、真ん中がわずかに緑へ振れる。
+  const glint = ctx.createLinearGradient(W * 0.1, 0, W * 0.62, H);
+  glint.addColorStop(0.3, 'rgba(255,255,255,0)');
+  if (tier === 'gold') {
+    glint.addColorStop(0.44, 'rgba(255,246,200,.5)');
+    glint.addColorStop(0.5, 'rgba(237,251,217,.6)');
+    glint.addColorStop(0.56, 'rgba(255,239,192,.5)');
+  } else {
+    glint.addColorStop(0.5, tier === 'black' ? 'rgba(255,240,196,.22)' : 'rgba(255,252,238,.42)');
+  }
+  glint.addColorStop(0.7, 'rgba(255,255,255,0)');
+  ctx.fillStyle = glint;
+  ctx.fillRect(0, 0, W, H);
+
   // 箔の光。画面では流れているが、静止画では一本通しておく
   const sheen2 = ctx.createLinearGradient(W * 0.18, 0, W * 0.52, H);
   sheen2.addColorStop(0, 'rgba(255,255,255,0)');
@@ -296,9 +311,28 @@ export function drawSupporterCard({ owner, since, total, times, paper, foil, mar
   ctx.fillStyle = sheen2;
   ctx.fillRect(0, 0, W, H);
 
+  // 箔の粒。画面と同じ居場所に置く（画面では昇って消えるが、静止画では止まった一瞬）
+  if (fleck) {
+    const FL = [[12,72],[26,34],[38,82],[47,18],[58,62],[66,28],[74,90],[83,46],[91,66],[19,50],[53,40],[88,20]];
+    ctx.fillStyle = fleck;
+    FL.forEach(([x, y], i) => {
+      ctx.globalAlpha = i % 3 === 0 ? 0.85 : 0.5;
+      ctx.beginPath();
+      ctx.arc((x / 100) * W, (y / 100) * H, i % 3 === 0 ? 2.3 : 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+
   ctx.strokeStyle = edge || 'rgba(107,88,47,.32)';
   ctx.lineWidth = 3;
   ctx.strokeRect(1.5, 1.5, W - 3, H - 3);
+  // 厚み。上の縁に明かり、下の縁に影
+  ctx.strokeStyle = 'rgba(255,255,255,.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(24, 2); ctx.lineTo(W - 24, 2); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,.14)';
+  ctx.beginPath(); ctx.moveTo(24, H - 2); ctx.lineTo(W - 24, H - 2); ctx.stroke();
 
   const PAD = 62;
   ctx.fillStyle = FOIL;

@@ -84,5 +84,6 @@ export const cardShadow = (deg, back = false) => {
   const y = Math.round(14 - 5 * lift);
   const blur = Math.round(34 + 16 * lift);
   const a = (0.18 + 0.1 * lift).toFixed(3);
-  return `${x}px ${y}px ${blur}px rgba(38,37,31,${a}), inset 0 1px 0 rgba(255,255,255,.55)`;
+  // 内側の細い線2本が、カードの厚みになる。上に明かり、下に影。
+  return `${x}px ${y}px ${blur}px rgba(38,37,31,${a}), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -1px 0 rgba(0,0,0,.14)`;
 };
