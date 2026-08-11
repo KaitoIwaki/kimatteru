@@ -1419,6 +1419,10 @@ export default class App extends React.Component {
     }
 
     v.tipShown = Array.isArray(st.tips) && st.tips.length > 0;
+    // 応援は「このアプリについて」の中に、1行だけ置いて畳んでおく。
+    // 探した人だけが見つければいいものなので、金額を並べたまま置かない。
+    v.tipOpen = !!st.tipOpen;
+    v.onToggleTip = ()=>{ tapLight(); this.setState(s=>({tipOpen:!s.tipOpen})); };
     v.tipRows = (st.tips||[]).map((t,i)=>({
       label:t.label, price:t.price,
       rowStyle:{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',
