@@ -6,7 +6,7 @@ import { readLocal, readFile, saveLocal, saveFile } from './store';
 import { endsNextDay, busyEndMin } from './whenlib';
 import { loadTips, buyTip, probeTips, TIPS } from './tipjar';
 import { syncReminders, onNotificationTap } from './notify';
-import { drawSummaryCard, drawFreeCard } from './sharecard';
+import { drawSummaryCard, drawFreeCard, drawSupporterCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
 import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, guessTypes, openAppSettings } from './calendarimport';
@@ -1159,7 +1159,68 @@ export default class App extends React.Component {
         v.supporterCount = sup.length===1 ? '1回' : sup.length+'回';
         v.supporterTotal = '¥'+total.toLocaleString('ja-JP');
         v.supporterSince = `${first.getFullYear()}年${first.getMonth()+1}月から`;
+        v.onOpenCard = ()=>{ tapLight(); this.setState({screen:'card', cardBack:false}); };
       }
+    }
+
+    // ---------- サポーターカード（1枚の画面） ----------
+    // 通し番号と「いま◯人の1人です」は出せない。全員を数える場所が要るが、
+    // このアプリはサーバーを持たない（持つと「外部に送らない」という約束が崩れる）。
+    // 代わりに「いつから」と金額を主役にする。古株であることは、番号がなくても示せる。
+    v.cardShown = st.screen==='card';
+    if(v.cardShown){
+      const sup = st.supports || [];
+      const total = sup.reduce((a,x)=>a+(x.yen|0), 0);
+      const first = new Date(Math.min(...sup.map(x=>x.at)));
+      const M2 = (n)=>String(n).padStart(2,'0');
+      v.onCardBack = ()=>this.setState({screen:'settings'});
+      v.cardFlipped = !!st.cardBack;
+      v.onFlipCard = ()=>{ tapLight(); this.setState(s=>({cardBack:!s.cardBack})); };
+      v.cardOwner = (st.settings.supporterName||'').trim();
+      v.cardOwnerShown = v.cardOwner || '名前を入れる';
+      v.onCardName = (e)=>{ const val=e.target.value.slice(0,20); this.setSetting('supporterName', val); };
+      v.cardSince = `MEMBER SINCE ${first.getFullYear()}.${M2(first.getMonth()+1)}`;
+      v.cardTotal = '¥'+total.toLocaleString('ja-JP');
+      v.cardTimes = sup.length+'回';
+      // 裏面：1回ずつの記録
+      v.cardHistory = sup.slice().sort((a,b)=>b.at-a.at).map(x=>{
+        const d=new Date(x.at);
+        return { when:`${d.getFullYear()}.${M2(d.getMonth()+1)}.${M2(d.getDate())}`,
+          yen:'¥'+(x.yen|0).toLocaleString('ja-JP') };
+      });
+      v.onShareCardImage = ()=>this._shareSupporterCard();
+
+      // 箔の見た目。生成りの紙に真鍮を押した、という見立て。
+      // 文字は紙より暗い真鍮色で、下に薄い明かりを1本入れて「沈んでいる」ようにする。
+      // 真鍮の濃さは、いちばん暗い紙の上でも読める値から決めた。
+      // #8A7448 だと 3.39 で薄い。#6B582F で 5.17（明るい側は 5.92）。
+      const PAPER='#F3EEE2', PAPER2='#E7DFCE', foil='#6B582F';
+      v.cardFlipStyle = { position:'relative', width:'100%', aspectRatio:'1.586',
+        transformStyle:'preserve-3d', cursor:'pointer',
+        transition:'transform .62s cubic-bezier(.2,.9,.25,1)',
+        transform: st.cardBack ? 'rotateY(180deg)' : 'rotateY(0deg)' };
+      const face = {
+        position:'absolute', inset:0, borderRadius:18, padding:'20px 22px', overflow:'hidden',
+        backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
+        background:`linear-gradient(150deg, ${PAPER} 0%, ${PAPER2} 55%, ${PAPER} 100%)`,
+        border:'1px solid rgba(107,88,47,.3)',
+        boxShadow:'0 14px 34px rgba(38,37,31,.18), inset 0 1px 0 rgba(255,255,255,.55)' };
+      v.cardFaceStyle = face;
+      v.cardBackStyle = { ...face, transform:'rotateY(180deg)' };
+      // 斜めに流れる光。点滅させず、一定の速さで通り過ぎるだけ
+      v.foilStyle = { position:'absolute', top:'-60%', left:0, width:'42%', height:'220%',
+        background:'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,252,240,.72) 50%, rgba(255,255,255,0) 100%)',
+        animation:'foilSweep 4.6s linear infinite', pointerEvents:'none', zIndex:0 };
+      const stamped = { color:foil, textShadow:'0 1px 0 rgba(255,255,255,.6)' };
+      v.foilTextStyle = { ...stamped, fontSize:17, fontWeight:800, letterSpacing:'.02em' };
+      v.foilSmallStyle = { ...stamped, fontSize:10, fontWeight:700, letterSpacing:'.14em',
+        fontVariantNumeric:'tabular-nums' };
+      v.cardNameStyle = { ...stamped, fontSize:15, fontWeight:700,
+        opacity: v.cardOwner ? 1 : .45,
+        whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' };
+      v.cardTotalStyle = { ...stamped, fontSize:22, fontWeight:800, letterSpacing:'-.02em',
+        fontVariantNumeric:'tabular-nums' };
+      v.cardHistYenStyle = { ...stamped, fontSize:12, fontWeight:700, fontVariantNumeric:'tabular-nums' };
     }
 
     // 診断（バージョンを5回叩くと出る）
@@ -2439,6 +2500,31 @@ export default class App extends React.Component {
   }
 
   // 画面に出ているカードを画像にして共有シートへ渡す
+  async _shareSupporterCard() {
+    tapLight();
+    const sup = this.state.supports || [];
+    if (!sup.length) return;
+    const total = sup.reduce((a, x) => a + (x.yen | 0), 0);
+    const first = new Date(Math.min(...sup.map((x) => x.at)));
+    const M2 = (n) => String(n).padStart(2, '0');
+    try {
+      const canvas = drawSupporterCard({
+        owner: (this.state.settings.supporterName || '').trim(),
+        since: `MEMBER SINCE ${first.getFullYear()}.${M2(first.getMonth() + 1)}`,
+        total: '¥' + total.toLocaleString('ja-JP'),
+        times: sup.length + '回',
+      });
+      const msg = await shareCanvas(canvas, 'kimatteru-supporter.png');
+      if (msg) {
+        this.setState({ shareToast: true, shareMsg: msg });
+        setTimeout(() => this.setState({ shareToast: false }), 2400);
+      }
+    } catch (e) {
+      this.setState({ shareToast: true, shareMsg: 'カードを作れませんでした' });
+      setTimeout(() => this.setState({ shareToast: false }), 2400);
+    }
+  }
+
   async _shareCard(kind) {
     tapLight();
     const st = this.state;

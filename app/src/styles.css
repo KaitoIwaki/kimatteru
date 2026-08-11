@@ -84,6 +84,19 @@ input { font-family: inherit; }
   from { opacity: 0; transform: translateY(14px) scale(.988); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+/* サポーターカードの箔。紙に押した箔が、傾けたときに光を返す動き。
+   金ぴかにはしない——「静かな文房具」から外れる。生成りの紙に真鍮色。
+   光は斜めに、ゆっくり一定で流れる。跳ねたり点滅したりはさせない。 */
+@keyframes foilSweep {
+  0%   { transform: translateX(-120%) rotate(18deg); }
+  100% { transform: translateX(220%) rotate(18deg); }
+}
+/* 裏返し。奥行きを持たせて、紙を1枚めくる速さで */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(18px) scale(.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* 押してほしいものが、静かに息をする。跳ねさせない（紙の上の話なので） */
 @keyframes tapBreath {
   0%, 100% { transform: scale(1); }

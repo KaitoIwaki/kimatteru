@@ -1178,7 +1178,7 @@ export function renderApp(v) {
                 機能ではなく「自分がやったことの記録」なので、消耗型のままでいい。
                 派手にしない——受け取った側が気恥ずかしくならない濃さで。 */}
             {v.supporterShown && (
-              <div style={s('background:var(--card);border:1px solid var(--line);border-radius:17px;padding:18px 18px 16px;margin-bottom:14px')}>
+              <div style={s('background:var(--card);border:1px solid var(--line);border-radius:17px;padding:18px 18px 16px;margin-bottom:14px;cursor:pointer')} onClick={v.onOpenCard}>
                 <div style={s('display:flex;align-items:center;gap:9px;margin-bottom:9px')}>
                   <span style={s('width:22px;height:22px;border-radius:11px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0')}>✓</span>
                   <span style={s('font-size:14px;font-weight:700;color:var(--ink)')}>応援ありがとうございます</span>
@@ -1187,6 +1187,8 @@ export function renderApp(v) {
                   <span style={s('font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.supporterTotal}</span>
                   <span style={s('font-size:12px;color:var(--ink-soft)')}>{v.supporterCount}</span>
                   <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.supporterSince}</span>
+                  <span style={s('flex:1')} />
+                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
                 </div>
               </div>
             )}
@@ -1290,6 +1292,94 @@ export function renderApp(v) {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ===================== サポーターカード =====================
+          金ぴかにはしない。生成りの紙に真鍮の箔を押したもの、という見立て。
+          光は斜めにゆっくり流れるだけで、点滅させない。
+          通し番号と「いま◯人の1人です」は出せない——全員を数える場所が要り、
+          このアプリはサーバーを持たないため。 */}
+      {v.cardShown && (
+        <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
+          <div className="scr-head" style={s('padding:0 18px 10px')}>
+            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onCardBack}>←</span>
+            <span style={s('font-size:16px;font-weight:600;color:var(--ink)')}>サポーターカード</span>
+            <span />
+          </div>
+
+          <div style={s('flex:1;overflow-y:auto;padding:18px 20px 40px')}>
+            {/* カード本体。押すと裏返る */}
+            <div style={s('perspective:1200px;animation:cardIn .5s cubic-bezier(.2,.9,.2,1) both')}>
+              <div style={s(v.cardFlipStyle)} onClick={v.onFlipCard}>
+
+                {/* 表 */}
+                <div style={s(v.cardFaceStyle)}>
+                  <div style={s(v.foilStyle)} />
+                  <div style={s('position:relative;z-index:1;display:flex;flex-direction:column;height:100%;justify-content:space-between')}>
+                    <div style={s('display:flex;align-items:flex-start;justify-content:space-between')}>
+                      <span style={s('display:flex;flex-direction:column;gap:3px')}>
+                        <span style={s(v.foilTextStyle)}>決まってる？</span>
+                        <span style={s(v.foilSmallStyle)}>SUPPORTER</span>
+                      </span>
+                      <span style={s('font-size:17px;letter-spacing:-2px;flex-shrink:0')}>
+                        <span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C8BFA6')}>？</span>
+                      </span>
+                    </div>
+                    <div style={s('display:flex;align-items:flex-end;justify-content:space-between;gap:12px')}>
+                      <span style={s('display:flex;flex-direction:column;gap:5px;min-width:0')}>
+                        <span style={s(v.cardNameStyle)}>{v.cardOwnerShown}</span>
+                        <span style={s(v.foilSmallStyle)}>{v.cardSince}</span>
+                      </span>
+                      <span style={s('display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0')}>
+                        <span style={s(v.cardTotalStyle)}>{v.cardTotal}</span>
+                        <span style={s(v.foilSmallStyle)}>{v.cardTimes}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 裏：1回ずつの記録 */}
+                <div style={s(v.cardBackStyle)}>
+                  <div style={s('position:relative;z-index:1;height:100%;display:flex;flex-direction:column')}>
+                    <span style={s({ ...v.foilSmallStyle, marginBottom: 10 })}>RECORD</span>
+                    <div style={s('flex:1;overflow-y:auto')}>
+                      {(v.cardHistory || []).map((h, i) => (
+                        <div key={i} style={s('display:flex;align-items:center;justify-content:space-between;padding:5px 0')}>
+                          <span style={s(v.foilSmallStyle)}>{h.when}</span>
+                          <span style={s(v.cardHistYenStyle)}>{h.yen}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div style={s('text-align:center;font-size:11.5px;color:var(--ink-mut);margin-top:12px')}>タップで裏返せます</div>
+
+            <div style={s('text-align:center;font-size:16px;font-weight:700;color:var(--ink);margin-top:26px')}>支えてくれて、ありがとう。</div>
+            <div style={s('text-align:center;font-size:12.5px;color:var(--ink-soft);line-height:1.9;margin-top:8px;text-wrap:pretty')}>
+              {''}<Jp parts={['広告なし・通信なしのままで','作りつづけます。']} />
+            </div>
+
+            {/* 名前はカードに載るだけ。端末の外には出ない */}
+            <div style={s('margin-top:24px')}>
+              <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>カードに載せる名前</div>
+              <input value={v.cardOwner} onChange={v.onCardName} placeholder="空のままでもかまいません" maxLength={20}
+                style={s('width:100%;box-sizing:border-box;border:1px solid var(--line);outline:none;background:var(--card);border-radius:13px;padding:12px 14px;font-size:15px;color:var(--ink);font-family:inherit')} />
+              <div style={s('font-size:11px;color:var(--ink-faint);margin:8px 6px 0;line-height:1.7')}>この名前も端末の中だけに保存されます。</div>
+            </div>
+
+            <div style={s('display:flex;align-items:center;justify-content:center;gap:7px;margin-top:22px;padding:14px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCardImage}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              カードをシェア
+            </div>
           </div>
         </div>
       )}

@@ -262,3 +262,75 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
 
   return c;
 }
+
+/**
+ * サポーターカード。
+ * 画面のカードと同じ見立て（生成りの紙に真鍮の箔）で、キャンバスに直接描く。
+ * 通し番号と人数は入れない——全員を数える場所が無いので、書けば嘘になる。
+ */
+export function drawSupporterCard({ owner, since, total, times }) {
+  const W = 1080;
+  const H = Math.round(W / 1.586);
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d');
+
+  const PAPER = '#F3EEE2';
+  const PAPER2 = '#E7DFCE';
+  const FOIL = '#6B582F';
+
+  // 紙。斜めに濃淡をつけて、平らな一色に見せない
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, PAPER);
+  g.addColorStop(0.55, PAPER2);
+  g.addColorStop(1, PAPER);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // 箔の光。画面では流れているが、静止画では一本通しておく
+  const sheen = ctx.createLinearGradient(W * 0.18, 0, W * 0.52, H);
+  sheen.addColorStop(0, 'rgba(255,255,255,0)');
+  sheen.addColorStop(0.5, 'rgba(255,252,240,.55)');
+  sheen.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.strokeStyle = 'rgba(107,88,47,.32)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(1.5, 1.5, W - 3, H - 3);
+
+  const PAD = 62;
+  ctx.fillStyle = FOIL;
+
+  ctx.font = f(40, 800);
+  ctx.fillText('決まってる？', PAD, PAD + 40);
+  ctx.font = f(23, 700);
+  ctx.fillText('S U P P O R T E R', PAD, PAD + 78);
+
+  // 合印
+  ctx.font = f(40, 700);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = TEAL;
+  ctx.fillText('✓', W - PAD - 34, PAD + 44);
+  ctx.fillStyle = '#C8BFA6';
+  ctx.fillText('？', W - PAD, PAD + 44);
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = FOIL;
+  if (owner) {
+    ctx.font = f(34, 700);
+    ctx.fillText(owner, PAD, H - PAD - 42);
+  }
+  ctx.font = f(22, 700);
+  ctx.fillText(since, PAD, H - PAD);
+
+  ctx.textAlign = 'right';
+  ctx.font = f(50, 800);
+  ctx.fillText(total, W - PAD, H - PAD - 34);
+  ctx.font = f(22, 700);
+  ctx.fillText(times, W - PAD, H - PAD);
+  ctx.textAlign = 'left';
+
+  return c;
+}
