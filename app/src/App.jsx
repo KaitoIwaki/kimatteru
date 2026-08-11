@@ -771,7 +771,10 @@ export default class App extends React.Component {
       const guesses = guessTypes(fresh, this.state.types);
       const picked = fresh.map((e,i)=>({...e, key:'k'+i, on:true,
         type:guesses[i].key, guessed:!!guesses[i].why}));
-      this.setState(s=>({imp:{...s.imp, phase:'found', found:picked}}));
+      // 1件も無いときは、たいてい「別のカレンダーアプリを使っている」ことが理由。
+      // そのときだけ、ほかのカレンダーの案内を開いた状態で出す。
+      this.setState(s=>({imp:{...s.imp, phase:'found', found:picked,
+        otherOpen: picked.length===0 ? true : s.imp.otherOpen}}));
     }catch(e){
       this.setState(s=>({imp:{...s.imp, phase:'idle', error:'予定を読めませんでした。時間をおいて試してください。'}}));
     }
@@ -1227,6 +1230,20 @@ export default class App extends React.Component {
         };
       });
       v.impAdded=String(im.added||0);
+      v.impNone = im.phase==='found' && (im.found||[]).length===0;
+      // ほかのカレンダーの案内。開閉できるようにして、ふだんは見出しだけにする。
+      // 全員に要るものではないが、要る人にとっては「使えない」と「使える」の差になる。
+      v.impOtherOpen = !!im.otherOpen;
+      v.onToggleOther = ()=>{ tapLight(); this.setState(s=>({imp:{...s.imp, otherOpen:!s.imp.otherOpen}})); };
+      // 設定アプリの中の言い方は iOS の版で変わる。
+      // iOS 18 から「設定 → アプリ → カレンダー → カレンダーアカウント」、
+      // それ以前は「設定 → カレンダー → アカウント」。両方書いておく。
+      v.impOtherSteps = [
+        '設定アプリを開く',
+        '「アプリ」→「カレンダー」と進む（iOS 17 以前は、そのまま「カレンダー」）',
+        '「カレンダーアカウント」（または「アカウント」）→「アカウントを追加」で、使っているサービスを選ぶ',
+        'この画面に戻って、もう一度「カレンダーを読む」を押す',
+      ];
       v.onScan=()=>this.runScan();
       v.impDenied=!!im.denied;
       // 設定アプリを開いたら、戻ってきたときに自動でもう一度読みにいく

@@ -13,6 +13,49 @@ function Jp({ parts, style }) {
   );
 }
 
+/**
+ * ほかのカレンダーアプリを使っている人への案内。
+ *
+ * このアプリは iPhone のカレンダー本体を読む。つまり Google 専用ではなく、
+ * iPhone の設定にアカウントとして足せるサービスなら、もともと全部読める——
+ * Outlook、Microsoft 365、Yahoo!、会社や学校のカレンダーなど。
+ * ただしアプリのどこにもそう書いていないので、誰も気づけなかった。
+ * 手を動かすのは iPhone の設定アプリなので、こちらにできるのは道を教えることだけ。
+ *
+ * 設定アプリの中の決まった場所を直接開くことはできない（そのための URL は
+ * Apple が公開していないもので、使うと審査で落ちる）。だから手順を書く。
+ */
+function OtherCal({ v, s }) {
+  return (
+    <div style={s('background:var(--card);border:1px solid var(--line);border-radius:17px;overflow:hidden')}>
+      <div style={s('display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onToggleOther}>
+        <span style={s('flex:1;font-size:13px;font-weight:700;color:var(--ink);line-height:1.6')}>
+          {''}<Jp parts={['Outlook や Yahoo! の予定が', '出てこないときは']} />
+        </span>
+        <span style={s(`font-size:12px;color:var(--ink-mut);flex-shrink:0;transition:transform .2s ease;transform:rotate(${v.impOtherOpen ? '90deg' : '0deg'})`)}>▶</span>
+      </div>
+      {v.impOtherOpen && (
+        <div style={s('padding:0 16px 16px;animation:riseUp .22s cubic-bezier(.2,.9,.2,1)')}>
+          <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95;text-wrap:pretty')}>
+            {''}<Jp parts={['このアプリは、', 'iPhone のカレンダーに', '入っている予定を読みます。', 'Outlook、Microsoft 365、', 'Yahoo!、会社や学校の', 'カレンダーは、', 'iPhone の設定に', 'アカウントを足すと、', 'ここに出てくるように', 'なります。']} />
+          </div>
+          <div style={s('margin-top:12px;padding:12px 14px;border-radius:13px;background:var(--bg2)')}>
+            {(v.impOtherSteps || []).map((t, i) => (
+              <div key={i} style={s(`display:flex;gap:9px;${i ? 'margin-top:9px' : ''}`)}>
+                <span style={s('width:17px;height:17px;border-radius:9px;flex-shrink:0;background:var(--ink-faint);color:var(--card);font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-top:2px')}>{i + 1}</span>
+                <span style={s('flex:1;font-size:12px;color:var(--ink-soft);line-height:1.85')}>{t}</span>
+              </div>
+            ))}
+          </div>
+          <div style={s('margin-top:12px;font-size:11.5px;color:var(--ink-faint);line-height:1.85;text-wrap:pretty')}>
+            {''}<Jp parts={['TimeTree や ジョルテ のように、', 'アプリの中だけに', '予定を持っているものは、', 'このやり方では', '出てきません。']} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Claude design のテンプレートを JSX に移植したもの。
 // 値はすべて renderVals() が返す v から来る（表示ロジックは logic 側に閉じている）。
 export function renderApp(v) {
@@ -1630,10 +1673,17 @@ export function renderApp(v) {
               </div>
             ) : v.impPhase === 'found' ? (
               <>
-                <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>{v.impCount}件の予定が見つかりました</div>
-                <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.9;margin-bottom:14px;text-wrap:pretty')}>
-                  {''}<Jp parts={['先月から','1年ぶんを','読みました。','すでに入っている予定は','除いてあります。']} />
+                <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>
+                  {v.impNone ? '予定が見つかりませんでした' : `${v.impCount}件の予定が見つかりました`}
                 </div>
+                <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.9;margin-bottom:14px;text-wrap:pretty')}>
+                  {v.impNone
+                    ? <Jp parts={['iPhone のカレンダーに','読める予定が','ありませんでした。','ほかのカレンダーアプリを','お使いなら、','下をご覧ください。']} />
+                    : <Jp parts={['先月から','1年ぶんを','読みました。','すでに入っている予定は','除いてあります。']} />}
+                </div>
+
+                {/* 1件も無かったときは、ここで手が止まる。ほかのカレンダーの案内を出す */}
+                {v.impNone && <OtherCal v={v} s={s} />}
                 {!!v.impGuessText && (
                   <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.8;margin-bottom:20px;padding:11px 13px;border-radius:13px;background:var(--bg2);text-wrap:pretty')}>{v.impGuessText}</div>
                 )}
@@ -1712,6 +1762,10 @@ export function renderApp(v) {
                     )}
                   </div>
                 )}
+
+                {/* ほかのカレンダーアプリを使っている人へ。読む前に見えていてほしいので
+                    ボタンの上に置くが、全員に要るものではないので見出しだけ出す */}
+                <div style={s('margin-top:14px')}><OtherCal v={v} s={s} /></div>
 
                 <div style={s(`margin-top:26px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
                   {v.impPhase === 'scanning' ? '読み込んでいます…' : 'カレンダーを読む'}
