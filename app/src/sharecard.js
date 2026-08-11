@@ -277,15 +277,14 @@ export function drawSupporterCard({ owner, since, total, times, paper, foil, mar
   const ctx = c.getContext('2d');
 
   // 段ごとの紙と箔。渡されなければノーマル。
-  const PAPER = (paper && paper[0]) || '#F3EEE2';
-  const PAPER2 = (paper && paper[1]) || '#E7DFCE';
+  const STOPS = (paper && paper.length ? paper : ['#F3EEE2', '#E7DFCE', '#F3EEE2']);
   const FOIL = foil || '#6B582F';
 
-  // 紙。斜めに濃淡をつけて、平らな一色に見せない
+  // 紙。斜めに濃淡をつけて、平らな一色に見せない。
+  // 色の数は段によって違う（ゴールドは明暗を何度か折り返して金属に見せる）ので、
+  // 決め打ちせず、渡された並びを等間隔に置く。
   const g = ctx.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, PAPER);
-  g.addColorStop(0.55, PAPER2);
-  g.addColorStop(1, PAPER);
+  STOPS.forEach((c, i) => g.addColorStop(i / (STOPS.length - 1), c));
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 

@@ -15,13 +15,13 @@ const PAD = 62;
 // App.jsx の CARD_TIERS と同じ値
 const TIERS = [
   { key: 'normal', name: 'ノーマル', total: '¥600', times: '2回',
-    paper: ['#F3EEE2', '#E7DFCE'], foil: '#6B582F', mark: '#C8BFA6',
+    paper: ['#F3EEE2', '#E7DFCE', '#F3EEE2'], foil: '#6B582F', mark: '#C8BFA6',
     sheen: 'rgba(255,252,240,.72)', edge: 'rgba(107,88,47,.3)' },
   { key: 'gold', name: 'ゴールド', total: '¥1,600', times: '3回',
-    paper: ['#F8F0D9', '#EADFB4'], foil: '#6E5416', mark: '#C4AE72',
-    sheen: 'rgba(255,248,214,.82)', edge: 'rgba(110,84,22,.34)' },
+    paper: ['#FDF6D6', '#D9B85F', '#F7E8AC', '#C9A544', '#F2DE9B'], foil: '#513706', mark: '#A9862C',
+    sheen: 'rgba(255,250,214,.9)', edge: 'rgba(81,55,6,.44)' },
   { key: 'black', name: 'ブラック', total: '¥3,600', times: '5回',
-    paper: ['#2B2823', '#1B1915'], foil: '#D8BC72', mark: '#7C6E4C',
+    paper: ['#2B2823', '#1B1915', '#2B2823'], foil: '#D8BC72', mark: '#7C6E4C',
     sheen: 'rgba(255,240,196,.30)', edge: 'rgba(216,188,114,.38)' },
 ];
 
@@ -29,7 +29,7 @@ for (const t of TIERS) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
     <defs>
       <linearGradient id="p" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="${t.paper[0]}"/><stop offset="55%" stop-color="${t.paper[1]}"/><stop offset="100%" stop-color="${t.paper[0]}"/>
+        ${t.paper.map((c, i) => `<stop offset="${Math.round((i * 100) / (t.paper.length - 1))}%" stop-color="${c}"/>`).join('')}
       </linearGradient>
       <linearGradient id="s" x1="0.18" y1="0" x2="0.52" y2="1">
         <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>

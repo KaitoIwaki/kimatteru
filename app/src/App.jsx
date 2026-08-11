@@ -120,17 +120,28 @@ const repeatAfter = (y, m, d, every, spanMonths, dows) => {
 // 紙と箔の組み合わせで段を作る。黒い紙に金の箔押しは実在する上等な印刷で、
 // 「静かな文房具」の中にちゃんと居場所がある。
 // 色は測って決めた。どの紙の上でも箔の文字が 4.5 を下回らないこと。
+//
+// paper は斜めに並べる色の並び。等間隔に置く。
+// ノーマルと黒は3つ（明→暗→明）で、紙を平らな一色に見せないための濃淡。
+// ゴールドだけ5つにしてある。濃淡を一度きりにすると、彩度を上げても
+// 「黄色い紙」にしかならなかった。金属に見えるのは色ではなく、
+// 明と暗が何度か折り返すところなので、明→暗→明→暗→明 と振っている。
+// 暗い帯は斜めに走って字のある四隅を外れる（実際に描いて拾った地の色は
+// 名前のうしろ rgb(249,238,196)、金額のうしろ rgb(220,192,110)）。
 const CARD_TIERS = [
   { key: 'normal', min: 0, name: 'ノーマル',
-    paper: ['#F3EEE2', '#E7DFCE'], foil: '#6B582F', mark: '#C8BFA6',
+    paper: ['#F3EEE2', '#E7DFCE', '#F3EEE2'], foil: '#6B582F', mark: '#C8BFA6',
     sheen: 'rgba(255,252,240,.72)', edge: 'rgba(107,88,47,.3)' },
   { key: 'gold', min: 1000, name: 'ゴールド',
-    paper: ['#F8F0D9', '#EADFB4'], foil: '#6E5416', mark: '#C4AE72',
-    sheen: 'rgba(255,248,214,.82)', edge: 'rgba(110,84,22,.34)' },
+    paper: ['#FDF6D6', '#D9B85F', '#F7E8AC', '#C9A544', '#F2DE9B'], foil: '#513706', mark: '#A9862C',
+    sheen: 'rgba(255,250,214,.9)', edge: 'rgba(81,55,6,.44)' },
   { key: 'black', min: 3000, name: 'ブラック',
-    paper: ['#2B2823', '#1B1915'], foil: '#D8BC72', mark: '#7C6E4C',
+    paper: ['#2B2823', '#1B1915', '#2B2823'], foil: '#D8BC72', mark: '#7C6E4C',
     sheen: 'rgba(255,240,196,.30)', edge: 'rgba(216,188,114,.38)' },
 ];
+// 色の並びを、等間隔に置いたグラデーションにする
+const paperStops = (paper) =>
+  paper.map((c, i) => `${c} ${Math.round((i * 100) / (paper.length - 1))}%`).join(', ');
 // 合計金額から段を決める。境目はその額に「達したら」上がる。
 const tierFor = (total) => {
   let out = CARD_TIERS[0];
@@ -1218,7 +1229,6 @@ export default class App extends React.Component {
       // 文字は紙より暗い真鍮色で、下に薄い明かりを1本入れて「沈んでいる」ようにする。
       // 段によって紙と箔が変わる。合計金額で決まる。
       const tier = tierFor(total);
-      const [PAPER, PAPER2] = tier.paper;
       const foil = tier.foil;
       v.cardTierName = tier.name;
       v.cardMarkColor = tier.mark;
@@ -1241,7 +1251,7 @@ export default class App extends React.Component {
         position:'absolute', inset:0, borderRadius:18, padding:'20px 22px', overflow:'hidden',
         backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
         transition:`opacity 0s linear ${HALF}s`,
-        background:`linear-gradient(150deg, ${PAPER} 0%, ${PAPER2} 55%, ${PAPER} 100%)`,
+        background:`linear-gradient(150deg, ${paperStops(tier.paper)})`,
         border:'1px solid '+tier.edge,
         boxShadow:'0 14px 34px rgba(38,37,31,.18), inset 0 1px 0 rgba(255,255,255,.55)' };
       v.cardFaceStyle = { ...face, opacity: st.cardBack ? 0 : 1 };
