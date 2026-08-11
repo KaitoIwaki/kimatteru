@@ -1199,14 +1199,20 @@ export default class App extends React.Component {
         transformStyle:'preserve-3d', cursor:'pointer',
         transition:'transform .62s cubic-bezier(.2,.9,.25,1)',
         transform: st.cardBack ? 'rotateY(180deg)' : 'rotateY(0deg)' };
+      // backface-visibility には頼らない。Safari では 3D変形と overflow:hidden を
+      // 組み合わせると無視されることがあり、表の文字が裏から鏡文字で透けていた。
+      // 代わりに、回転がちょうど半分（0.31秒）進んだ時点で面を入れ替える。
+      // 見えない側は opacity:0 なので、どう描かれても透けようがない。
+      const HALF = 0.31;
       const face = {
         position:'absolute', inset:0, borderRadius:18, padding:'20px 22px', overflow:'hidden',
         backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
+        transition:`opacity 0s linear ${HALF}s`,
         background:`linear-gradient(150deg, ${PAPER} 0%, ${PAPER2} 55%, ${PAPER} 100%)`,
         border:'1px solid rgba(107,88,47,.3)',
         boxShadow:'0 14px 34px rgba(38,37,31,.18), inset 0 1px 0 rgba(255,255,255,.55)' };
-      v.cardFaceStyle = face;
-      v.cardBackStyle = { ...face, transform:'rotateY(180deg)' };
+      v.cardFaceStyle = { ...face, opacity: st.cardBack ? 0 : 1 };
+      v.cardBackStyle = { ...face, transform:'rotateY(180deg)', opacity: st.cardBack ? 1 : 0 };
       // 斜めに流れる光。点滅させず、一定の速さで通り過ぎるだけ
       v.foilStyle = { position:'absolute', top:'-60%', left:0, width:'42%', height:'220%',
         background:'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,252,240,.72) 50%, rgba(255,255,255,0) 100%)',
