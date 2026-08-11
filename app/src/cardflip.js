@@ -19,6 +19,14 @@ export const showsFront = (deg) => {
 /** なぞった長さを角度にする。カードの幅いっぱいでちょうど半回転。 */
 export const dragToDeg = (dx, width) => (width > 0 ? (dx / width) * 180 : 0);
 
+// 上下になぞったときの傾き。裏返りはしないが、指について少しだけ動く。
+// 手に持った紙が、押した側へわずかに寝るくらい。8度を上限にしてある。
+// これ以上つけると「持っている」ではなく「浮いている」に見える。
+export const TILT_MAX = 8;
+const TILT_K = 0.08; // 指1pxあたり何度。100px なぞって上限に届く
+/** 上下になぞった長さを傾きにする。下へなぞると、手前の縁が下がる。 */
+export const tiltFor = (dy) => Math.max(-TILT_MAX, Math.min(TILT_MAX, -dy * TILT_K));
+
 // 速く払ったと見なす速さ（度/秒）。
 // カードの幅を 0.25秒でなぞると 720度/秒 になるので、その3分の1あたり。
 export const FLICK = 260;

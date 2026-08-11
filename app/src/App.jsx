@@ -12,7 +12,7 @@ import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, guessTypes, openAppSettings } from './calendarimport';
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
-import { norm, showsFront, dragToDeg, settle, settleTime, ease, cardShadow } from './cardflip';
+import { norm, showsFront, dragToDeg, settle, settleTime, ease, cardShadow, tiltFor } from './cardflip';
 
 // 曜日と祝日の色。紙の上で浮きすぎないよう、どちらも少し落ち着かせた色にする。
 const HOLIDAY_RED = '#B4453A'; // 祝日と日曜
@@ -614,34 +614,41 @@ export default class App extends React.Component {
       if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
       this._cAxis = Math.abs(dx)>Math.abs(dy)*1.2 ? 'x' : 'y';
     }
-    if(this._cAxis!=='x') return;
+    // 上下は裏返しに使わない（その向きは画面送り）。
+    // ただし黙って動かないのではなく、指について少しだけ寝かせる。
+    // 手に持った紙は、押した側がわずかに下がるので。
+    const tilt=tiltFor(dy);
+    if(this._cAxis!=='x'){ this.setState({cardTilt:tilt}); return; }
     this._cMoved=true;
     const deg=this._cBase+dragToDeg(dx,this._cW);
     const at=Date.now(), dt=Math.max(1, at-this._cLast.at);
     this._cVel=(deg-this._cLast.deg)/(dt/1000);
     this._cLast={deg,at};
-    this.setState({cardAngle:deg});
+    this.setState({cardAngle:deg, cardTilt:tilt});
   }
   cardTouchEnd(){
     const moved=this._cAxis==='x'&&this._cMoved;
     this._cx=null; this._cAxis=null; this._cMoved=false;
-    if(!moved) return;                 // 動かしていないならタップ。onClick が受ける
-    this._cTapOff=Date.now()+400;      // なぞったあとに来る click は無視する
     const from=this.state.cardAngle||0;
+    // 上下だけなぞったときも、傾きは元に戻してやる必要がある
+    if(!moved){ if(this.state.cardTilt) this._settleCard(from); return; }
+    this._cTapOff=Date.now()+400;      // なぞったあとに来る click は無視する
     const to=settle(from, this._cVel);
     if(showsFront(from)!==showsFront(to)) tapLight();
     this._settleCard(to);
   }
-  /** 指を離したあと、落ち着く先まで自分で回す */
+  /** 指を離したあと、落ち着く先まで自分で回す。傾きも一緒に戻す */
   _settleCard(to){
     if(this._cRaf){ cancelAnimationFrame(this._cRaf); this._cRaf=null; }
-    const from=this.state.cardAngle||0;
-    if(from===to){ this.setState({cardAngle:norm(to)}); return; }
-    const dur=settleTime(from,to)*1000, t0=Date.now();
+    const from=this.state.cardAngle||0, tilt0=this.state.cardTilt||0;
+    if(from===to && !tilt0){ this.setState({cardAngle:norm(to), cardTilt:0}); return; }
+    // 傾きだけを戻すときは、回転ぶんの時間を待たせない
+    const dur=(from===to ? 0.3 : settleTime(from,to))*1000, t0=Date.now();
     const step=()=>{
       const p=Math.min(1,(Date.now()-t0)/dur);
-      if(p>=1){ this._cRaf=null; this.setState({cardAngle:norm(to)}); return; }
-      this.setState({cardAngle: from+(to-from)*ease(p)});
+      if(p>=1){ this._cRaf=null; this.setState({cardAngle:norm(to), cardTilt:0}); return; }
+      const e=ease(p);
+      this.setState({cardAngle: from+(to-from)*e, cardTilt: tilt0*(1-e)});
       this._cRaf=requestAnimationFrame(step);
     };
     this._cRaf=requestAnimationFrame(step);
@@ -1308,10 +1315,13 @@ export default class App extends React.Component {
       // 時間で合わせにいくことになる。それで一度、回っている途中に
       // カードが消えた（v0.21.2）。角度ひとつから両方を出せば、ずれようがない。
       const ang = st.cardAngle || 0;
+      const tilt = st.cardTilt || 0;
       const front = showsFront(ang);
+      // 傾きを先に書く。こう並べると傾きは画面に対しての向きになり、
+      // 表を見ていても裏を見ていても、指を下げれば同じ側が下がる。
       v.cardFlipStyle = { position:'relative', width:'100%', aspectRatio:'1.586',
         transformStyle:'preserve-3d', cursor:'pointer', touchAction:'pan-y',
-        transform:`rotateY(${ang}deg)` };
+        transform:`rotateX(${tilt}deg) rotateY(${ang}deg)` };
       // backface-visibility は使わない。Safari では 3D変形と overflow:hidden を
       // 組み合わせると無視されることがあり（表の文字が鏡文字で透けた）、
       // 効く端末では逆に、消える側が二重になって一瞬何も無くなる。
