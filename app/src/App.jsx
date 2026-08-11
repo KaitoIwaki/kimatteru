@@ -337,6 +337,10 @@ export default class App extends React.Component {
   addMin(s,d){ let x=(this.mins(s)+d+1440)%1440; return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0'); }
   hoursBetween(a,b){ let d=this.mins(b)-this.mins(a); if(d<0)d+=1440; return d/60; }
   fmtWage(n){ return '¥'+n.toLocaleString('ja-JP'); }
+  // 主役の数字を出すところでは、記号と数字を分けて渡す。
+  // ひとかたまりの '¥86,400' のままだと、記号まで同じ大きさで出てしまう。
+  // 数字を大きく細く、記号は小さく薄く——そうすると数字が主役として立つ。
+  splitWage(n){ return { unit:'¥', num:n.toLocaleString('ja-JP') }; }
   // その予定に使う時給。バイト先が決まっていればその時給、なければ設定の時給。
   hourlyFor(ev){
     const j = ev && ev.jobId ? (this.state.jobs||[]).find(x=>x.id===ev.jobId) : null;
@@ -1075,7 +1079,7 @@ export default class App extends React.Component {
       v.onObDemoReset = ()=>this.onboardResetDemo();
       v.obDemoPillStyle = {
         position:'relative', overflow:'hidden', display:'block', width:'100%', boxSizing:'border-box',
-        height:34, lineHeight:'30px', borderRadius:9, padding:'0 12px', fontSize:15, fontWeight:700,
+        height:34, lineHeight:'30px', borderRadius:9, padding:'0 12px', fontSize:15, fontWeight:400,
         cursor: filled ? 'default' : 'pointer',
         // 本物の未確定のピルと同じ地色を使う（paperFrom）。
         // ここだけ薄い色を直に書いていたので、ダークモードで文字が沈んでいた
@@ -1098,7 +1102,7 @@ export default class App extends React.Component {
       // 押すまで進ませない。ここを飛ばされると、このアプリの一番の要が
       // 伝わらないまま日常に入る。押してあれば普通の黒いボタン。
       v.obNextLocked = ob.demo!=='done';
-      v.obNextStyle = { padding:16, borderRadius:17, textAlign:'center', fontSize:16, fontWeight:700,
+      v.obNextStyle = { padding:16, borderRadius:17, textAlign:'center', fontSize:16, fontWeight:400,
         transition:'all .3s cubic-bezier(.2,.9,.2,1)',
         ...(ob.demo==='done'
           ? { background:'var(--ink)', color:'var(--card)', cursor:'pointer' }
@@ -1109,7 +1113,7 @@ export default class App extends React.Component {
       {
         const at=(st.types||[]).find(t=>t.key==='asobi') || {color:'#B4453A'};
         v.obSolidPillStyle = { display:'block', width:'100%', boxSizing:'border-box', marginBottom:8,
-          height:34, lineHeight:'30px', borderRadius:9, padding:'0 12px', fontSize:15, fontWeight:700,
+          height:34, lineHeight:'30px', borderRadius:9, padding:'0 12px', fontSize:15, fontWeight:400,
           background:this.softFill(at.color), border:'1.6px solid '+this.softLine(at.color),
           color:this.inkOn(at.color) };
         v.obSolidLabel = '映画';
@@ -1146,7 +1150,7 @@ export default class App extends React.Component {
         const box={height:27,borderRadius:6,display:'flex',alignItems:'center',justifyContent:'center',
           fontVariantNumeric:'tabular-nums'};
         const free={...box,background:'#FAECE7',border:'1.5px solid #D85A30',fontSize:12,fontWeight:700,color:'#712B13'};
-        const busy={...box,background:'#EDEEF0',fontSize:12,fontWeight:600,color:'#C1C5CC'};
+        const busy={...box,background:'#EDEEF0',fontSize:12,fontWeight:400,color:'#C1C5CC'};
         const pattern=[1,0,0,1,1,0,1, 1,1,0,1,0,0,1, 0,1,1,1,0,1,1];
         v.obShareCells = pattern.map((f,i)=>({ label:String(i+1), style:{ ...(f?free:busy),
           animation:`obLift .4s ${EASE} ${(1.7+i*0.022).toFixed(2)}s both` } }));
@@ -1390,13 +1394,13 @@ export default class App extends React.Component {
           animation:`fleck ${6+(i%4)}s ease-in-out ${d}s infinite` } })) : [];
       const stamped = { color:foil,
         textShadow: tier.key==='black' ? '0 1px 0 rgba(0,0,0,.5)' : '0 1px 0 rgba(255,255,255,.6)' };
-      v.foilTextStyle = { ...stamped, fontSize:17, fontWeight:800, letterSpacing:'.02em' };
+      v.foilTextStyle = { ...stamped, fontSize:17, fontWeight:400, letterSpacing:'.02em' };
       v.foilSmallStyle = { ...stamped, fontSize:10, fontWeight:700, letterSpacing:'.14em',
         fontVariantNumeric:'tabular-nums' };
-      v.cardNameStyle = { ...stamped, fontSize:15, fontWeight:700,
+      v.cardNameStyle = { ...stamped, fontSize:15, fontWeight:400,
         opacity: v.cardOwner ? 1 : .45,
         whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' };
-      v.cardTotalStyle = { ...stamped, fontSize:22, fontWeight:800, letterSpacing:'-.02em',
+      v.cardTotalStyle = { ...stamped, fontSize:22, fontWeight:300, letterSpacing:'-.02em',
         fontVariantNumeric:'tabular-nums' };
       v.cardHistYenStyle = { ...stamped, fontSize:12, fontWeight:700, fontVariantNumeric:'tabular-nums' };
     }
@@ -1622,6 +1626,7 @@ export default class App extends React.Component {
       v.repYearLabel = Y+'年';
       v.repMonthHours = this.fmtHours(mo.hours);
       v.repMonthWage = this.fmtWage(mo.wage);
+      v.repMonthWageParts = this.splitWage(mo.wage);
       v.repMonthDays = String(mo.days);
       v.repYearHours = this.fmtHours(yr.hours);
       v.repYearWage = this.fmtWage(yr.wage);
@@ -1666,7 +1671,7 @@ export default class App extends React.Component {
     for(let d=1;d<=sDim;d++){
       const busy = st.events.some(e=>evCovers(e,dayNo(shY,shM,d)) && (e.status==='kakutei'||e.status==='jisseki'));
       sCells.push({ label:d, style: busy
-        ? { height:34,borderRadius:7,background:'#EDEEF0',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:600,color:'#C1C5CC' }
+        ? { height:34,borderRadius:7,background:'#EDEEF0',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:400,color:'#C1C5CC' }
         : { height:34,borderRadius:7,background:'#FAECE7',border:'1.5px solid #D85A30',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#712B13' } });
     }
     v.shareCells = sCells;
@@ -1796,7 +1801,9 @@ export default class App extends React.Component {
     // また0件になっても掘り返さない。
     v.showFirstRunHint = st.events.length===0 && !st.settings.hintClosed;
     v.onCloseFirstRunHint = (e)=>{ if(e) e.stopPropagation(); tapLight(); this.setSetting('hintClosed', true); };
-    v.monthTotal = this.fmtWage(st.events.filter(e=>e.y===Y && e.m===M && e.status==='jisseki').reduce((a,e)=>a+this.wage(e),0));
+    const monthDone = st.events.filter(e=>e.y===Y && e.m===M && e.status==='jisseki').reduce((a,e)=>a+this.wage(e),0);
+    v.monthTotal = this.fmtWage(monthDone);
+    v.monthTotalParts = this.splitWage(monthDone);
 
     // ---------- DAY ----------
     if(st.dayNum){
@@ -1804,7 +1811,7 @@ export default class App extends React.Component {
       const dayHol = holidayName(Y,M,d);
       v.dayTitle = (M+1)+'月'+d+'日（'+wl[dow]+'）';
       v.dayHoliday = dayHol || '';
-      v.dayTitleStyle = {fontSize:16,fontWeight:600,
+      v.dayTitleStyle = {fontSize:16,fontWeight:400,
         color: (dayHol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)'};
       // 日をまたぐ予定も、覆っている日すべてに出す。
       // 月表示で隠している「無くなった」予定は、ここでも隠す（画面ごとに違うと混乱する）
@@ -2195,7 +2202,7 @@ export default class App extends React.Component {
 
     // drum-roll wheels
     v.wheelColStyle = {width:66,height:170,overflowY:'scroll',scrollSnapType:'y mandatory',padding:'68px 0',textAlign:'center',WebkitMaskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)',maskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)'};
-    v.wheelItemStyle = {height:34,lineHeight:'34px',fontSize:21,fontWeight:600,color:'var(--ink)',scrollSnapAlign:'center',fontVariantNumeric:'tabular-nums'};
+    v.wheelItemStyle = {height:34,lineHeight:'34px',fontSize:21,fontWeight:300,color:'var(--ink)',scrollSnapAlign:'center',fontVariantNumeric:'tabular-nums'};
     const hours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
     const minutes=Array.from({length:60/MIN_STEP},(_,i)=>String(i*MIN_STEP).padStart(2,'0'));
     const mkRow=(field,label,isFirst)=>({
@@ -2234,9 +2241,9 @@ export default class App extends React.Component {
 
     v.chips = st.types.map(t=>{ const sel=dr.type===t.key;
       return { label:t.name, onClick:()=>this.selectType(t.key),
-        style:{textAlign:'center',whiteSpace:'nowrap',padding:'10px 15px',borderRadius:13,fontSize:14,fontWeight:600,cursor:'pointer',transition:'all .2s',
+        style:{textAlign:'center',whiteSpace:'nowrap',padding:'10px 15px',borderRadius:13,fontSize:14,fontWeight:400,cursor:'pointer',transition:'all .2s',
           background:sel?t.color:'var(--card)', color:sel?'#fff':'var(--ink-mut)', boxShadow:'none', border:sel?'none':'1px solid var(--line)'} }; });
-    v.addChipStyle = {textAlign:'center',whiteSpace:'nowrap',padding:'10px 14px',borderRadius:13,fontSize:14,fontWeight:600,cursor:'pointer',color:'var(--ink-soft)',background:'transparent',border:'1.5px dashed #C9CDD4'};
+    v.addChipStyle = {textAlign:'center',whiteSpace:'nowrap',padding:'10px 14px',borderRadius:13,fontSize:14,fontWeight:400,cursor:'pointer',color:'var(--ink-soft)',background:'transparent',border:'1.5px dashed #C9CDD4'};
     v.onAddTypeChip = ()=>this.setState(s=>({newType: s.newType?null:{name:'',color:'#2F72C4'}}));
 
     // 色を変えるのは設定画面の「種類」に一本化した（作成画面では出さない）
@@ -2291,7 +2298,7 @@ export default class App extends React.Component {
       if(v.dWageShown){ v.dWorkHours=this.fmtHours(this.paidHours(ev)); v.dWage=this.fmtWage(this.wage(ev));
         v.dBreakText = this.breakMin(ev) ? '休憩 '+this.breakMin(ev)+'分を引いています' : ''; }
       const primary=(label,fn)=>{ v.dPrimaryLabel=label; v.dPrimaryAction=fn;
-        v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:700,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; };
+        v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:400,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; };
       if(ev.status==='nakunatta') primary('予定として戻す',()=>{ tapLight(); this.updateEvent(ev.id,{status:'kakutei'}); });
       else if(ev.status==='kakutei' && ev.type==='baito') primary('働いた記録をつける',()=>this.openDialog(ev,'worked',st.returnTo));
       else if(ev.status==='jisseki') primary('働いた時間を直す',()=>this.openDialog(ev,'worked',st.returnTo));
@@ -2350,13 +2357,13 @@ export default class App extends React.Component {
       if(d.phase){
         const on=d.phase==='on'||d.phase==='done';
         v.celebOn=on;
-        v.heroPillStyle={ display:'inline-flex',alignItems:'center',gap:8,height:48,padding:'0 22px',borderRadius:13,fontSize:19,fontWeight:700,
+        v.heroPillStyle={ display:'inline-flex',alignItems:'center',gap:8,height:48,padding:'0 22px',borderRadius:13,fontSize:19,fontWeight:400,
           border:'1.5px '+(on?'solid':'dashed')+' '+t.color,
           background:on?t.color:t.paper, color:on?'#fff':t.dark,
           transform:on?'scale(1.06)':'scale(1)',
           transition:'background .6s cubic-bezier(.2,.9,.2,1),border-color .6s cubic-bezier(.2,.9,.2,1),color .6s cubic-bezier(.2,.9,.2,1),transform .6s cubic-bezier(.2,.9,.2,1)',
           boxShadow:on?'0 10px 30px '+t.paper:'0 1px 3px rgba(0,0,0,.08)' };
-        v.heroQStyle={ position:'absolute',fontSize:15,fontWeight:700, animation:on?'qFade .42s cubic-bezier(.2,.9,.2,1) forwards':'none', opacity:on?0:1 };
+        v.heroQStyle={ position:'absolute',fontSize:15,fontWeight:400, animation:on?'qFade .42s cubic-bezier(.2,.9,.2,1) forwards':'none', opacity:on?0:1 };
         v.heroCheckStyle={ position:'absolute',fontSize:16,fontWeight:800,color:'#fff', opacity:on?1:0, animation:on?'checkPop .5s .18s cubic-bezier(.2,.9,.2,1) both':'none' };
         v.heroTitle=d.title;
         v.haloStyle={ position:'absolute',left:'50%',top:'50%',width:120,height:52,borderRadius:16,border:'2px solid '+t.color,animation:'haloOut .85s .1s cubic-bezier(.2,.9,.2,1) forwards',pointerEvents:'none' };
@@ -2426,7 +2433,7 @@ export default class App extends React.Component {
         const overridden = !!st.overrides[ok];
         if(applied==='○')cO++; else if(applied==='△')cA++; else cX++;
         const isX = applied==='×';
-        let mk={width:30,height:30,borderRadius:15,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,fontWeight:700,flexShrink:0,boxSizing:'border-box',transition:'all .2s cubic-bezier(.2,.9,.2,1)'};
+        let mk={width:30,height:30,borderRadius:15,display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,fontWeight:400,flexShrink:0,boxSizing:'border-box',transition:'all .2s cubic-bezier(.2,.9,.2,1)'};
         if(applied==='○') mk={...mk,color:'#1D9E75'};
         else if(applied==='×') mk={...mk,color:'#C1C5CC'};
         else { const variant=overridden?'manual':j.variant;
@@ -2441,7 +2448,7 @@ export default class App extends React.Component {
           rowStyle:{display:'flex',alignItems:'center',padding:'11px 16px',borderBottom:'1px solid var(--line)',opacity:isX?0.5:1,background:'var(--card)'},
           dateWrap:{width:38,flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center'},
           dowStyle:{fontSize:10,fontWeight:600,color:dow===0||dow===6?'var(--ink-mut)':'var(--ink-mut)'},
-          dayStyle:{fontSize:18,fontWeight:700,color:dayColor,fontVariantNumeric:'tabular-nums',lineHeight:'22px'},
+          dayStyle:{fontSize:18,fontWeight:400,color:dayColor,fontVariantNumeric:'tabular-nums',lineHeight:'22px'},
           tags: evs.slice(0,2).map(ev=>({ text:this.pillText(ev,false), time: ev.allDay ? '終日' : (ev.start+'–'+(ev.status==='jisseki'?(ev.actualEnd||ev.end):ev.end)), style:{...this.pillStyle(ev),height:15,fontSize:10,lineHeight:'15px',padding:'0 6px',marginBottom:0,borderRadius:4,display:'inline-block',maxWidth:130,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}, timeStyle:{fontSize:10,fontWeight:600,color:'#9AA0A6',fontVariantNumeric:'tabular-nums',whiteSpace:'nowrap'} })),
           note: showNote ? j.note : '',
           noteStyle:{fontSize:11,color: j.variant==='adjust' ? '#B9770F' : '#9AA0A6'},

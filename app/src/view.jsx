@@ -72,7 +72,7 @@ export function renderApp(v) {
               <span role="button" aria-label="前の月" tabIndex={0} style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onPrevMonth}>‹</span>
               {/* 押すと年月をえらべる。‹ › だけだと来年の3月に7回かかる */}
               <div role="button" aria-label="年と月をえらぶ" style={s('display:flex;align-items:baseline;gap:7px;cursor:pointer;user-select:none;padding:2px 4px;margin:-2px -4px')} onClick={v.onTapMonthHead}>
-                <span style={s('font-size:28px;font-weight:700;color:var(--ink);letter-spacing:-.5px')}>{v.monthLabel}月</span>
+                <span style={s('font-size:28px;font-weight:300;color:var(--ink);letter-spacing:-.5px')}>{v.monthLabel}月</span>
                 <span style={s('font-size:14px;font-weight:500;color:var(--ink-mut)')}>{v.year}</span>
               </div>
               <span role="button" aria-label="次の月" tabIndex={0} style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onNextMonth}>›</span>
@@ -88,7 +88,7 @@ export function renderApp(v) {
                 )}
               </div>
               <div style={s('display:flex;align-items:center;gap:8px')} onClick={v.onToggleWage}>
-                <span style={s(`font-size:13px;font-weight:600;color:${v.wageLabelColor}`)}>給料</span>
+                <span style={s(`font-size:13px;font-weight:400;color:${v.wageLabelColor}`)}>給料</span>
                 <div style={s(v.wageTrackStyle)}><div style={s(v.wageKnobStyle)} /></div>
               </div>
             </div>
@@ -169,10 +169,13 @@ export function renderApp(v) {
 
           {v.wageOn && (
             <div className="wagebar" style={s('position:absolute;left:0;right:0;bottom:82px;padding:14px 22px;background:var(--glass);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;animation:riseUp .3s cubic-bezier(.2,.9,.2,1);cursor:pointer')} onClick={v.onOpenSummary}>
-              <span style={s('font-size:13px;font-weight:600;color:var(--ink)')}>{v.monthLabel}月の実績合計</span>
-              <div style={s('display:flex;align-items:center;gap:8px')}>
-                <span style={s('font-size:22px;font-weight:700;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{v.monthTotal}</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+              {/* ラベルは格下げ（小さく・薄く・字間を開けて）、数字は大きく細く、
+                  記号は数字より一段小さく。ラベルと数字が同じ強さで喋らないようにする。 */}
+              <span style={s('font-size:11px;font-weight:400;color:var(--ink-mut);letter-spacing:.1em')}>{v.monthLabel}月の実績合計</span>
+              <div style={s('display:flex;align-items:baseline;gap:2px')}>
+                <span style={s('font-size:14px;font-weight:400;color:var(--ink-mut)')}>{v.monthTotalParts.unit}</span>
+                <span style={s('font-size:26px;font-weight:300;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{v.monthTotalParts.num}</span>
+                <span style={s('font-size:16px;color:var(--ink-faint);margin-left:6px')}>›</span>
               </div>
             </div>
           )}
@@ -214,13 +217,13 @@ export function renderApp(v) {
                   <div style={s(r.chipStyle)}>{r.chipText}</div>
                   <div style={s('flex:1')} />
                   <div style={s('display:flex;flex-direction:column;align-items:flex-end;gap:2px')}>
-                    <span style={s('font-size:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{r.timeText}</span>
+                    <span style={s('font-size:14px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{r.timeText}</span>
                     <span style={s('font-size:11px;color:var(--ink-mut)')}>{r.statusWord}</span>
                   </div>
                 </div>
               </div>
             ))}
-            <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding:15px;border-radius:15px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:15px;font-weight:600;cursor:pointer')} onClick={v.onDayAdd}>＋ 予定を追加</div>
+            <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding:15px;border-radius:15px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:15px;font-weight:400;cursor:pointer')} onClick={v.onDayAdd}>＋ 予定を追加</div>
           </div>
         </div>
       )}
@@ -232,13 +235,13 @@ export function renderApp(v) {
               まとめタブに置いていたころは、見ている月と送る月が別だった。 */}
           <div className="scr-head" style={s('padding:0 18px 6px')}>
             <span />
-            <span style={s('font-size:16px;font-weight:700;color:var(--ink)')}>いつ空いてる？</span>
+            <span style={s('font-size:16px;font-weight:400;color:var(--ink)')}>いつ空いてる？</span>
             <span role="button" style={s('font-size:14px;color:var(--ink-mut);cursor:pointer;padding:6px 0 6px 12px;user-select:none;white-space:nowrap')} onClick={v.onOpenShare}>シェア</span>
           </div>
           <div style={s('padding:6px 18px 12px;display:flex;align-items:center;justify-content:space-between')}>
             <div style={s('display:flex;align-items:center;gap:14px')}>
               <span style={s('font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onFreePrev}>◀</span>
-              <span style={s('font-size:17px;font-weight:700;color:var(--ink);min-width:44px;text-align:center')}>{v.freeMonthLabel}月</span>
+              <span style={s('font-size:17px;font-weight:400;color:var(--ink);min-width:44px;text-align:center')}>{v.freeMonthLabel}月</span>
               <span style={s('font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onFreeNext}>▶</span>
             </div>
             <div style={s('display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700')}>
@@ -297,8 +300,10 @@ export function renderApp(v) {
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
             <span style={s('font-size:16px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancel}>キャンセル</span>
-            <span style={s('font-size:16px;font-weight:600;color:var(--ink);white-space:nowrap')}>{v.newTitle}</span>
-            <span style={s(`font-size:16px;font-weight:700;color:${v.draftColor};cursor:pointer`)} onClick={v.onSave}>保存</span>
+            <span style={s('font-size:16px;font-weight:400;color:var(--ink);white-space:nowrap')}>{v.newTitle}</span>
+            {/* この画面の主要な動作。ここだけは 600 で残す——太さを落とすと、
+                隣の「キャンセル」と同じ強さになって、どちらが本筋か分からなくなる。 */}
+            <span style={s(`font-size:16px;font-weight:600;color:${v.draftColor};cursor:pointer`)} onClick={v.onSave}>保存</span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:8px 16px 40px 16px')}>
             <div style={s('background:var(--card);border-radius:17px;padding:4px 14px;margin-bottom:18px')}>
@@ -368,7 +373,7 @@ export function renderApp(v) {
                   ))}
                 </div>
                 <div style={s('display:flex;gap:8px;margin-top:14px')}>
-                  <div style={s('flex:1;text-align:center;padding:11px;border-radius:16px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer')} onClick={v.onCancelNewType}>やめる</div>
+                  <div style={s('flex:1;text-align:center;padding:11px;border-radius:16px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:400;cursor:pointer')} onClick={v.onCancelNewType}>やめる</div>
                   <div style={s(v.addTypeBtnStyle)} onClick={v.onAddType}>この種類を追加</div>
                 </div>
               </div>
@@ -384,14 +389,14 @@ export function renderApp(v) {
                       <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
                         <div style={s(v.stepBtn)} onClick={v.onNewJobMinus}>−</div>
                         <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
-                          <span style={s('font-size:15px;font-weight:700;color:var(--ink-soft)')}>¥</span>
-                          <input value={v.newJobHourly} onChange={v.onNewJobHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
+                          <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft)')}>¥</span>
+                          <input value={v.newJobHourly} onChange={v.onNewJobHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
                         </div>
                         <div style={s(v.stepBtn)} onClick={v.onNewJobPlus}>＋</div>
                       </div>
                     </div>
                     <div style={s('display:flex;gap:8px;margin-top:16px')}>
-                      <div style={s('flex:1;text-align:center;padding:11px;border-radius:13px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer')} onClick={v.onCancelNewJob}>やめる</div>
+                      <div style={s('flex:1;text-align:center;padding:11px;border-radius:13px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:400;cursor:pointer')} onClick={v.onCancelNewJob}>やめる</div>
                       <div style={s('flex:1;text-align:center;padding:11px;border-radius:13px;background:#1D9E75;color:#fff;font-size:14px;font-weight:700;cursor:pointer')} onClick={v.onCommitNewJob}>このバイト先を追加</div>
                     </div>
                   </div>
@@ -403,7 +408,7 @@ export function renderApp(v) {
               <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line)')} onClick={v.onTapDate}>
                 <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>日にち</span>
                 <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
-                  {!!v.dateSummary && <span style={s('font-size:12px;font-weight:600;color:#1D9E75;white-space:nowrap')}>{v.dateSummary}</span>}
+                  {!!v.dateSummary && <span style={s('font-size:12px;font-weight:400;color:#1D9E75;white-space:nowrap')}>{v.dateSummary}</span>}
                   <span style={s(v.dateValStyle)}>{v.dateLabel}</span>
                   <span style={s(v.chevDate)}>›</span>
                 </span>
@@ -425,7 +430,7 @@ export function renderApp(v) {
                     <div style={s('padding:2px 0 6px')}>
                       <div style={s('display:flex;align-items:center;justify-content:center;gap:22px;padding:4px 0 12px')}>
                         <span role="button" aria-label="前の年" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYearPrev}>‹</span>
-                        <span style={s('font-size:19px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;min-width:64px;text-align:center')}>{v.ymYearLabel}</span>
+                        <span style={s('font-size:19px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums;min-width:64px;text-align:center')}>{v.ymYearLabel}</span>
                         <span role="button" aria-label="次の年" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYearNext}>›</span>
                       </div>
                       <div style={s('display:grid;grid-template-columns:repeat(4,1fr);gap:7px')}>
@@ -482,7 +487,7 @@ export function renderApp(v) {
                         <div style={s(v.wheelColStyle)} onScroll={r.hScroll} ref={r.hRef}>
                           {(r.hItems || []).map((it, j) => (<div key={j} style={s(v.wheelItemStyle)}>{it}</div>))}
                         </div>
-                        <span style={s('font-size:20px;font-weight:700;color:var(--ink)')}>:</span>
+                        <span style={s('font-size:20px;font-weight:300;color:var(--ink)')}>:</span>
                         <div style={s(v.wheelColStyle)} onScroll={r.mScroll} ref={r.mRef}>
                           {(r.mItems || []).map((it, j) => (<div key={j} style={s(v.wheelItemStyle)}>{it}</div>))}
                         </div>
@@ -503,7 +508,7 @@ export function renderApp(v) {
                   </span>
                   <span style={s('display:flex;align-items:center;gap:12px')}>
                     <span role="button" aria-label="1日減らす" style={s(v.spanMinusStyle)} onClick={v.onSpanMinus}>−</span>
-                    <span style={s('font-size:16px;font-weight:700;color:var(--ink);min-width:52px;text-align:center;font-variant-numeric:tabular-nums')}>{v.spanCountLabel}</span>
+                    <span style={s('font-size:16px;font-weight:400;color:var(--ink);min-width:52px;text-align:center;font-variant-numeric:tabular-nums')}>{v.spanCountLabel}</span>
                     <span role="button" aria-label="1日増やす" style={s(v.spanPlusStyle)} onClick={v.onSpanPlus}>＋</span>
                   </span>
                 </div>
@@ -658,7 +663,7 @@ export function renderApp(v) {
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
             <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onBack}>←</span>
-            <span style={s('font-size:16px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px')}>{v.dTitle}</span>
+            <span style={s('font-size:16px;font-weight:400;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px')}>{v.dTitle}</span>
             <span style={s('font-size:16px;color:var(--ink-mut);cursor:pointer')} onClick={v.onEdit}>編集</span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:14px 16px 40px 16px')}>
@@ -669,15 +674,15 @@ export function renderApp(v) {
               <div style={s('flex:1;padding:20px 20px 22px 22px')}>
                 <div style={s('display:flex;align-items:center;gap:10px;margin-bottom:4px')}>
                   <span style={s(v.badgeStyle)}>{v.badgeChar}</span>
-                  <span style={s(`font-size:13px;font-weight:600;color:${v.dTypeDark}`)}>{v.dStatusLabel}</span>
+                  <span style={s(`font-size:13px;font-weight:400;color:${v.dTypeDark}`)}>{v.dStatusLabel}</span>
                 </div>
-                <div style={s('font-size:24px;font-weight:700;color:var(--ink);margin:6px 0 2px 0;letter-spacing:-.3px')}>{v.dTitle}</div>
+                <div style={s('font-size:24px;font-weight:300;color:var(--ink);margin:6px 0 2px 0;letter-spacing:-.3px')}>{v.dTitle}</div>
                 <div style={s('font-size:14px;color:var(--ink-mut);margin-bottom:20px')}>{v.monthLabel}月{v.dDay}日</div>
 
                 <div style={s('display:flex;align-items:baseline;gap:8px')}>
-                  <span style={s('font-size:15px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dTimeText}</span>
+                  <span style={s('font-size:15px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dTimeText}</span>
                   {v.dTimeChanged && (
-                    <span style={s('font-size:12px;font-weight:600;color:#D85A30')}>→ 変更あり</span>
+                    <span style={s('font-size:12px;font-weight:400;color:#D85A30')}>→ 変更あり</span>
                   )}
                 </div>
                 {!!v.dRemindText && (
@@ -711,14 +716,14 @@ export function renderApp(v) {
                   <div style={s('margin-top:22px;padding-top:18px;border-top:1px solid var(--line);animation:riseUp .32s cubic-bezier(.2,.9,.2,1)')}>
                     <div style={s('display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px')}>
                       <span style={s('font-size:13px;color:var(--ink-mut)')}>実働時間</span>
-                      <span style={s('font-size:15px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dWorkHours}</span>
+                      <span style={s('font-size:15px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dWorkHours}</span>
                     </div>
                     {!!v.dBreakText && (
                       <div style={s('font-size:11px;color:var(--ink-faint);margin:-4px 0 10px;text-align:right')}>{v.dBreakText}</div>
                     )}
                     <div style={s('display:flex;justify-content:space-between;align-items:baseline')}>
                       <span style={s('font-size:13px;color:var(--ink-mut)')}>給料</span>
-                      <span style={s('font-size:24px;font-weight:700;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{v.dWage}</span>
+                      <span style={s('font-size:24px;font-weight:300;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{v.dWage}</span>
                     </div>
                   </div>
                 )}
@@ -740,7 +745,7 @@ export function renderApp(v) {
           <div style={s('width:100%;max-width:320px;background:var(--bg);border-radius:20px;padding:18px 18px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
             <div style={s('display:flex;align-items:center;justify-content:center;gap:22px;padding:2px 0 16px')}>
               <span role="button" aria-label="前の年" style={s('width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:21px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYmSheetPrevYear}>‹</span>
-              <span style={s('font-size:20px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;min-width:72px;text-align:center')}>{v.ymSheetYear}</span>
+              <span style={s('font-size:20px;font-weight:300;color:var(--ink);font-variant-numeric:tabular-nums;min-width:72px;text-align:center')}>{v.ymSheetYear}</span>
               <span role="button" aria-label="次の年" style={s('width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:21px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYmSheetNextYear}>›</span>
             </div>
             {/* 横に払っても年が変わる。‹ › だけだと的が小さい */}
@@ -764,7 +769,7 @@ export function renderApp(v) {
       {v.confirmShown && (
         <div style={s('position:absolute;inset:0;z-index:90;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onCancelDelete}>
           <div style={s('width:100%;max-width:300px;background:var(--card);border-radius:16px;padding:22px 20px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
-            <div style={s('font-size:17px;font-weight:700;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.confirmTitle}</div>
+            <div style={s('font-size:17px;font-weight:400;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.confirmTitle}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:8px 0 20px;text-wrap:pretty')}>{v.confirmBody}</div>
             {v.repDeleteShown && (
               <div style={s('display:flex;align-items:center;gap:10px;padding:12px 13px;margin-bottom:14px;border-radius:13px;background:var(--bg2);cursor:pointer')} onClick={v.onToggleRepDelete}>
@@ -784,7 +789,7 @@ export function renderApp(v) {
       {v.dialogShown && (
         <div style={s('position:absolute;inset:0;z-index:80;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onDlgDismiss}>
           <div style={s('width:100%;max-width:320px;background:var(--card);border-radius:16px;padding:22px 20px 18px 20px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
-            <div style={s('font-size:19px;font-weight:700;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.dlgHeading}</div>
+            <div style={s('font-size:19px;font-weight:400;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.dlgHeading}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:6px 0 18px 0')}>{v.dlgSub}</div>
 
             <div style={s('background:var(--bg2);border-radius:15px;overflow:hidden;margin-bottom:6px')}>
@@ -800,7 +805,7 @@ export function renderApp(v) {
                       <div style={s(v.dlgWheelColStyle)} onScroll={r.hScroll} ref={r.hRef}>
                         {(r.hItems || []).map((it, j) => (<div key={j} style={s(v.wheelItemStyle)}>{it}</div>))}
                       </div>
-                      <span style={s('font-size:19px;font-weight:700;color:var(--ink)')}>:</span>
+                      <span style={s('font-size:19px;font-weight:400;color:var(--ink)')}>:</span>
                       <div style={s(v.dlgWheelColStyle)} onScroll={r.mScroll} ref={r.mRef}>
                         {(r.mItems || []).map((it, j) => (<div key={j} style={s(v.wheelItemStyle)}>{it}</div>))}
                       </div>
@@ -826,7 +831,7 @@ export function renderApp(v) {
 
             <div style={s('text-align:center;margin-bottom:18px;height:16px')}>
               {v.dlgChanged && (
-                <span style={s('font-size:12px;color:var(--ink-mut)')}>{v.dlgOrigText} <span style={s('color:#D85A30;font-weight:600')}>→ 変更あり</span></span>
+                <span style={s('font-size:12px;color:var(--ink-mut)')}>{v.dlgOrigText} <span style={s('color:#D85A30;font-weight:400')}>→ 変更あり</span></span>
               )}
             </div>
 
@@ -870,7 +875,7 @@ export function renderApp(v) {
         <div style={s('display:flex;flex-direction:column;height:100%;background:#1A1A1A')}>
           <div className="scr-head" style={s('padding:0 18px 8px;flex-shrink:0')}>
             <span style={s('font-size:16px;color:rgba(255,255,255,.65);cursor:pointer')} onClick={v.onSummaryClose}>閉じる</span>
-            <span style={s('font-size:14px;font-weight:600;color:rgba(255,255,255,.9)')}>今月のまとめ</span>
+            <span style={s('font-size:14px;font-weight:400;color:rgba(255,255,255,.9)')}>今月のまとめ</span>
             <span style={s('width:44px')} />
           </div>
           <div style={s('flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:10px 16px 20px')}>
@@ -879,8 +884,8 @@ export function renderApp(v) {
                   中の文字にテーマ変数を使うと、ダークモードで白地に白文字になる。
                   色は sharecard.js の定数と揃えてある。 */}
               <div style={s('display:flex;align-items:baseline;justify-content:space-between')}>
-                <span style={s('font-size:13px;font-weight:600;color:#8C887C;letter-spacing:.5px')}>{v.sumYearMonth}</span>
-                <span style={s('font-size:12px;font-weight:600;color:#8C887C')}>まとめ</span>
+                <span style={s('font-size:13px;font-weight:400;color:#8C887C;letter-spacing:.5px')}>{v.sumYearMonth}</span>
+                <span style={s('font-size:12px;font-weight:400;color:#8C887C')}>まとめ</span>
               </div>
 
               <div style={s('display:flex;flex-wrap:wrap;gap:4px;margin:20px 0 22px')}>
@@ -889,9 +894,9 @@ export function renderApp(v) {
 
               <div style={s('display:flex;align-items:center;gap:8px;margin-bottom:2px')}>
                 <span style={s('width:24px;height:24px;border-radius:15px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>✓</span>
-                <span style={s('font-size:13px;font-weight:600;color:#085041')}>稼いだ</span>
+                <span style={s('font-size:13px;font-weight:400;color:#085041')}>稼いだ</span>
               </div>
-              <div style={s('font-size:46px;font-weight:800;color:#26251F;letter-spacing:-1.5px;line-height:1.1')}>{v.sumWage}</div>
+              <div style={s('font-size:46px;font-weight:300;color:#26251F;letter-spacing:-1.5px;line-height:1.1')}>{v.sumWage}</div>
               <div style={s('font-size:14px;color:#8C887C;margin-top:2px')}>{v.sumHours} 働きました</div>
 
               <div style={s('height:1px;background:#E6E2D6;margin:22px 0')} />
@@ -900,16 +905,16 @@ export function renderApp(v) {
                 <div style={s('flex:1')}>
                   <div style={s('display:flex;align-items:center;gap:6px;margin-bottom:6px')}>
                     <span style={s('width:16px;height:16px;border-radius:11px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800')}>✓</span>
-                    <span style={s('font-size:12px;font-weight:600;color:#712B13')}>果たした約束</span>
+                    <span style={s('font-size:12px;font-weight:400;color:#712B13')}>果たした約束</span>
                   </div>
-                  <div style={s('font-size:34px;font-weight:800;color:#26251F;letter-spacing:-1px')}>{v.sumPromises}</div>
+                  <div style={s('font-size:34px;font-weight:300;color:#26251F;letter-spacing:-1px')}>{v.sumPromises}</div>
                 </div>
                 <div style={s('flex:1')}>
                   <div style={s('display:flex;align-items:center;gap:6px;margin-bottom:6px')}>
                     <span style={s('width:16px;height:16px;border-radius:11px;background:#EDEEF0;color:#8C887C;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700')}>×</span>
-                    <span style={s('font-size:12px;font-weight:600;color:#8C887C')}>流れた予定</span>
+                    <span style={s('font-size:12px;font-weight:400;color:#8C887C')}>流れた予定</span>
                   </div>
-                  <div style={s('font-size:34px;font-weight:800;color:#B7B3A6;letter-spacing:-1px')}>{v.sumCanceled}</div>
+                  <div style={s('font-size:34px;font-weight:300;color:#B7B3A6;letter-spacing:-1px')}>{v.sumCanceled}</div>
                 </div>
               </div>
 
@@ -919,7 +924,7 @@ export function renderApp(v) {
               <div style={s('display:flex;align-items:center;gap:8px;padding-top:16px')}>
                 <span style={s('font-size:15px;letter-spacing:-2px;flex-shrink:0')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C1C5CC')}>？</span></span>
                 <span style={s('display:flex;flex-direction:column;gap:1px;min-width:0')}>
-                  <span style={s('font-size:12px;font-weight:600;color:#55524A;white-space:nowrap')}>決まってる？</span>
+                  <span style={s('font-size:12px;font-weight:400;color:#55524A;white-space:nowrap')}>決まってる？</span>
                   <span style={s('font-size:11px;font-weight:500;color:#8C887C;white-space:nowrap')}>予定が一目でわかるカレンダー</span>
                 </span>
               </div>
@@ -946,7 +951,7 @@ export function renderApp(v) {
         <div style={s('display:flex;flex-direction:column;height:100%;background:#1A1A1A')}>
           <div className="scr-head" style={s('padding:0 18px 8px;flex-shrink:0')}>
             <span style={s('font-size:16px;color:rgba(255,255,255,.65);cursor:pointer')} onClick={v.onShareClose}>閉じる</span>
-            <span style={s('font-size:14px;font-weight:600;color:rgba(255,255,255,.9)')}>空いてる日をシェア</span>
+            <span style={s('font-size:14px;font-weight:400;color:rgba(255,255,255,.9)')}>空いてる日をシェア</span>
             <span style={s('width:44px')} />
           </div>
           <div style={s('flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:6px 16px 24px')}>
@@ -956,9 +961,9 @@ export function renderApp(v) {
             <div style={s('width:100%;max-width:340px;background:#FFFDF8;border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.5);padding:24px 22px 22px;overflow:hidden')}>
               <div style={s('display:flex;align-items:center;gap:8px;margin-bottom:3px')}>
                 <span style={s('width:22px;height:22px;border-radius:7px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800')}>○</span>
-                <span style={s('font-size:13px;font-weight:600;color:#D85A30')}>わたしの空いてる日</span>
+                <span style={s('font-size:13px;font-weight:400;color:#D85A30')}>わたしの空いてる日</span>
               </div>
-              <div style={s('font-size:22px;font-weight:800;color:#26251F;letter-spacing:-.5px')}>{v.shareMonthLabel}月のあいてる日</div>
+              <div style={s('font-size:22px;font-weight:300;color:#26251F;letter-spacing:-.5px')}>{v.shareMonthLabel}月のあいてる日</div>
               <div style={s('font-size:13px;color:#8C887C;margin:2px 0 18px')}>予定の中身は出していません</div>
 
               <div style={s('display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:4px')}>
@@ -1004,7 +1009,7 @@ export function renderApp(v) {
       {v.settingsShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head-solo" style={s('padding:0 20px 10px')}>
-            <span style={s('font-size:30px;font-weight:700;color:var(--ink);letter-spacing:-.5px')}>設定</span>
+            <span style={s('font-size:30px;font-weight:300;color:var(--ink);letter-spacing:-.5px')}>設定</span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:8px 16px 110px')}>
 
@@ -1013,7 +1018,7 @@ export function renderApp(v) {
                 どこから見ればいいのか決められなかった（2画面ぶんあった）。
                 説明は群ごとに1つだけにする。 */}
 
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>カレンダー</div>
+            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>カレンダー</div>
 <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:10px')}>
               {/* 群の見出しが「カレンダー」になったので、この行が何なのかは行の側で言う。
                   たたんでいるあいだも、色の点だけは出しておく */}
@@ -1046,7 +1051,7 @@ export function renderApp(v) {
                 </div>
               ))}
               <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onAddTypeRow}>
-                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:600')}>＋</span>
+                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:400')}>＋</span>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>種類を追加</span>
               </div>
               {v.newTypeShown && (
@@ -1086,7 +1091,7 @@ export function renderApp(v) {
             {/* バイトを使っていない人には、ここは「追加」の1行だけになる。
                 リマインドの設定も、バイト先が1つも無いあいだは出さない
                 （何のことか分からない設定を見せない）。 */}
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>バイトと給料</div>
+            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>バイトと給料</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:10px')}>
               {(v.jobRows || []).map((j, i) => (
                 <div key={i} style={s(j.rowStyle)}>
@@ -1103,8 +1108,8 @@ export function renderApp(v) {
                         <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
                           <div style={s(v.stepBtn)} onClick={j.onMinus}>−</div>
                           <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
-                            <span style={s('font-size:15px;font-weight:700;color:var(--ink-soft)')}>¥</span>
-                            <input value={j.hourly} onChange={j.onHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:700;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
+                            <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft)')}>¥</span>
+                            <input value={j.hourly} onChange={j.onHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
                           </div>
                           <div style={s(v.stepBtn)} onClick={j.onPlus}>＋</div>
                         </div>
@@ -1118,7 +1123,7 @@ export function renderApp(v) {
                 </div>
               ))}
               <div style={s(`display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;${v.jobsEmpty ? '' : 'border-top:1px solid var(--line)'}`)} onClick={v.onAddJob}>
-                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:600')}>＋</span>
+                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:400')}>＋</span>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バイト先を追加</span>
               </div>
             </div>
@@ -1143,7 +1148,7 @@ export function renderApp(v) {
             {/* 取り込みと控えは、どちらも「予定の出し入れ」。別の見出しにする理由がない。
                 規約に「大切な予定は控えを取ってください」と書いてある以上、
                 取る手段と戻す手段はアプリ側が持っていないと筋が通らない。 */}
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>予定の出し入れ</div>
+            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>予定の出し入れ</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:8px')}>
               {v.importAvailable && (
                 <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenImport}>
@@ -1192,7 +1197,7 @@ export function renderApp(v) {
               ファイルをえらべないときは、貼り付けでも戻せます
             </div>
 
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
+            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
               {/* サポーターカード。応援したことがある人にだけ出る。
                   機能ではなく「自分がやったことの記録」なので、消耗型のままでいい。
@@ -1245,7 +1250,7 @@ export function renderApp(v) {
                         <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
                           <span style={s('font-size:15px;color:var(--ink)')}>{t.label}</span>
                         </span>
-                        <span style={s('font-size:15px;font-weight:700;color:var(--ink-soft);font-variant-numeric:tabular-nums')}>{t.price}</span>
+                        <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft);font-variant-numeric:tabular-nums')}>{t.price}</span>
                       </div>
                     ))}
                     <div style={s('font-size:11px;color:var(--ink-faint);padding:12px 16px 14px;line-height:1.8;text-wrap:pretty')}>
@@ -1270,7 +1275,7 @@ export function renderApp(v) {
       {v.reportShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head-solo" style={s('padding:0 20px 10px')}>
-            <span style={s('font-size:30px;font-weight:700;color:var(--ink);letter-spacing:-.5px')}>まとめ</span>
+            <span style={s('font-size:30px;font-weight:300;color:var(--ink);letter-spacing:-.5px')}>まとめ</span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:8px 16px 110px')}>
 
@@ -1280,19 +1285,21 @@ export function renderApp(v) {
               </div>
             ) : (
               <>
-                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>{v.repMonthLabel}</div>
-                <div style={s('background:var(--card);border-radius:17px;padding:18px 18px 20px;margin-bottom:22px;border:1px solid var(--line)')}>
-                  <div style={s('display:flex;align-items:baseline;gap:8px;margin-bottom:2px')}>
-                    <span style={s('font-size:34px;font-weight:700;color:var(--ink);letter-spacing:-.6px;font-variant-numeric:tabular-nums')}>{v.repMonthWage}</span>
+                <div style={s('font-size:11px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px;letter-spacing:.12em')}>{v.repMonthLabel}</div>
+                <div style={s('background:var(--card);border-radius:17px;padding:20px 18px 20px;margin-bottom:22px;border:1px solid var(--line)')}>
+                  {/* この画面の主役。ここだけが大きい。 */}
+                  <div style={s('display:flex;align-items:baseline;gap:3px;margin-bottom:6px')}>
+                    <span style={s('font-size:18px;font-weight:400;color:var(--ink-mut)')}>{v.repMonthWageParts.unit}</span>
+                    <span style={s('font-size:40px;font-weight:300;color:var(--ink);letter-spacing:-.8px;font-variant-numeric:tabular-nums;line-height:1')}>{v.repMonthWageParts.num}</span>
                   </div>
-                  <div style={s('font-size:13px;color:var(--ink-mut)')}>{v.repMonthHours}・{v.repMonthDays}日</div>
+                  <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.06em')}>{v.repMonthHours}・{v.repMonthDays}日</div>
                 </div>
 
-                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>月ごとの働いた時間</div>
+                <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>月ごとの働いた時間</div>
                 <div style={s('background:var(--card);border-radius:17px;padding:16px 12px 12px;margin-bottom:22px;border:1px solid var(--line)')}>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:0 4px 12px')}>
                     <span role="button" aria-label="前の年" style={s('width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onRepPrevYear}>‹</span>
-                    <span style={s('font-size:14px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearLabel}</span>
+                    <span style={s('font-size:14px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearLabel}</span>
                     <span role="button" aria-label="次の年" style={s('width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onRepNextYear}>›</span>
                   </div>
                   <div style={s('display:flex;align-items:flex-end;justify-content:space-between;gap:3px;height:96px;padding:0 2px')}>
@@ -1309,19 +1316,19 @@ export function renderApp(v) {
                   </div>
                 </div>
 
-                <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>{v.repYearLabel}の合計</div>
+                <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>{v.repYearLabel}の合計</div>
                 <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px;border:1px solid var(--line)')}>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
                     <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた時間</span>
-                    <span style={s('font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearHours}</span>
+                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearHours}</span>
                   </div>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
                     <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた日数</span>
-                    <span style={s('font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearDays}日</span>
+                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearDays}日</span>
                   </div>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
                     <span style={s('font-size:14px;color:var(--ink-mut)')}>稼いだ額</span>
-                    <span style={s('font-size:17px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearWage}</span>
+                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearWage}</span>
                   </div>
                 </div>
               </>
@@ -1329,7 +1336,7 @@ export function renderApp(v) {
 
             {/* 「空いてる日をシェア」はここには置かない。この画面の数字と関係がなく、
                 どの月を送るのかも分からなくなる。空き状況の画面に置いてある。 */}
-            <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>シェア</div>
+            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>シェア</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line)')}>
               <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onOpenSummaryCard}>
                 <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
@@ -1351,7 +1358,7 @@ export function renderApp(v) {
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px')}>
             <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onCardBack}>←</span>
-            <span style={s('font-size:16px;font-weight:600;color:var(--ink)')}>サポーターカード</span>
+            <span style={s('font-size:16px;font-weight:400;color:var(--ink)')}>サポーターカード</span>
             <span />
           </div>
 
@@ -1416,14 +1423,14 @@ export function renderApp(v) {
             </div>
             <div style={s('text-align:center;font-size:12px;color:var(--ink-soft);margin-top:16px;line-height:1.7')}>{v.cardNextText}</div>
 
-            <div style={s('text-align:center;font-size:16px;font-weight:700;color:var(--ink);margin-top:26px')}>支えてくれて、ありがとう。</div>
+            <div style={s('text-align:center;font-size:16px;font-weight:400;color:var(--ink);margin-top:26px')}>支えてくれて、ありがとう。</div>
             <div style={s('text-align:center;font-size:12.5px;color:var(--ink-soft);line-height:1.9;margin-top:8px;text-wrap:pretty')}>
               {''}<Jp parts={['広告なし・通信なしのままで','作りつづけます。']} />
             </div>
 
             {/* 名前はカードに載るだけ。端末の外には出ない */}
             <div style={s('margin-top:24px')}>
-              <div style={s('font-size:12px;font-weight:600;color:var(--ink-mut);margin:0 6px 8px')}>カードに載せる名前</div>
+              <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>カードに載せる名前</div>
               <input value={v.cardOwner} onChange={v.onCardName} placeholder="空のままでもかまいません" maxLength={20}
                 style={s('width:100%;box-sizing:border-box;border:1px solid var(--line);outline:none;background:var(--card);border-radius:13px;padding:12px 14px;font-size:15px;color:var(--ink);font-family:inherit')} />
               <div style={s('font-size:11px;color:var(--ink-faint);margin:8px 6px 0;line-height:1.7')}>この名前も端末の中だけに保存されます。</div>
@@ -1446,7 +1453,7 @@ export function renderApp(v) {
       {v.probeShown && (
         <div style={s('position:absolute;inset:0;z-index:97;background:rgba(20,20,22,.5);display:flex;align-items:center;justify-content:center;padding:20px;animation:scrimIn .2s ease')} onClick={v.onProbeClose}>
           <div style={s('width:100%;max-width:340px;max-height:80%;overflow-y:auto;background:var(--card);border-radius:18px;padding:18px;animation:dlgIn .25s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
-            <div style={s('font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px')}>課金の状態</div>
+            <div style={s('font-size:15px;font-weight:400;color:var(--ink);margin-bottom:12px')}>課金の状態</div>
             {(v.probeRows || []).map((r, i) => (
               <div key={i} style={s('margin-bottom:10px')}>
                 {!!r.k && <div style={s('font-size:11px;color:var(--ink-mut);margin-bottom:2px')}>{r.k}</div>}
@@ -1454,7 +1461,7 @@ export function renderApp(v) {
               </div>
             ))}
             <div style={s('display:flex;gap:8px;margin-top:14px')}>
-              <div style={s('flex:1;text-align:center;padding:11px;border-radius:12px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer')} onClick={v.onProbeRetry}>もう一度読む</div>
+              <div style={s('flex:1;text-align:center;padding:11px;border-radius:12px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:400;cursor:pointer')} onClick={v.onProbeRetry}>もう一度読む</div>
               <div style={s('flex:1;text-align:center;padding:11px;border-radius:12px;background:var(--ink);color:var(--card);font-size:14px;font-weight:700;cursor:pointer')} onClick={v.onProbeClose}>閉じる</div>
             </div>
           </div>
@@ -1518,7 +1525,7 @@ export function renderApp(v) {
                       <div style={s(v.obConfirmStyle)} onClick={v.onObDemoConfirm}>確定した</div>
                     </div>
                   )}
-                  <div style={s({ fontSize:13, marginTop:14, lineHeight:1.7, fontWeight:600, color:v.obDemoCaptionColor })}>{v.obDemoCaption}</div>
+                  <div style={s({ fontSize:13, marginTop:14, lineHeight:1.7, fontWeight:400, color:v.obDemoCaptionColor })}>{v.obDemoCaption}</div>
                   {v.obDemoDone && (
                     <div style={s('font-size:12px;color:var(--ink-mut);margin-top:8px;cursor:pointer')} onClick={v.onObDemoReset}>もう一度みる</div>
                   )}
@@ -1548,10 +1555,10 @@ export function renderApp(v) {
                       ...(i ? { borderTop:'1px solid var(--line)' } : {}) })}>
                       <span style={s('display:flex;flex-direction:column;align-items:center;width:26px;flex-shrink:0')}>
                         <span style={s('font-size:9px;color:var(--ink-faint);line-height:1.3')}>{r.dow}</span>
-                        <span style={s('font-size:16px;font-weight:700;color:var(--ink);line-height:1.2;font-variant-numeric:tabular-nums')}>{r.day}</span>
+                        <span style={s('font-size:16px;font-weight:400;color:var(--ink);line-height:1.2;font-variant-numeric:tabular-nums')}>{r.day}</span>
                       </span>
                       <span style={s('flex:1;font-size:12.5px;color:var(--ink-soft);min-width:0')}>{r.note}</span>
-                      <span style={s({ fontSize:19, fontWeight:700, color:r.color, flexShrink:0 })}>{r.mark}</span>
+                      <span style={s({ fontSize:19, fontWeight:400, color:r.color, flexShrink:0 })}>{r.mark}</span>
                     </div>
                   ))}
                 </div>
@@ -1655,7 +1662,7 @@ export function renderApp(v) {
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
             <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onImportBack}>←</span>
-            <span style={s('font-size:16px;font-weight:600;color:var(--ink);white-space:nowrap')}>予定の取り込み</span>
+            <span style={s('font-size:16px;font-weight:400;color:var(--ink);white-space:nowrap')}>予定の取り込み</span>
             <span style={s('width:44px')} />
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:14px 20px 60px')}>
@@ -1663,7 +1670,7 @@ export function renderApp(v) {
             {v.impPhase === 'done' ? (
               <div style={s('text-align:center;padding:56px 10px')}>
                 <div style={s('width:56px;height:56px;border-radius:28px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;animation:checkPop .5s cubic-bezier(.2,.9,.2,1) both')}>✓</div>
-                <div style={s('font-size:19px;font-weight:700;color:var(--ink);margin-top:18px')}>{v.impAdded}件を取り込みました</div>
+                <div style={s('font-size:19px;font-weight:400;color:var(--ink);margin-top:18px')}>{v.impAdded}件を取り込みました</div>
                 <div style={s('font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.9;text-wrap:pretty')}>
                   {''}<Jp parts={['すべて','「決まってる」として','置きました。','まだ分からない予定は、','タップして','点線に','変えられます。']} />
                 </div>
@@ -1676,7 +1683,7 @@ export function renderApp(v) {
               </div>
             ) : v.impPhase === 'found' ? (
               <>
-                <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>
+                <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>
                   {v.impNone ? '予定が見つかりませんでした' : `${v.impCount}件の予定が見つかりました`}
                 </div>
                 <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.9;margin-bottom:14px;text-wrap:pretty')}>
@@ -1692,7 +1699,7 @@ export function renderApp(v) {
                 )}
 
                 <div style={s('display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 8px')}>
-                  <span style={s('font-size:12px;font-weight:600;color:var(--ink-mut)')}>入れるものをえらぶ</span>
+                  <span style={s('font-size:12px;font-weight:400;color:var(--ink-mut)')}>入れるものをえらぶ</span>
                   <span style={s('font-size:13px;color:var(--ink-mut);cursor:pointer;white-space:nowrap')} onClick={v.onToggleAll}>
                     {v.impAllOn ? 'すべて外す' : 'すべて選ぶ'}
                   </span>
@@ -1720,14 +1727,14 @@ export function renderApp(v) {
                   ))}
                 </div>
 
-                <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-faint)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onDoImport}>
+                <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-faint)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onDoImport}>
                   {v.impOnCount}件を取り込む
                 </div>
                 <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
               </>
             ) : (
               <>
-                <div style={s('font-size:20px;font-weight:700;color:var(--ink);letter-spacing:-.3px;margin-bottom:12px;line-height:1.55')}>
+                <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:12px;line-height:1.55')}>
                   {''}<Jp parts={['いま使っている', 'カレンダーの', '予定を', '持ってくる']} />
                 </div>
                 <div style={s('font-size:14px;color:var(--ink-soft);line-height:1.95')}>
@@ -1770,7 +1777,7 @@ export function renderApp(v) {
                     ボタンの上に置くが、全員に要るものではないので見出しだけ出す */}
                 <div style={s('margin-top:14px')}><OtherCal v={v} s={s} /></div>
 
-                <div style={s(`margin-top:26px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:700;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
+                <div style={s(`margin-top:26px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
                   {v.impPhase === 'scanning' ? '読み込んでいます…' : 'カレンダーを読む'}
                 </div>
               </>
@@ -1785,7 +1792,7 @@ export function renderApp(v) {
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
             <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onDocBack}>←</span>
-            <span style={s('font-size:16px;font-weight:600;color:var(--ink)')}>{v.docTitle}</span>
+            <span style={s('font-size:16px;font-weight:400;color:var(--ink)')}>{v.docTitle}</span>
             <span style={s('width:44px')} />
           </div>
           {/* 長い日本語の本文は両端揃えにする。左揃えのままだと行末がそろわず、
@@ -1812,7 +1819,7 @@ export function renderApp(v) {
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
             <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onNoticesBack}>←</span>
-            <span style={s('font-size:16px;font-weight:600;color:var(--ink);white-space:nowrap')}>お知らせ</span>
+            <span style={s('font-size:16px;font-weight:400;color:var(--ink);white-space:nowrap')}>お知らせ</span>
             <span style={s(`font-size:13px;color:${v.noticeHasUnread ? 'var(--ink-mut)' : 'transparent'};cursor:pointer;white-space:nowrap`)} onClick={v.noticeHasUnread ? v.onMarkAllRead : undefined}>
               すべて既読
             </span>
@@ -1849,10 +1856,10 @@ export function renderApp(v) {
                   <span style={s('flex:1')} />
                   <span style={s('font-size:11px;color:var(--ink-faint)')}>{v.nsWhen}</span>
                 </div>
-                <div style={s('font-size:17px;font-weight:700;color:var(--ink);line-height:1.55;text-wrap:pretty')}>{v.nsTitle}</div>
+                <div style={s('font-size:17px;font-weight:400;color:var(--ink);line-height:1.55;text-wrap:pretty')}>{v.nsTitle}</div>
                 <div style={s('font-size:14px;color:var(--ink-soft);margin-top:10px;line-height:1.9;text-align:justify')}>{v.nsBody}</div>
                 <div style={s('display:flex;gap:8px;margin-top:20px')}>
-                  <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:var(--bg2);color:var(--ink-soft);font-size:15px;font-weight:600;cursor:pointer')} onClick={v.onNoticeSheetClose}>閉じる</div>
+                  <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:var(--bg2);color:var(--ink-soft);font-size:15px;font-weight:400;cursor:pointer')} onClick={v.onNoticeSheetClose}>閉じる</div>
                   {!!v.nsActionLabel && (
                     <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:#1D9E75;color:#fff;font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onNoticeAction}>{v.nsActionLabel}</div>
                   )}
