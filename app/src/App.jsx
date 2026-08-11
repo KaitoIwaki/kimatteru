@@ -1238,15 +1238,22 @@ export default class App extends React.Component {
           ? `あと ¥${(nx.min-total).toLocaleString('ja-JP')} で${nx.name}カードになります`
           : 'いちばん上の段です。ありがとうございます。';
       }
+      // 回転の速さの曲線は左右対称のものを使う。ここが要。
+      // 前は cubic-bezier(.2,.9,.25,1) で、序盤が速く 90°（横を向いて
+      // 見えなくなる瞬間）を 0.077秒で通り過ぎていた。面の入れ替えは 0.31秒。
+      // その あいだの 0.23秒、表はもう裏側を向いていて、裏はまだ現れておらず、
+      // カードが一度消えて見えた。左右対称なら「半分の時間＝半回転」が
+      // 数のうえで保証されるので、入れ替えとちょうど重なる。
+      const FLIP = 0.62;
+      const HALF = FLIP / 2;
       v.cardFlipStyle = { position:'relative', width:'100%', aspectRatio:'1.586',
         transformStyle:'preserve-3d', cursor:'pointer',
-        transition:'transform .62s cubic-bezier(.2,.9,.25,1)',
+        transition:`transform ${FLIP}s cubic-bezier(.45,0,.55,1)`,
         transform: st.cardBack ? 'rotateY(180deg)' : 'rotateY(0deg)' };
       // backface-visibility には頼らない。Safari では 3D変形と overflow:hidden を
       // 組み合わせると無視されることがあり、表の文字が裏から鏡文字で透けていた。
-      // 代わりに、回転がちょうど半分（0.31秒）進んだ時点で面を入れ替える。
+      // 代わりに、回転がちょうど半分進んだ時点で面を入れ替える。
       // 見えない側は opacity:0 なので、どう描かれても透けようがない。
-      const HALF = 0.31;
       const face = {
         position:'absolute', inset:0, borderRadius:18, padding:'20px 22px', overflow:'hidden',
         backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
