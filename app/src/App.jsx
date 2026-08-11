@@ -12,6 +12,7 @@ import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, guessTypes, openAppSettings } from './calendarimport';
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
+import { norm, showsFront, dragToDeg, settle, settleTime, ease } from './cardflip';
 
 // 曜日と祝日の色。紙の上で浮きすぎないよう、どちらも少し落ち着かせた色にする。
 const HOLIDAY_RED = '#B4453A'; // 祝日と日曜
@@ -589,6 +590,63 @@ export default class App extends React.Component {
     this.setState({swipeRow:{id, dx: open?-this.SWIPE_W:0, animating:true}});
   }
   closeSwipeRow(){ const sr=this.state.swipeRow; if(sr&&sr.dx) this.setState({swipeRow:{id:sr.id,dx:0,animating:true}}); }
+
+  // ---- サポーターカードを指で回す ----
+  // 押して裏返すだけでなく、指でなぞった分だけその場で回る。
+  // 角度は CSS の transition ではなく、こちらで1コマずつ進める。
+  // そうしておくと、表と裏の入れ替えを角度そのものから出せる——
+  // 別々に持って時間を合わせようとすると、途中で消えるようなずれが出る。
+  cardTouchStart(e){
+    const t=e.touches&&e.touches[0]; if(!t) return;
+    if(this._cRaf){ cancelAnimationFrame(this._cRaf); this._cRaf=null; }
+    this._cx=t.clientX; this._cy=t.clientY; this._cAxis=null; this._cMoved=false;
+    this._cBase=this.state.cardAngle||0;
+    const box=e.currentTarget&&e.currentTarget.getBoundingClientRect();
+    this._cW=(box&&box.width)||320;
+    this._cLast={deg:this._cBase, at:Date.now()};
+    this._cVel=0;
+  }
+  cardTouchMove(e){
+    const t=e.touches&&e.touches[0]; if(!t||this._cx==null) return;
+    const dx=t.clientX-this._cx, dy=t.clientY-this._cy;
+    // 行と同じ決め方。最初の数pxで、回しているのか画面を送っているのかを決める
+    if(!this._cAxis){
+      if(Math.abs(dx)<6 && Math.abs(dy)<6) return;
+      this._cAxis = Math.abs(dx)>Math.abs(dy)*1.2 ? 'x' : 'y';
+    }
+    if(this._cAxis!=='x') return;
+    this._cMoved=true;
+    const deg=this._cBase+dragToDeg(dx,this._cW);
+    const at=Date.now(), dt=Math.max(1, at-this._cLast.at);
+    this._cVel=(deg-this._cLast.deg)/(dt/1000);
+    this._cLast={deg,at};
+    this.setState({cardAngle:deg});
+  }
+  cardTouchEnd(){
+    const moved=this._cAxis==='x'&&this._cMoved;
+    this._cx=null; this._cAxis=null; this._cMoved=false;
+    if(!moved) return;                 // 動かしていないならタップ。onClick が受ける
+    this._cTapOff=Date.now()+400;      // なぞったあとに来る click は無視する
+    const from=this.state.cardAngle||0;
+    const to=settle(from, this._cVel);
+    if(showsFront(from)!==showsFront(to)) tapLight();
+    this._settleCard(to);
+  }
+  /** 指を離したあと、落ち着く先まで自分で回す */
+  _settleCard(to){
+    if(this._cRaf){ cancelAnimationFrame(this._cRaf); this._cRaf=null; }
+    const from=this.state.cardAngle||0;
+    if(from===to){ this.setState({cardAngle:norm(to)}); return; }
+    const dur=settleTime(from,to)*1000, t0=Date.now();
+    const step=()=>{
+      const p=Math.min(1,(Date.now()-t0)/dur);
+      if(p>=1){ this._cRaf=null; this.setState({cardAngle:norm(to)}); return; }
+      this.setState({cardAngle: from+(to-from)*ease(p)});
+      this._cRaf=requestAnimationFrame(step);
+    };
+    this._cRaf=requestAnimationFrame(step);
+  }
+  stopCardFlip(){ if(this._cRaf){ cancelAnimationFrame(this._cRaf); this._cRaf=null; } }
 
   // ---- はじめての案内 ----
   // 点線が塗りに変わる瞬間を、その場で一度さわってもらう
@@ -1194,7 +1252,7 @@ export default class App extends React.Component {
         v.supporterCount = sup.length===1 ? '1回' : sup.length+'回';
         v.supporterTotal = '¥'+total.toLocaleString('ja-JP');
         v.supporterSince = `${first.getFullYear()}年${first.getMonth()+1}月から`;
-        v.onOpenCard = ()=>{ tapLight(); this.setState({screen:'card', cardBack:false}); };
+        v.onOpenCard = ()=>{ tapLight(); this.stopCardFlip(); this.setState({screen:'card', cardAngle:0}); };
       }
     }
 
@@ -1208,9 +1266,16 @@ export default class App extends React.Component {
       const total = sup.reduce((a,x)=>a+(x.yen|0), 0);
       const first = new Date(Math.min(...sup.map(x=>x.at)));
       const M2 = (n)=>String(n).padStart(2,'0');
-      v.onCardBack = ()=>this.setState({screen:'settings'});
-      v.cardFlipped = !!st.cardBack;
-      v.onFlipCard = ()=>{ tapLight(); this.setState(s=>({cardBack:!s.cardBack})); };
+      v.onCardBack = ()=>{ this.stopCardFlip(); this.setState({screen:'settings'}); };
+      // 押しても裏返る。なぞったあとに来る click は無視する（二重に回ってしまう）
+      v.onFlipCard = ()=>{
+        if(this._cTapOff && Date.now() < this._cTapOff) return;
+        tapLight();
+        this._settleCard((this.state.cardAngle||0) + 180);
+      };
+      v.onCardTouchStart = (e)=>this.cardTouchStart(e);
+      v.onCardTouchMove = (e)=>this.cardTouchMove(e);
+      v.onCardTouchEnd = ()=>this.cardTouchEnd();
       v.cardOwner = (st.settings.supporterName||'').trim();
       v.cardOwnerShown = v.cardOwner || '名前を入れる';
       v.onCardName = (e)=>{ const val=e.target.value.slice(0,20); this.setSetting('supporterName', val); };
@@ -1238,31 +1303,26 @@ export default class App extends React.Component {
           ? `あと ¥${(nx.min-total).toLocaleString('ja-JP')} で${nx.name}カードになります`
           : 'いちばん上の段です。ありがとうございます。';
       }
-      // 回転の速さの曲線は左右対称のものを使う。ここが要。
-      // 前は cubic-bezier(.2,.9,.25,1) で、序盤が速く 90°（横を向いて
-      // 見えなくなる瞬間）を 0.077秒で通り過ぎていた。面の入れ替えは 0.31秒。
-      // その あいだの 0.23秒、表はもう裏側を向いていて、裏はまだ現れておらず、
-      // カードが一度消えて見えた。左右対称なら「半分の時間＝半回転」が
-      // 数のうえで保証されるので、入れ替えとちょうど重なる。
-      const FLIP = 0.62;
-      const HALF = FLIP / 2;
+      // 角度は指かこちらの手で1コマずつ動かす。CSS の transition は使わない。
+      // 使うと「いまの角度」が state に無い時間ができて、表と裏の入れ替えを
+      // 時間で合わせにいくことになる。それで一度、回っている途中に
+      // カードが消えた（v0.21.2）。角度ひとつから両方を出せば、ずれようがない。
+      const ang = st.cardAngle || 0;
+      const front = showsFront(ang);
       v.cardFlipStyle = { position:'relative', width:'100%', aspectRatio:'1.586',
-        transformStyle:'preserve-3d', cursor:'pointer',
-        transition:`transform ${FLIP}s cubic-bezier(.45,0,.55,1)`,
-        transform: st.cardBack ? 'rotateY(180deg)' : 'rotateY(0deg)' };
-      // backface-visibility には頼らない。Safari では 3D変形と overflow:hidden を
-      // 組み合わせると無視されることがあり、表の文字が裏から鏡文字で透けていた。
-      // 代わりに、回転がちょうど半分進んだ時点で面を入れ替える。
-      // 見えない側は opacity:0 なので、どう描かれても透けようがない。
+        transformStyle:'preserve-3d', cursor:'pointer', touchAction:'pan-y',
+        transform:`rotateY(${ang}deg)` };
+      // backface-visibility は使わない。Safari では 3D変形と overflow:hidden を
+      // 組み合わせると無視されることがあり（表の文字が鏡文字で透けた）、
+      // 効く端末では逆に、消える側が二重になって一瞬何も無くなる。
+      // 向こうを向いた面は opacity:0 にする。それだけで足りる。
       const face = {
         position:'absolute', inset:0, borderRadius:18, padding:'20px 22px', overflow:'hidden',
-        backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
-        transition:`opacity 0s linear ${HALF}s`,
         background:`linear-gradient(150deg, ${paperStops(tier.paper)})`,
         border:'1px solid '+tier.edge,
         boxShadow:'0 14px 34px rgba(38,37,31,.18), inset 0 1px 0 rgba(255,255,255,.55)' };
-      v.cardFaceStyle = { ...face, opacity: st.cardBack ? 0 : 1 };
-      v.cardBackStyle = { ...face, transform:'rotateY(180deg)', opacity: st.cardBack ? 1 : 0 };
+      v.cardFaceStyle = { ...face, opacity: front ? 1 : 0 };
+      v.cardBackStyle = { ...face, transform:'rotateY(180deg)', opacity: front ? 0 : 1 };
       // 斜めに流れる光。点滅させず、一定の速さで通り過ぎるだけ
       v.foilStyle = { position:'absolute', top:'-60%', left:0, width:'42%', height:'220%',
         background:`linear-gradient(90deg, rgba(255,255,255,0) 0%, ${tier.sheen} 50%, rgba(255,255,255,0) 100%)`,
