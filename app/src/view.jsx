@@ -1324,7 +1324,7 @@ export function renderApp(v) {
                         <span style={s(v.foilSmallStyle)}>SUPPORTER</span>
                       </span>
                       <span style={s('font-size:17px;letter-spacing:-2px;flex-shrink:0')}>
-                        <span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C8BFA6')}>？</span>
+                        <span style={s('color:#1D9E75')}>✓</span><span style={s({ color: v.cardMarkColor })}>？</span>
                       </span>
                     </div>
                     <div style={s('display:flex;align-items:flex-end;justify-content:space-between;gap:12px')}>
@@ -1358,7 +1358,11 @@ export function renderApp(v) {
               </div>
             </div>
 
-            <div style={s('text-align:center;font-size:11.5px;color:var(--ink-mut);margin-top:12px')}>タップで裏返せます</div>
+            <div style={s('display:flex;align-items:center;justify-content:center;gap:10px;margin-top:12px')}>
+              <span style={s('font-size:11.5px;font-weight:700;color:var(--ink-soft)')}>{v.cardTierName}カード</span>
+              <span style={s('font-size:11.5px;color:var(--ink-mut)')}>タップで裏返せます</span>
+            </div>
+            <div style={s('text-align:center;font-size:12px;color:var(--ink-soft);margin-top:16px;line-height:1.7')}>{v.cardNextText}</div>
 
             <div style={s('text-align:center;font-size:16px;font-weight:700;color:var(--ink);margin-top:26px')}>支えてくれて、ありがとう。</div>
             <div style={s('text-align:center;font-size:12.5px;color:var(--ink-soft);line-height:1.9;margin-top:8px;text-wrap:pretty')}>

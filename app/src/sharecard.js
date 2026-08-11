@@ -268,7 +268,7 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
  * 画面のカードと同じ見立て（生成りの紙に真鍮の箔）で、キャンバスに直接描く。
  * 通し番号と人数は入れない——全員を数える場所が無いので、書けば嘘になる。
  */
-export function drawSupporterCard({ owner, since, total, times }) {
+export function drawSupporterCard({ owner, since, total, times, paper, foil, mark, sheen, edge }) {
   const W = 1080;
   const H = Math.round(W / 1.586);
   const c = document.createElement('canvas');
@@ -276,9 +276,10 @@ export function drawSupporterCard({ owner, since, total, times }) {
   c.height = H;
   const ctx = c.getContext('2d');
 
-  const PAPER = '#F3EEE2';
-  const PAPER2 = '#E7DFCE';
-  const FOIL = '#6B582F';
+  // 段ごとの紙と箔。渡されなければノーマル。
+  const PAPER = (paper && paper[0]) || '#F3EEE2';
+  const PAPER2 = (paper && paper[1]) || '#E7DFCE';
+  const FOIL = foil || '#6B582F';
 
   // 紙。斜めに濃淡をつけて、平らな一色に見せない
   const g = ctx.createLinearGradient(0, 0, W, H);
@@ -289,14 +290,14 @@ export function drawSupporterCard({ owner, since, total, times }) {
   ctx.fillRect(0, 0, W, H);
 
   // 箔の光。画面では流れているが、静止画では一本通しておく
-  const sheen = ctx.createLinearGradient(W * 0.18, 0, W * 0.52, H);
-  sheen.addColorStop(0, 'rgba(255,255,255,0)');
-  sheen.addColorStop(0.5, 'rgba(255,252,240,.55)');
-  sheen.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = sheen;
+  const sheen2 = ctx.createLinearGradient(W * 0.18, 0, W * 0.52, H);
+  sheen2.addColorStop(0, 'rgba(255,255,255,0)');
+  sheen2.addColorStop(0.5, sheen || 'rgba(255,252,240,.55)');
+  sheen2.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sheen2;
   ctx.fillRect(0, 0, W, H);
 
-  ctx.strokeStyle = 'rgba(107,88,47,.32)';
+  ctx.strokeStyle = edge || 'rgba(107,88,47,.32)';
   ctx.lineWidth = 3;
   ctx.strokeRect(1.5, 1.5, W - 3, H - 3);
 
@@ -313,7 +314,7 @@ export function drawSupporterCard({ owner, since, total, times }) {
   ctx.textAlign = 'right';
   ctx.fillStyle = TEAL;
   ctx.fillText('✓', W - PAD - 34, PAD + 44);
-  ctx.fillStyle = '#C8BFA6';
+  ctx.fillStyle = mark || '#C8BFA6';
   ctx.fillText('？', W - PAD, PAD + 44);
   ctx.textAlign = 'left';
 

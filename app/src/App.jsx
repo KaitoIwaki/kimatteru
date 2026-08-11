@@ -116,6 +116,30 @@ const repeatAfter = (y, m, d, every, spanMonths, dows) => {
 // いつか誰かとカレンダーを混ぜるときに、別々の予定が同じ名前になりうる。
 // 混ぜる側は名前で見分けるしかないので、ぶつかると黙って片方が消える。
 // 5文字の乱数を足しておけば、あとから何をしても困らない。
+// サポーターカードの段。金ぴかのプラスチックにはしない——
+// 紙と箔の組み合わせで段を作る。黒い紙に金の箔押しは実在する上等な印刷で、
+// 「静かな文房具」の中にちゃんと居場所がある。
+// 色は測って決めた。どの紙の上でも箔の文字が 4.5 を下回らないこと。
+const CARD_TIERS = [
+  { key: 'normal', min: 0, name: 'ノーマル',
+    paper: ['#F3EEE2', '#E7DFCE'], foil: '#6B582F', mark: '#C8BFA6',
+    sheen: 'rgba(255,252,240,.72)', edge: 'rgba(107,88,47,.3)' },
+  { key: 'gold', min: 1000, name: 'ゴールド',
+    paper: ['#F8F0D9', '#EADFB4'], foil: '#6E5416', mark: '#C4AE72',
+    sheen: 'rgba(255,248,214,.82)', edge: 'rgba(110,84,22,.34)' },
+  { key: 'black', min: 3000, name: 'ブラック',
+    paper: ['#2B2823', '#1B1915'], foil: '#D8BC72', mark: '#7C6E4C',
+    sheen: 'rgba(255,240,196,.30)', edge: 'rgba(216,188,114,.38)' },
+];
+// 合計金額から段を決める。境目はその額に「達したら」上がる。
+const tierFor = (total) => {
+  let out = CARD_TIERS[0];
+  for (const t of CARD_TIERS) if (total >= t.min) out = t;
+  return out;
+};
+// 次の段まであといくらか。いちばん上なら null。
+const nextTier = (total) => CARD_TIERS.find((t) => total < t.min) || null;
+
 const uid = (prefix) => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
 // 保存されている予定に壊れたものが1件でも混じると、描いている途中で落ちる。
@@ -1192,9 +1216,18 @@ export default class App extends React.Component {
 
       // 箔の見た目。生成りの紙に真鍮を押した、という見立て。
       // 文字は紙より暗い真鍮色で、下に薄い明かりを1本入れて「沈んでいる」ようにする。
-      // 真鍮の濃さは、いちばん暗い紙の上でも読める値から決めた。
-      // #8A7448 だと 3.39 で薄い。#6B582F で 5.17（明るい側は 5.92）。
-      const PAPER='#F3EEE2', PAPER2='#E7DFCE', foil='#6B582F';
+      // 段によって紙と箔が変わる。合計金額で決まる。
+      const tier = tierFor(total);
+      const [PAPER, PAPER2] = tier.paper;
+      const foil = tier.foil;
+      v.cardTierName = tier.name;
+      v.cardMarkColor = tier.mark;
+      {
+        const nx = nextTier(total);
+        v.cardNextText = nx
+          ? `あと ¥${(nx.min-total).toLocaleString('ja-JP')} で${nx.name}カードになります`
+          : 'いちばん上の段です。ありがとうございます。';
+      }
       v.cardFlipStyle = { position:'relative', width:'100%', aspectRatio:'1.586',
         transformStyle:'preserve-3d', cursor:'pointer',
         transition:'transform .62s cubic-bezier(.2,.9,.25,1)',
@@ -1209,15 +1242,16 @@ export default class App extends React.Component {
         backfaceVisibility:'hidden', WebkitBackfaceVisibility:'hidden',
         transition:`opacity 0s linear ${HALF}s`,
         background:`linear-gradient(150deg, ${PAPER} 0%, ${PAPER2} 55%, ${PAPER} 100%)`,
-        border:'1px solid rgba(107,88,47,.3)',
+        border:'1px solid '+tier.edge,
         boxShadow:'0 14px 34px rgba(38,37,31,.18), inset 0 1px 0 rgba(255,255,255,.55)' };
       v.cardFaceStyle = { ...face, opacity: st.cardBack ? 0 : 1 };
       v.cardBackStyle = { ...face, transform:'rotateY(180deg)', opacity: st.cardBack ? 1 : 0 };
       // 斜めに流れる光。点滅させず、一定の速さで通り過ぎるだけ
       v.foilStyle = { position:'absolute', top:'-60%', left:0, width:'42%', height:'220%',
-        background:'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,252,240,.72) 50%, rgba(255,255,255,0) 100%)',
+        background:`linear-gradient(90deg, rgba(255,255,255,0) 0%, ${tier.sheen} 50%, rgba(255,255,255,0) 100%)`,
         animation:'foilSweep 4.6s linear infinite', pointerEvents:'none', zIndex:0 };
-      const stamped = { color:foil, textShadow:'0 1px 0 rgba(255,255,255,.6)' };
+      const stamped = { color:foil,
+        textShadow: tier.key==='black' ? '0 1px 0 rgba(0,0,0,.5)' : '0 1px 0 rgba(255,255,255,.6)' };
       v.foilTextStyle = { ...stamped, fontSize:17, fontWeight:800, letterSpacing:'.02em' };
       v.foilSmallStyle = { ...stamped, fontSize:10, fontWeight:700, letterSpacing:'.14em',
         fontVariantNumeric:'tabular-nums' };
@@ -2514,11 +2548,14 @@ export default class App extends React.Component {
     const first = new Date(Math.min(...sup.map((x) => x.at)));
     const M2 = (n) => String(n).padStart(2, '0');
     try {
+      const tier = tierFor(total);
       const canvas = drawSupporterCard({
         owner: (this.state.settings.supporterName || '').trim(),
         since: `MEMBER SINCE ${first.getFullYear()}.${M2(first.getMonth() + 1)}`,
         total: '¥' + total.toLocaleString('ja-JP'),
         times: sup.length + '回',
+        paper: tier.paper, foil: tier.foil, mark: tier.mark,
+        sheen: tier.sheen, edge: tier.edge,
       });
       const msg = await shareCanvas(canvas, 'kimatteru-supporter.png');
       if (msg) {
