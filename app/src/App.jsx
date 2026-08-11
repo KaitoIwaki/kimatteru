@@ -12,7 +12,7 @@ import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, guessTypes, openAppSettings } from './calendarimport';
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
-import { norm, showsFront, dragToDeg, settle, settleTime, ease } from './cardflip';
+import { norm, showsFront, dragToDeg, settle, settleTime, ease, cardShadow } from './cardflip';
 
 // 曜日と祝日の色。紙の上で浮きすぎないよう、どちらも少し落ち着かせた色にする。
 const HOLIDAY_RED = '#B4453A'; // 祝日と日曜
@@ -1319,10 +1319,12 @@ export default class App extends React.Component {
       const face = {
         position:'absolute', inset:0, borderRadius:18, padding:'20px 22px', overflow:'hidden',
         background:`linear-gradient(150deg, ${paperStops(tier.paper)})`,
-        border:'1px solid '+tier.edge,
-        boxShadow:'0 14px 34px rgba(38,37,31,.18), inset 0 1px 0 rgba(255,255,255,.55)' };
-      v.cardFaceStyle = { ...face, opacity: front ? 1 : 0 };
-      v.cardBackStyle = { ...face, transform:'rotateY(180deg)', opacity: front ? 0 : 1 };
+        border:'1px solid '+tier.edge };
+      // 影も角度から出す。回っている最中は横にずれて濃くなり、
+      // 空中で浮いて裏返っている感じを影の側からも支える。
+      v.cardFaceStyle = { ...face, opacity: front ? 1 : 0, boxShadow: cardShadow(ang) };
+      v.cardBackStyle = { ...face, transform:'rotateY(180deg)', opacity: front ? 0 : 1,
+        boxShadow: cardShadow(ang, true) };
       // 斜めに流れる光。点滅させず、一定の速さで通り過ぎるだけ
       v.foilStyle = { position:'absolute', top:'-60%', left:0, width:'42%', height:'220%',
         background:`linear-gradient(90deg, rgba(255,255,255,0) 0%, ${tier.sheen} 50%, rgba(255,255,255,0) 100%)`,

@@ -1311,7 +1311,7 @@ export function renderApp(v) {
 
           <div style={s('flex:1;overflow-y:auto;padding:18px 20px 40px')}>
             {/* カード本体。押すと裏返る。指でなぞれば、なぞった分だけその場で回る */}
-            <div style={s('perspective:1200px;animation:cardIn .5s cubic-bezier(.2,.9,.2,1) both')}>
+            <div style={s('perspective:1000px;animation:cardIn .5s cubic-bezier(.2,.9,.2,1) both')}>
               <div style={s(v.cardFlipStyle)} onClick={v.onFlipCard}
                 onTouchStart={v.onCardTouchStart}
                 onTouchMove={v.onCardTouchMove}

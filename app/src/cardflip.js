@@ -37,11 +37,44 @@ export const settle = (deg, vel = 0) => {
   return Math.round(deg / 180) * 180;
 };
 
-/** 落ち着くまでの時間（秒）。残りが少なければ短く。半回転で 0.42秒。 */
+/** 落ち着くまでの時間（秒）。残りが少なければ短く。半回転で 0.56秒。 */
+export const TURN = 0.56;
 export const settleTime = (from, to) => {
   const d = Math.abs(to - from);
-  return Math.max(0.14, Math.min(0.5, (d / 180) * 0.42));
+  return Math.max(0.16, Math.min(0.6, (d / 180) * TURN));
 };
 
-/** 行きと帰りが同じ形の曲線。0→1 */
-export const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+/**
+ * 落ち着き方の曲線。0→1。
+ * 動きだしと止まりがなめらかで、最後にほんの少しだけ行き過ぎて戻る——
+ * 紙の1枚が、ぱたんと置かれるときの跳ね。
+ * ばねの式そのもの（減衰したばねの位置）を使っている。
+ *   1 - e^(-at)(cos bt + (a/b) sin bt)
+ * 速さは t=0 でちょうど 0 から始まるので、動きだしが急にならない。
+ * 行き過ぎの大きさは e^(-aπ/b) で決まり、この値では約4%。
+ * 半回転なら 7度ぶんで、「跳ねた」と分かるかどうかの手前に収まる。
+ */
+const SPRING_A = 5, SPRING_B = 4.88;
+export const ease = (t) => {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  const e = Math.exp(-SPRING_A * t);
+  return 1 - e * (Math.cos(SPRING_B * t) + (SPRING_A / SPRING_B) * Math.sin(SPRING_B * t));
+};
+
+/**
+ * その角度のときの影。回っている最中は、横にずれて濃く広がる。
+ * 空中で浮いて裏返っている感じを、影の側からも支える。
+ * 真横を向いたとき（90度・270度）がいちばん深い。
+ * back が true なら裏面用——裏面は先に180度回してあるので、
+ * そのまま渡すと影だけ左右が逆に出る。
+ */
+export const cardShadow = (deg, back = false) => {
+  const rad = (deg * Math.PI) / 180;
+  const lift = Math.abs(Math.sin(rad));            // 0（正面）→ 1（真横）
+  const x = Math.round(-16 * Math.sin(rad) * (back ? -1 : 1));
+  const y = Math.round(14 - 5 * lift);
+  const blur = Math.round(34 + 16 * lift);
+  const a = (0.18 + 0.1 * lift).toFixed(3);
+  return `${x}px ${y}px ${blur}px rgba(38,37,31,${a}), inset 0 1px 0 rgba(255,255,255,.55)`;
+};
