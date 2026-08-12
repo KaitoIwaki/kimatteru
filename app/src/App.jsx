@@ -1741,8 +1741,10 @@ export default class App extends React.Component {
       v.onRepPrevYear = ()=>this.setState(s=>({ym:{y:s.ym.y-1,m:s.ym.m}}));
       v.onRepNextYear = ()=>this.setState(s=>({ym:{y:s.ym.y+1,m:s.ym.m}}));
       // カードは月のぶんと年のぶん。開くところが違うだけで、画面は同じ
-      v.onOpenMonthCard = ()=>{ tapLight(); this.setState({screen:'summary', shareToast:false, cardKind:'month'}); };
-      v.onOpenYearCard = ()=>{ tapLight(); this.setState({screen:'summary', shareToast:false, cardKind:'year'}); };
+      // cardFrom を渡さないと、前に開いた画面（空き状況など）の値が残っていて、
+      // 閉じたときに違う画面へ戻る。
+      v.onOpenMonthCard = ()=>{ tapLight(); this.setState({screen:'summary', shareToast:false, cardKind:'month', cardFrom:'report'}); };
+      v.onOpenYearCard = ()=>{ tapLight(); this.setState({screen:'summary', shareToast:false, cardKind:'year', cardFrom:'report'}); };
     }
 
     // ---------- 空いてる日シェア (C) ----------
