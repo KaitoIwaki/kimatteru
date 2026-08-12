@@ -12,6 +12,8 @@ const TEAL_DARK = '#085041';
 const CORAL = '#D85A30';
 const CORAL_DARK = '#712B13';
 const GRAY_FILL = '#EDEEF0';
+const BAR_ON = '#7FAE85';   // 月ごとの棒。いちばん多い月
+const BAR_OFF = '#CEE0D1';  // それ以外の月
 
 const FONT = '"Hiragino Sans","Hiragino Kaku Gothic ProN",-apple-system,system-ui,sans-serif';
 const f = (size, weight = 400) => `${weight} ${size}px ${FONT}`;
@@ -65,101 +67,208 @@ function signature(ctx, x, y, size, label, sub) {
 }
 
 /**
- * 今月のまとめ（ストーリーズ向け 9:16）
+ * 今月のまとめ（横長 1080×680）
+ *
+ * 中身は「稼いだ額・働いた時間と日数・バイト先ごとの内訳」だけ。
+ * 前は「果たした約束」と「流れた予定」も出していたが、前者は遊びの予定を
+ * 確定にしただけの数で、約束を果たしたかどうかは誰も記録していない。
+ * 数えていないものを数えたふりをしていたので、やめた。
+ *
+ * 金額はすべて時給×実働で出した概算。深夜や残業の割増も交通費も入らないので、
+ * 「およそ」と書いてある。時間だけは本人が記録した値そのもので、正確。
  */
-export function drawSummaryCard({ yearMonth, wage, hours, promises, canceled, rhythm }) {
-  const W = 1080;
-  const H = 1920;
+export function drawMonthCard({ yearMonth, wage, hours, days, jobs }) {
+  const list = jobs || [];
+  // バイト先が3つ以上あると下に溢れるので、その数だけ背を伸ばす
+  const W = 1080, H = 680 + Math.max(0, list.length - 2) * 88, PAD = 84;
   const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
+  c.width = W; c.height = H;
   const ctx = c.getContext('2d');
+  cardBase(ctx, W, H);
 
+  ctx.fillStyle = INK_MUT;
+  ctx.font = f(27, 400);
+  fillTracked(ctx, yearMonth, PAD, 118, 3);
+
+  bigNumber(ctx, PAD, 252, wage, 128);
+
+  ctx.fillStyle = INK_MUT;
+  ctx.font = f(25, 400);
+  ctx.fillText(`およそ　${hours}・${days}日`, PAD, 302);
+
+  ctx.fillStyle = LINE;
+  ctx.fillRect(PAD, 356, W - PAD * 2, 2);
+
+  if (list.length) jobRows(ctx, PAD, 424, W - PAD * 2, list, 30, 88);
+  else emptyNote(ctx, PAD, 424, 26);
+
+  signature(ctx, PAD, H - 46, 30, '決まってる？');
+  return c;
+}
+
+/**
+ * 今年のまとめ（縦 1080×1440）
+ *
+ * 年のカードにカレンダーは合わない（365マスは描けない）ので、
+ * 月ごとの棒を置く。いちばん多かった月だけ濃くして、時間を添える。
+ */
+export function drawYearCard({ year, wage, hours, jobs, months }) {
+  const list = jobs || [];
+  const W = 1080, H = 1440 + Math.max(0, list.length - 2) * 116, PAD = 96;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  cardBase(ctx, W, H);
+
+  let y = 176;
+  ctx.fillStyle = INK_MUT;
+  ctx.font = f(30, 400);
+  fillTracked(ctx, year, PAD, y, 3);
+
+  y += 142;
+  bigNumber(ctx, PAD, y, wage, 132);
+
+  y += 56;
+  ctx.fillStyle = INK_MUT;
+  ctx.font = f(27, 400);
+  ctx.fillText(`およそ　${hours}`, PAD, y);
+
+  y += 78;
+  ctx.fillStyle = LINE;
+  ctx.fillRect(PAD, y, W - PAD * 2, 2);
+
+  y += 74;
+  if (list.length) y = jobRows(ctx, PAD, y, W - PAD * 2, list, 34, 116);
+  else y = emptyNote(ctx, PAD, y, 28) + 60;
+
+  y += 60;
+  ctx.fillStyle = INK_MUT;
+  ctx.font = f(24, 400);
+  fillTracked(ctx, '月ごとの働いた時間', PAD, y, 2);
+
+  y += 40;
+  monthBars(ctx, PAD, y, W - PAD * 2, 240, months);
+
+  signature(ctx, PAD, H - 84, 38, '決まってる？');
+  return c;
+}
+
+// ---- カードの部品 ----
+
+function cardBase(ctx, W, H) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, PAPER);
   g.addColorStop(1, PAPER2);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+}
 
-  const PAD = 108;
-  let y = 320;
+// 字間を開けて書く。canvas に letterSpacing が無い環境でも同じに出したいので、
+// 1文字ずつ置く（iOS の WKWebView は ctx.letterSpacing に対応していない版がある）。
+function fillTracked(ctx, text, x, y, sp) {
+  let cx = x;
+  for (const ch of String(text)) {
+    ctx.fillText(ch, cx, y);
+    cx += ctx.measureText(ch).width + sp;
+  }
+  return cx;
+}
 
-  ctx.font = f(40, 600);
+// 記号は数字より一段小さく薄く。数字が主役だと分かるように
+function bigNumber(ctx, x, y, parts, size) {
   ctx.fillStyle = INK_MUT;
-  ctx.fillText(yearMonth, PAD, y);
-  ctx.textAlign = 'right';
-  ctx.font = f(38, 600);
-  ctx.fillText('まとめ', W - PAD, y);
-  ctx.textAlign = 'left';
+  ctx.font = f(Math.round(size * 0.31), 400);
+  ctx.fillText(parts.unit, x, y);
+  const uw = ctx.measureText(parts.unit).width;
+  ctx.fillStyle = INK;
+  ctx.font = f(size, 300);
+  ctx.fillText(parts.num, x + uw + size * 0.06, y);
+}
 
-  // 予定のリズム（塗り＝決まった / 点線＝未確定 / 灰＝流れた）
-  y += 110;
-  const sq = 54;
-  const gap = 17;
-  const perRow = Math.floor((W - PAD * 2 + gap) / (sq + gap));
-  rhythm.slice(0, perRow * 4).forEach((r, i) => {
-    const cx = PAD + (i % perRow) * (sq + gap);
-    const cy = y + Math.floor(i / perRow) * (sq + gap);
-    rr(ctx, cx, cy, sq, sq, 12);
-    if (r.kind === 'solid') {
-      ctx.fillStyle = r.color;
-      ctx.fill();
-    } else if (r.kind === 'gone') {
-      ctx.fillStyle = GRAY_FILL;
+// バイト先ごとの行。丸の色は種類の色（バイトの緑）からずらした濃淡
+function jobRows(ctx, x, y, w, jobs, fs, gap) {
+  let cy = y;
+  for (const j of jobs || []) {
+    ctx.fillStyle = j.color;
+    ctx.beginPath();
+    ctx.arc(x + fs * 0.3, cy - fs * 0.32, fs * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 金額の幅を先に測り、残った幅に名前を収める。
+    // canvas には text-overflow が無いので、自分で切って「…」を付ける。
+    ctx.font = f(Math.round(fs * 1.36), 300);
+    const wageW = ctx.measureText(j.wage).width;
+    const room = w - fs - wageW - fs * 0.8;
+    ctx.fillStyle = INK;
+    ctx.font = f(fs, 400);
+    ctx.fillText(ellipsis(ctx, j.name, room), x + fs, cy);
+
+    ctx.fillStyle = INK_MUT;
+    ctx.font = f(Math.round(fs * 0.68), 400);
+    const sub = (j.hourly ? `時給 ¥${j.hourly}　` : '') + `${j.times}回　${j.hours}`;
+    ctx.fillText(sub, x + fs, cy + fs * 1.1);
+
+    ctx.fillStyle = INK;
+    ctx.font = f(Math.round(fs * 1.36), 300);
+    ctx.textAlign = 'right';
+    ctx.fillText(j.wage, x + w, cy);
+    ctx.textAlign = 'left';
+
+    cy += gap;
+  }
+  return cy;
+}
+
+// 月ごとの棒。まだ来ていない月は下に細い線だけ置く（空白にすると欠けて見える）
+function monthBars(ctx, x, y, w, h, months) {
+  const n = 12, gap = 10, bw = (w - gap * (n - 1)) / n;
+  const vals = months.filter((v) => v != null && v > 0);
+  const max = vals.length ? Math.max(...vals) : 1;
+  months.forEach((v, i) => {
+    const bx = x + i * (bw + gap);
+    if (!v) {
+      ctx.fillStyle = '#EDEFF3';
+      rr(ctx, bx, y + h - 4, bw, 4, 2);
       ctx.fill();
     } else {
-      ctx.fillStyle = r.paper;
+      const bh = Math.max(6, (v / max) * h);
+      const top = y + h - bh;
+      ctx.fillStyle = v === max ? BAR_ON : BAR_OFF;
+      rr(ctx, bx, top, bw, bh, Math.min(bw / 2, 10));
       ctx.fill();
-      ctx.strokeStyle = r.color;
-      ctx.lineWidth = 4;
-      ctx.setLineDash([9, 8]);
-      ctx.stroke();
-      ctx.setLineDash([]);
+      if (v === max) {
+        ctx.fillStyle = INK_MUT;
+        ctx.font = f(21, 400);
+        ctx.textAlign = 'center';
+        ctx.fillText(fmtBarHours(v), bx + bw / 2, top - 14);
+        ctx.textAlign = 'left';
+      }
     }
+    ctx.fillStyle = INK_FAINT;
+    ctx.font = f(21, 400);
+    ctx.textAlign = 'center';
+    ctx.fillText(String(i + 1), bx + bw / 2, y + h + 38);
+    ctx.textAlign = 'left';
   });
-  y += Math.ceil(Math.min(rhythm.length, perRow * 4) / perRow) * (sq + gap) + 150;
-
-  badge(ctx, PAD, y - 34, 52, TEAL, '✓', '#fff', 30);
-  ctx.font = f(34, 600);
-  ctx.fillStyle = TEAL_DARK;
-  ctx.fillText('稼いだ', PAD + 72, y + 3);
-
-  y += 200;
-  ctx.font = f(168, 800);
-  ctx.fillStyle = INK;
-  ctx.fillText(wage, PAD - 8, y);
-
-  y += 76;
-  ctx.font = f(36, 400);
-  ctx.fillStyle = INK_MUT;
-  ctx.fillText(`${hours} 働きました`, PAD, y);
-
-  y += 118;
-  ctx.fillStyle = LINE;
-  ctx.fillRect(PAD, y, W - PAD * 2, 2);
-
-  y += 140;
-  const colW = (W - PAD * 2) / 2;
-  badge(ctx, PAD, y - 30, 40, CORAL, '✓', '#fff', 23);
-  ctx.font = f(30, 600);
-  ctx.fillStyle = CORAL_DARK;
-  ctx.fillText('果たした約束', PAD + 56, y + 2);
-
-  badge(ctx, PAD + colW, y - 30, 40, GRAY_FILL, '×', INK_MUT, 24);
-  ctx.fillStyle = INK_MUT;
-  ctx.fillText('流れた予定', PAD + colW + 56, y + 2);
-
-  y += 140;
-  ctx.font = f(120, 800);
-  ctx.fillStyle = INK;
-  ctx.fillText(String(promises), PAD, y);
-  ctx.fillStyle = INK_FAINT;
-  ctx.fillText(String(canceled), PAD + colW, y);
-
-  signature(ctx, PAD, H - 210, 46, '決まってる？', '予定が一目でわかるカレンダー');
-
-  return c;
 }
+
+// 入る幅まで切って「…」を付ける
+function ellipsis(ctx, text, room) {
+  if (room <= 0 || ctx.measureText(text).width <= room) return text;
+  let out = text;
+  while (out.length > 1 && ctx.measureText(out + '…').width > room) out = out.slice(0, -1);
+  return out + '…';
+}
+
+// 働いた記録が無い月／年のとき。0円のカードを黙って出さない
+function emptyNote(ctx, x, y, fs) {
+  ctx.fillStyle = INK_FAINT;
+  ctx.font = f(fs, 400);
+  ctx.fillText('働いた記録がありません', x, y);
+  return y + fs * 1.6;
+}
+
+const fmtBarHours = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10) + 'h';
 
 /**
  * 空いてる日（予定の中身は出さない）

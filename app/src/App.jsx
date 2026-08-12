@@ -6,7 +6,7 @@ import { readLocal, readFile, saveLocal, saveFile } from './store';
 import { endsNextDay, busyEndMin } from './whenlib';
 import { loadTips, buyTip, probeTips, TIPS } from './tipjar';
 import { syncReminders, onNotificationTap } from './notify';
-import { drawSummaryCard, drawFreeCard, drawSupporterCard } from './sharecard';
+import { drawMonthCard, drawYearCard, drawFreeCard, drawSupporterCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
 import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, guessTypes, openAppSettings } from './calendarimport';
@@ -365,6 +365,43 @@ export default class App extends React.Component {
   // ひとかたまりの '¥86,400' のままだと、記号まで同じ大きさで出てしまう。
   // 数字を大きく細く、記号は小さく薄く——そうすると数字が主役として立つ。
   splitWage(n){ return { unit:'¥', num:n.toLocaleString('ja-JP') }; }
+
+  /**
+   * バイト先ごとの内訳。まとめ画面にも、書き出すカードにも同じものを使う。
+   *
+   * 色はバイト先ごとに変えるが、種類の色（バイトの緑）から濃淡をずらして作る。
+   * まったく別の色にすると「色＝種類」の決めが崩れる——カレンダーの上では
+   * バイトはどこも同じ緑なのに、内訳だけ別の色だと読み替えが要る。
+   * 濃淡なら「どれもバイト」と分かったまま、内訳の中では見分けられる。
+   */
+  _jobBreakdown(list){
+    const base = (this.T('baito')||{}).color || '#7FAE85';
+    const by = new Map();
+    for(const e of list){
+      const key = e.jobId || '__none__';
+      const cur = by.get(key) || { key, hours:0, wage:0, times:0 };
+      cur.hours += this.paidHours(e);
+      cur.wage += this.wage(e);
+      cur.times += 1;
+      by.set(key, cur);
+    }
+    const jobs = this.state.jobs || [];
+    const order = (k)=>{ const i=jobs.findIndex(j=>j.id===k); return i<0 ? 999 : i; };
+    return [...by.values()]
+      .sort((a,b)=>(order(a.key)-order(b.key)) || (b.wage-a.wage))
+      .map((r,i)=>{
+        const job = jobs.find(j=>j.id===r.key);
+        const l = this._mix(base, '#ffffff', i===0 ? 0 : Math.min(0.62, 0.22+(i-1)*0.2));
+        return {
+          name: job ? (job.name || '（名前なし）') : 'バイト先なし',
+          hourly: job ? (job.hourly|0) : null,
+          times: r.times,
+          hours: this.fmtHours(r.hours),
+          wage: this.fmtWage(Math.round(r.wage)),
+          color: `rgb(${l[0]},${l[1]},${l[2]})`,
+        };
+      });
+  }
   // その予定に使う時給。バイト先が決まっていればその時給、なければ設定の時給。
   hourlyFor(ev){
     const j = ev && ev.jobId ? (this.state.jobs||[]).find(x=>x.id===ev.jobId) : null;
@@ -971,7 +1008,7 @@ export default class App extends React.Component {
       onNavFree:()=>this.setState({screen:'free'}),
       onNavReport:()=>this.setState({screen:'report'}),
       onNavSettings:()=>{ this.setState({screen:'settings', editTypeKey:null}); this._loadTips(); },
-      onOpenSummary:()=>this.setState({screen:'summary', shareToast:false, cardFrom:st.screen}),
+      onOpenSummary:()=>this.setState({screen:'summary', shareToast:false, cardKind:'month', cardFrom:st.screen}),
       onSummaryClose:()=>this.setState(s=>({screen:s.cardFrom||'month'})),
       // カレンダーは指の動きについてくる。離したところで隣の月に収まるか、元に戻る。
       onMonthTouchStart:(e)=>{
@@ -1618,21 +1655,51 @@ export default class App extends React.Component {
     v.hideTrack=tgTrack(cfg.hideCanceled,'#5A6570'); v.hideKnob=tgKnob(cfg.hideCanceled);
     v.onToggleHide=()=>this.setSetting('hideCanceled',!cfg.hideCanceled);
 
-    // ---------- SUMMARY (B) ----------
+    // ---------- まとめカードのプレビュー ----------
+    // 月のぶんと年のぶんの2枚。どちらを開いたかは cardKind で決まる。
+    // 画面に出す値は sharecard.js に渡すものと同じ形にしてある——
+    // プレビューと書き出した画像がずれると、見て決めた意味がなくなる。
     v.summaryShown = st.screen==='summary';
     v.shareToast = st.shareToast;
     v.shareToastMsg = st.shareMsg || '';
-    // まとめは「表示している月」だけを集計する
-    const jis = st.events.filter(e=>e.y===st.ym.y && e.m===st.ym.m && e.status==='jisseki');
-    const totalH = jis.reduce((a,e)=>a+this.paidHours(e),0);
-    v.sumWage = this.fmtWage(jis.reduce((a,e)=>a+this.wage(e),0));
-    v.sumHours = this.fmtHours(totalH);
-    const monthEvents = st.events.filter(e=>e.y===st.ym.y && e.m===st.ym.m);
-    v.sumPromises = String(monthEvents.filter(e=>e.type==='asobi'&&e.status==='kakutei').length);
-    v.sumCanceled = String(monthEvents.filter(e=>e.status==='nakunatta').length);
-    v.sumYearMonth = st.ym.y+'年 '+(st.ym.m+1)+'月';
-    v.rhythm = monthEvents.map(e=>{ const t=this.T(e.type); const solid=e.status==='kakutei'||e.status==='jisseki';
-      return { style:{ width:14,height:14,borderRadius:4, ...(e.status==='nakunatta'?{background:'#EDEEF0'}: solid?{background:t.color,opacity:e.status==='jisseki'?.9:1}:{background:t.paper,border:'1.5px dashed '+t.color}) } }; });
+    if(v.summaryShown){
+      const Y=st.ym.y, M=st.ym.m;
+      const isYear = st.cardKind==='year';
+      v.cardIsYear = isYear;
+      const done = st.events.filter(e=>e.status==='jisseki' && e.y===Y && (isYear || e.m===M));
+      const wageSum = Math.round(done.reduce((a,e)=>a+this.wage(e),0));
+      const hourSum = done.reduce((a,e)=>a+this.paidHours(e),0);
+      v.cardTitle = isYear ? '今年のまとめ' : '今月のまとめ';
+      v.cardWhen = isYear ? Y+'年' : Y+'年 '+(M+1)+'月';
+      v.cardWageParts = this.splitWage(wageSum);
+      v.cardSub = isYear
+        ? 'およそ　'+this.fmtHours(hourSum)
+        : 'およそ　'+this.fmtHours(hourSum)+'・'+done.length+'日';
+      v.cardJobs = this._jobBreakdown(done);
+      v.cardEmpty = done.length===0;
+      // カードはバイト先の数だけ背が伸びる（sharecard.js と同じ式）。
+      // プレビューだけ寸法が変わらないと、見て決めたものと書き出したものが食い違う。
+      {
+        const n = v.cardJobs.length;
+        v.cardAspect = isYear
+          ? '1080/'+(1440 + Math.max(0, n-2)*116)
+          : '1080/'+(680 + Math.max(0, n-2)*88);
+      }
+      // 年のカードだけ、月ごとの棒を出す
+      if(isYear){
+        const per = Array.from({length:12},(_,i)=>done.filter(e=>e.m===i).reduce((a,e)=>a+this.paidHours(e),0));
+        const peak = Math.max(1, ...per);
+        v.cardBars = per.map((h,i)=>({
+          label:i+1,
+          top: h>0 ? (h===peak ? (h>=10?Math.round(h):Math.round(h*10)/10)+'h' : '') : '',
+          style:{ flex:1, height: h>0 ? Math.max(4, Math.round(h/peak*72))+'px' : '3px',
+            borderRadius: h>0 ? '4px' : '2px',
+            background: h>0 ? (h===peak ? '#7FAE85' : '#CEE0D1') : '#EDEFF3' },
+        }));
+      }
+      v.cardPng = st.cardPng || '';
+      v.onShareCard = ()=>this._shareCard(isYear ? 'year' : 'summary');
+    }
 
     // ---------- まとめ（働いた時間） ----------
     v.reportShown = st.screen==='report';
@@ -1654,7 +1721,11 @@ export default class App extends React.Component {
       v.repMonthDays = String(mo.days);
       v.repYearHours = this.fmtHours(yr.hours);
       v.repYearWage = this.fmtWage(yr.wage);
+      v.repYearWageParts = this.splitWage(yr.wage);
       v.repYearDays = String(yr.days);
+      // バイト先ごとの内訳。今月と今年、どちらも出す
+      v.repMonthJobs = this._jobBreakdown(doneAll.filter(e=>e.y===Y && e.m===M));
+      v.repYearJobs = this._jobBreakdown(doneAll.filter(e=>e.y===Y));
       v.repEmpty = doneAll.length===0;
       // 月ごとの棒。今年の12ヶ月ぶんを並べて、働いた量の起伏を見せる
       const perMonth = Array.from({length:12},(_,i)=>sum(doneAll.filter(e=>e.y===Y && e.m===i)).hours);
@@ -1669,7 +1740,9 @@ export default class App extends React.Component {
       }));
       v.onRepPrevYear = ()=>this.setState(s=>({ym:{y:s.ym.y-1,m:s.ym.m}}));
       v.onRepNextYear = ()=>this.setState(s=>({ym:{y:s.ym.y+1,m:s.ym.m}}));
-      v.onOpenSummaryCard = ()=>this.setState({screen:'summary', shareToast:false, cardFrom:'report'});
+      // カードは月のぶんと年のぶん。開くところが違うだけで、画面は同じ
+      v.onOpenMonthCard = ()=>{ tapLight(); this.setState({screen:'summary', shareToast:false, cardKind:'month'}); };
+      v.onOpenYearCard = ()=>{ tapLight(); this.setState({screen:'summary', shareToast:false, cardKind:'year'}); };
     }
 
     // ---------- 空いてる日シェア (C) ----------
@@ -2556,6 +2629,19 @@ export default class App extends React.Component {
       this._syncReminders();
       this._refreshNotif();
     }
+    // まとめカードのプレビュー。
+    // 前は同じ見た目を JSX でもう一度組んでいたが、寸法も文字の大きさも
+    // 実物と比例しておらず、プレビューでは収まっているのに書き出すと余る、
+    // という食い違いが出た。実物を描いて、その画像をそのまま見せる。
+    const st = this.state;
+    const need = st.screen === 'summary';
+    const key = need ? [st.cardKind, st.ym.y, st.ym.m, st.events.length, (st.jobs || []).length].join('/') : '';
+    if (need && key !== this._cardKey) {
+      this._cardKey = key;
+      this.setState({ cardPng: this._buildCard(st.cardKind === 'year' ? 'year' : 'summary').toDataURL('image/png') });
+    } else if (!need && this._cardKey) {
+      this._cardKey = '';
+    }
   }
 
   _syncReminders() {
@@ -2741,33 +2827,43 @@ export default class App extends React.Component {
     }
   }
 
+  /** 書き出すカードを組む。プレビューにも同じものを使う */
+  _buildCard(kind) {
+    const st = this.state;
+    const Y = st.ym.y, M = st.ym.m;
+    if (kind === 'year') {
+      const yr = st.events.filter((e) => e.y === Y && e.status === 'jisseki');
+      return drawYearCard({
+        year: `${Y}年`,
+        wage: this.splitWage(Math.round(yr.reduce((a, e) => a + this.wage(e), 0))),
+        hours: this.fmtHours(yr.reduce((a, e) => a + this.paidHours(e), 0)),
+        jobs: this._jobBreakdown(yr),
+        months: Array.from({ length: 12 }, (_, i) =>
+          yr.filter((e) => e.m === i).reduce((a, e) => a + this.paidHours(e), 0)),
+      });
+    }
+    // 今月。稼いだ額・時間と日数・バイト先ごとの内訳だけ。
+    // 「果たした約束」と「流れた予定」はやめた——前者は遊びの予定を確定にした
+    // 数でしかなく、約束を果たしたかどうかは誰も記録していない。
+    const jis = st.events.filter((e) => e.y === Y && e.m === M && e.status === 'jisseki');
+    return drawMonthCard({
+      yearMonth: `${Y}年 ${M + 1}月`,
+      wage: this.splitWage(Math.round(jis.reduce((a, e) => a + this.wage(e), 0))),
+      hours: this.fmtHours(jis.reduce((a, e) => a + this.paidHours(e), 0)),
+      days: jis.length,
+      jobs: this._jobBreakdown(jis),
+    });
+  }
+
   async _shareCard(kind) {
     tapLight();
     const st = this.state;
     const Y = st.ym.y, M = st.ym.m;
-    const monthEvents = st.events.filter((e) => e.y === Y && e.m === M);
     try {
       let canvas, name;
-      if (kind === 'summary') {
-        const jis = monthEvents.filter((e) => e.status === 'jisseki');
-        const totalH = jis.reduce((a, e) => a + this.paidHours(e), 0);
-        canvas = drawSummaryCard({
-          yearMonth: `${Y}年 ${M + 1}月`,
-          wage: this.fmtWage(jis.reduce((a, e) => a + this.wage(e), 0)),
-          hours: this.fmtHours(totalH),
-          promises: monthEvents.filter((e) => e.type === 'asobi' && e.status === 'kakutei').length,
-          canceled: monthEvents.filter((e) => e.status === 'nakunatta').length,
-          rhythm: monthEvents.map((e) => {
-            const t = this.T(e.type);
-            const solid = e.status === 'kakutei' || e.status === 'jisseki';
-            return {
-              kind: e.status === 'nakunatta' ? 'gone' : solid ? 'solid' : 'dashed',
-              color: t.color,
-              paper: t.paper,
-            };
-          }),
-        });
-        name = `kimatteru-${Y}-${M + 1}-summary.png`;
+      if (kind === 'summary' || kind === 'year') {
+        canvas = this._buildCard(kind);
+        name = kind === 'year' ? `kimatteru-${Y}-year.png` : `kimatteru-${Y}-${M + 1}-summary.png`;
       } else {
         const ws = st.settings.weekStart;
         const wl = ['日', '月', '火', '水', '木', '金', '土'];

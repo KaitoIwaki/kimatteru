@@ -871,402 +871,41 @@ export function renderApp(v) {
       )}
 
       {/* ===================== 今月のまとめ ===================== */}
+      {/* ===================== まとめカード（月／年） =====================
+          プレビューの中身は sharecard.js が描くものと同じ並びにしてある。
+          見て決めたものと、書き出した画像が違っては意味がない。
+          地は明色で固定（書き出す PNG に合わせる）。テーマ変数を使うと
+          ダークモードで白地に白文字になる。 */}
       {v.summaryShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:#1A1A1A')}>
           <div className="scr-head" style={s('padding:0 18px 8px;flex-shrink:0')}>
             <span style={s('font-size:16px;color:rgba(255,255,255,.65);cursor:pointer')} onClick={v.onSummaryClose}>閉じる</span>
-            <span style={s('font-size:14px;font-weight:400;color:rgba(255,255,255,.9)')}>今月のまとめ</span>
+            <span style={s('font-size:14px;font-weight:400;color:rgba(255,255,255,.9)')}>{v.cardTitle}</span>
             <span style={s('width:44px')} />
           </div>
           <div style={s('flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:10px 16px 20px')}>
-            <div style={s('width:100%;max-width:340px;aspect-ratio:9/16;background:linear-gradient(180deg,#FBFBFD 0%,#F4F6F8 100%);border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.5);padding:30px 26px;display:flex;flex-direction:column;overflow:hidden')}>
-              {/* このカードは地が明色で固定（書き出す PNG と同じ見た目にするため）。
-                  中の文字にテーマ変数を使うと、ダークモードで白地に白文字になる。
-                  色は sharecard.js の定数と揃えてある。 */}
-              <div style={s('display:flex;align-items:baseline;justify-content:space-between')}>
-                <span style={s('font-size:13px;font-weight:400;color:#8C887C;letter-spacing:.5px')}>{v.sumYearMonth}</span>
-                <span style={s('font-size:12px;font-weight:400;color:#8C887C')}>まとめ</span>
-              </div>
-
-              <div style={s('display:flex;flex-wrap:wrap;gap:4px;margin:20px 0 22px')}>
-                {(v.rhythm || []).map((r, i) => (<div key={i} style={s(r.style)} />))}
-              </div>
-
-              <div style={s('display:flex;align-items:center;gap:8px;margin-bottom:2px')}>
-                <span style={s('width:24px;height:24px;border-radius:15px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>✓</span>
-                <span style={s('font-size:13px;font-weight:400;color:#085041')}>稼いだ</span>
-              </div>
-              <div style={s('font-size:46px;font-weight:300;color:#26251F;letter-spacing:-1.5px;line-height:1.1')}>{v.sumWage}</div>
-              <div style={s('font-size:14px;color:#8C887C;margin-top:2px')}>{v.sumHours} 働きました</div>
-
-              <div style={s('height:1px;background:#E6E2D6;margin:22px 0')} />
-
-              <div style={s('display:flex;gap:14px')}>
-                <div style={s('flex:1')}>
-                  <div style={s('display:flex;align-items:center;gap:6px;margin-bottom:6px')}>
-                    <span style={s('width:16px;height:16px;border-radius:11px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:800')}>✓</span>
-                    <span style={s('font-size:12px;font-weight:400;color:#712B13')}>果たした約束</span>
-                  </div>
-                  <div style={s('font-size:34px;font-weight:300;color:#26251F;letter-spacing:-1px')}>{v.sumPromises}</div>
-                </div>
-                <div style={s('flex:1')}>
-                  <div style={s('display:flex;align-items:center;gap:6px;margin-bottom:6px')}>
-                    <span style={s('width:16px;height:16px;border-radius:11px;background:#EDEEF0;color:#8C887C;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700')}>×</span>
-                    <span style={s('font-size:12px;font-weight:400;color:#8C887C')}>流れた予定</span>
-                  </div>
-                  <div style={s('font-size:34px;font-weight:300;color:#B7B3A6;letter-spacing:-1px')}>{v.sumCanceled}</div>
-                </div>
-              </div>
-
-              <div style={s('flex:1')} />
-              {/* 1行に続けると折り返しがどこで起きるか分からず、
-                  「決まってる？」がどこまでなのか読めなかった。2段に分ける。 */}
-              <div style={s('display:flex;align-items:center;gap:8px;padding-top:16px')}>
-                <span style={s('font-size:15px;letter-spacing:-2px;flex-shrink:0')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C1C5CC')}>？</span></span>
-                <span style={s('display:flex;flex-direction:column;gap:1px;min-width:0')}>
-                  <span style={s('font-size:12px;font-weight:400;color:#55524A;white-space:nowrap')}>決まってる？</span>
-                  <span style={s('font-size:11px;font-weight:500;color:#8C887C;white-space:nowrap')}>予定が一目でわかるカレンダー</span>
-                </span>
-              </div>
-            </div>
+            {/* 実物をそのまま出す。同じ見た目を JSX でもう一度組むと、寸法も文字の
+                大きさも実物と比例せず、プレビューでは収まっているのに書き出すと
+                余る、という食い違いが起きる（実際に起きた）。 */}
+            {v.cardPng
+              ? <img src={v.cardPng} alt="" style={s('width:100%;max-width:340px;border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.5);display:block')} />
+              : <div style={s('width:100%;max-width:340px;aspect-ratio:1080/680;border-radius:16px;background:rgba(255,255,255,.06)')} />}
 
             <div style={s('display:flex;gap:10px;width:100%;max-width:340px;margin-top:18px')}>
-              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
+              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:600;cursor:pointer')} onClick={v.onShareCard}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
                   <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 </svg>
-                ストーリーズにシェア
+                画像にしてシェア
               </div>
+            </div>
+            <div style={s('margin-top:12px;font-size:11px;color:rgba(255,255,255,.4);line-height:1.8;text-align:center;max-width:340px')}>
+              金額は時給と実働から出した目安です。割増や交通費は入っていません。
             </div>
             {v.shareToast && (
-              <div style={s('margin-top:12px;font-size:12px;color:rgba(255,255,255,.55)')}>{v.shareToastMsg}</div>
+              <div style={s('margin-top:10px;font-size:12px;color:rgba(255,255,255,.55)')}>{v.shareToastMsg}</div>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* ===================== 空いてる日シェア ===================== */}
-      {v.shareShown && (
-        <div style={s('display:flex;flex-direction:column;height:100%;background:#1A1A1A')}>
-          <div className="scr-head" style={s('padding:0 18px 8px;flex-shrink:0')}>
-            <span style={s('font-size:16px;color:rgba(255,255,255,.65);cursor:pointer')} onClick={v.onShareClose}>閉じる</span>
-            <span style={s('font-size:14px;font-weight:400;color:rgba(255,255,255,.9)')}>空いてる日をシェア</span>
-            <span style={s('width:44px')} />
-          </div>
-          <div style={s('flex:1;overflow-y:auto;display:flex;flex-direction:column;align-items:center;padding:6px 16px 24px')}>
-            {/* まとめカードと同じ理由で、地も文字も固定色にする。
-                マスの色（#FAECE7 / #EDEEF0）が明色固定なので、地だけテーマに
-                従わせると書き出す PNG と食い違ってしまう。 */}
-            <div style={s('width:100%;max-width:340px;background:#FFFDF8;border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.5);padding:24px 22px 22px;overflow:hidden')}>
-              <div style={s('display:flex;align-items:center;gap:8px;margin-bottom:3px')}>
-                <span style={s('width:22px;height:22px;border-radius:7px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800')}>○</span>
-                <span style={s('font-size:13px;font-weight:400;color:#D85A30')}>わたしの空いてる日</span>
-              </div>
-              <div style={s('font-size:22px;font-weight:300;color:#26251F;letter-spacing:-.5px')}>{v.shareMonthLabel}月のあいてる日</div>
-              <div style={s('font-size:13px;color:#8C887C;margin:2px 0 18px')}>予定の中身は出していません</div>
-
-              <div style={s('display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:4px')}>
-                {(v.shareWeekdays || []).map((w, i) => (<div key={i} style={s(w.style)}>{w.label}</div>))}
-              </div>
-              <div style={s('display:grid;grid-template-columns:repeat(7,1fr);gap:5px')}>
-                {(v.shareCells || []).map((c, i) => (<div key={i} style={s(c.style)}>{c.label}</div>))}
-              </div>
-
-              <div style={s('display:flex;align-items:center;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid #E6E2D6')}>
-                <div style={s('display:flex;align-items:center;gap:6px')}>
-                  <span style={s('width:16px;height:16px;border-radius:5px;background:#FAECE7;border:1.5px solid #D85A30')} />
-                  <span style={s('font-size:12px;color:#55524A')}>空いてる</span>
-                </div>
-                <div style={s('display:flex;align-items:center;gap:6px')}>
-                  <span style={s('width:16px;height:16px;border-radius:5px;background:#EDEEF0')} />
-                  <span style={s('font-size:12px;color:#55524A')}>予定あり</span>
-                </div>
-                <div style={s('flex:1')} />
-                <span style={s('font-size:12px;letter-spacing:-2px')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C1C5CC')}>？</span></span>
-              </div>
-            </div>
-
-            <div style={s('width:100%;max-width:340px;margin-top:14px;font-size:12px;color:rgba(255,255,255,.5);text-align:center;text-wrap:pretty')}>埋まっている日は灰色のマスだけ。何の予定かは相手に伝わりません。</div>
-
-            <div style={s('display:flex;gap:10px;width:100%;max-width:340px;margin-top:16px')}>
-              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                </svg>
-                画像で送る
-              </div>
-            </div>
-            {v.shareToast && (
-              <div style={s('margin-top:12px;font-size:12px;color:rgba(255,255,255,.55)')}>{v.shareToastMsg}</div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ===================== SETTINGS ===================== */}
-      {v.settingsShown && (
-        <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
-          <div className="scr-head-solo" style={s('padding:0 20px 10px')}>
-            <span style={s('font-size:30px;font-weight:300;color:var(--ink);letter-spacing:-.5px')}>設定</span>
-          </div>
-          <div style={s('flex:1;overflow-y:auto;padding:8px 16px 110px')}>
-
-            {/* 設定は4つの群に分ける。並びは「よく触るもの → たまに触るもの → 見るだけ」。
-                前は見出しが7つ、説明の地の文が6か所に散っていて、開いた瞬間に
-                どこから見ればいいのか決められなかった（2画面ぶんあった）。
-                説明は群ごとに1つだけにする。 */}
-
-            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>カレンダー</div>
-<div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:10px')}>
-              {/* 群の見出しが「カレンダー」になったので、この行が何なのかは行の側で言う。
-                  たたんでいるあいだも、色の点だけは出しておく */}
-              <div style={s(`display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;${v.typeListOpen ? 'border-bottom:1px solid var(--line)' : ''}`)} onClick={v.onToggleTypeList}>
-                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>予定の種類</span>
-                <span style={s('display:flex;align-items:center;gap:5px;flex:1;min-width:0;flex-wrap:wrap;justify-content:flex-end')}>
-                  {(v.typeDots || []).map((d, i) => (<span key={i} style={s(d.style)} />))}
-                  {!!v.typeMoreLabel && <span style={s('font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums')}>{v.typeMoreLabel}</span>}
-                </span>
-                <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums;flex-shrink:0')}>{v.typeCountLabel}</span>
-                <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>{v.typeListOpen ? '⌄' : '›'}</span>
-              </div>
-              {v.typeListOpen && (<>
-              {(v.typeRows || []).map((t, i) => (
-                <div key={i} style={s(t.rowStyle)}>
-                  <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={t.onTap}>
-                    <span style={s(t.dotStyle)} />
-                    <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{t.name}</span>
-                    <span style={s('font-size:12px;color:var(--ink-faint)')}>{t.hint}</span>
-                  </div>
-                  {t.open && (
-                    <div style={s('padding:2px 16px 16px')}>
-                      <input value={t.name} onChange={t.onName} placeholder="種類の名前" style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
-                      <div style={s('display:flex;flex-wrap:wrap;gap:12px')}>
-                        {(t.swatches || []).map((sw, j) => (<div key={j} style={s(sw.style)} onClick={sw.onClick} />))}
-                      </div>
-                      <div style={s('font-size:11px;color:var(--ink-faint);margin-top:14px')}>{t.usedCount > 0 ? `${t.usedCount}件の予定で使っています` : 'まだ使っていません'}</div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onAddTypeRow}>
-                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:400')}>＋</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>種類を追加</span>
-              </div>
-              {v.newTypeShown && (
-                <div style={s('padding:2px 16px 16px;background:var(--bg2)')}>
-                  <input value={v.newTypeName} placeholder="種類の名前（例：ジム、勉強）" onChange={v.onNewTypeName} style={s('width:100%;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin:12px 0 14px')} />
-                  <div style={s('display:flex;flex-wrap:wrap;gap:12px')}>
-                    {(v.newTypeSwatches || []).map((sw, i) => (<div key={i} style={s(sw.style)} onClick={sw.onClick} />))}
-                  </div>
-                  <div style={s('display:flex;gap:8px;margin-top:16px')}>
-                    <div style={s('flex:1;text-align:center;padding:11px;border-radius:13px;background:var(--card);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer')} onClick={v.onCancelNewType}>やめる</div>
-                    <div style={s(v.addTypeBtnStyle)} onClick={v.onAddType}>この種類を追加</div>
-                  </div>
-                </div>
-              )}
-              </>)}
-            </div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)')}>
-                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>週のはじまり</span>
-                <div style={s('display:flex;background:var(--bg2);border-radius:13px;padding:2px;width:150px')}>
-                  {(v.weekSeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
-                </div>
-              </div>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
-                <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>「無くなった」予定を隠す</span>
-                  <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty')}>オフなら取り消し線で薄く残します</span>
-                </div>
-                <div style={s(v.hideTrack)} onClick={v.onToggleHide}><div style={s(v.hideKnob)} /></div>
-              </div>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
-                <span style={s('font-size:15px;color:var(--ink)')}>ダークモード</span>
-                <div style={s(v.darkTrack)} onClick={v.onToggleDark}><div style={s(v.darkKnob)} /></div>
-              </div>
-            </div>
-
-            {/* バイトを使っていない人には、ここは「追加」の1行だけになる。
-                リマインドの設定も、バイト先が1つも無いあいだは出さない
-                （何のことか分からない設定を見せない）。 */}
-            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>バイトと給料</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:10px')}>
-              {(v.jobRows || []).map((j, i) => (
-                <div key={i} style={s(j.rowStyle)}>
-                  <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={j.onTap}>
-                    <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{j.name}</span>
-                    <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>¥{j.hourly}</span>
-                    <span style={s('font-size:16px;color:var(--ink-faint)')}>{j.open ? '⌄' : '›'}</span>
-                  </div>
-                  {j.open && (
-                    <div style={s('padding:2px 16px 16px')}>
-                      <input value={j.name === '（名前なし）' ? '' : j.name} onChange={j.onName} placeholder="バイト先の名前（例：マクド、塾）" style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:12px')} />
-                      <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
-                        <span style={s('font-size:14px;color:var(--ink-mut)')}>時給</span>
-                        <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
-                          <div style={s(v.stepBtn)} onClick={j.onMinus}>−</div>
-                          <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
-                            <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft)')}>¥</span>
-                            <input value={j.hourly} onChange={j.onHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
-                          </div>
-                          <div style={s(v.stepBtn)} onClick={j.onPlus}>＋</div>
-                        </div>
-                      </div>
-                      <div style={s('display:flex;align-items:center;justify-content:space-between;margin-top:14px')}>
-                        <span style={s('font-size:11px;color:var(--ink-faint)')}>{j.usedCount > 0 ? `${j.usedCount}件の予定で使っています` : 'まだ使っていません'}</span>
-                        <span style={s('font-size:13px;color:#A8452B;cursor:pointer')} onClick={j.onRemove}>削除</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div style={s(`display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;${v.jobsEmpty ? '' : 'border-top:1px solid var(--line)'}`)} onClick={v.onAddJob}>
-                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:400')}>＋</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バイト先を追加</span>
-              </div>
-            </div>
-            {!v.jobsEmpty && (
-              <div style={s('background:var(--card);border-radius:17px;overflow:hidden')}>
-                <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
-                <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>シフト後に記録をリマインド</span>
-                  <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty')}>終わった時間に「実働どうだった？」を通知</span>
-                </div>
-                <div style={s(v.remindTrack)} onClick={v.onToggleRemind}><div style={s(v.remindKnob)} /></div>
-              </div>
-              </div>
-            )}
-            {v.jobsEmpty && (
-              <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px;line-height:1.8')}>
-                {''}<Jp parts={['時給は', 'バイト先ごとに', '決めます。']} />
-              </div>
-            )}
-            <div style={s('margin-bottom:24px')} />
-
-            {/* 取り込みと控えは、どちらも「予定の出し入れ」。別の見出しにする理由がない。
-                規約に「大切な予定は控えを取ってください」と書いてある以上、
-                取る手段と戻す手段はアプリ側が持っていないと筋が通らない。 */}
-            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>予定の出し入れ</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:8px')}>
-              {v.importAvailable && (
-                <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenImport}>
-                  <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
-                  <span style={s('flex:1;font-size:15px;color:var(--ink)')}>ほかのカレンダーから取り込む</span>
-                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-                </div>
-              )}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onExportBackup}>
-                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↑</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えを書き出す</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-              {/* 押したらそのままファイルをえらべる。中身をコピーして貼る手順は挟まない */}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onPickBackup}>
-                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えから戻す</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-            </div>
-            {/* 見えない入力。行から click() で開く */}
-            <input id="backup-file" type="file" accept=".json,application/json" onChange={v.onBackupFile}
-              style={s('display:none')} />
-            {!!v.backupError && (
-              <div style={s('font-size:11px;color:#A8452B;margin:0 8px 8px;line-height:1.6;text-wrap:pretty')}>{v.backupError}</div>
-            )}
-            {v.pasteOpen && (
-              <div style={s('background:var(--card);border-radius:17px;padding:14px;margin-bottom:8px')}>
-                <div style={s('font-size:11px;color:var(--ink-mut);line-height:1.7;margin:0 2px 8px;text-wrap:pretty')}>
-                  書き出した控えのファイルを開いて、中身を全部コピーしてここに貼ってください。
-                </div>
-                <textarea value={v.backupText} onChange={v.onBackupText} placeholder="控えの中身を貼り付け" rows={4}
-                  style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:12px;color:var(--ink);font-family:inherit;resize:none;line-height:1.6')} />
-                <div style={s(`margin-top:12px;padding:12px;border-radius:13px;text-align:center;font-size:14px;font-weight:700;cursor:pointer;background:var(--bg2);color:var(--ink);border:1px solid var(--line);${v.restoreDisabled ? 'opacity:.4' : ''}`)} onClick={v.restoreDisabled ? undefined : v.onAskRestore}>
-                  この控えから戻す
-                </div>
-              </div>
-            )}
-            {/* ここが唯一の「どこに保存されているか」の説明。
-                前は同じ趣旨のことを3か所に書いていた。 */}
-            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 8px;line-height:1.8;text-wrap:pretty')}>
-              {''}<Jp parts={['取り込みは読むだけで、', 'あなたのカレンダーには', '書き込みません。', '予定はこの端末の中だけに', 'あり、外部に', '送られることは', 'ありません。', '機種変更や紛失にそなえて、', 'ときどき控えを', '取っておいてください。']} />
-            </div>
-            {/* えらべなかった人が行き止まりにならないように、逃げ道は残しておく */}
-            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8;cursor:pointer;text-decoration:underline')} onClick={v.onTogglePaste}>
-              ファイルをえらべないときは、貼り付けでも戻せます
-            </div>
-
-            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
-              {/* サポーターカード。応援したことがある人にだけ出る。
-                  機能ではなく「自分がやったことの記録」なので、消耗型のままでいい。
-                  持ち物なので群の先頭に置くが、行の形はほかとそろえる。 */}
-              {v.supporterShown && (
-                <div style={s('display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenCard}>
-                  <span style={s('width:22px;height:22px;border-radius:11px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0')}>✓</span>
-                  <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
-                    <span style={s('font-size:15px;color:var(--ink)')}>サポーターカード</span>
-                    <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.supporterTotal}・{v.supporterCount}・{v.supporterSince}</span>
-                  </span>
-                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-                </div>
-              )}
-              <a href={v.reviewHref} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>App Store でレビューする</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </a>
-              {/* 連絡先はリンクにしつつ、住所そのものも出す。
-                  リンクが開かない環境でも、長押しでコピーできるように。 */}
-              <a href={v.contactHref} style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
-                <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>お問い合わせ</span>
-                  <span style={s('font-size:11px;color:var(--ink-mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{v.contactEmail}</span>
-                </span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </a>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenTerms}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>利用規約</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenPrivacy}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>プライバシーポリシー</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-
-              {/* 開発応援。規約の下に静かに置く。探した人だけが見つければいい。
-                  起動時に出したり、赤い点で気づかせたりはしない——
-                  新しい人に見せると物乞いに見える。
-                  商品が取れないときは、行ごと出さない。 */}
-              {v.tipShown && (<>
-                <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onToggleTip}>
-                  <span style={s('flex:1;font-size:15px;color:var(--ink)')}>開発を応援する</span>
-                  <span style={s(`font-size:12px;color:var(--ink-faint);transition:transform .2s ease;transform:rotate(${v.tipOpen ? '90deg' : '0deg'})`)}>▶</span>
-                </div>
-                {v.tipOpen && (
-                  <div style={s('background:var(--bg2);animation:riseUp .22s cubic-bezier(.2,.9,.2,1)')}>
-                    {(v.tipRows || []).map((t, i) => (
-                      <div key={i} style={s(t.rowStyle)} onClick={t.onClick}>
-                        <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
-                          <span style={s('font-size:15px;color:var(--ink)')}>{t.label}</span>
-                        </span>
-                        <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft);font-variant-numeric:tabular-nums')}>{t.price}</span>
-                      </div>
-                    ))}
-                    <div style={s('font-size:11px;color:var(--ink-faint);padding:12px 16px 14px;line-height:1.8;text-wrap:pretty')}>
-                      {''}<Jp parts={['応援しても、', '増える機能は', 'ありません。', '広告なし・通信なしの', 'ままで', '作りつづけます。']} />
-                    </div>
-                  </div>
-                )}
-              </>)}
-
-              {/* 5回叩くと診断が出る。ふつうに使う人には何も起きない */}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:default')} onClick={v.onTapVersion}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バージョン</span>
-                <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>{v.appVersion}</span>
-              </div>
-            </div>
-
           </div>
         </div>
       )}
@@ -1293,6 +932,19 @@ export function renderApp(v) {
                     <span style={s('font-size:40px;font-weight:300;color:var(--ink);letter-spacing:-.8px;font-variant-numeric:tabular-nums;line-height:1')}>{v.repMonthWageParts.num}</span>
                   </div>
                   <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.06em')}>{v.repMonthHours}・{v.repMonthDays}日</div>
+                  {/* バイト先ごとの内訳。掛け持ちだと、どちらでいくら稼いだかが要る */}
+                  {(v.repMonthJobs || []).length > 1 && (
+                    <div style={s('margin-top:16px;padding-top:14px;border-top:1px solid var(--line)')}>
+                      {(v.repMonthJobs || []).map((j, i) => (
+                        <div key={i} style={s(`display:flex;align-items:center;gap:8px;${i ? 'margin-top:10px' : ''}`)}>
+                          <span style={s({ width: 8, height: 8, borderRadius: 4, background: j.color, flexShrink: 0 })} />
+                          <span style={s('flex:1;font-size:13px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{j.name}</span>
+                          <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>{j.hours}</span>
+                          <span style={s('font-size:14px;font-weight:400;color:var(--ink);flex-shrink:0;font-variant-numeric:tabular-nums')}>{j.wage}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>月ごとの働いた時間</div>
@@ -1326,10 +978,24 @@ export function renderApp(v) {
                     <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた日数</span>
                     <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearDays}日</span>
                   </div>
-                  <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
+                  <div style={s(`display:flex;align-items:center;justify-content:space-between;padding:14px 16px;${(v.repYearJobs || []).length > 1 ? 'border-bottom:1px solid var(--line)' : ''}`)}>
                     <span style={s('font-size:14px;color:var(--ink-mut)')}>稼いだ額</span>
-                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearWage}</span>
+                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>およそ {v.repYearWage}</span>
                   </div>
+                  {/* バイト先ごとの内訳。掛け持ちのときだけ出す */}
+                  {(v.repYearJobs || []).length > 1 && (v.repYearJobs || []).map((j, i) => (
+                    <div key={i} style={s(`display:flex;align-items:center;gap:8px;padding:12px 16px;${i ? 'border-top:1px solid var(--line)' : ''}`)}>
+                      <span style={s({ width: 8, height: 8, borderRadius: 4, background: j.color, flexShrink: 0 })} />
+                      <span style={s('flex:1;font-size:13px;color:var(--ink-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{j.name}</span>
+                      <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>{j.hours}</span>
+                      <span style={s('font-size:14px;font-weight:400;color:var(--ink);flex-shrink:0;font-variant-numeric:tabular-nums')}>{j.wage}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* 金額は時給×実働の概算。割増も交通費も入らないので、そう書いておく。
+                    扶養の線を判定できる数字ではない。 */}
+                <div style={s('font-size:11px;color:var(--ink-faint);margin:-14px 6px 22px;line-height:1.8;text-wrap:pretty')}>
+                  {''}<Jp parts={['時間は', '記録したそのものです。', '金額は時給から出した目安で、', '割増や交通費は', '入っていません。']} />
                 </div>
               </>
             )}
@@ -1338,9 +1004,14 @@ export function renderApp(v) {
                 どの月を送るのかも分からなくなる。空き状況の画面に置いてある。 */}
             <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>シェア</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line)')}>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onOpenSummaryCard}>
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenMonthCard}>
                 <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>今月のまとめカード</span>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{v.repMonthLabel}のまとめカード</span>
+                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+              </div>
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onOpenYearCard}>
+                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{v.repYearLabel}のまとめカード</span>
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
               </div>
             </div>
