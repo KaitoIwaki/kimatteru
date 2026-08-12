@@ -27,15 +27,15 @@ app.build_configurations.each do |c|
   c.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'App/App.entitlements'
 end
 
+# App/ の中の .swift で、まだターゲットに入っていないものを入れる。
+# 1つずつ名前を書くと、足したときに入れ忘れる（ViewController.swift で実際にやりかけた）。
 app_group = proj.main_group.find_subpath('App', true)
-bridge = File.join(ROOT, 'ios/App/App/WidgetBridge.swift')
-if File.exist?(bridge)
-  already = app.source_build_phase.files_references.any? { |r| r.path.to_s.end_with?('WidgetBridge.swift') }
-  unless already
-    ref = app_group.find_file_by_path('WidgetBridge.swift') || app_group.new_file(bridge)
-    app.add_file_references([ref])
-    puts '・WidgetBridge.swift を App に入れた'
-  end
+Dir[File.join(ROOT, 'ios/App/App/*.swift')].sort.each do |path|
+  name = File.basename(path)
+  next if app.source_build_phase.files_references.any? { |r| r.path.to_s.end_with?(name) }
+  ref = app_group.find_file_by_path(name) || app_group.new_file(path)
+  app.add_file_references([ref])
+  puts "・#{name} を App に入れた"
 end
 
 # ---- 2. ウィジェットのターゲット ----
@@ -120,6 +120,9 @@ puts "  埋め込むもの      : #{embedded.join(', ')}"
 fail_msgs = []
 unless app_src.any? { |f| f.end_with?('WidgetBridge.swift') }
   fail_msgs << '★ WidgetBridge.swift が App に入っていない（窓口が無いのでウィジェットに何も届かない）'
+end
+unless app_src.any? { |f| f.end_with?('ViewController.swift') }
+  fail_msgs << '★ ViewController.swift が App に入っていない（窓口を登録する場所が無い）'
 end
 fail_msgs << '★ ウィジェットのソースが空' if widget_src.empty?
 fail_msgs << '★ ウィジェットが埋め込まれていない' if embedded.empty?
