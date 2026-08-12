@@ -616,6 +616,9 @@ export default class App extends React.Component {
     this.setState({probe:{running:true}});
     try{
       const r = await probeTips();
+      // ウィジェットの受け渡しも、ここで一緒に見えるようにする。
+      // 端末でしか分からないことなので、画面に出さないと原因が追えない。
+      r.widget = { there: widgetAvailable(), last: this._widgetLast || null };
       this.setState({probe:r});
       if(r.tips && r.tips.length) this.setState({tips:r.tips});
     }catch(e){
@@ -624,6 +627,15 @@ export default class App extends React.Component {
         error:'診断そのものが落ちた: '+((e&&e.message)||String(e)), tips:null }});
     }
   }
+  /** 診断から手で送る。自動で送るのを待たずに確かめられるように */
+  async sendWidgetNow(){
+    tapLight();
+    this._widgetStamp = null;               // 前と同じ中身でも送り直す
+    const r = await pushWidget(this.state);
+    this._widgetLast = r;
+    this.setState(s=>({probe:{...(s.probe||{}), widget:{ there: widgetAvailable(), last: r }}}));
+  }
+
   async buyTip(id){
     tapLight();
     const r = await buyTip(id);
@@ -1481,7 +1493,13 @@ export default class App extends React.Component {
         {k:'返ってきた数', val: String((p.got||[]).length)},
         {k:'返ってきたID', val: (p.got||[]).length ? p.got.join(String.fromCharCode(10)) : '（なし）'},
         {k:'エラー', val: p.error || '（なし）'},
+        {k:'ウィジェットの窓口', val: p.widget ? (p.widget.there ? 'ある' : 'ない') : '—'},
+        {k:'ウィジェットへ渡した結果', val: !p.widget || !p.widget.last ? '（まだ渡していない）'
+          : p.widget.last.ok
+            ? `渡せた（${p.widget.last.days}日ぶん・${p.widget.last.size}文字）`
+            : `渡せなかった：${p.widget.last.why}`},
       ];
+      v.onSendWidget = ()=>this.sendWidgetNow();
     }
 
     v.tipShown = Array.isArray(st.tips) && st.tips.length > 0;
@@ -2947,6 +2965,7 @@ export default class App extends React.Component {
   // 予定に関わるものが変わったときだけ渡す（画面を切り替えただけでは渡さない）。
   _pushWidget() {
     if (!widgetAvailable()) return;
+    if (this._widgetStamp === null) { this._widgetStamp = undefined; }
     const sig = [this.state.events.length, this.state.types.length, this.state.settings.weekStart].join('/');
     const stamp = JSON.stringify(this.state.events) + sig;
     if (stamp === this._widgetStamp) return;

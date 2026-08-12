@@ -1456,6 +1456,9 @@ export function renderApp(v) {
               </div>
             ))}
             <div style={s('display:flex;gap:8px;margin-top:14px')}>
+              <div style={s('flex:1;text-align:center;padding:11px;border-radius:12px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:400;cursor:pointer')} onClick={v.onSendWidget}>ウィジェットに送る</div>
+            </div>
+            <div style={s('display:flex;gap:8px;margin-top:8px')}>
               <div style={s('flex:1;text-align:center;padding:11px;border-radius:12px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:400;cursor:pointer')} onClick={v.onProbeRetry}>もう一度読む</div>
               <div style={s('flex:1;text-align:center;padding:11px;border-radius:12px;background:var(--ink);color:var(--card);font-size:14px;font-weight:700;cursor:pointer')} onClick={v.onProbeClose}>閉じる</div>
             </div>
