@@ -216,10 +216,22 @@ const sanitizeJobs = (list) => (Array.isArray(list) ? list.filter(
 // 種類に新しい項目（既定の時間帯など）を足しても、すでに使っている人の
 // 保存データには入っていない。合成しないと、新しい項目が誰にも届かない。
 // 名前と色は本人が変えている可能性があるので、保存側を優先する。
+// 前の既定色。これのままなら、新しい既定色に入れ替える。
+// 自分で色を選んだ人はそのまま——選んだことのほうが、こちらの好みより重い。
+const OLD_DEFAULT_COLORS = {
+  yoji: '#534AB7', baito: '#1D9E75', asobi: '#D85A30', other: '#5A6570',
+};
+
 const mergeTypes = (saved, builtin) => {
   const filled = saved.map((t) => {
     const base = builtin.find((b) => b.key === t.key);
-    return base ? { ...base, ...t } : t;
+    if (!base) return t;
+    // 既定のままなら、色まわり（color / paper / dark）を組み込みの新しいものにする。
+    // { ...base, ...t } だと保存されている古い色が勝ってしまい、新しい色が誰にも届かない。
+    const untouched = OLD_DEFAULT_COLORS[t.key] && t.color === OLD_DEFAULT_COLORS[t.key];
+    return untouched
+      ? { ...base, ...t, color: base.color, paper: base.paper, dark: base.dark }
+      : { ...base, ...t };
   });
   // 並び順も組み込みに合わせる。並びは画面のチップの順そのものなので、
   // 先頭を入れ替えたら、すでに使っている人にも届かないと意味がない。
@@ -275,7 +287,7 @@ export default class App extends React.Component {
     }
   }
 
-  PAL = ['#1D9E75','#534AB7','#D85A30','#2F72C4','#C43C7A','#C99A16','#5A6570','#3B8E8A'];
+  PAL = ['#8B7AB8','#7FAE85','#D2916A','#A85C6B','#C7A24A','#6FA8B8','#6E85BE','#D0A0BC','#9C7F6E','#5FA8A2','#8A8A8A','#55555F'];
   ITEM = 34;
   // stable wheel ref + scroll callbacks (identity fixed so scroll position survives re-renders)
   refStartH=(n)=>this._attach(n,'start','h'); refStartM=(n)=>this._attach(n,'start','m');
@@ -312,10 +324,12 @@ export default class App extends React.Component {
     draft:{ title:'', type:'yoji', status:'kakutei', start:'10:00', end:'11:00', y:todayParts().y, m:todayParts().m, day:todayParts().d, allDay:false, picking:null },
     // 並び順がそのまま画面のチップの並びになる。既定が用事なので、用事を先頭に置く。
     types:[
-      {key:'yoji',  name:'用事',   color:'#534AB7', paper:'rgba(238,237,254,.72)', dark:'#3C3489', uWord:'まだ分からない用事', cWord:'確定した用事'},
-      {key:'baito', name:'バイト', color:'#1D9E75', paper:'rgba(225,245,238,.72)', dark:'#085041', uWord:'希望シフト', cWord:'確定シフト', defStart:'17:00', defEnd:'22:00'},
-      {key:'asobi', name:'遊び',   color:'#D85A30', paper:'rgba(250,236,231,.72)', dark:'#712B13', uWord:'候補日', cWord:'約束'},
-      {key:'other', name:'その他', color:'#5A6570', paper:'rgba(233,235,238,.72)', dark:'#374151', uWord:'未確定の予定', cWord:'予定'},
+      // paper は paperFrom(color) と同じ値。手で書くと式とずれる（実際に一度ずれた）ので、
+      // 変えるときは必ず paperFrom の寄せ量で計算し直すこと。
+      {key:'yoji',  name:'用事',   color:'#8B7AB8', paper:'rgba(211,204,228,.72)', dark:'#463D5C', uWord:'まだ分からない用事', cWord:'確定した用事'},
+      {key:'baito', name:'バイト', color:'#7FAE85', paper:'rgba(206,224,209,.72)', dark:'#405743', uWord:'希望シフト', cWord:'確定シフト', defStart:'17:00', defEnd:'22:00'},
+      {key:'asobi', name:'遊び',   color:'#D2916A', paper:'rgba(238,213,198,.72)', dark:'#694935', uWord:'候補日', cWord:'約束'},
+      {key:'other', name:'その他', color:'#8A8A8A', paper:'rgba(211,211,211,.72)', dark:'#454545', uWord:'未確定の予定', cWord:'予定'},
     ],
     events: [],
   };
@@ -324,13 +338,23 @@ export default class App extends React.Component {
   T(key){ return this.state.types.find(t=>t.key===key) || this.state.types[0]; }
   _h(hex){ hex=hex.replace('#',''); return [0,2,4].map(i=>parseInt(hex.slice(i,i+2),16)); }
   _mix(a,b,t){ const A=this._h(a),B=this._h(b); return A.map((v,i)=>Math.round(v+(B[i]-v)*t)); }
-  paperFrom(hex){ const l=this._mix(hex,'#ffffff',.84); return `rgba(${l[0]},${l[1]},${l[2]},.72)`; }
+  // 点線ピルの地。色を白に寄せたうえで、さらに .72 の透けで白い紙に載る。
+  // 目に入るのは「2回白へ寄ったあと」の色なので、寄せる量はそこから逆算する。
+  // 寄せ .84（前）＝実効で ΔE 5.8、いちばん近いのは 用事とその他。
+  // 色そのものをやさしくした（彩度 66 → 36 前後）ので、同じ .84 だと 3.7 まで落ちる。
+  // .62 まで下げると 7.7 になり、濃い色だったころより見分けやすい。
+  // 色＝種類は、点線のときにも効いていないと意味がない。
+  paperFrom(hex){ const l=this._mix(hex,'#ffffff',.62); return `rgba(${l[0]},${l[1]},${l[2]},.72)`; }
   darkFrom(hex){ const d=this._mix(hex,'#000000',.5); return `rgb(${d[0]},${d[1]},${d[2]})`; }
   // 塗りの濃さ。白に寄せるほど紙になじむ。FILL_SOFT の一箇所で全体が変わる。
   softFill(hex){ const l=this._mix(hex,'#ffffff',FILL_SOFT); return `rgb(${l[0]},${l[1]},${l[2]})`; }
   softLine(hex){ const l=this._mix(hex,'#ffffff',FILL_SOFT*0.5); return `rgb(${l[0]},${l[1]},${l[2]})`; }
   // 薄い塗りの上に置く文字。読みやすさを保つために濃いめにする。
-  inkOn(hex){ const d=this._mix(hex,'#000000',.58); return `rgb(${d[0]},${d[1]},${d[2]})`; }
+  // 色のついた地に乗る文字。
+  // .58 だったが、やさしい色にしたぶん地が明るくなり、ダークモードの点線ピルで
+  // 4.4 まで落ちた（点線の地は白に寄せて作るので、暗い画面では中間の明るさになる）。
+  // .66 にすると、明るい画面でも暗い画面でも、濃い色だったころ以上になる。
+  inkOn(hex){ const d=this._mix(hex,'#000000',.66); return `rgb(${d[0]},${d[1]},${d[2]})`; }
 
   // ---- time ----
   mins(s){ const [h,m]=s.split(':').map(Number); return h*60+m; }
