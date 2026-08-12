@@ -3,6 +3,7 @@ import { renderApp } from './view.jsx';
 import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
 import { readLocal, readFile, saveLocal, saveFile } from './store';
+import { pushWidget, widgetAvailable } from './widgetbridge';
 import { endsNextDay, busyEndMin } from './whenlib';
 import { loadTips, buyTip, probeTips, TIPS } from './tipjar';
 import { syncReminders, onNotificationTap } from './notify';
@@ -2938,6 +2939,19 @@ export default class App extends React.Component {
   _flushFile() {
     clearTimeout(this._fileTimer);
     saveFile(this.state);
+    this._pushWidget();
+  }
+
+  // ウィジェットへの受け渡し。ファイルを書くのと同じ間合いでよい——
+  // ホーム画面のウィジェットは、そもそも数分おきにしか描き直されない。
+  // 予定に関わるものが変わったときだけ渡す（画面を切り替えただけでは渡さない）。
+  _pushWidget() {
+    if (!widgetAvailable()) return;
+    const sig = [this.state.events.length, this.state.types.length, this.state.settings.weekStart].join('/');
+    const stamp = JSON.stringify(this.state.events) + sig;
+    if (stamp === this._widgetStamp) return;
+    this._widgetStamp = stamp;
+    pushWidget(this.state).then((r) => { this._widgetLast = r; });
   }
 
   render() {
