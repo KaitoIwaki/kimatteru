@@ -9,7 +9,9 @@
 # 実行: ruby app/tools/add-widget-target.rb
 require 'xcodeproj'
 
-ROOT       = File.expand_path('../..', __dir__)          # app/
+# __dir__ は app/tools。その1つ上が app/。
+# ここを '../..' にすると根まで出てしまい、ios/App を見つけられない（実際にやった）。
+ROOT       = File.expand_path('..', __dir__)             # app/
 PROJECT    = File.join(ROOT, 'ios/App/App.xcodeproj')
 WIDGET     = 'KimatteruWidget'
 WIDGET_DIR = File.join(ROOT, 'ios/App', WIDGET)
