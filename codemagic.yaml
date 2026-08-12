@@ -19,16 +19,22 @@ workflows:
         XCODE_PROJECT: "app/ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
         BUNDLE_ID: "com.kimatteru.app"
+        WIDGET_BUNDLE_ID: "com.kimatteru.app.widget"
       # ios_signing は既存のプロファイルを探すだけで、無いときに作ってくれない。
       # 下の「署名の準備」で --create 付きで取得する。
     scripts:
+      # 本体とウィジェットで、署名ファイルが別々に要る。
+      # 拡張のぶんを忘れると「プロファイルが無い」でビルドが止まる。
       - name: 署名ファイルを取得（無ければ作成）
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --certificate-key=@env:CERTIFICATE_PRIVATE_KEY \
-            --create
+          for ID in "$BUNDLE_ID" "$WIDGET_BUNDLE_ID"; do
+            echo "▶ 署名ファイル: $ID"
+            app-store-connect fetch-signing-files "$ID" \
+              --type IOS_APP_STORE \
+              --certificate-key=@env:CERTIFICATE_PRIVATE_KEY \
+              --create
+          done
           keychain add-certificates
       - name: 依存関係をインストール
         script: npm --prefix app ci
@@ -38,6 +44,13 @@ workflows:
         script: |
           cd app
           npx cap sync ios
+      # Mac が手元に無いので、Xcode を開く代わりにスクリプトでターゲットを足す。
+      # cap sync がプロジェクトを書き換えるので、必ずそのあとに流す。
+      # 何度流しても同じ結果になるように書いてある。
+      - name: ウィジェットのターゲットを組み込む
+        script: |
+          gem install xcodeproj --no-document || sudo gem install xcodeproj --no-document
+          ruby app/tools/add-widget-target.rb
       # agvtool は VERSIONING_SYSTEM = "apple-generic" が前提。
       # これが無いと採番が黙って効かず、ビルド番号が 1 のままになる。
       # 同じ 版＋ビルド番号 は App Store Connect が重複として弾くので、
