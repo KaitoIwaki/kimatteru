@@ -102,5 +102,29 @@ unless app.dependencies.any? { |d| d.target == target }
 end
 
 proj.save
+
+# ---- 5. 確かめる ----
+# 入っているつもりで入っていない、が一番たちが悪い。ビルドは通り、アプリも動き、
+# ウィジェットにだけ何も届かない。そうなると実機を見ても原因が分からないので、
+# ここで声を上げて止める。
+app_src    = app.source_build_phase.files_references.map { |r| r.path.to_s }
+widget_src = target.source_build_phase.files_references.map { |r| r.path.to_s }
+embedded   = embed.files_references.map { |r| r.path.to_s }
+
 puts "できた: #{PROJECT}"
-puts "  ターゲット: #{proj.targets.map(&:name).join(', ')}"
+puts "  ターゲット        : #{proj.targets.map(&:name).join(', ')}"
+puts "  App のソース      : #{app_src.join(', ')}"
+puts "  ウィジェットのソース: #{widget_src.join(', ')}"
+puts "  埋め込むもの      : #{embedded.join(', ')}"
+
+fail_msgs = []
+unless app_src.any? { |f| f.end_with?('WidgetBridge.swift') }
+  fail_msgs << '★ WidgetBridge.swift が App に入っていない（窓口が無いのでウィジェットに何も届かない）'
+end
+fail_msgs << '★ ウィジェットのソースが空' if widget_src.empty?
+fail_msgs << '★ ウィジェットが埋め込まれていない' if embedded.empty?
+unless fail_msgs.empty?
+  puts fail_msgs
+  abort('組み込みが不完全なので、ここで止める')
+end
+puts '確かめた：窓口・ウィジェット・埋め込み、すべて入っている'
