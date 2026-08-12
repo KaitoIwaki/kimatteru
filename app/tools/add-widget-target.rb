@@ -43,7 +43,7 @@ target = proj.targets.find { |t| t.name == WIDGET }
 if target
   puts "・#{WIDGET} はすでにある"
 else
-  target = proj.new_target(:app_extension, WIDGET, :ios, '15.0')
+  target = proj.new_target(:app_extension, WIDGET, :ios, '17.0')
   puts "・#{WIDGET} を作った"
 end
 
@@ -70,7 +70,10 @@ target.build_configurations.each do |c|
     'CODE_SIGN_ENTITLEMENTS'       => "#{WIDGET}/#{WIDGET}.entitlements",
     'CODE_SIGN_STYLE'              => 'Automatic',
     'SWIFT_VERSION'                => '5.0',
-    'IPHONEOS_DEPLOYMENT_TARGET'   => '15.0',
+    # ウィジェットだけ 17.0。16以前と両対応にすると、余白を切る指定が
+    # 版によって型の違う値を返し、Swift の戻り値の書き方が通らない。
+    # アプリ本体は 15.0 のまま（拡張のほうが高くても構わない）。
+    'IPHONEOS_DEPLOYMENT_TARGET'   => '17.0',
     'TARGETED_DEVICE_FAMILY'       => '1',
     'MARKETING_VERSION'            => '1.0',
     'CURRENT_PROJECT_VERSION'      => '1',
