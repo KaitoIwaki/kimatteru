@@ -1870,13 +1870,13 @@ export default class App extends React.Component {
           const dayColor = (hol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)';
           return {
             blank:false, day:d,
-            bgStyle:{background:'var(--card)',cursor:'pointer',...colLine(i)},
+            // 今日はマスごと薄く塗る。前は数字の後ろに黒い丸を敷いていたが、
+            // 丸は場所を取るうえ、日曜や祝日の赤・土曜の青を白文字で塗りつぶしてしまう。
+            // マスを塗れば、曜日の色を保ったまま「ここが今日」と言える。
+            // （輪郭だけにする案は前に試して弱すぎた。面なら足りる。）
+            bgStyle:{background: isToday ? 'var(--today-cell)' : 'var(--card)',cursor:'pointer',...colLine(i)},
             numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
-            // 今日は塗りつぶした丸。一度これを輪郭だけにしてみたが、
-            // 弱すぎたので戻した（画面で一番濃いインクでよい、という判断）。
-            numStyle: isToday
-              ? {display:'inline-flex',alignItems:'center',justifyContent:'center',width:20,height:20,borderRadius:13,background:'var(--ink)',color:'var(--card)',fontSize:11,fontWeight:600}
-              : {fontSize:11,fontWeight:(hol||dow===0||dow===6)?600:500, color:dayColor},
+            numStyle: {fontSize:11, fontWeight: isToday ? 700 : ((hol||dow===0||dow===6)?600:500), color:dayColor},
             onDay:()=>this.openDay(d),
           };
         });

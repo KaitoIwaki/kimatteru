@@ -76,6 +76,9 @@ let LINE = Color(red: 0.902, green: 0.886, blue: 0.839)
 let BG = Color(red: 0.984, green: 0.984, blue: 0.992)
 let UNDECIDED = Color(red: 0.545, green: 0.478, blue: 0.722)   // 用事の藤色
 let SUMI = Color(red: 0.353, green: 0.341, blue: 0.314)        // 月の点を色なしにするとき用
+// 当日のマス。数字の後ろに丸を敷くと縦を食って、予定の点が下へ押し出される。
+// マスごと塗れば場所を取らず、点は数字と次の週の数字のあいだに収まる。
+let TODAY_BG = Color(red: 0.906, green: 0.914, blue: 0.933)
 
 // MARK: - 日付
 
@@ -370,31 +373,35 @@ struct MonthGrid: View {
 
     @ViewBuilder
     private func cell(_ m: MonthCell) -> some View {
-        VStack(spacing: 1.5) {
-            if let d = m.day {
-                Text("\(d)")
-                    .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
-                    .foregroundColor(m.isToday ? .white : (m.dots.isEmpty ? INK_FAINT : INK))
-                    .frame(width: numSize + 8, height: numSize + 8)
-                    .background(
-                        Circle().fill(m.isToday ? INK : Color.clear)
-                    )
-                HStack(spacing: 1.6) {
-                    ForEach(Array(m.dots.prefix(3).enumerated()), id: \.offset) { _, it in
-                        if it.solid {
-                            Circle()
-                                .fill(colored ? plain(it.c) : SUMI)
-                                .frame(width: dotR * 2, height: dotR * 2)
-                        } else {
-                            Circle()
-                                .strokeBorder(colored ? plain(it.c) : SUMI, lineWidth: 1)
-                                .frame(width: dotR * 2, height: dotR * 2)
+        ZStack {
+            if m.isToday {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(TODAY_BG)
+                    .padding(.horizontal, 1.5)
+                    .padding(.vertical, 0.5)
+            }
+            VStack(spacing: 2) {
+                if let d = m.day {
+                    Text("\(d)")
+                        .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
+                        .foregroundColor(m.dots.isEmpty && !m.isToday ? INK_FAINT : INK)
+                    HStack(spacing: 1.6) {
+                        ForEach(Array(m.dots.prefix(3).enumerated()), id: \.offset) { _, it in
+                            if it.solid {
+                                Circle()
+                                    .fill(colored ? plain(it.c) : SUMI)
+                                    .frame(width: dotR * 2, height: dotR * 2)
+                            } else {
+                                Circle()
+                                    .strokeBorder(colored ? plain(it.c) : SUMI, lineWidth: 1)
+                                    .frame(width: dotR * 2, height: dotR * 2)
+                            }
                         }
                     }
+                    .frame(height: dotR * 2)
+                } else {
+                    Color.clear
                 }
-                .frame(height: dotR * 2)
-            } else {
-                Color.clear
             }
         }
     }

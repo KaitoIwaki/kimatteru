@@ -160,15 +160,20 @@ function medBoth() {
 }
 
 
-// 数字の下に点を置く形。塗りの点＝決まった予定、輪＝まだのもの。
-// 5pt の点線は潰れて読めないが、輪なら読める。しかも1日に両方あるときは
-// 「●○」と並べられるので、どちらを優先するかを決めずに済む。
+// 当日の出し方を3通り描く。
+//  A いまの形（数字の後ろに黒い丸）
+//  B マスをうっすら塗る（丸なし）
+//  C 黒い丸を小さく残す
+// 丸は縦を食うので、予定の点が下へ押し出される。マスを塗れば場所を取らない。
 const SUMI = '#5A5750';
+const TODAY_BG = '#E7E9EE';
+
 function monthDots(x0, y0, w, h, days, opt = {}) {
   const cw = w / 7;
   const rows = Math.ceil((days.first + days.last) / 7);
   const rh = opt.rh || 20;
-  const dr = opt.dr || 2.1;          // 点の半径
+  const dr = opt.dr || 2.4;
+  const mode = opt.mode || 'A';
   let out = '';
   ['日', '月', '火', '水', '木', '金', '土'].forEach((d, i) => {
     out += t(x0 + cw * i + cw / 2, y0, d, 8, 400, FAINT, 'middle');
@@ -178,45 +183,52 @@ function monthDots(x0, y0, w, h, days, opt = {}) {
     const idx = days.first + d - 1, col = idx % 7, row = Math.floor(idx / 7);
     const cx = x0 + cw * col + cw / 2, cy = top + row * rh;
     const marks = days.dots[d] || [];
-    if (days.today === d) {
-      out += `<circle cx="${cx * S}" cy="${(cy + 4.5) * S}" r="${9 * S}" fill="${BODY}"/>`;
+    const isToday = days.today === d;
+
+    // 数字の位置。丸がなければ上に寄せられるので、点は行と行のあいだに来る
+    let numY, dotY, numColor = marks.length ? BODY : FAINT;
+    if (mode === 'A') {
+      if (isToday) out += `<circle cx="${cx * S}" cy="${(cy + 4.5) * S}" r="${9 * S}" fill="${BODY}"/>`;
+      numY = cy + 8; dotY = cy + 14.5;
+      if (isToday) numColor = '#ffffff';
+    } else if (mode === 'B') {
+      if (isToday) out += `<rect x="${(cx - cw / 2 + 1.5) * S}" y="${(cy - 3) * S}" width="${(cw - 3) * S}" height="${(rh - 2) * S}" rx="${4 * S}" fill="${TODAY_BG}"/>`;
+      numY = cy + 6; dotY = cy + 12.5;
+      if (isToday) numColor = BODY;
+    } else {
+      if (isToday) out += `<circle cx="${cx * S}" cy="${(cy + 2.5) * S}" r="${6.5 * S}" fill="${BODY}"/>`;
+      numY = cy + 6; dotY = cy + 12.5;
+      if (isToday) numColor = '#ffffff';
     }
-    out += t(cx, cy + 8, String(d), 10, days.today === d ? 600 : 400,
-             days.today === d ? '#ffffff' : (marks.length ? BODY : FAINT), 'middle');
+    out += t(cx, numY, String(d), 10, isToday ? 600 : 400, numColor, 'middle');
+
     const n = Math.min(marks.length, 3);
     const span = (n - 1) * (dr * 2 + 1.6);
     marks.slice(0, 3).forEach((m, k) => {
       const dx = cx - span / 2 + k * (dr * 2 + 1.6);
-      const dy = cy + 14.5;
       out += m.solid
-        ? `<circle cx="${dx * S}" cy="${dy * S}" r="${dr * S}" fill="${opt.color ? T[m.type] : SUMI}"/>`
-        : `<circle cx="${dx * S}" cy="${dy * S}" r="${(dr - 0.35) * S}" fill="none" stroke="${opt.color ? T[m.type] : SUMI}" stroke-width="${1 * S}"/>`;
+        ? `<circle cx="${dx * S}" cy="${dotY * S}" r="${dr * S}" fill="${T[m.type]}"/>`
+        : `<circle cx="${dx * S}" cy="${dotY * S}" r="${(dr - 0.35) * S}" fill="none" stroke="${T[m.type]}" stroke-width="${1 * S}"/>`;
     });
   }
   return out;
 }
 
-// 1日に複数ある日も入れる
 const DOTS = {
-  1: [{ type: 'baito', solid: 1 }],
-  5: [{ type: 'baito', solid: 1 }],
-  6: [{ type: 'baito', solid: 1 }],
+  1: [{ type: 'baito', solid: 1 }], 5: [{ type: 'baito', solid: 1 }], 6: [{ type: 'baito', solid: 1 }],
   9: [{ type: 'baito', solid: 1 }, { type: 'yoji', solid: 1 }],
   12: [{ type: 'asobi', solid: 1 }],
   13: [{ type: 'baito', solid: 1 }, { type: 'asobi', solid: 0 }],
-  15: [{ type: 'asobi', solid: 0 }],
-  19: [{ type: 'baito', solid: 0 }],
+  15: [{ type: 'asobi', solid: 0 }], 19: [{ type: 'baito', solid: 0 }],
   20: [{ type: 'other', solid: 0 }, { type: 'yoji', solid: 0 }],
-  22: [{ type: 'baito', solid: 1 }],
-  24: [{ type: 'yoji', solid: 0 }],
+  22: [{ type: 'baito', solid: 1 }], 24: [{ type: 'yoji', solid: 0 }],
   26: [{ type: 'other', solid: 1 }, { type: 'baito', solid: 1 }, { type: 'asobi', solid: 0 }],
-  27: [{ type: 'baito', solid: 0 }],
-  29: [{ type: 'yoji', solid: 1 }],
-  31: [{ type: 'baito', solid: 1 }],
+  27: [{ type: 'baito', solid: 0 }], 29: [{ type: 'yoji', solid: 1 }], 31: [{ type: 'baito', solid: 1 }],
 };
 const MONTH2 = { first: 6, last: 31, today: 13, dots: DOTS };
+const NAMES = { A: '案A｜いまの形（数字の後ろに黒い丸）', B: '案B｜マスをうっすら塗る（丸なし）', C: '案C｜黒い丸を小さく残す' };
 
-function medDots(color) {
+function medDots(mode) {
   const W = 338, H = 158, P = 14, LW = 148;
   let s = `<rect width="${W * S}" height="${H * S}" fill="${BG}"/>`;
   s += t(P, P + 10, '8月13日（木）', 11, 400, MUT, null, 0.4);
@@ -224,31 +236,12 @@ function medDots(color) {
   s += pill(P, P + 22, LW - 14, 26, TODAY1[0]);
   s += t(P, P + 74, 'このあと', 9, 400, FAINT, null, 0.6);
   s += t(P, P + 90, '土 15日　18:00 花火', 10.5, 400, MUT);
-  s += monthDots(P + LW, P + 4, W - P * 2 - LW, H - P * 2 - 4, MONTH2, { rh: 20, dr: 2.1, color });
-  return { name: color ? '案② 点に色をつける' : '案① 点は墨だけ（●＝決まった／○＝まだ）', W, H, svg: s };
-}
-
-// ── 大：月カレンダー ────────────────────────────
-function bigMonth() {
-  const W = 338, H = 354, P = 16;
-  let s = `<rect width="${W * S}" height="${H * S}" fill="${BG}"/>`;
-  s += t(P, P + 10, '8月13日（木）', 11, 400, MUT, null, 0.4);
-  s += t(W - P, P + 10, 'まだ 1件', 10.5, 400, UND, 'end');
-  s += month(P, P + 30, W - P * 2, 150, MONTH, { rh: 23 });
-  s += `<rect x="${P * S}" y="${(P + 186) * S}" width="${(W - P * 2) * S}" height="${1 * S}" fill="${LINE}"/>`;
-  s += t(P, P + 206, '今日', 10, 400, MUT, null, 0.6);
-  s += pill(P, P + 214, W - P * 2, 24, TODAY1[0]);
-  s += t(P, P + 262, 'まだ決まっていない', 10, 400, MUT, null, 0.6);
-  UNDECIDED.forEach((u, i) => {
-    const y = P + 270 + i * 26;
-    s += t(P, y + 15, u.when, 10, 400, FAINT);
-    s += pill(P + 48, y + 2, W - P * 2 - 48, 22, u.ev);
-  });
-  return { name: '大A｜月カレンダー ＋ 今日 ＋ まだ', W, H, svg: s };
+  s += monthDots(P + LW, P + 4, W - P * 2 - LW, H - P * 2 - 4, MONTH2, { rh: 20, dr: 2.4, mode });
+  return { name: NAMES[mode], W, H, svg: s };
 }
 
 (async () => {
-  const cards = [medDots(false), medDots(true), medMonth()];
+  const cards = [medDots('A'), medDots('B'), medDots('C')];
   const SC = 2.0, GAP = 22, LEFT = 20, TOP = 34;
   const imgs = [];
   for (const c of cards) {
@@ -266,6 +259,6 @@ function bigMonth() {
     y += i.h + GAP + 22;
   }
   await sharp({ create: { width: W, height: totalH, channels: 3, background: '#DDE1E8' } })
-    .composite(comp).png().toFile('../store-assets/widget-dots.png');
+    .composite(comp).png().toFile('../store-assets/widget-today.png');
   console.log('できた');
 })();

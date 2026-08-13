@@ -22,6 +22,9 @@
   --ink-mut: #82878F;
   --ink-faint: #B3B8C0;
   --glass: rgba(246, 247, 249, 0.9);
+  /* 今日のマス。数字の後ろの黒い丸をやめて、面で示すために足した。
+     --bg2 より一段濃くしないと、マスの区切りに紛れて見えない。 */
+  --today-cell: #E7E9EE;
 }
 
 [data-theme='dark'] {
@@ -35,6 +38,7 @@
   --ink-mut: #8C887C;
   --ink-faint: #5E5C51;
   --glass: rgba(26, 26, 23, 0.9);
+  --today-cell: #34322B;
 }
 
 html,
