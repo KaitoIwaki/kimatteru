@@ -438,13 +438,27 @@ struct SmallView: View {
                             }
                         }
                     }
-                } else {
+                } else if !entry.rest.isEmpty {
                     ForEach(Array(entry.rest.prefix(2).enumerated()), id: \.offset) { _, it in
                         Pill(item: it, height: 26)
                     }
                     if entry.rest.count > 2 {
                         Text("ほか \(entry.rest.count - 2)件")
                             .font(.system(size: 9.5)).foregroundColor(INK_FAINT)
+                    }
+                } else if !entry.ahead.isEmpty {
+                    // 今日が1件だけの日は下が空く。この先の予定で埋める。
+                    // 外側の間隔（8pt）のままだと 158pt に収まらないので、ここだけ詰める
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("このあと").font(.system(size: 9))
+                            .foregroundColor(INK_FAINT).tracking(0.6)
+                        ForEach(Array(entry.ahead.prefix(2).enumerated()), id: \.offset) { _, a in
+                            HStack(spacing: 6) {
+                                Text(a.short).font(.system(size: 9.5)).foregroundColor(INK_FAINT)
+                                    .frame(width: 12, alignment: .leading)
+                                Pill(item: a.item, height: 20)
+                            }
+                        }
                     }
                 }
             } else {
@@ -510,33 +524,46 @@ struct MediumView: View {
 
 // MARK: - 大 338×354
 //
-// 月を大きく出して、その下に今日と、まだ決まっていないもの。
-// 「その日空いてる？」に答えたうえで、「決めなきゃいけないもの」が残る。
+// 縦は 354pt しかない。積み上げると、はみ出したぶんは SwiftUI が全体を縮めて
+// 詰め込むので、余白が消えて息が詰まって見える（実際にそうなった。89pt 超えていた）。
+// なので、どの場合でも 39〜71pt 余るように寸法を決めてある。
+//
+//   余白32 ＋ 日付14 ＋ 月(曜日11＋6行×19) ＋ 線まわり9 ＋ 今日17
+//   ＋ 予定 最大3件×27 ＋ メモ1行16 ＋（まだ 12＋5＋2件×25）
+//
+// 増やすときは、この積み上げを崩さないこと。
 
 struct LargeView: View {
     let entry: Entry
+
+    /// 「まだ決まっていない」を出す余地があるか。今日が詰まっている日は出さない
+    private var showUndecided: Bool {
+        !entry.undecidedAhead.isEmpty && entry.today.count <= 1
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Head(entry: entry, long: true)
 
             MonthGrid(weekdays: entry.monthWeekdays, cells: entry.month,
-                      rowH: 25, dotR: 2.8, numSize: 11)
-                .padding(.top, 10)
+                      rowH: 19, dotR: 2.6, numSize: 11)
+                .padding(.top, 8)
 
-            Rectangle().fill(LINE).frame(height: 1).padding(.top, 10)
+            Rectangle().fill(LINE).frame(height: 1).padding(.top, 8)
 
             if entry.today.isEmpty {
-                Empty(entry: entry, big: 17).padding(.top, 14)
+                Empty(entry: entry, big: 17).padding(.top, 12)
             } else {
                 Text("今日").font(.system(size: 10)).foregroundColor(INK_MUT)
                     .tracking(0.6).padding(.top, 12)
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(entry.today.prefix(3).enumerated()), id: \.offset) { _, item in
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(Array(entry.today.prefix(3).enumerated()), id: \.offset) { i, item in
                         Pill(item: item, height: 24)
-                        if let memo = item.m, !memo.isEmpty {
+                        // メモは1件目だけ、1行。全部にぶら下げると縦が足りない
+                        if i == 0, let memo = item.m, !memo.isEmpty {
                             HStack(alignment: .top, spacing: 6) {
                                 RoundedRectangle(cornerRadius: 1).fill(LINE)
-                                    .frame(width: 1.5, height: 12).padding(.leading, 7)
+                                    .frame(width: 1.5, height: 11).padding(.leading, 7)
                                 Text(memo.prefix(4).joined(separator: "・"))
                                     .font(.system(size: 10)).foregroundColor(INK_MUT).lineLimit(1)
                             }
@@ -547,18 +574,18 @@ struct LargeView: View {
                             .font(.system(size: 10)).foregroundColor(INK_FAINT)
                     }
                 }
-                .padding(.top, 6)
+                .padding(.top, 5)
             }
 
-            if !entry.undecidedAhead.isEmpty && entry.today.count <= 2 {
+            if showUndecided {
                 Text("まだ決まっていない").font(.system(size: 10)).foregroundColor(INK_MUT)
-                    .tracking(0.6).padding(.top, 14)
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(entry.undecidedAhead.prefix(3).enumerated()), id: \.offset) { _, a in
+                    .tracking(0.6).padding(.top, 12)
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(Array(entry.undecidedAhead.prefix(2).enumerated()), id: \.offset) { _, a in
                         AheadLine(a: a, long: true)
                     }
                 }
-                .padding(.top, 6)
+                .padding(.top, 5)
             }
             Spacer(minLength: 0)
         }
