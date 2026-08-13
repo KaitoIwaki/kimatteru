@@ -396,12 +396,18 @@ struct MonthGrid: View {
         // 前（数字の下に短い線）と高さの合計を 1pt も変えないため——
         // 大のウィジェットは行の高さに余裕がなく、0.5pt が6行ぶん積もると詰まる。
         VStack(spacing: 0) {
-            // 今日はマスの上辺に線。今日でない日にも同じ場所を空けておく
+            // 今日はマスの上に線。今日でない日にも同じ場所を空けておく
             // （置かないと、今日の列だけ数字が下にずれる）
+            //
+            // 長さはマス幅ではなく、数字の 1.4 倍で置く。
+            // アプリの月表示はマス幅いっぱいに引いているが、あちらはマスに
+            // 区切り線があるので「このマスの上辺」と読める。ウィジェットには
+            // 区切りが無いので、マス幅いっぱいだと行を分ける線に見えてしまう。
+            // 中（マス21.5pt）と大（マス43.7pt）で幅が倍ちがうのに、
+            // どちらも数字に添う長さになる。
             RoundedRectangle(cornerRadius: 0.75)
                 .fill(m.isToday ? TODAY_MARK : Color.clear)
-                .frame(height: 1.5)
-                .padding(.horizontal, 1)
+                .frame(width: numSize * 1.4, height: 1.5)
             if let d = m.day {
                 Text("\(d)")
                     .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
