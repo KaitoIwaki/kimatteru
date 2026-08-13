@@ -430,24 +430,31 @@ struct MonthGrid: View {
 
 // MARK: - 小 158×158
 //
-// 日付を主役にする。前は 11pt の日付を上に小さく置いていたが、予定が1件しか
-// ない日は下が丸ごと空いて、何のためのウィジェットか分からない見た目になった。
-// 大きい日付なら、予定が無い日でも「今日を見るもの」として立つ。
+// 日付を主役にする。小に出すのは今日のことだけ——この先の予定は入れない。
+// 「今日、何時から？」に答えるのが小の役目で、先のことは中と大が持つ。
 //
-// 積み上げ（158pt）：余白28 ＋ 月と「まだ」13 ＋ 大きい日付34 ＋ 予定2件×30
+// 積み上げ（158pt）：余白28 ＋ 日付のかたまり50 ＋ あき12 ＋ 予定2件×28
+// 予定が3件以上ある日は、2件出して数を右上に添える（下に「ほか○件」を
+// 置くと縦が足りない）。
+//
 // 日付の色は、祝日と日曜が赤、土曜が青。アプリの月表示と同じ。
 
 struct BigDate: View {
     let entry: Entry
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 4) {
+        HStack(alignment: .top, spacing: 7) {
             Text("\(entry.dayNum)")
-                .font(.system(size: 30, weight: .light))
+                .font(.system(size: 46, weight: .light))
                 .foregroundColor(color)
-            Text(entry.dayWeek)
-                .font(.system(size: 12))
-                .foregroundColor(color.opacity(0.85))
-            Spacer(minLength: 0)
+                .fixedSize()
+            // 細い縦線をはさんで、曜日を縦に置く。日本のカレンダーの見慣れた形
+            Rectangle().fill(LINE).frame(width: 1, height: 42).padding(.top, 4)
+            VStack(alignment: .leading, spacing: -1) {
+                ForEach(Array(Array("\(entry.dayWeek)曜日").enumerated()), id: \.offset) { _, ch in
+                    Text(String(ch)).font(.system(size: 12)).foregroundColor(color)
+                }
+            }
+            .padding(.top, 3)
         }
     }
     private var color: Color {
@@ -459,63 +466,45 @@ struct SmallView: View {
     let entry: Entry
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 件数はこの行にまとめる。下に「ほか○件」を置くと、予定が3件ある日に
-            // 4pt しか余らなくなった（大きい日付を入れたぶん、縦の余裕が無い）
-            HStack {
-                Text(entry.monthLabel)
-                    .font(.system(size: 10)).foregroundColor(INK_MUT).tracking(0.4)
-                Spacer(minLength: 4)
-                if !entry.today.isEmpty {
-                    Text("\(entry.today.count)件")
-                        .font(.system(size: 10)).foregroundColor(INK_MUT)
+            HStack(alignment: .top, spacing: 4) {
+                BigDate(entry: entry)
+                Spacer(minLength: 0)
+                // 件数は右上に小さく。3件以上あっても、下に行を足さずに済む
+                VStack(alignment: .trailing, spacing: 1) {
+                    if entry.today.count > 2 {
+                        Text("\(entry.today.count)件")
+                            .font(.system(size: 10)).foregroundColor(INK_MUT)
+                    }
+                    if entry.undecided > 0 {
+                        Text("まだ \(entry.undecided)")
+                            .font(.system(size: 10)).foregroundColor(UNDECIDED)
+                    }
                 }
-                if entry.undecided > 0 {
-                    Text("まだ \(entry.undecided)")
-                        .font(.system(size: 10)).foregroundColor(UNDECIDED)
-                }
+                .padding(.top, 2)
             }
-            BigDate(entry: entry).padding(.top, 1)
 
             if let head = entry.head {
                 VStack(alignment: .leading, spacing: 4) {
                     Pill(item: head, height: 24)
+                    // 持ち物があれば、2件目の予定の代わりに出す。
+                    // 大きい日付を入れたぶん、2件目と持ち物の両方は入らない。
+                    // 行ごとに並べる縦の余裕も無いので、1行にまとめる。
                     if let memo = head.m, !memo.isEmpty {
-                        ForEach(Array(memo.prefix(2).enumerated()), id: \.offset) { _, m in
-                            MemoLine(text: m)
+                        HStack(alignment: .top, spacing: 5) {
+                            Circle().fill(INK_FAINT).frame(width: 3, height: 3).padding(.top, 5)
+                            Text(memo.prefix(4).joined(separator: "・"))
+                                .font(.system(size: 10.5)).foregroundColor(INK)
+                                .lineLimit(1).truncationMode(.tail)
                         }
-                    } else if !entry.rest.isEmpty {
-                        // 2件目まで。3件目からは出さない（件数は上の行に出ている）
-                        ForEach(Array(entry.rest.prefix(1).enumerated()), id: \.offset) { _, it in
-                            Pill(item: it, height: 24)
-                        }
-                    } else if let a = entry.ahead.first {
-                        // 今日が1件だけの日は下が空く。この先の予定で埋める
-                        HStack(spacing: 6) {
-                            Text(a.short).font(.system(size: 9.5)).foregroundColor(INK_FAINT)
-                                .frame(width: 12, alignment: .leading)
-                            Pill(item: a.item, height: 22)
-                        }
+                    } else if let second = entry.rest.first {
+                        Pill(item: second, height: 24)
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 12)
             } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(entry.loaded ? "予定なし" : "アプリを開いてください")
-                        .font(.system(size: 13)).foregroundColor(INK_MUT)
-                    if entry.loaded && entry.weekUndecided > 0 {
-                        Text("今週 まだ\(entry.weekUndecided)件")
-                            .font(.system(size: 10)).foregroundColor(INK_FAINT)
-                    }
-                    if let a = entry.ahead.first {
-                        HStack(spacing: 6) {
-                            Text(a.short).font(.system(size: 9.5)).foregroundColor(INK_FAINT)
-                                .frame(width: 12, alignment: .leading)
-                            Pill(item: a.item, height: 22)
-                        }
-                        .padding(.top, 2)
-                    }
-                }
-                .padding(.top, 8)
+                Text(entry.loaded ? "今日の予定なし" : "アプリを開いてください")
+                    .font(.system(size: 14)).foregroundColor(INK_MUT)
+                    .padding(.top, 16)
             }
             Spacer(minLength: 0)
         }
