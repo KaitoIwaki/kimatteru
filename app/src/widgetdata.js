@@ -11,6 +11,10 @@
 //
 // ここは純粋な計算だけにしてある（保存も通信もしない）ので、Node で試せる。
 
+// 拡張子まで書く。ここは Node でそのまま動かして試したいので
+// （Vite は省略しても解決するが、Node は解決しない）
+import { holidayName } from './holidays.js';
+
 export const WIDGET_VERSION = 1;
 
 // 何日ぶん書き出すか。前日 ＋ 今日 ＋ 先20日。
@@ -112,12 +116,21 @@ export function buildWidgetPayload(state, today) {
     if (days[k].length > MAX_PER_DAY) days[k] = days[k].slice(0, MAX_PER_DAY);
   }
 
+  // 祝日。ウィジェットで日付を赤くするために渡す。
+  // ウィジェット側は曜日しか分からないので、これが無いと祝日が黒いままになる。
+  const hol = [];
+  for (let n = from; n <= to; n++) {
+    const d = fromDayNo(n);
+    if (holidayName(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())) hol.push(key(n));
+  }
+
   return {
     v: WIDGET_VERSION,
     at: today.getTime(),
     weekStart: settings.weekStart === 1 ? 1 : 0,
     from: key(from),
     to: key(to),
+    hol,
     days,
   };
 }

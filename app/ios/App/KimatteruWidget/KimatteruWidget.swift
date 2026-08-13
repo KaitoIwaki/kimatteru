@@ -43,6 +43,7 @@ struct Item: Decodable, Hashable {
 struct Payload: Decodable {
     let weekStart: Int
     let days: [String: [Item]]
+    let hol: [String]?          // 祝日の日付。日付を赤くするために使う
 }
 
 // MARK: - 色
@@ -80,6 +81,9 @@ let SUMI = Color(red: 0.353, green: 0.341, blue: 0.314)        // 月の点を�
 // ウィジェットの点の場所は予定の印で埋まっている。代わりに数字の下に短い線を引く。
 // 面（マスの塗り）にはしない——アプリと形が違いすぎると、同じカレンダーに見えない。
 let TODAY_MARK = Color(red: 0.149, green: 0.145, blue: 0.122)
+// 祝日と日曜は赤、土曜は青。アプリの月表示と同じ色。
+let HOLIDAY_RED = Color(red: 0.706, green: 0.271, blue: 0.227)
+let SATURDAY_BLUE = Color(red: 0.239, green: 0.431, blue: 0.612)
 
 // MARK: - 日付
 
@@ -121,6 +125,10 @@ struct Entry: TimelineEntry {
     let weekUndecided: Int        // 「今週 まだ○件」に使う
     let monthWeekdays: [String]
     let month: [MonthCell]
+    let dayNum: Int             // 今日の日
+    let dayWeek: String         // 今日の曜日
+    let dayColor: Int           // 0=ふつう 1=赤（祝日・日曜） 2=青（土曜）
+    let monthLabel: String      // 「8月」
     let loaded: Bool
 
     var undecided: Int { today.filter { !$0.solid }.count }
@@ -151,7 +159,10 @@ struct Provider: TimelineProvider {
         let cal = Calendar.current
         guard let p = load() else {
             return Entry(date: now, today: [], ahead: [], undecidedAhead: [],
-                         weekUndecided: 0, monthWeekdays: WD, month: [], loaded: false)
+                         weekUndecided: 0, monthWeekdays: WD, month: [],
+                         dayNum: cal.component(.day, from: now), dayWeek: weekday(now),
+                         dayColor: 0, monthLabel: "\(cal.component(.month, from: now))月",
+                         loaded: false)
         }
         let today = p.days[dayKey(now)] ?? []
 
@@ -203,9 +214,17 @@ struct Provider: TimelineProvider {
         }
         let weekdays = (0..<7).map { WD[($0 + p.weekStart) % 7] }
 
+        // 今日の日付の色。祝日と日曜は赤、土曜は青
+        let wd = cal.component(.weekday, from: now) - 1
+        let isHoliday = (p.hol ?? []).contains(dayKey(now))
+        let dayColor = (isHoliday || wd == 0) ? 1 : (wd == 6 ? 2 : 0)
+
         return Entry(date: now, today: today, ahead: ahead, undecidedAhead: undecidedAhead,
                      weekUndecided: undecided,
-                     monthWeekdays: weekdays, month: month, loaded: true)
+                     monthWeekdays: weekdays, month: month,
+                     dayNum: cal.component(.day, from: now), dayWeek: weekday(now),
+                     dayColor: dayColor, monthLabel: "\(cal.component(.month, from: now))月",
+                     loaded: true)
     }
 }
 
@@ -410,59 +429,93 @@ struct MonthGrid: View {
 }
 
 // MARK: - 小 158×158
+//
+// 日付を主役にする。前は 11pt の日付を上に小さく置いていたが、予定が1件しか
+// ない日は下が丸ごと空いて、何のためのウィジェットか分からない見た目になった。
+// 大きい日付なら、予定が無い日でも「今日を見るもの」として立つ。
+//
+// 積み上げ（158pt）：余白28 ＋ 月と「まだ」13 ＋ 大きい日付34 ＋ 予定2件×30
+// 日付の色は、祝日と日曜が赤、土曜が青。アプリの月表示と同じ。
+
+struct BigDate: View {
+    let entry: Entry
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text("\(entry.dayNum)")
+                .font(.system(size: 30, weight: .light))
+                .foregroundColor(color)
+            Text(entry.dayWeek)
+                .font(.system(size: 12))
+                .foregroundColor(color.opacity(0.85))
+            Spacer(minLength: 0)
+        }
+    }
+    private var color: Color {
+        entry.dayColor == 1 ? HOLIDAY_RED : entry.dayColor == 2 ? SATURDAY_BLUE : INK
+    }
+}
 
 struct SmallView: View {
     let entry: Entry
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Head(entry: entry, long: false)
+        VStack(alignment: .leading, spacing: 0) {
+            // 件数はこの行にまとめる。下に「ほか○件」を置くと、予定が3件ある日に
+            // 4pt しか余らなくなった（大きい日付を入れたぶん、縦の余裕が無い）
+            HStack {
+                Text(entry.monthLabel)
+                    .font(.system(size: 10)).foregroundColor(INK_MUT).tracking(0.4)
+                Spacer(minLength: 4)
+                if !entry.today.isEmpty {
+                    Text("\(entry.today.count)件")
+                        .font(.system(size: 10)).foregroundColor(INK_MUT)
+                }
+                if entry.undecided > 0 {
+                    Text("まだ \(entry.undecided)")
+                        .font(.system(size: 10)).foregroundColor(UNDECIDED)
+                }
+            }
+            BigDate(entry: entry).padding(.top, 1)
+
             if let head = entry.head {
-                Pill(item: head, height: 26)
-                if let memo = head.m, !memo.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(Array(memo.prefix(3).enumerated()), id: \.offset) { _, m in
+                VStack(alignment: .leading, spacing: 4) {
+                    Pill(item: head, height: 24)
+                    if let memo = head.m, !memo.isEmpty {
+                        ForEach(Array(memo.prefix(2).enumerated()), id: \.offset) { _, m in
                             MemoLine(text: m)
                         }
-                    }
-                    // 残りの予定は1行に畳む。塗り／点線の印だけは残す
-                    if let next = entry.rest.first {
-                        HStack(spacing: 6) {
-                            Mark(item: next)
-                            Text("\(next.time) \(next.n)")
-                                .font(.system(size: 10)).foregroundColor(INK_MUT)
-                                .lineLimit(1)
-                            Spacer(minLength: 0)
-                            if entry.rest.count > 1 {
-                                Text("＋\(entry.rest.count - 1)")
-                                    .font(.system(size: 9.5)).foregroundColor(INK_FAINT)
-                            }
+                    } else if !entry.rest.isEmpty {
+                        // 2件目まで。3件目からは出さない（件数は上の行に出ている）
+                        ForEach(Array(entry.rest.prefix(1).enumerated()), id: \.offset) { _, it in
+                            Pill(item: it, height: 24)
                         }
-                    }
-                } else if !entry.rest.isEmpty {
-                    ForEach(Array(entry.rest.prefix(2).enumerated()), id: \.offset) { _, it in
-                        Pill(item: it, height: 26)
-                    }
-                    if entry.rest.count > 2 {
-                        Text("ほか \(entry.rest.count - 2)件")
-                            .font(.system(size: 9.5)).foregroundColor(INK_FAINT)
-                    }
-                } else if !entry.ahead.isEmpty {
-                    // 今日が1件だけの日は下が空く。この先の予定で埋める。
-                    // 外側の間隔（8pt）のままだと 158pt に収まらないので、ここだけ詰める
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("このあと").font(.system(size: 9))
-                            .foregroundColor(INK_FAINT).tracking(0.6)
-                        ForEach(Array(entry.ahead.prefix(2).enumerated()), id: \.offset) { _, a in
-                            HStack(spacing: 6) {
-                                Text(a.short).font(.system(size: 9.5)).foregroundColor(INK_FAINT)
-                                    .frame(width: 12, alignment: .leading)
-                                Pill(item: a.item, height: 20)
-                            }
+                    } else if let a = entry.ahead.first {
+                        // 今日が1件だけの日は下が空く。この先の予定で埋める
+                        HStack(spacing: 6) {
+                            Text(a.short).font(.system(size: 9.5)).foregroundColor(INK_FAINT)
+                                .frame(width: 12, alignment: .leading)
+                            Pill(item: a.item, height: 22)
                         }
                     }
                 }
+                .padding(.top, 8)
             } else {
-                Empty(entry: entry, big: 15)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(entry.loaded ? "予定なし" : "アプリを開いてください")
+                        .font(.system(size: 13)).foregroundColor(INK_MUT)
+                    if entry.loaded && entry.weekUndecided > 0 {
+                        Text("今週 まだ\(entry.weekUndecided)件")
+                            .font(.system(size: 10)).foregroundColor(INK_FAINT)
+                    }
+                    if let a = entry.ahead.first {
+                        HStack(spacing: 6) {
+                            Text(a.short).font(.system(size: 9.5)).foregroundColor(INK_FAINT)
+                                .frame(width: 12, alignment: .leading)
+                            Pill(item: a.item, height: 22)
+                        }
+                        .padding(.top, 2)
+                    }
+                }
+                .padding(.top, 8)
             }
             Spacer(minLength: 0)
         }
