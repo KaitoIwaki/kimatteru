@@ -1202,14 +1202,18 @@ export function renderApp(v) {
                   新しい人に見せると物乞いに見える。
                   商品が取れないときは、行ごと出さない。 */}
               {v.tipShown && (<>
-                <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onToggleTip}>
+                <div style={s(v.tipHeadStyle)} onClick={v.onToggleTip}
+                     onPointerDown={v.onTipHeadDown} onPointerUp={v.onTipUp}
+                     onPointerCancel={v.onTipUp} onPointerLeave={v.onTipUp}>
                   <span style={s('flex:1;font-size:15px;color:var(--ink)')}>開発を応援する</span>
                   <span style={s(`font-size:12px;color:var(--ink-faint);transition:transform .2s ease;transform:rotate(${v.tipOpen ? '90deg' : '0deg'})`)}>▶</span>
                 </div>
                 {v.tipOpen && (
                   <div style={s('background:var(--bg2);animation:riseUp .22s cubic-bezier(.2,.9,.2,1)')}>
                     {(v.tipRows || []).map((t, i) => (
-                      <div key={i} style={s(t.rowStyle)} onClick={t.onClick}>
+                      <div key={i} style={s(t.rowStyle)} onClick={t.onClick}
+                           onPointerDown={t.onDown} onPointerUp={t.onUp}
+                           onPointerCancel={t.onUp} onPointerLeave={t.onUp}>
                         <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
                           <span style={s('font-size:15px;color:var(--ink)')}>{t.label}</span>
                         </span>

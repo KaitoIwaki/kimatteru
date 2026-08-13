@@ -636,9 +636,21 @@ export default class App extends React.Component {
     this.setState(s=>({probe:{...(s.probe||{}), widget:{ there: widgetAvailable(), last: r }}}));
   }
 
+  /** 応援の行を押している最中の見た目。id を渡すと沈み、null で戻る */
+  pressTip(id){
+    if(this.state.tipPress !== id) this.setState({tipPress:id});
+  }
+
   async buyTip(id){
+    // 返事を待っているあいだの二度押しを止める。
+    // App Store の画面が出るまで1〜2秒あるので、その間にもう一度押せてしまう。
+    // 手ごたえもここより先には出さない（押せていないのに鳴ると嘘になる）。
+    if(this.state.tipBusy) return;
     tapLight();
-    const r = await buyTip(id);
+    this.setState({tipBusy:id});
+    let r;
+    try{ r = await buyTip(id); }
+    finally{ this.setState({tipBusy:null, tipPress:null}); }
     if(r.ok){
       // 消耗型は Apple 側で復元できない。自前で持たないと機種変更で消えるので、
       // 予定と同じ入れ物に入れる（控えにも入る）。
@@ -1506,11 +1518,31 @@ export default class App extends React.Component {
     // 応援は「このアプリについて」の中に、1行だけ置いて畳んでおく。
     // 探した人だけが見つければいいものなので、金額を並べたまま置かない。
     v.tipOpen = !!st.tipOpen;
+    // 押した感。足りなかったのは2つ。
+    //  1. 指が触れても何も変わらない。styles.css で tap-highlight を切ってあり、
+    //     React の直書きの style では :active が書けないので、押しても無反応だった。
+    //  2. 押してから App Store の画面が出るまで1〜2秒かかる。そのあいだ画面が
+    //     何も言わないので、押せていないように見える。
+    // 1は触れた瞬間に沈める、2は返事が来るまで沈めたままにする、で埋める。
+    //
+    // 手ごたえ（振動）は押し切ったときのまま動かさない。触れた瞬間に鳴らすと、
+    // この行から指を滑らせて画面を送ったときにも鳴ってしまう。
+    // 沈む色は消せる（指が離れる前に取り消せる）が、鳴った振動は取り消せない。
+    const press = (on)=>on ? {background:'var(--press)'} : null;
+    v.tipHeadStyle = {display:'flex',alignItems:'center',gap:12,padding:'14px 16px',
+      borderBottom:'1px solid var(--line)',cursor:'pointer',...press(st.tipPress==='head')};
+    v.onTipHeadDown = ()=>this.pressTip('head');
+    v.onTipUp = ()=>this.pressTip(null);
     v.onToggleTip = ()=>{ tapLight(); this.setState(s=>({tipOpen:!s.tipOpen})); };
     v.tipRows = (st.tips||[]).map((t,i)=>({
-      label:t.label, price:t.price,
+      label:t.label,
+      // 返事を待っているあいだは値段のかわりに「…」。押したことが残る
+      price: st.tipBusy===t.id ? '…' : t.price,
       rowStyle:{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',
-        ...(i < (st.tips.length-1) ? {borderBottom:'1px solid var(--line)'} : {})},
+        ...(i < (st.tips.length-1) ? {borderBottom:'1px solid var(--line)'} : {}),
+        ...press(st.tipPress===t.id || st.tipBusy===t.id)},
+      onDown:()=>this.pressTip(t.id),
+      onUp:()=>this.pressTip(null),
       onClick:()=>this.buyTip(t.id),
     }));
     // 困ったときの連絡先。アプリ内に無いと、メールではなくレビュー欄に書かれる。
