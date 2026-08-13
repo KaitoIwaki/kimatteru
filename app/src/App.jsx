@@ -10,6 +10,7 @@ import { syncReminders, onNotificationTap } from './notify';
 import { drawMonthCard, drawYearCard, drawFreeCard, drawSupporterCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
 import { applyStatusBarTheme } from './statusbar';
+import { isWeb, isInstalled, requestPersistence } from './platform';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, guessTypes, openAppSettings } from './calendarimport';
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
@@ -1502,6 +1503,36 @@ export default class App extends React.Component {
       v.onSendWidget = ()=>this.sendWidgetNow();
     }
 
+    // ---------- Web版のこと ----------
+    // ブラウザで開かれているときだけ変わるところを、ここに集める。
+    // 散らすと、あとから「Web だと何が違うのか」を追えなくなる。
+    v.isWeb = isWeb();
+
+    // シフト後のリマインドは通知が要る。ブラウザでは鳴らせないので、
+    // 出しておいて何も起きないより、行ごと出さないほうがいい。
+    v.remindShown = !v.isWeb;
+
+    // 予定がどこに置かれているかの説明。アプリとブラウザでは中身が違う。
+    // アプリの Library は消えないが、ブラウザの保存領域は捨てられることがある。
+    // 同じ文言を使い回すと、Web で言っていることが嘘になる。
+    v.storageNoteParts = v.isWeb
+      ? ['予定はこのブラウザの中だけに', 'あり、外部に', '送られることは', 'ありません。',
+         'ブラウザの保存領域は、', '空きが少ないときなどに', '消えることがあります。',
+         '大切な予定は、', 'ときどき控えを', '取っておいてください。']
+      : ['取り込みは読むだけで、', 'あなたのカレンダーには', '書き込みません。',
+         '予定はこの端末の中だけに', 'あり、外部に', '送られることは', 'ありません。',
+         '機種変更や紛失にそなえて、', 'ときどき控えを', '取っておいてください。'];
+
+    // ホーム画面に追加すると、ブラウザに保存領域を捨てられにくくなる
+    // （Safari の「7日ひらかれなければ捨てる」の対象から外れる）。
+    // すでに追加済みの人と、申し込みが通った人には言わない——
+    // 済んでいることを勧められるのは、ただの雑音になる。
+    v.installHintShown = v.isWeb && !isInstalled() && !st.webPersisted;
+
+    // アプリ版の案内。Web には通知もウィジェットもカレンダー取り込みも無いので、
+    // 「使えません」と断るより、それができる場所を教えるほうが筋が通る。
+    v.appStoreHref = 'https://apps.apple.com/app/id' + APP_STORE_ID;
+
     v.tipShown = Array.isArray(st.tips) && st.tips.length > 0;
     // 応援は「このアプリについて」の中に、1行だけ置いて畳んでおく。
     // 探した人だけが見つければいいものなので、金額を並べたまま置かない。
@@ -2598,6 +2629,10 @@ export default class App extends React.Component {
 
   componentDidMount() {
     this._applyTheme();
+    // ブラウザで開かれているなら、保存領域を捨てないよう申し込む。
+    // 通るかどうかはブラウザが決めるので、結果は控えの勧め方に使う——
+    // 通っていないときだけ「ホーム画面に追加して」と言う。
+    if (isWeb()) requestPersistence().then((ok) => this.setState({ webPersisted: ok }));
     // スクリーンショット撮影用。?demo=1 のときだけサンプルを表示中の月に入れる
     if (wantsDemo() && this.state.events.length === 0) {
       const { y, m } = this.state.ym;

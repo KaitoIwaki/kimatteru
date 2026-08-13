@@ -1,0 +1,110 @@
+# Web版を出す。
+#
+# アプリ本体（iOS）は codemagic.yaml が作る。こちらはそれと関係なく、
+# master に入ったものをそのままブラウザで開ける場所に置くだけ。
+# App Store の審査を待たないので、直したその日に届く。
+#
+# ---- ここを踏むと事故になる ----
+# この Pages はもともとブランチ配信で、master のルートをそのまま出していた。
+# つまり legal/privacy.html は「置いてあるから見えていた」だけで、
+# その URL は App Store にプライバシーポリシーとして登録済み。
+# app/dist だけを出すと、その URL が消える。
+#
+# なので出すものは「いま出ているもの」＋「組み立てた Web版」にする。
+# 消えていないことは、出す前に下の確かめで見る（人が覚えていなくても止まる）。
+#
+# vite.config.js の base は './' なので、置き場所がサブパスでもそのまま動く。
+# ほかのホスティングに移すときは app/dist をそのまま渡せばいい。
+name: web
+
+on:
+  push:
+    branches: [master]
+  # 直したい版をすぐ出したいときのために、手でも回せるようにしておく
+  workflow_dispatch:
+
+# Pages に置くために要る権限。既定では書き込めない。
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 出し直しが重なったら順番に通す。
+# 途中のものを止めないのは、中途半端な状態で公開されるのを避けるため。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: 依存を入れる
+        working-directory: app
+        run: npm ci
+
+      - name: 組み立てる
+        working-directory: app
+        run: npm run build
+
+      # いま出ているものを、そのまま持っていく。
+      # ブランチ配信は master のルートを出していたので、それと同じ形にする。
+      - name: 出すものを揃える
+        run: |
+          set -e
+          mkdir -p _site
+          # git が追跡しているものだけを、いまの並びのまま出す。
+          # ブランチ配信が出していたのはまさにこれなので、定義から取り違えない
+          # （node_modules や dist は追跡外なので、勝手に混ざらない）。
+          git archive HEAD | tar -x -C _site
+          # Web版はルートに置く。リポジトリのルートには index.html が無いので
+          # ここが空いており、legal/ などはその下にそのまま残る。
+          cp -R app/dist/. _site/
+
+      # 空の manifest や icons のまま出すと、ホーム画面に追加できない。
+      # 追加できないと、ブラウザに保存領域を捨てられやすくなる——
+      # つまりこれは見た目の話ではなく、予定が消えるかどうかの話。
+      - name: 出すものが揃っているか確かめる
+        run: |
+          set -e
+          # Web版のぶん
+          for f in index.html manifest.webmanifest icon-192.png icon-512.png apple-touch-icon.png; do
+            test -s "_site/$f" || { echo "足りない: $f"; exit 1; }
+          done
+          # いま出ているぶん。ここが消えると App Store に出している URL が死ぬ
+          for f in legal/index.html legal/privacy.html legal/terms.html; do
+            test -s "_site/$f" || { echo "消えている: $f（App Store 登録済みの URL）"; exit 1; }
+          done
+          # .webmanifest は require() では読めない（拡張子で JSON と見なされない）
+          node -e "
+            const fs = require('fs');
+            const m = JSON.parse(fs.readFileSync('_site/manifest.webmanifest', 'utf8'));
+            if (!Array.isArray(m.icons) || m.icons.length === 0) { console.error('manifest の icons が空'); process.exit(1); }
+            for (const i of m.icons) {
+              const p = '_site/' + i.src.replace(/^\.\//, '');
+              if (!fs.existsSync(p)) { console.error('manifest が指すアイコンが無い: ' + i.src); process.exit(1); }
+            }
+            console.log('manifest ok:', m.icons.length + '個');
+          "
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

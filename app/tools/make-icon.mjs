@@ -29,6 +29,32 @@ await sharp(SRC)
 
 console.log('wrote', OUT);
 
+// ---- Web版のぶん ----
+// ホーム画面に追加してもらえないと、ブラウザは保存領域を捨てにいく。
+// つまりアイコンは飾りではなく、予定が消えないための部品になっている。
+// manifest の icons が空だと、追加そのものが出てこないブラウザがある。
+//
+// maskable を別に持たない。この図案は四隅まで地の色で、切り取られて
+// 困る絵柄が縁に無いので、同じものに purpose を2つ書けば足りる。
+//
+// apple-touch-icon.png は別枠。iOS Safari は manifest の icons を見ずに、
+// これだけを見てホーム画面のアイコンを決める。無いと画面の縮小写真が
+// 貼られて、ほかのアプリの中で1つだけ様子がおかしくなる。
+const WEB_SIZES = [192, 512];
+for (const px of WEB_SIZES) {
+  const out = join(root, 'public', `icon-${px}.png`);
+  await sharp(SRC)
+    .resize(px, px, { fit: 'fill' })
+    .flatten({ background: PAPER })
+    .png()
+    .toFile(out);
+  console.log('wrote', out);
+}
+
+const APPLE = join(root, 'public', 'apple-touch-icon.png');
+await sharp(SRC).resize(180, 180, { fit: 'fill' }).flatten({ background: PAPER }).png().toFile(APPLE);
+console.log('wrote', APPLE);
+
 // ---- 確かめ ----
 // iPhone は3倍解像度なので、実際に表示される画素数で見る。
 // ポイント数のまま測ると6分の1の大きさで見ることになり、判断を誤る。

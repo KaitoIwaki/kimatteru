@@ -1099,7 +1099,9 @@ export function renderApp(v) {
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バイト先を追加</span>
               </div>
             </div>
-            {!v.jobsEmpty && (
+            {/* リマインドは通知が要る。ブラウザでは鳴らせないので出さない
+                （出しておいて何も起きないほうが、無いより悪い） */}
+            {!v.jobsEmpty && v.remindShown && (
               <div style={s('background:var(--card);border-radius:17px;overflow:hidden')}>
                 <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
                 <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
@@ -1160,14 +1162,30 @@ export function renderApp(v) {
               </div>
             )}
             {/* ここが唯一の「どこに保存されているか」の説明。
-                前は同じ趣旨のことを3か所に書いていた。 */}
+                前は同じ趣旨のことを3か所に書いていた。
+                アプリとブラウザで中身が変わるので、文言は App 側で決める——
+                アプリの Library は消えないが、ブラウザの保存領域は捨てられる
+                ことがあり、同じ文言を使い回すと Web で嘘になる。 */}
             <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 8px;line-height:1.8;text-wrap:pretty')}>
-              {''}<Jp parts={['取り込みは読むだけで、', 'あなたのカレンダーには', '書き込みません。', '予定はこの端末の中だけに', 'あり、外部に', '送られることは', 'ありません。', '機種変更や紛失にそなえて、', 'ときどき控えを', '取っておいてください。']} />
+              {''}<Jp parts={v.storageNoteParts} />
             </div>
-            {/* えらべなかった人が行き止まりにならないように、逃げ道は残しておく */}
-            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8;cursor:pointer;text-decoration:underline')} onClick={v.onTogglePaste}>
+
+            {/* えらべなかった人が行き止まりにならないように、逃げ道は残しておく。
+                控えの話なので、控えの説明のすぐ下から離さない。 */}
+            <div style={s(`font-size:11px;color:var(--ink-faint);margin:0 6px ${v.installHintShown ? '14px' : '24px'};line-height:1.8;cursor:pointer;text-decoration:underline`)} onClick={v.onTogglePaste}>
               ファイルをえらべないときは、貼り付けでも戻せます
             </div>
+
+            {/* ホーム画面に追加すると、ブラウザに保存領域を捨てられにくくなる。
+                控えと同じ「消えないようにする」話なので、この群の最後に置く。 */}
+            {v.installHintShown && (
+              <div style={s('background:var(--card);border-radius:17px;padding:14px 16px;margin:0 0 24px')}>
+                <div style={s('font-size:15px;color:var(--ink);margin-bottom:6px')}>ホーム画面に追加しておくと安全です</div>
+                <div style={s('font-size:11px;color:var(--ink-mut);line-height:1.8;text-wrap:pretty')}>
+                  {''}<Jp parts={['共有ボタンから', '「ホーム画面に追加」を', 'えらんでください。', 'ふつうのタブのままだと、', 'しばらく開かない間に', 'ブラウザが保存領域を', '捨てることがあります。']} />
+                </div>
+              </div>
+            )}
 
             <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
@@ -1184,10 +1202,23 @@ export function renderApp(v) {
                   <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
                 </div>
               )}
-              <a href={v.reviewHref} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>App Store でレビューする</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </a>
+              {/* ブラウザで使っている人にレビューを頼んでも、その場では書けない。
+                  代わりに、ここでしか使えないもの——通知・ウィジェット・
+                  ほかのカレンダーからの取り込み——がある場所を教える。 */}
+              {v.isWeb ? (
+                <a href={v.appStoreHref} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
+                  <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
+                    <span style={s('font-size:15px;color:var(--ink)')}>iPhone アプリ版</span>
+                    <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty')}>通知・ウィジェット・カレンダーの取り込みが使えます</span>
+                  </span>
+                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+                </a>
+              ) : (
+                <a href={v.reviewHref} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
+                  <span style={s('flex:1;font-size:15px;color:var(--ink)')}>App Store でレビューする</span>
+                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+                </a>
+              )}
               {/* 連絡先はリンクにしつつ、住所そのものも出す。
                   リンクが開かない環境でも、長押しでコピーできるように。 */}
               <a href={v.contactHref} style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>

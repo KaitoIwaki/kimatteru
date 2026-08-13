@@ -13,8 +13,13 @@
 //                   localStorage が消えていたときの、最後の砦
 //
 // どちらも savedAt を持たせて、どちらが新しいか分かるようにしてある。
-import { Capacitor } from '@capacitor/core';
+//
+// ブラウザ（Web版）には、この「ファイル」にあたる砦が無い。
+// 置けるのは localStorage だけで、しかもブラウザ自身が捨てることがある。
+// できるのは捨てられにくくすることだけで、それは platform.js が持つ。
+// ここでは「Web ではファイルに書かない・読まない」とだけ決めておく。
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { isNative } from './platform';
 
 export const SAVE_KEY = 'kimatteru.v2';
 const FILE_NAME = 'kimatteru-store.json';
@@ -22,13 +27,7 @@ const FILE_NAME = 'kimatteru-store.json';
 // 機種変更で戻したいので Library を使う。
 const FILE_DIR = Directory.Library;
 
-const native = () => {
-  try {
-    return Capacitor.isNativePlatform();
-  } catch (e) {
-    return false;
-  }
-};
+const native = isNative;
 
 const pack = (state) => {
   const { events, types, overrides, settings, notices, lastSeenVersion, jobs, supports } = state;
