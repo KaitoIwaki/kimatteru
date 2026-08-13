@@ -13,7 +13,8 @@
 
 export const WIDGET_VERSION = 1;
 
-// 何日ぶん書き出すか。前日 ＋ 今日 ＋ 先20日 の 22日ぶん。
+// 何日ぶん書き出すか。前日 ＋ 今日 ＋ 先20日。
+// それに加えて「今月まるごと」も必ず入れる（月のカレンダーを出すため）。
 // アプリをしばらく開かなくても、ウィジェットが空にならない長さ。
 // 前日も入れるのは、日付が変わった直後に「今日」を跨いでも困らないようにするため。
 const BACK_DAYS = 1;
@@ -72,8 +73,12 @@ export function buildWidgetPayload(state, today) {
     return (x && x.color) || '#8A8A8A';
   };
 
-  const from = dayNo(today.getFullYear(), today.getMonth(), today.getDate()) - BACK_DAYS;
-  const to = from + BACK_DAYS + AHEAD_DAYS;
+  // 窓の広さ。ウィジェットには月のカレンダーが出るので、
+  // 「その月まるごと」が入っていないと、月末に見たとき月初が全部
+  // 「予定なし」に見えてしまう。今月の1日から月末までは必ず含める。
+  const y = today.getFullYear(), mo = today.getMonth(), d = today.getDate();
+  const from = Math.min(dayNo(y, mo, d) - BACK_DAYS, dayNo(y, mo, 1));
+  const to = Math.max(dayNo(y, mo, d) + AHEAD_DAYS, dayNo(y, mo + 1, 0));
 
   const days = {};
   for (const e of events) {

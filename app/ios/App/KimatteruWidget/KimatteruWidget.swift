@@ -75,6 +75,7 @@ let INK_FAINT = Color(red: 0.718, green: 0.702, blue: 0.651)
 let LINE = Color(red: 0.902, green: 0.886, blue: 0.839)
 let BG = Color(red: 0.984, green: 0.984, blue: 0.992)
 let UNDECIDED = Color(red: 0.545, green: 0.478, blue: 0.722)   // 用事の藤色
+let SUMI = Color(red: 0.353, green: 0.341, blue: 0.314)        // 月の点を色なしにするとき用
 
 // MARK: - 日付
 
@@ -96,22 +97,26 @@ private func weekday(_ d: Date) -> String {
 // MARK: - 画面に出すかたち
 
 struct Ahead {
-    let when: String
+    let w: String      // 曜日
+    let d: Int         // 日
     let item: Item
+    var short: String { w }
+    var long: String { "\(w) \(d)日" }
 }
-struct Day {
-    let w: String
-    let d: Int
+struct MonthCell {
+    let day: Int?          // その月の日。前後の空きは nil
     let isToday: Bool
-    let marks: [Item]
+    let dots: [Item]       // その日の予定（3つまで出す）
 }
 
 struct Entry: TimelineEntry {
     let date: Date
     let today: [Item]
-    let ahead: [Ahead]
-    let week: [Day]
-    let weekUndecided: Int
+    let ahead: [Ahead]            // この先の予定（決まっているかは問わない）
+    let undecidedAhead: [Ahead]   // この先の、まだ決まっていないもの
+    let weekUndecided: Int        // 「今週 まだ○件」に使う
+    let monthWeekdays: [String]
+    let month: [MonthCell]
     let loaded: Bool
 
     var undecided: Int { today.filter { !$0.solid }.count }
@@ -139,41 +144,64 @@ struct Provider: TimelineProvider {
     }
 
     private func build(_ now: Date) -> Entry {
+        let cal = Calendar.current
         guard let p = load() else {
-            return Entry(date: now, today: [], ahead: [], week: [], weekUndecided: 0, loaded: false)
+            return Entry(date: now, today: [], ahead: [], undecidedAhead: [],
+                         weekUndecided: 0, monthWeekdays: WD, month: [], loaded: false)
         }
         let today = p.days[dayKey(now)] ?? []
 
-        // このあと。今日より先で、予定のある日から順に3件まで
+        // この先の予定。「このあと」と「まだ決まっていない」の2本を作る
         var ahead: [Ahead] = []
+        var undecidedAhead: [Ahead] = []
         var i = 1
-        while i <= 14 && ahead.count < 3 {
+        while i <= 21 && (ahead.count < 3 || undecidedAhead.count < 3) {
             let d = addDays(now, i)
             if let items = p.days[dayKey(d)] {
-                for it in items where ahead.count < 3 {
-                    ahead.append(Ahead(when: weekday(d), item: it))
+                let w = weekday(d), dd = cal.component(.day, from: d)
+                for it in items {
+                    if ahead.count < 3 { ahead.append(Ahead(w: w, d: dd, item: it)) }
+                    if !it.solid && undecidedAhead.count < 3 {
+                        undecidedAhead.append(Ahead(w: w, d: dd, item: it))
+                    }
                 }
             }
             i += 1
         }
 
         // 今週。週のはじまりは設定に合わせる
-        let cal = Calendar.current
         let offset = (cal.component(.weekday, from: now) - 1 - p.weekStart + 7) % 7
         let first = addDays(now, -offset)
-        var week: [Day] = []
         var undecided = 0
         for k in 0..<7 {
-            let d = addDays(first, k)
-            let items = p.days[dayKey(d)] ?? []
+            let items = p.days[dayKey(addDays(first, k))] ?? []
             undecided += items.filter { !$0.solid }.count
-            week.append(Day(w: weekday(d),
-                            d: cal.component(.day, from: d),
-                            isToday: cal.isDate(d, inSameDayAs: now),
-                            marks: items))
         }
-        return Entry(date: now, today: today, ahead: ahead, week: week,
-                     weekUndecided: undecided, loaded: true)
+
+        // 今月のマス。前後の空きも入れて、7の倍数にそろえる
+        var month: [MonthCell] = []
+        if let firstOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: now)),
+           let range = cal.range(of: .day, in: .month, for: now) {
+            let last = range.count
+            let off = (cal.component(.weekday, from: firstOfMonth) - 1 - p.weekStart + 7) % 7
+            let rows = Int(ceil(Double(off + last) / 7.0))
+            for idx in 0..<(rows * 7) {
+                let n = idx - off + 1
+                if n < 1 || n > last {
+                    month.append(MonthCell(day: nil, isToday: false, dots: []))
+                } else {
+                    let d = addDays(firstOfMonth, n - 1)
+                    month.append(MonthCell(day: n,
+                                           isToday: cal.isDate(d, inSameDayAs: now),
+                                           dots: p.days[dayKey(d)] ?? []))
+                }
+            }
+        }
+        let weekdays = (0..<7).map { WD[($0 + p.weekStart) % 7] }
+
+        return Entry(date: now, today: today, ahead: ahead, undecidedAhead: undecidedAhead,
+                     weekUndecided: undecided,
+                     monthWeekdays: weekdays, month: month, loaded: true)
     }
 }
 
@@ -275,10 +303,12 @@ struct MemoLine: View {
 /// 「このあと」の1行
 struct AheadLine: View {
     let a: Ahead
+    var long: Bool = false
     var body: some View {
         HStack(spacing: 8) {
-            Text(a.when).font(.system(size: 10)).foregroundColor(INK_FAINT)
-                .frame(width: 16, alignment: .leading)
+            Text(long ? a.long : a.short)
+                .font(.system(size: 10)).foregroundColor(INK_FAINT)
+                .frame(width: long ? 46 : 16, alignment: .leading)
             Pill(item: a.item)
         }
     }
@@ -303,37 +333,68 @@ struct Empty: View {
     }
 }
 
-/// 今週の並び。1日3件まで印を出す
-struct Week: View {
-    let days: [Day]
+// MARK: - 月のミニカレンダー
+
+/// 数字の下に点を置く。塗りの点＝決まった予定、輪＝まだのもの。
+/// 5pt の点線は潰れて読めないので、点線ではなく輪で表す。
+/// 1日に両方あるときは「●○」と並ぶので、どちらを優先するかを決めずに済む。
+struct MonthGrid: View {
+    let weekdays: [String]
+    let cells: [MonthCell]
+    var rowH: CGFloat = 20
+    var dotR: CGFloat = 2.4
+    var numSize: CGFloat = 10
+    var colored: Bool = true
+
+    private var rows: Int { max(1, cells.count / 7) }
+
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(Array(days.enumerated()), id: \.offset) { _, day in
-                VStack(spacing: 3) {
-                    Text(day.w).font(.system(size: 8.5))
-                        .foregroundColor(day.isToday ? INK : INK_FAINT)
-                    Text("\(day.d)")
-                        .font(.system(size: 12, weight: day.isToday ? .semibold : .regular))
-                        .foregroundColor(day.isToday ? INK : INK_MUT)
-                        .frame(width: 20, height: 20)
-                        .overlay(Circle().stroke(day.isToday ? LINE : Color.clear, lineWidth: 1.2))
-                    VStack(spacing: 2.5) {
-                        ForEach(Array(day.marks.prefix(3).enumerated()), id: \.offset) { _, m in
-                            if m.solid {
-                                RoundedRectangle(cornerRadius: 2.5)
-                                    .fill(plain(m.c)).frame(width: 14, height: 5)
-                            } else {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(toWhite(m.c, 0.62)).frame(width: 14, height: 5)
-                                    .overlay(RoundedRectangle(cornerRadius: 2)
-                                        .strokeBorder(plain(m.c),
-                                                      style: StrokeStyle(lineWidth: 1.2, dash: [2.5, 2])))
-                            }
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                ForEach(Array(weekdays.enumerated()), id: \.offset) { _, w in
+                    Text(w).font(.system(size: 8)).foregroundColor(INK_FAINT)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.bottom, 2)
+            ForEach(0..<rows, id: \.self) { r in
+                HStack(spacing: 0) {
+                    ForEach(0..<7, id: \.self) { c in
+                        cell(cells[r * 7 + c]).frame(maxWidth: .infinity)
+                    }
+                }
+                .frame(height: rowH)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func cell(_ m: MonthCell) -> some View {
+        VStack(spacing: 1.5) {
+            if let d = m.day {
+                Text("\(d)")
+                    .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
+                    .foregroundColor(m.isToday ? .white : (m.dots.isEmpty ? INK_FAINT : INK))
+                    .frame(width: numSize + 8, height: numSize + 8)
+                    .background(
+                        Circle().fill(m.isToday ? INK : Color.clear)
+                    )
+                HStack(spacing: 1.6) {
+                    ForEach(Array(m.dots.prefix(3).enumerated()), id: \.offset) { _, it in
+                        if it.solid {
+                            Circle()
+                                .fill(colored ? plain(it.c) : SUMI)
+                                .frame(width: dotR * 2, height: dotR * 2)
+                        } else {
+                            Circle()
+                                .strokeBorder(colored ? plain(it.c) : SUMI, lineWidth: 1)
+                                .frame(width: dotR * 2, height: dotR * 2)
                         }
                     }
-                    .frame(height: 22, alignment: .top)
                 }
-                .frame(maxWidth: .infinity)
+                .frame(height: dotR * 2)
+            } else {
+                Color.clear
             }
         }
     }
@@ -386,79 +447,74 @@ struct SmallView: View {
 }
 
 // MARK: - 中 338×158
+//
+// 左は「今日、何時から？」——1日に何度も浮かぶ問い。だから読み始めの位置に置く。
+// 右は「その日、空いてる？」——週に数回の問い。埋め草ではなく、空き状況を
+// 圧縮したもの。月は必ず31日あるので、予定が少ない日でも空白にならない。
 
 struct MediumView: View {
     let entry: Entry
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Head(entry: entry, long: true)
-            if let head = entry.head {
-                if let memo = head.m, !memo.isEmpty {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 8) {
+                Head(entry: entry, long: true)
+                if let head = entry.head {
                     Pill(item: head, height: 26)
-                    HStack(alignment: .top, spacing: 14) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("持ちもの").font(.system(size: 9))
-                                .foregroundColor(INK_FAINT).tracking(0.6)
-                            ForEach(Array(memo.prefix(4).enumerated()), id: \.offset) { _, m in
+                    if let memo = head.m, !memo.isEmpty {
+                        VStack(alignment: .leading, spacing: 3) {
+                            ForEach(Array(memo.prefix(2).enumerated()), id: \.offset) { _, m in
                                 MemoLine(text: m)
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        VStack(alignment: .leading, spacing: 4) {
-                            if !entry.rest.isEmpty {
-                                Text("このあと").font(.system(size: 9))
-                                    .foregroundColor(INK_FAINT).tracking(0.6)
-                                ForEach(Array(entry.rest.prefix(2).enumerated()), id: \.offset) { _, it in
-                                    Pill(item: it)
-                                }
-                                if entry.rest.count > 2 {
-                                    Text("ほか \(entry.rest.count - 2)件")
-                                        .font(.system(size: 9.5)).foregroundColor(INK_FAINT)
-                                }
-                            }
+                    } else if !entry.rest.isEmpty {
+                        ForEach(Array(entry.rest.prefix(2).enumerated()), id: \.offset) { _, it in
+                            Pill(item: it, height: 22)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                } else {
-                    ForEach(Array(entry.today.prefix(4).enumerated()), id: \.offset) { _, it in
-                        Pill(item: it, height: 24)
-                    }
-                    if entry.today.count > 4 {
-                        Text("ほか \(entry.today.count - 4)件")
-                            .font(.system(size: 10)).foregroundColor(INK_FAINT)
+                        if entry.rest.count > 2 {
+                            Text("ほか \(entry.rest.count - 2)件")
+                                .font(.system(size: 9.5)).foregroundColor(INK_FAINT)
+                        }
                     } else if let a = entry.ahead.first {
-                        HStack(spacing: 6) {
-                            Text("このあと").font(.system(size: 9.5))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("このあと").font(.system(size: 9))
                                 .foregroundColor(INK_FAINT).tracking(0.6)
-                            Text("\(a.when)　\(a.item.time) \(a.item.n)")
+                            Text("\(a.long)　\(a.item.time) \(a.item.n)")
                                 .font(.system(size: 10.5)).foregroundColor(INK_MUT).lineLimit(1)
                         }
                     }
-                }
-            } else {
-                Empty(entry: entry, big: 19)
-                if let a = entry.ahead.first {
-                    HStack(spacing: 6) {
-                        Text("このあと").font(.system(size: 9.5)).foregroundColor(INK_FAINT)
-                        Text("\(a.when)　\(a.item.time) \(a.item.n)")
-                            .font(.system(size: 10.5)).foregroundColor(INK_MUT).lineLimit(1)
+                } else {
+                    Empty(entry: entry, big: 17)
+                    if let a = entry.ahead.first {
+                        Text("このあと　\(a.long)　\(a.item.n)")
+                            .font(.system(size: 10)).foregroundColor(INK_FAINT).lineLimit(1)
                     }
                 }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .frame(width: 134, alignment: .leading)
+
+            MonthGrid(weekdays: entry.monthWeekdays, cells: entry.month,
+                      rowH: 20, dotR: 2.4, numSize: 10)
         }
     }
 }
 
 // MARK: - 大 338×354
+//
+// 月を大きく出して、その下に今日と、まだ決まっていないもの。
+// 「その日空いてる？」に答えたうえで、「決めなきゃいけないもの」が残る。
 
 struct LargeView: View {
     let entry: Entry
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Head(entry: entry, long: true)
-            Week(days: entry.week).padding(.top, 10)
-            Rectangle().fill(LINE).frame(height: 1).padding(.top, 8)
+
+            MonthGrid(weekdays: entry.monthWeekdays, cells: entry.month,
+                      rowH: 25, dotR: 2.8, numSize: 11)
+                .padding(.top, 10)
+
+            Rectangle().fill(LINE).frame(height: 1).padding(.top, 10)
 
             if entry.today.isEmpty {
                 Empty(entry: entry, big: 17).padding(.top, 14)
@@ -466,7 +522,7 @@ struct LargeView: View {
                 Text("今日").font(.system(size: 10)).foregroundColor(INK_MUT)
                     .tracking(0.6).padding(.top, 12)
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(entry.today.prefix(5).enumerated()), id: \.offset) { _, item in
+                    ForEach(Array(entry.today.prefix(3).enumerated()), id: \.offset) { _, item in
                         Pill(item: item, height: 24)
                         if let memo = item.m, !memo.isEmpty {
                             HStack(alignment: .top, spacing: 6) {
@@ -477,21 +533,20 @@ struct LargeView: View {
                             }
                         }
                     }
-                    if entry.today.count > 5 {
-                        Text("ほか \(entry.today.count - 5)件")
+                    if entry.today.count > 3 {
+                        Text("ほか \(entry.today.count - 3)件")
                             .font(.system(size: 10)).foregroundColor(INK_FAINT)
                     }
                 }
                 .padding(.top, 6)
             }
 
-            // 下が空くなら、先の予定で埋める
-            if entry.today.count <= 4 && !entry.ahead.isEmpty {
-                Text("このあと").font(.system(size: 10)).foregroundColor(INK_MUT)
+            if !entry.undecidedAhead.isEmpty && entry.today.count <= 2 {
+                Text("まだ決まっていない").font(.system(size: 10)).foregroundColor(INK_MUT)
                     .tracking(0.6).padding(.top, 14)
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(entry.ahead.prefix(3).enumerated()), id: \.offset) { _, a in
-                        AheadLine(a: a)
+                    ForEach(Array(entry.undecidedAhead.prefix(3).enumerated()), id: \.offset) { _, a in
+                        AheadLine(a: a, long: true)
                     }
                 }
                 .padding(.top, 6)
