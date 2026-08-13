@@ -77,7 +77,10 @@ let LINE = Color(red: 0.902, green: 0.886, blue: 0.839)
 let BG = Color(red: 0.984, green: 0.984, blue: 0.992)
 let UNDECIDED = Color(red: 0.545, green: 0.478, blue: 0.722)   // 用事の藤色
 let SUMI = Color(red: 0.353, green: 0.341, blue: 0.314)        // 月の点を色なしにするとき用
-// 今日の印。マスの上辺に墨の線を引く。アプリの月表示と同じ形。
+// 今日の下線。数字のすぐ下に短い線を引く。
+// マスの上に引く形（アプリの月表示と同じ）も試したが、採らなかった——
+// ウィジェットにはマスの区切り線が無いので、行を分ける線に見えてしまう。
+// 短くして数字に添わせてもしっくり来なかった。数字の下が落ち着く。
 // 面（マスの塗り）にはしない——アプリでは「選ばれている」に見えてしまうため。
 let TODAY_MARK = Color(red: 0.149, green: 0.145, blue: 0.122)
 // 祝日と日曜は赤、土曜は青。アプリの月表示と同じ色。
@@ -392,27 +395,18 @@ struct MonthGrid: View {
 
     @ViewBuilder
     private func cell(_ m: MonthCell) -> some View {
-        // すき間は VStack の spacing ではなく padding で置く。
-        // 前（数字の下に短い線）と高さの合計を 1pt も変えないため——
-        // 大のウィジェットは行の高さに余裕がなく、0.5pt が6行ぶん積もると詰まる。
-        VStack(spacing: 0) {
-            // 今日はマスの上に線。今日でない日にも同じ場所を空けておく
-            // （置かないと、今日の列だけ数字が下にずれる）
-            //
-            // 長さはマス幅ではなく、数字の 1.4 倍で置く。
-            // アプリの月表示はマス幅いっぱいに引いているが、あちらはマスに
-            // 区切り線があるので「このマスの上辺」と読める。ウィジェットには
-            // 区切りが無いので、マス幅いっぱいだと行を分ける線に見えてしまう。
-            // 中（マス21.5pt）と大（マス43.7pt）で幅が倍ちがうのに、
-            // どちらも数字に添う長さになる。
-            RoundedRectangle(cornerRadius: 0.75)
-                .fill(m.isToday ? TODAY_MARK : Color.clear)
-                .frame(width: numSize * 1.4, height: 1.5)
+        VStack(spacing: 1.5) {
             if let d = m.day {
-                Text("\(d)")
-                    .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
-                    .foregroundColor(m.dots.isEmpty && !m.isToday ? INK_FAINT : INK)
-                    .padding(.top, 1)
+                VStack(spacing: 1) {
+                    Text("\(d)")
+                        .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
+                        .foregroundColor(m.dots.isEmpty && !m.isToday ? INK_FAINT : INK)
+                    // 今日の印。今日でない日にも同じ場所を空けておく
+                    // （置かないと、今日だけ数字が上下にずれる）
+                    RoundedRectangle(cornerRadius: 0.75)
+                        .fill(m.isToday ? TODAY_MARK : Color.clear)
+                        .frame(width: numSize * 0.75, height: 1.5)
+                }
                 Group {
                     HStack(spacing: 1.6) {
                         ForEach(Array(m.dots.prefix(3).enumerated()), id: \.offset) { _, it in
@@ -429,7 +423,6 @@ struct MonthGrid: View {
                     }
                 }
                 .frame(height: dotR * 2)
-                .padding(.top, 1.5)
             } else {
                 Color.clear
             }
