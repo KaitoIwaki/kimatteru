@@ -1858,13 +1858,10 @@ export default class App extends React.Component {
           // ただし日付は薄く出す。月の切れ目が分かり、週の並びも読みやすくなる。
           if(d===null){
             const out=fromDayNo(monthA + (w*7 + i - first));
-            // 数字の下の点の場所は、前後の月にも空けておく。
-            // ここだけ形が違うと、週の1行目で数字の高さが1pxずれる（実際にずれた）。
             return { blank:true, day:out.d,
               bgStyle:{background:'var(--card)',...colLine(i)},
-              numWrap:{gridColumn:i+1, gridRow:1, paddingLeft:3, alignSelf:'center', display:'flex'},
-              numStyle:{fontSize:11, lineHeight:'13px', fontWeight:500, color:'var(--ink-faint)'},
-              todayDot:{width:3, height:3, borderRadius:2, background:'transparent'},
+              numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
+              numStyle:{fontSize:11, fontWeight:500, color:'var(--ink-faint)'},
               onDay:()=>{} };
           }
           const dow=(wFirst+d-1)%7, isToday=d===today;
@@ -1873,22 +1870,24 @@ export default class App extends React.Component {
           const dayColor = (hol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)';
           return {
             blank:false, day:d,
-            // 今日は、数字の下に小さな点。面（マスの塗り）にはしない。
+            // 今日は、マスの上辺に墨の線。面（マスの塗り）にはしない。
             //
             // 面は「状態」に見える。このアプリは1回のタップでその日の画面へ飛ぶので、
             // 「選ばれている」という状態は存在しない。それなのに面で示すと、
             // 押したマスが分からなくなる、という食い違いが出た。
-            // 点や文字なら「事実」として読める。
             //
             // 前は数字の後ろに黒い丸を敷いていたが、あれは日曜や祝日の赤・土曜の青を
-            // 白文字で塗りつぶしてしまっていた。点なら曜日の色を保てる。
+            // 白文字で塗りつぶしていた。線なら曜日の色を保てる。
+            // 数字の下に小さな点も試したが、予定の帯に紛れて見つけにくかった。
             //
-            // 点の場所は、今日でなくても空けておく（透明で置く）。そうしないと
-            // 今日のマスだけ数字が上下にずれて、行の並びが揃わない。
-            bgStyle:{background:'var(--card)',cursor:'pointer',...colLine(i)},
-            numWrap:{gridColumn:i+1, gridRow:1, paddingLeft:3, alignSelf:'center', display:'flex'},
-            numStyle: {fontSize:11, lineHeight:'13px', fontWeight: isToday ? 700 : ((hol||dow===0||dow===6)?600:500), color:dayColor},
-            todayDot:{width:3, height:3, borderRadius:2, background: isToday ? 'var(--ink)' : 'transparent'},
+            // 週の区切りと紛れないかを、3週ぶん描いて確かめた。区切りは薄い灰色の
+            // 1px、今日は墨の2px なので、濃さでも太さでも違う。
+            // 下辺にも引く案（上下ではさむ）は採らなかった——下の線は翌週の日の
+            // 上辺でもあるので、翌週にも印が付いて見える。
+            bgStyle:{background:'var(--card)', cursor:'pointer',
+              ...(isToday ? {borderTop:'2px solid var(--ink)'} : {}), ...colLine(i)},
+            numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
+            numStyle: {fontSize:11, fontWeight: isToday ? 700 : ((hol||dow===0||dow===6)?600:500), color:dayColor},
             onDay:()=>this.openDay(d),
           };
         });

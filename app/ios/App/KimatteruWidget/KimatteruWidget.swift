@@ -77,9 +77,8 @@ let LINE = Color(red: 0.902, green: 0.886, blue: 0.839)
 let BG = Color(red: 0.984, green: 0.984, blue: 0.992)
 let UNDECIDED = Color(red: 0.545, green: 0.478, blue: 0.722)   // 用事の藤色
 let SUMI = Color(red: 0.353, green: 0.341, blue: 0.314)        // 月の点を色なしにするとき用
-// 今日の下線。アプリの月表示は「数字の下に小さな点」で今日を示すが、
-// ウィジェットの点の場所は予定の印で埋まっている。代わりに数字の下に短い線を引く。
-// 面（マスの塗り）にはしない——アプリと形が違いすぎると、同じカレンダーに見えない。
+// 今日の印。マスの上辺に墨の線を引く。アプリの月表示と同じ形。
+// 面（マスの塗り）にはしない——アプリでは「選ばれている」に見えてしまうため。
 let TODAY_MARK = Color(red: 0.149, green: 0.145, blue: 0.122)
 // 祝日と日曜は赤、土曜は青。アプリの月表示と同じ色。
 let HOLIDAY_RED = Color(red: 0.706, green: 0.271, blue: 0.227)
@@ -393,18 +392,21 @@ struct MonthGrid: View {
 
     @ViewBuilder
     private func cell(_ m: MonthCell) -> some View {
-        VStack(spacing: 1.5) {
+        // すき間は VStack の spacing ではなく padding で置く。
+        // 前（数字の下に短い線）と高さの合計を 1pt も変えないため——
+        // 大のウィジェットは行の高さに余裕がなく、0.5pt が6行ぶん積もると詰まる。
+        VStack(spacing: 0) {
+            // 今日はマスの上辺に線。今日でない日にも同じ場所を空けておく
+            // （置かないと、今日の列だけ数字が下にずれる）
+            RoundedRectangle(cornerRadius: 0.75)
+                .fill(m.isToday ? TODAY_MARK : Color.clear)
+                .frame(height: 1.5)
+                .padding(.horizontal, 1)
             if let d = m.day {
-                VStack(spacing: 1) {
-                    Text("\(d)")
-                        .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
-                        .foregroundColor(m.dots.isEmpty && !m.isToday ? INK_FAINT : INK)
-                    // 今日の印。今日でない日にも同じ場所を空けておく
-                    // （置かないと、今日だけ数字が上下にずれる）
-                    RoundedRectangle(cornerRadius: 0.75)
-                        .fill(m.isToday ? TODAY_MARK : Color.clear)
-                        .frame(width: numSize * 0.75, height: 1.5)
-                }
+                Text("\(d)")
+                    .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
+                    .foregroundColor(m.dots.isEmpty && !m.isToday ? INK_FAINT : INK)
+                    .padding(.top, 1)
                 Group {
                     HStack(spacing: 1.6) {
                         ForEach(Array(m.dots.prefix(3).enumerated()), id: \.offset) { _, it in
@@ -421,6 +423,7 @@ struct MonthGrid: View {
                     }
                 }
                 .frame(height: dotR * 2)
+                .padding(.top, 1.5)
             } else {
                 Color.clear
             }
