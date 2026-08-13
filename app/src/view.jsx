@@ -124,7 +124,16 @@ export function renderApp(v) {
                           </div>
                           <div style={s(wk.gridStyle)}>
                             {wk.slots.map((sl, i) => (
-                              !!sl.day && <div key={'d' + i} style={s(sl.numWrap)}><span style={s(sl.numStyle)}>{sl.day}</span></div>
+                              !!sl.day && (
+                                <div key={'d' + i} style={s(sl.numWrap)}>
+                                  {/* 今日の点は数字の真下。今日でない日にも同じ場所を空けておく
+                                      （置かないと、今日だけ数字が上下にずれる） */}
+                                  <span style={s('display:inline-flex;flex-direction:column;align-items:center;gap:2px')}>
+                                    <span style={s(sl.numStyle)}>{sl.day}</span>
+                                    <span style={s(sl.todayDot)} />
+                                  </span>
+                                </div>
+                              )
                             ))}
                             {wk.bars.map((b) => (
                               <div key={b.key} style={s(b.style)}>

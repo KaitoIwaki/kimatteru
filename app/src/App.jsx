@@ -1858,10 +1858,13 @@ export default class App extends React.Component {
           // ただし日付は薄く出す。月の切れ目が分かり、週の並びも読みやすくなる。
           if(d===null){
             const out=fromDayNo(monthA + (w*7 + i - first));
+            // 数字の下の点の場所は、前後の月にも空けておく。
+            // ここだけ形が違うと、週の1行目で数字の高さが1pxずれる（実際にずれた）。
             return { blank:true, day:out.d,
               bgStyle:{background:'var(--card)',...colLine(i)},
-              numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
-              numStyle:{fontSize:11, fontWeight:500, color:'var(--ink-faint)'},
+              numWrap:{gridColumn:i+1, gridRow:1, paddingLeft:3, alignSelf:'center', display:'flex'},
+              numStyle:{fontSize:11, lineHeight:'13px', fontWeight:500, color:'var(--ink-faint)'},
+              todayDot:{width:3, height:3, borderRadius:2, background:'transparent'},
               onDay:()=>{} };
           }
           const dow=(wFirst+d-1)%7, isToday=d===today;
@@ -1870,13 +1873,22 @@ export default class App extends React.Component {
           const dayColor = (hol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)';
           return {
             blank:false, day:d,
-            // 今日はマスごと薄く塗る。前は数字の後ろに黒い丸を敷いていたが、
-            // 丸は場所を取るうえ、日曜や祝日の赤・土曜の青を白文字で塗りつぶしてしまう。
-            // マスを塗れば、曜日の色を保ったまま「ここが今日」と言える。
-            // （輪郭だけにする案は前に試して弱すぎた。面なら足りる。）
-            bgStyle:{background: isToday ? 'var(--today-cell)' : 'var(--card)',cursor:'pointer',...colLine(i)},
-            numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
-            numStyle: {fontSize:11, fontWeight: isToday ? 700 : ((hol||dow===0||dow===6)?600:500), color:dayColor},
+            // 今日は、数字の下に小さな点。面（マスの塗り）にはしない。
+            //
+            // 面は「状態」に見える。このアプリは1回のタップでその日の画面へ飛ぶので、
+            // 「選ばれている」という状態は存在しない。それなのに面で示すと、
+            // 押したマスが分からなくなる、という食い違いが出た。
+            // 点や文字なら「事実」として読める。
+            //
+            // 前は数字の後ろに黒い丸を敷いていたが、あれは日曜や祝日の赤・土曜の青を
+            // 白文字で塗りつぶしてしまっていた。点なら曜日の色を保てる。
+            //
+            // 点の場所は、今日でなくても空けておく（透明で置く）。そうしないと
+            // 今日のマスだけ数字が上下にずれて、行の並びが揃わない。
+            bgStyle:{background:'var(--card)',cursor:'pointer',...colLine(i)},
+            numWrap:{gridColumn:i+1, gridRow:1, paddingLeft:3, alignSelf:'center', display:'flex'},
+            numStyle: {fontSize:11, lineHeight:'13px', fontWeight: isToday ? 700 : ((hol||dow===0||dow===6)?600:500), color:dayColor},
+            todayDot:{width:3, height:3, borderRadius:2, background: isToday ? 'var(--ink)' : 'transparent'},
             onDay:()=>this.openDay(d),
           };
         });
