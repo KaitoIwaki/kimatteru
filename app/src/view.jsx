@@ -1798,10 +1798,15 @@ export function renderApp(v) {
                   {''}<Jp parts={['はじめから', '作り直さなくて', '済みます。']} />
                 </div>
 
-                <div style={s('margin-top:22px;background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.28);border-radius:17px;padding:14px 16px')}>
-                  <div style={s('font-size:13px;font-weight:700;color:#0F6E56;margin-bottom:7px')}>「フルアクセス」を選んでください</div>
-                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.9')}>
-                    {''}<Jp parts={['iPhone が', '「追加のみ」と', '「フルアクセス」を', '聞いてきます。', '予定を読むには', 'フルアクセスが要ります。', '「追加のみ」だと', '読み込めません。']} />
+                {/* ここは**事実だけ**にする。どちらを選べとは書かない。
+                    App Store の 5.1.1(iv) は「許可するように促す・仕向ける」ことを
+                    禁じている。緑で目立たせて「選んでください」と書いていたのは、
+                    まさにそれだった（v1.0(49) でリジェクト）。
+                    アプリに何ができるかを述べるのは許されているので、そこだけ残す。 */}
+                <div style={s('margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:17px;padding:16px 18px')}>
+                  <div style={s('font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px')}>iPhone が2つの選び方を聞いてきます</div>
+                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95')}>
+                    {''}<Jp parts={['「追加のみ」と', '「フルアクセス」です。', 'このアプリが', '予定を読み込めるのは', '「フルアクセス」のときで、', '「追加のみ」では', '読み込めません。']} />
                   </div>
                 </div>
 
@@ -1831,9 +1836,14 @@ export function renderApp(v) {
                     ボタンの上に置くが、全員に要るものではないので見出しだけ出す */}
                 <div style={s('margin-top:14px')}><OtherCal v={v} s={s} /></div>
 
+                {/* 「カレンダーを読む」から「続ける」へ。
+                    許可を聞く前の画面のボタンに、許可した先の動きを書いてはいけない
+                    （5.1.1(iv)）。Apple から Continue か Next を使うよう名指しで
+                    指摘された。「やめる」も並べて、進まない道を同じ画面に置く。 */}
                 <div style={s(`margin-top:26px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
-                  {v.impPhase === 'scanning' ? '読み込んでいます…' : 'カレンダーを読む'}
+                  {v.impPhase === 'scanning' ? '読み込んでいます…' : '続ける'}
                 </div>
+                <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
               </>
             )}
 
