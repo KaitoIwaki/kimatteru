@@ -24,7 +24,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
   <text x="90" y="400" font-family="${F}" font-size="34" font-weight="600" fill="#82878F">${esc('開発を応援する')}</text>
 
   <rect x="72" y="440" width="${W - 144}" height="330" rx="40" fill="#FFFFFF" stroke="#E4E7EC" stroke-width="3"/>
-  ${[['コーヒー1杯ぶんの応援', '¥300', 0], ['ランチ1回ぶんの応援', '¥600', 110], ['しっかり応援', '¥1,000', 220]]
+  ${[['コーヒー1杯', '¥300', 0], ['ランチ1回', '¥600', 110], ['しっかり応援', '¥1,000', 220]]
     .map(([label, price, dy]) => `
     <text x="120" y="${515 + dy}" font-family="${F}" font-size="40" fill="#1E2024">${esc(label)}</text>
     <text x="${W - 120}" y="${515 + dy}" font-family="${F}" font-size="40" font-weight="700" fill="#4A4E55" text-anchor="end">${price}</text>
