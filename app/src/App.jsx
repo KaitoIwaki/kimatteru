@@ -585,6 +585,32 @@ export default class App extends React.Component {
       // 入っている項目だけ行を出す。空のものまで並べない
       added:[...(ev.place?['place']:[]), ...(ev.memo?['memo']:[])], picking:null }});
   }
+  /**
+   * この予定をもとに、新しい予定を作る。編集と同じ画面を、中身入りで開く。
+   *
+   * 持っていかないものが3つある。
+   *  ・状態のうち「終わったこと」——実績と無くなった予定。実績は
+   *    「実際にあったこと」の記録なので、別の日に写すと嘘になる。
+   *    だからコピーの行そのものを、その2つには出さない（下の dActions）。
+   *  ・働いた記録（actualEnd）。上と同じ理由。
+   *  ・くり返しの結びつき（repId）。コピーは1件だけの話で、群れには入れない。
+   *
+   * 日付えらびを最初から開けておく。中身が同じで日だけ違うのがコピーなので、
+   * 開いた人が最初にやることが決まっている。そのまま保存すれば同じ日に2つ置ける。
+   * 何日ぶんかまとめたいときは、この画面の「複数日」がそのまま使える。
+   */
+  openCopy(ev,ret){
+    tapLight();
+    this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
+      editingId:null, title:ev.title, type:ev.type,
+      status: ev.status==='mikakutei' ? 'mikakutei' : 'kakutei',
+      start:ev.start, end:ev.end,
+      y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, pickedOnce:false, pickYM:false,
+      extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev),
+      remindMin: typeof ev.remindMin==='number' ? ev.remindMin : null,
+      place:ev.place||'', memo:ev.memo||'', repEvery:null, repSpan:3, repDows:[],
+      added:[...(ev.place?['place']:[]), ...(ev.memo?['memo']:[])], picking:'date' }});
+  }
   askDelete(id){ this.setState({confirmDelete:id, deleteRest:false}); }
 
   // ---- 開発応援 ----
@@ -636,9 +662,14 @@ export default class App extends React.Component {
     this.setState(s=>({probe:{...(s.probe||{}), widget:{ there: widgetAvailable(), last: r }}}));
   }
 
-  /** 応援の行を押している最中の見た目。id を渡すと沈み、null で戻る */
-  pressTip(id){
-    if(this.state.tipPress !== id) this.setState({tipPress:id});
+  /**
+   * 押している最中の見た目。key を渡すと沈み、null で戻る。
+   * key は画面ごとに好きな文字列でいい（'tip:a'、'act:copy' など）。
+   * styles.css で tap-highlight を切ってあるうえ、直書きの style では
+   * :active が書けないので、押した感はここで作るしかない。
+   */
+  setPressed(key){
+    if(this.state.pressed !== key) this.setState({pressed:key});
   }
 
   async buyTip(id){
@@ -650,7 +681,7 @@ export default class App extends React.Component {
     this.setState({tipBusy:id});
     let r;
     try{ r = await buyTip(id); }
-    finally{ this.setState({tipBusy:null, tipPress:null}); }
+    finally{ this.setState({tipBusy:null, pressed:null}); }
     if(r.ok){
       // 消耗型は Apple 側で復元できない。自前で持たないと機種変更で消えるので、
       // 予定と同じ入れ物に入れる（控えにも入る）。
@@ -1530,9 +1561,9 @@ export default class App extends React.Component {
     // 沈む色は消せる（指が離れる前に取り消せる）が、鳴った振動は取り消せない。
     const press = (on)=>on ? {background:'var(--press)'} : null;
     v.tipHeadStyle = {display:'flex',alignItems:'center',gap:12,padding:'14px 16px',
-      borderBottom:'1px solid var(--line)',cursor:'pointer',...press(st.tipPress==='head')};
-    v.onTipHeadDown = ()=>this.pressTip('head');
-    v.onTipUp = ()=>this.pressTip(null);
+      borderBottom:'1px solid var(--line)',cursor:'pointer',...press(st.pressed==='tip:head')};
+    v.onTipHeadDown = ()=>this.setPressed('tip:head');
+    v.onTipUp = ()=>this.setPressed(null);
     v.onToggleTip = ()=>{ tapLight(); this.setState(s=>({tipOpen:!s.tipOpen})); };
     v.tipRows = (st.tips||[]).map((t,i)=>({
       label:t.label,
@@ -1540,9 +1571,9 @@ export default class App extends React.Component {
       price: st.tipBusy===t.id ? '…' : t.price,
       rowStyle:{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',
         ...(i < (st.tips.length-1) ? {borderBottom:'1px solid var(--line)'} : {}),
-        ...press(st.tipPress===t.id || st.tipBusy===t.id)},
-      onDown:()=>this.pressTip(t.id),
-      onUp:()=>this.pressTip(null),
+        ...press(st.pressed==='tip:'+t.id || st.tipBusy===t.id)},
+      onDown:()=>this.setPressed('tip:'+t.id),
+      onUp:()=>this.setPressed(null),
       onClick:()=>this.buyTip(t.id),
     }));
     // 困ったときの連絡先。アプリ内に無いと、メールではなくレビュー欄に書かれる。
@@ -2465,10 +2496,35 @@ export default class App extends React.Component {
       else if(ev.status==='jisseki') primary('働いた時間を直す',()=>this.openDialog(ev,'worked',st.returnTo));
       else if(ev.status==='mikakutei') primary('この予定、どうなった？',()=>this.openFor(ev,st.returnTo));
       else v.dPrimaryLabel=null;
+      // 編集・コピー・削除。並びはタイムツリーに合わせた（編集 → コピー → 削除）。
+      // 「…」の中にしまう手もあるが、この画面は6割が空いている。しまっても
+      // 空白は空白のまま残って、1回タップが増えるだけになる。
+      //
+      // コピーは「これからの予定」にだけ出す。実績と無くなった予定には出さない
+      // ——終わったことを別の日に写す意味がないうえ、実績として写すと嘘になる。
+      // 種類（バイトかどうか）では分けない。バイトこそ同じ中身が何度も来るので、
+      // 種類で外すと一番効く場所で使えなくなる。分ける軸は状態のほうが1本で済む。
+      const canCopy = ev.status==='kakutei' || ev.status==='mikakutei';
+      const actRow = (key,label,fn,first)=>({ label, onClick:fn,
+        onDown:()=>this.setPressed('act:'+key), onUp:()=>this.setPressed(null),
+        style:{display:'flex',alignItems:'center',gap:12,padding:'15px 18px',cursor:'pointer',
+          fontSize:15,color:'var(--ink)',
+          ...(first ? {} : {borderTop:'1px solid var(--line)'}),
+          ...(st.pressed==='act:'+key ? {background:'var(--press)'} : {})} });
+      v.dActions = [ actRow('edit','編集',()=>this.openEdit(ev,st.returnTo),true) ];
+      if(canCopy) v.dActions.push(actRow('copy','コピー',()=>this.openCopy(ev,st.returnTo)));
+      v.dActionsStyle = {marginTop:20,background:'var(--card)',border:'1px solid var(--line)',
+        borderRadius:14,overflow:'hidden'};
       v.onEdit=()=>this.openEdit(ev,st.returnTo);
       v.onDelete=()=>this.askDelete(ev.id);
+      v.onDeleteDown=()=>this.setPressed('act:del');
+      v.onPressUp=()=>this.setPressed(null);
+      v.dDeleteStyle = {marginTop:14,padding:'15px',textAlign:'center',fontSize:15,
+        color:'#A8452B',cursor:'pointer',background:'var(--card)',
+        border:'1px solid var(--line)',borderRadius:14,
+        ...(st.pressed==='act:del' ? {background:'var(--press)'} : {})};
       v.dDeleteLabel = ev.status==='jisseki' ? 'この実績を削除' : 'この予定を削除';
-    } else { v.dTitle=''; v.dPrimaryLabel=null; }
+    } else { v.dTitle=''; v.dPrimaryLabel=null; v.dActions=[]; }
 
     // ---------- 取り返しのつかない操作の確認 ----------
     // 削除と、控えからの復元。どちらも同じ覆いを使う。
