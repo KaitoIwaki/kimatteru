@@ -82,7 +82,7 @@ export async function probeTips() {
     }
     const tips = TIPS.map((t) => {
       const got = found.find((x) => (x.identifier || x.id) === t.id);
-      return got ? { ...t, price: got.priceString || got.displayPrice || `¥${t.yen}` } : null;
+      return got ? { ...t, price: priceText(got, t) } : null;
     }).filter(Boolean);
     out.tips = tips.length ? tips : null;
     if (!out.tips) out.error = '取れた商品の識別子が、こちらの製品IDと一致しない。';
@@ -91,6 +91,32 @@ export async function probeTips() {
     out.error = '取得でエラー: ' + ((e && e.message) || String(e));
     return out;
   }
+}
+
+/**
+ * 画面に出す値段。
+ *
+ * ふだんは StoreKit が返した文字列をそのまま使う。値段は Apple が持っていて、
+ * こちらが持つ数字はいつか古くなるため——アプリが本当と違う値段を出すのは、
+ * それ自体がまずい。
+ *
+ * ただし**円で返ってこなかったときだけ**、こちらの円に置き換える。
+ * このアプリは日本にしか出していないので（2026-08）、実際に買う人が払うのは
+ * 必ず円。円以外が返るのは、テストに使っている Apple ID のストアが日本以外の
+ * ときで、そこでドルを出すと、買った記録（サポーターカードの合計は
+ * TIPS の yen で数える）とも食い違う。
+ *
+ * 世界に出すときは、ここと `buyTip` の記録の両方を、実際に払った額と通貨で
+ * 持つように作り直すこと。ここだけ直しても記録は円のままになる。
+ */
+function priceText(got, t) {
+  const raw = got.priceString || got.displayPrice || '';
+  const code = String(got.currencyCode || (got.priceLocale && got.priceLocale.currencyCode) || '').toUpperCase();
+  // 通貨コードが取れればそれで見る。取れないときは記号で見る
+  // （¥ は人民元でも使うが、日本にしか出していないので取り違えは起きない）
+  const isYen = code ? code === 'JPY' : /[¥￥]|円/.test(raw);
+  if (raw && isYen) return raw;
+  return '¥' + t.yen.toLocaleString('ja-JP');
 }
 
 /**
