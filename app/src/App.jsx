@@ -591,7 +591,7 @@ export default class App extends React.Component {
    * 持っていかないものが3つある。
    *  ・状態のうち「終わったこと」——実績と無くなった予定。実績は
    *    「実際にあったこと」の記録なので、別の日に写すと嘘になる。
-   *    だからコピーの行そのものを、その2つには出さない（下の dActions）。
+   *    だからコピーの行そのものを、その2つには出さない（下の menuRows）。
    *  ・働いた記録（actualEnd）。上と同じ理由。
    *  ・くり返しの結びつき（repId）。コピーは1件だけの話で、群れには入れない。
    *
@@ -1050,7 +1050,7 @@ export default class App extends React.Component {
       // 今月を見ているなら今日、別の月を見ているならその月の1日から始める
       onFab:()=>{ const t=st.today; const same=st.ym.y===t.y&&st.ym.m===t.m; this.openNew(same?t.d:1,'month'); },
       onCancel:()=>this.setState({screen:st.returnTo}),
-      onBack:()=>this.setState({screen:st.returnTo, detailId:null}),
+      onBack:()=>this.setState({screen:st.returnTo, detailId:null, detailMenu:false}),
       onDayBack:()=>this.setState({screen:'month', dayNum:null}),
       onOpenFree:()=>this.setState({screen:'free'}),
       onFreeBack:()=>this.setState({screen:'month'}),
@@ -2496,35 +2496,44 @@ export default class App extends React.Component {
       else if(ev.status==='jisseki') primary('働いた時間を直す',()=>this.openDialog(ev,'worked',st.returnTo));
       else if(ev.status==='mikakutei') primary('この予定、どうなった？',()=>this.openFor(ev,st.returnTo));
       else v.dPrimaryLabel=null;
-      // 編集・コピー・削除。並びはタイムツリーに合わせた（編集 → コピー → 削除）。
-      // 「…」の中にしまう手もあるが、この画面は6割が空いている。しまっても
-      // 空白は空白のまま残って、1回タップが増えるだけになる。
+      // 編集・コピー・削除は「…」の中にしまう。並びはタイムツリーに合わせた。
+      //
+      // 一度はカードの下に行で並べたが（v0.27.0）、実績の画面で詰まった。
+      // 実績はカードだけで8行あり、そこに緑のボタンと行が2つ乗ると箱だらけになる。
+      // 用事の画面は逆に6割が空いていて、そちらだけ見て決めたのが間違いだった。
+      // **混んでいるほうに合わせて組む。**
+      //
+      // 緑のボタン（上）はそのまま残す。あれは「次へ進む」ための操作で、
+      // 直すだけの編集とは役目が違う。
       //
       // コピーは「これからの予定」にだけ出す。実績と無くなった予定には出さない
       // ——終わったことを別の日に写す意味がないうえ、実績として写すと嘘になる。
       // 種類（バイトかどうか）では分けない。バイトこそ同じ中身が何度も来るので、
       // 種類で外すと一番効く場所で使えなくなる。分ける軸は状態のほうが1本で済む。
       const canCopy = ev.status==='kakutei' || ev.status==='mikakutei';
-      const actRow = (key,label,fn,first)=>({ label, onClick:fn,
-        onDown:()=>this.setPressed('act:'+key), onUp:()=>this.setPressed(null),
-        style:{display:'flex',alignItems:'center',gap:12,padding:'15px 18px',cursor:'pointer',
-          fontSize:15,color:'var(--ink)',
-          ...(first ? {} : {borderTop:'1px solid var(--line)'}),
-          ...(st.pressed==='act:'+key ? {background:'var(--press)'} : {})} });
-      v.dActions = [ actRow('edit','編集',()=>this.openEdit(ev,st.returnTo),true) ];
-      if(canCopy) v.dActions.push(actRow('copy','コピー',()=>this.openCopy(ev,st.returnTo)));
-      v.dActionsStyle = {marginTop:20,background:'var(--card)',border:'1px solid var(--line)',
-        borderRadius:14,overflow:'hidden'};
+      v.detailMenuShown = !!st.detailMenu;
+      v.onOpenDetailMenu = ()=>{ tapLight(); this.setState(s=>({detailMenu:!s.detailMenu, pressed:null})); };
+      v.onCloseDetailMenu = ()=>this.setState({detailMenu:false, pressed:null});
+      const mRows = [ {key:'edit', label:'編集', fn:()=>this.openEdit(ev,st.returnTo)} ];
+      if(canCopy) mRows.push({key:'copy', label:'コピー', fn:()=>this.openCopy(ev,st.returnTo)});
+      mRows.push({key:'del', red:true, fn:()=>this.askDelete(ev.id),
+        label: ev.status==='jisseki' ? 'この実績を削除' : 'この予定を削除'});
+      v.menuRows = mRows.map((r,i)=>({ label:r.label,
+        // 押したらまず閉じる。開いたまま次の画面へ行くと、戻ったとき開いている
+        onClick:()=>{ this.setState({detailMenu:false, pressed:null}); r.fn(); },
+        onDown:()=>this.setPressed('menu:'+r.key), onUp:()=>this.setPressed(null),
+        style:{display:'flex',alignItems:'center',padding:'15px 18px',cursor:'pointer',
+          fontSize:15, color: r.red ? '#A8452B' : 'var(--ink)',
+          ...(i ? {borderTop:'1px solid var(--line)'} : {}),
+          ...(st.pressed==='menu:'+r.key ? {background:'var(--press)'} : {})} }));
+      // 「…」の真下から生える。安全域ぶん下げてから、見出しの高さ（52）を足す
+      v.menuStyle = {position:'absolute', right:14, top:'calc(env(safe-area-inset-top) + 52px)',
+        minWidth:196, zIndex:90, background:'var(--card)', border:'1px solid var(--line)',
+        borderRadius:13, overflow:'hidden', boxShadow:'0 14px 34px rgba(0,0,0,.16)',
+        transformOrigin:'top right', animation:'dlgIn .16s cubic-bezier(.2,.9,.2,1)'};
       v.onEdit=()=>this.openEdit(ev,st.returnTo);
       v.onDelete=()=>this.askDelete(ev.id);
-      v.onDeleteDown=()=>this.setPressed('act:del');
-      v.onPressUp=()=>this.setPressed(null);
-      v.dDeleteStyle = {marginTop:14,padding:'15px',textAlign:'center',fontSize:15,
-        color:'#A8452B',cursor:'pointer',background:'var(--card)',
-        border:'1px solid var(--line)',borderRadius:14,
-        ...(st.pressed==='act:del' ? {background:'var(--press)'} : {})};
-      v.dDeleteLabel = ev.status==='jisseki' ? 'この実績を削除' : 'この予定を削除';
-    } else { v.dTitle=''; v.dPrimaryLabel=null; v.dActions=[]; }
+    } else { v.dTitle=''; v.dPrimaryLabel=null; v.detailMenuShown=false; v.menuRows=[]; }
 
     // ---------- 取り返しのつかない操作の確認 ----------
     // 削除と、控えからの復元。どちらも同じ覆いを使う。

@@ -660,11 +660,13 @@ export function renderApp(v) {
 
       {/* ===================== SHIFT DETAIL ===================== */}
       {v.detailShown && (
-        <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
+        <div style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           {/* 題は出さない。すぐ下のカードに24pxで出ていて、2回書くことになる。
-              編集も右上の小さい字をやめ、下の束に降ろした（指の届く大きさになる） */}
-          <div className="scr-head-solo" style={s('padding:0 18px 10px 18px')}>
+              右は「···」。編集・コピー・削除はこの中（実績の画面は混んでいるので、
+              画面に箱を増やさない） */}
+          <div className="scr-head-solo" style={s('display:flex;align-items:center;justify-content:space-between;padding:0 18px 10px 18px')}>
             <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onBack}>←</span>
+            <span role="button" aria-label="この予定の操作" style={s('font-size:20px;line-height:1;letter-spacing:2px;color:var(--ink-mut);cursor:pointer;padding:6px 0 6px 12px;user-select:none')} onClick={v.onOpenDetailMenu}>···</span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:14px 16px 40px 16px')}>
             <div style={s('background:var(--card);border-radius:16px;overflow:hidden;display:flex;border:1px solid var(--line);min-height:170px')}>
@@ -734,24 +736,20 @@ export function renderApp(v) {
               <div style={s(v.dPrimaryStyle)} onClick={v.dPrimaryAction}>{v.dPrimaryLabel}</div>
             )}
 
-            {/* 編集・コピー・削除。並びはタイムツリーと同じ。
-                削除は束から少し離して、赤のまま置く——同じ束に入れると押し間違える */}
-            {!!(v.dActions || []).length && (
-              <div style={s(v.dActionsStyle)}>
-                {v.dActions.map((a, i) => (
-                  <div key={i} style={s(a.style)} onClick={a.onClick}
-                       onPointerDown={a.onDown} onPointerUp={a.onUp}
-                       onPointerCancel={a.onUp} onPointerLeave={a.onUp}>
-                    <span style={s('flex:1')}>{a.label}</span>
-                    <span style={s('font-size:15px;color:var(--ink-faint)')}>›</span>
-                  </div>
+          </div>
+
+          {/* 「···」の中身。外を触れば閉じる */}
+          {v.detailMenuShown && (
+            <div style={s('position:absolute;inset:0;z-index:89;background:rgba(20,20,22,.10);animation:scrimIn .16s ease')} onClick={v.onCloseDetailMenu}>
+              <div style={s(v.menuStyle)} onClick={v.stop}>
+                {(v.menuRows || []).map((m, i) => (
+                  <div key={i} style={s(m.style)} onClick={m.onClick}
+                       onPointerDown={m.onDown} onPointerUp={m.onUp}
+                       onPointerCancel={m.onUp} onPointerLeave={m.onUp}>{m.label}</div>
                 ))}
               </div>
-            )}
-            <div style={s(v.dDeleteStyle)} onClick={v.onDelete}
-                 onPointerDown={v.onDeleteDown} onPointerUp={v.onPressUp}
-                 onPointerCancel={v.onPressUp} onPointerLeave={v.onPressUp}>{v.dDeleteLabel}</div>
-          </div>
+            </div>
+          )}
         </div>
       )}
 
