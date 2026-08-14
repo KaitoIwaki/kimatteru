@@ -736,6 +736,44 @@ export function renderApp(v) {
               <div style={s(v.dPrimaryStyle)} onClick={v.dPrimaryAction}>{v.dPrimaryLabel}</div>
             )}
 
+            {/* その日の、ほかの予定。この予定だけ見ても、その日が決まっているかは
+                分からない。ピルは月表示と同じ（塗り＝確定・点線＝まだ） */}
+            <div style={s('margin-top:30px;padding:0 2px 8px;font-size:12px;color:var(--ink-mut)')}>{v.dOthersLabel}</div>
+            <div style={s('background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden')}>
+              {(v.dOthers || []).length ? (v.dOthers || []).map((o, i) => (
+                <div key={i} style={s(o.rowStyle)} onClick={o.onClick}
+                     onPointerDown={o.onDown} onPointerUp={o.onUp}
+                     onPointerCancel={o.onUp} onPointerLeave={o.onUp}>
+                  <span style={s('width:38px;flex-shrink:0;font-size:12px;color:var(--ink-faint);font-variant-numeric:tabular-nums')}>{o.when}</span>
+                  <span style={s(o.pillStyle)}>{o.title}</span>
+                </div>
+              )) : (
+                <div style={s('padding:18px;text-align:center;font-size:14px;color:var(--ink-mut)')}>この日は、これだけです</div>
+              )}
+              {!!v.dOthersRest && (
+                <div style={s('padding:10px 16px 12px;border-top:1px solid var(--line-faint);font-size:12px;color:var(--ink-faint)')}>ほか {v.dOthersRest}件</div>
+              )}
+            </div>
+
+            {/* これまでの「◯◯」。同じ種類・同じ題名のものを数える */}
+            <div style={s('margin-top:26px;padding:0 2px 8px;font-size:12px;color:var(--ink-mut)')}>{v.dHistLabel}</div>
+            <div style={s('background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden')}>
+              {v.dHist ? (
+                <>
+                  <div style={s('display:flex;gap:18px;padding:14px 16px 12px;font-size:15px')}>
+                    <span style={s('color:var(--ink)')}>{v.dHist.year}</span>
+                    <span style={s('color:var(--ink-soft)')}>{v.dHist.month}</span>
+                  </div>
+                  <div style={s('display:flex;align-items:baseline;gap:10px;padding:12px 16px 14px;border-top:1px solid var(--line-faint)')}>
+                    <span style={s('font-size:13px;color:var(--ink-mut)')}>前回</span>
+                    <span style={s('flex:1;font-size:13px;color:var(--ink)')}>{v.dHist.prev}</span>
+                    <span style={s('font-size:12px;color:var(--ink-faint)')}>{v.dHist.ago}</span>
+                  </div>
+                </>
+              ) : (
+                <div style={s('padding:18px;text-align:center;font-size:14px;color:var(--ink-mut)')}>これが、はじめてです</div>
+              )}
+            </div>
           </div>
 
           {/* 「···」の中身。外を触れば閉じる */}

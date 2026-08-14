@@ -14,6 +14,7 @@ import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, 
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
 import { norm, showsFront, dragToDeg, settle, settleTime, ease, cardShadow, tiltFor } from './cardflip';
+import { historyFor, othersOnDay, agoText } from './eventctx.js';
 
 // 曜日と祝日の色。紙の上で浮きすぎないよう、どちらも少し落ち着かせた色にする。
 const HOLIDAY_RED = '#B4453A'; // 祝日と日曜
@@ -2533,7 +2534,50 @@ export default class App extends React.Component {
         transformOrigin:'top right', animation:'dlgIn .16s cubic-bezier(.2,.9,.2,1)'};
       v.onEdit=()=>this.openEdit(ev,st.returnTo);
       v.onDelete=()=>this.askDelete(ev.id);
-    } else { v.dTitle=''; v.dPrimaryLabel=null; v.detailMenuShown=false; v.menuRows=[]; }
+
+      // ---------- カードの下の2つ ----------
+      // 操作を「···」にしまったら下が空いた。そこを**書かなくても出るもの**で
+      // 埋める。記録を書かせる欄を置く手もあったが、書かない日は空のままで、
+      // いま困っていること（空白）がむしろ増える。
+      //
+      // ② その日の、ほかの予定 — 横の文脈。この予定だけ見ても、その日が
+      //    決まっているかは分からない。ピルは月表示と同じ描き方にして、
+      //    塗り＝確定・点線＝まだ の決まりを持ち込む（見た目の決まりを増やさない）。
+      // ① これまでの「◯◯」 — 縦の文脈。前回いつ行ったか。
+      //
+      // 2つ置いているのは、**互いの空を埋め合う**から。予定が1件だけの日は
+      // ②が1行に縮むが①が伸び、はじめての予定は①が縮むが②が出る。
+      const DOWD=['日','月','火','水','木','金','土'];
+      const dateWord=(e)=>`${e.m+1}月${e.day}日（${DOWD[new Date(e.y,e.m,e.day).getDay()]}）`;
+      const oth = othersOnDay(st.events, ev, 3);
+      v.dOthersLabel = `${ev.m+1}月${ev.day}日の、ほかの予定`;
+      v.dOthersRest = oth.rest;
+      v.dOthers = oth.list.map((o,i)=>{
+        const ot=this.T(o.type);
+        const base={height:24,boxSizing:'border-box',borderRadius:5,padding:'0 9px',fontSize:12,
+          lineHeight:'24px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',
+          flex:1,minWidth:0};
+        // 点線の枠そのものが「まだ」を示すので、月表示のような「？」は付けない
+        const pill = o.status==='mikakutei'
+          ? {...base, background:ot.paper, color:this.inkOn(ot.color), lineHeight:'21px',
+             border:'1.5px dashed '+this.softLine(ot.color)}
+          : {...base, background:this.softFill(ot.color), color:this.inkOn(ot.color)};
+        return { title:o.title, when: o.allDay ? '終日' : (o.start||''), pillStyle:pill,
+          // 押したときの動きは月表示と同じ（点線なら「どうなった？」が開く）。
+          // 戻り先は変えない——予定から予定へ渡り歩いても、戻るで元の一覧に出る
+          onClick:()=>this.openFor(o, st.returnTo),
+          onDown:()=>this.setPressed('oth:'+o.id), onUp:()=>this.setPressed(null),
+          rowStyle:{display:'flex',alignItems:'center',gap:8,padding:'12px 16px',cursor:'pointer',
+            ...(i ? {borderTop:'1px solid var(--line-faint)'} : {}),
+            ...(st.pressed==='oth:'+o.id ? {background:'var(--press)'} : {})} };
+      });
+
+      const hist = historyFor(st.events, ev);
+      v.dHistLabel = `これまでの「${ev.title}」`;
+      v.dHist = hist ? { year:`今年 ${hist.yearNth}回目`, month:`今月 ${hist.monthNth}回目`,
+        prev: dateWord(hist.prev), ago: agoText(hist.daysAgo) } : null;
+    } else { v.dTitle=''; v.dPrimaryLabel=null; v.detailMenuShown=false; v.menuRows=[];
+      v.dOthers=[]; v.dOthersRest=0; v.dHist=null; }
 
     // ---------- 取り返しのつかない操作の確認 ----------
     // 削除と、控えからの復元。どちらも同じ覆いを使う。
