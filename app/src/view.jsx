@@ -1214,19 +1214,6 @@ export function renderApp(v) {
 
             <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
-              {/* サポーターカード。応援したことがある人にだけ出る。
-                  機能ではなく「自分がやったことの記録」なので、消耗型のままでいい。
-                  持ち物なので群の先頭に置くが、行の形はほかとそろえる。 */}
-              {v.supporterShown && (
-                <div style={s('display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenCard}>
-                  <span style={s('width:22px;height:22px;border-radius:11px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0')}>✓</span>
-                  <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
-                    <span style={s('font-size:15px;color:var(--ink)')}>サポーターカード</span>
-                    <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.supporterTotal}・{v.supporterCount}・{v.supporterSince}</span>
-                  </span>
-                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-                </div>
-              )}
               <a href={v.reviewHref} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>App Store でレビューする</span>
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
@@ -1249,10 +1236,38 @@ export function renderApp(v) {
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
               </div>
 
-              {/* 開発応援。規約の下に静かに置く。探した人だけが見つければいい。
-                  起動時に出したり、赤い点で気づかせたりはしない——
-                  新しい人に見せると物乞いに見える。
-                  商品が取れないときは、行ごと出さない。 */}
+
+              {/* 5回叩くと診断が出る。ふつうに使う人には何も起きない */}
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:default')} onClick={v.onTapVersion}>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バージョン</span>
+                <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>{v.appVersion}</span>
+              </div>
+            </div>
+
+            {/* 応援。設定のいちばん下、規約よりさらに下に置く。
+                「このアプリについて」の中に混ぜていたときは、持っているもの
+                （サポーターカード）が群の先頭、これからすること（開発を応援する）が
+                群の最後で、間に4行はさまっていた。同じ話なのに離れていた。
+                群にすれば、過去 → これから の順で並ぶ。
+                手前に出したいわけではないので、場所はいちばん下のまま。 */}
+            {v.supportGroupShown && (<>
+              <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>応援</div>
+              <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
+              {/* 持っているもの。応援したことがある人にだけ出る。
+                  機能ではなく「自分がやったことの記録」なので、消耗型のままでいい。 */}
+              {v.supporterShown && (
+                <div style={s(v.supporterRowStyle)} onClick={v.onOpenCard}
+                     onPointerDown={v.onSupDown} onPointerUp={v.onSupUp}
+                     onPointerCancel={v.onSupUp} onPointerLeave={v.onSupUp}>
+                  <span style={s('width:22px;height:22px;border-radius:11px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0')}>✓</span>
+                  <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
+                    <span style={s('font-size:15px;color:var(--ink)')}>サポーターカード</span>
+                    <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.supporterTotal}・{v.supporterCount}・{v.supporterSince}</span>
+                  </span>
+                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+                </div>
+              )}
+              {/* 商品が取れないときは、行ごと出さない */}
               {v.tipShown && (<>
                 <div style={s(v.tipHeadStyle)} onClick={v.onToggleTip}
                      onPointerDown={v.onTipHeadDown} onPointerUp={v.onTipUp}
@@ -1278,13 +1293,8 @@ export function renderApp(v) {
                   </div>
                 )}
               </>)}
-
-              {/* 5回叩くと診断が出る。ふつうに使う人には何も起きない */}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:default')} onClick={v.onTapVersion}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バージョン</span>
-                <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>{v.appVersion}</span>
               </div>
-            </div>
+            </>)}
 
           </div>
         </div>

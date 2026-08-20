@@ -1406,6 +1406,7 @@ export default class App extends React.Component {
     // 消耗型のまま渡せるのは、何も解放していないから。
     {
       const sup = st.supports || [];
+      const tipShown = Array.isArray(st.tips) && st.tips.length > 0;
       v.supporterShown = sup.length > 0;
       if(v.supporterShown){
         const total = sup.reduce((a,x)=>a+(x.yen|0), 0);
@@ -1414,6 +1415,13 @@ export default class App extends React.Component {
         v.supporterTotal = '¥'+total.toLocaleString('ja-JP');
         v.supporterSince = `${first.getFullYear()}年${first.getMonth()+1}月から`;
         v.onOpenCard = ()=>{ tapLight(); this.stopCardFlip(); this.setState({screen:'card', cardAngle:0}); };
+        // 下に応援の行が続くときだけ、下線を引く。群の最後なら引かない
+        v.supporterRowStyle = {display:'flex',alignItems:'center',gap:10,padding:'14px 16px',
+          cursor:'pointer',
+          ...(tipShown ? {borderBottom:'1px solid var(--line)'} : {}),
+          ...(st.pressed==='sup' ? {background:'var(--press)'} : {})};
+        v.onSupDown = ()=>this.setPressed('sup');
+        v.onSupUp = ()=>this.setPressed(null);
       }
     }
 
@@ -1547,6 +1555,8 @@ export default class App extends React.Component {
     }
 
     v.tipShown = Array.isArray(st.tips) && st.tips.length > 0;
+    // 設定の一番下に立てる「応援」の群。中身が何も無ければ、見出しごと出さない
+    v.supportGroupShown = v.tipShown || v.supporterShown;
     // 応援は「このアプリについて」の中に、1行だけ置いて畳んでおく。
     // 探した人だけが見つければいいものなので、金額を並べたまま置かない。
     v.tipOpen = !!st.tipOpen;
@@ -1561,8 +1571,9 @@ export default class App extends React.Component {
     // この行から指を滑らせて画面を送ったときにも鳴ってしまう。
     // 沈む色は消せる（指が離れる前に取り消せる）が、鳴った振動は取り消せない。
     const press = (on)=>on ? {background:'var(--press)'} : null;
-    v.tipHeadStyle = {display:'flex',alignItems:'center',gap:12,padding:'14px 16px',
-      borderBottom:'1px solid var(--line)',cursor:'pointer',...press(st.pressed==='tip:head')};
+    v.tipHeadStyle = {display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',
+      ...(st.tipOpen ? {borderBottom:'1px solid var(--line)'} : {}),
+      ...press(st.pressed==='tip:head')};
     v.onTipHeadDown = ()=>this.setPressed('tip:head');
     v.onTipUp = ()=>this.setPressed(null);
     v.onToggleTip = ()=>{ tapLight(); this.setState(s=>({tipOpen:!s.tipOpen})); };
