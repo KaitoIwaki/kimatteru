@@ -1,6 +1,8 @@
 // シェア画像をキャンバスに直接描く。
 // DOMのスクショ変換ライブラリを使わないのは、書き出しの見た目を「静かな文房具」から
 // 一切ぶらさないため（影やぼかしの再現ズレが起きない）。
+import { drawTexture } from './cardtexture.js';
+
 const PAPER = '#FBFBFD';
 const PAPER2 = '#F4F6F8';
 const INK = '#26251F';
@@ -397,6 +399,10 @@ export function drawSupporterCard({ owner, since, total, times, paper, foil, mar
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
+  // 肌理（刷り目と粒子）。画面のカードと同じ数字を cardtexture.js から使う。
+  // 紙のすぐ上・光の帯より下に置く。光は肌理の上を通る。
+  drawTexture(ctx, W, H);
+
   // 向きに連れて動く光。画面では指で回すと滑るが、静止画では正面のとき——
   // つまり真ん中に一本置く。ゴールドだけ、真ん中がわずかに緑へ振れる。
   const glint = ctx.createLinearGradient(W * 0.1, 0, W * 0.62, H);
@@ -433,17 +439,41 @@ export function drawSupporterCard({ owner, since, total, times, paper, foil, mar
     ctx.globalAlpha = 1;
   }
 
+  // 縁の面取り。光は左上から当たっている前提で、上と左を明るく、下と右を暗く。
+  // 四辺を同じ色の1本線で囲むと、物ではなく「描いた四角」に見える。
+  const bevel = (from, to, color) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(from[0], from[1]);
+    ctx.lineTo(to[0], to[1]);
+    ctx.stroke();
+  };
+  const B = 5;
+  bevel([B, B + 6], [B, H - B - 6], 'rgba(255,251,232,.75)');      // 左：明かり
+  bevel([B + 6, B], [W - B - 6, B], 'rgba(255,251,232,.75)');      // 上：明かり
+  bevel([W - B, B + 6], [W - B, H - B - 6], 'rgba(42,28,2,.5)');   // 右：影
+  bevel([B + 6, H - B], [W - B - 6, H - B], 'rgba(42,28,2,.5)');   // 下：影
+
   ctx.strokeStyle = edge || 'rgba(107,88,47,.32)';
   ctx.lineWidth = 3;
   ctx.strokeRect(1.5, 1.5, W - 3, H - 3);
-  // 厚み。上の縁に明かり、下の縁に影
-  ctx.strokeStyle = 'rgba(255,255,255,.5)';
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(24, 2); ctx.lineTo(W - 24, 2); ctx.stroke();
-  ctx.strokeStyle = 'rgba(0,0,0,.14)';
-  ctx.beginPath(); ctx.moveTo(24, H - 2); ctx.lineTo(W - 24, H - 2); ctx.stroke();
 
   const PAD = 62;
+
+  // 箔押しは紙に**沈んで**いる。上に影、下に明かりを置いてから本体を刷る。
+  // 前は影が無く、紙に載っているだけに見えた。
+  // これ以降の文字はすべてこの形で刷りたいので、fillText を差し替える。
+  const plainFill = ctx.fillText.bind(ctx);
+  const dark = tier === 'black' ? 'rgba(0,0,0,.65)' : 'rgba(60,40,4,.45)';
+  const lite = tier === 'black' ? 'rgba(255,240,196,.3)' : 'rgba(255,252,232,.75)';
+  ctx.fillText = (text, x, y) => {
+    const keep = ctx.fillStyle;
+    ctx.fillStyle = dark; plainFill(text, x, y - 1.6);
+    ctx.fillStyle = lite; plainFill(text, x, y + 2.6);
+    ctx.fillStyle = keep; plainFill(text, x, y);
+  };
+
   ctx.fillStyle = FOIL;
 
   ctx.font = f(40, 800);
@@ -475,5 +505,7 @@ export function drawSupporterCard({ owner, since, total, times, paper, foil, mar
   ctx.fillText(times, W - PAD, H - PAD);
   ctx.textAlign = 'left';
 
+
+  ctx.fillText = plainFill;   // 借りていた刷り方を返す
   return c;
 }

@@ -15,6 +15,7 @@ import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
 import { norm, showsFront, dragToDeg, settle, settleTime, ease, cardShadow, tiltFor } from './cardflip';
 import { historyFor, othersOnDay, agoText } from './eventctx.js';
+import { textureCss } from './cardtexture.js';
 
 // 曜日と祝日の色。紙の上で浮きすぎないよう、どちらも少し落ち着かせた色にする。
 const HOLIDAY_RED = '#B4453A'; // 祝日と日曜
@@ -1488,9 +1489,15 @@ export default class App extends React.Component {
       // 組み合わせると無視されることがあり（表の文字が鏡文字で透けた）、
       // 効く端末では逆に、消える側が二重になって一瞬何も無くなる。
       // 向こうを向いた面は opacity:0 にする。それだけで足りる。
+      // 紙の上に肌理（刷り目と粒子）を敷く。ここを入れる前は、金が完璧に
+      // 滑らかで、本物の金属にその清潔さは無かった。柄ではなく肌理なので、
+      // 何が変わったかは意識に上らない——「なんとなく本物っぽい」で足りる。
+      const tex = textureCss();
       const face = {
         position:'absolute', inset:0, borderRadius:18, padding:'20px 22px', overflow:'hidden',
-        background:`linear-gradient(150deg, ${paperStops(tier.paper)})`,
+        backgroundImage:`${tex.image}, linear-gradient(150deg, ${paperStops(tier.paper)})`,
+        backgroundSize:`${tex.size}, 100% 100%`,
+        backgroundRepeat:`${tex.repeat}, no-repeat`,
         border:'1px solid '+tier.edge };
       // 影も角度から出す。回っている最中は横にずれて濃くなり、
       // 空中で浮いて裏返っている感じを影の側からも支える。
@@ -1506,8 +1513,11 @@ export default class App extends React.Component {
       {
         const gx = Math.sin((ang * Math.PI) / 180);          // 正面 0 → 真横 ±1
         const gy = Math.sin((tilt * Math.PI) / 180) * 3;     // 傾きは浅いので効きを強める
+        // background（まとめ書き）と backgroundSize を混ぜると、React が
+        // 「片方を更新したときにもう片方が落ちうる」と警告する。ここは角度が
+        // 変わるたびに書き換わる場所なので、まとめ書きを使わない。
         v.glintStyle = { position:'absolute', inset:0, pointerEvents:'none', zIndex:0,
-          background:`linear-gradient(${112 - tilt * 2}deg, ${tier.glint})`,
+          backgroundImage:`linear-gradient(${112 - tilt * 2}deg, ${tier.glint})`,
           backgroundSize:'250% 250%',
           backgroundPosition:`${(50 - gx * 42).toFixed(1)}% ${(50 - gy * 42).toFixed(1)}%` };
       }
@@ -1518,8 +1528,12 @@ export default class App extends React.Component {
           width:i%3===0?3:2, height:i%3===0?3:2, borderRadius:'50%',
           background:tier.fleck, opacity:0, pointerEvents:'none', zIndex:0,
           animation:`fleck ${6+(i%4)}s ease-in-out ${d}s infinite` } })) : [];
+      // 箔押しは紙に**沈んで**いる。上に影、下に明かりの2本で押し込む。
+      // 前は下に明かり1本だけで、それは「浮き出し」の付け方だった。
       const stamped = { color:foil,
-        textShadow: tier.key==='black' ? '0 1px 0 rgba(0,0,0,.5)' : '0 1px 0 rgba(255,255,255,.6)' };
+        textShadow: tier.key==='black'
+          ? '0 -.5px 0 rgba(0,0,0,.65), 0 1px 0 rgba(255,240,196,.3)'
+          : '0 -.5px 0 rgba(60,40,4,.45), 0 1px 0 rgba(255,252,232,.75)' };
       v.foilTextStyle = { ...stamped, fontSize:17, fontWeight:400, letterSpacing:'.02em' };
       v.foilSmallStyle = { ...stamped, fontSize:10, fontWeight:700, letterSpacing:'.14em',
         fontVariantNumeric:'tabular-nums' };

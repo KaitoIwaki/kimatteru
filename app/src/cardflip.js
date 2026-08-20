@@ -84,6 +84,20 @@ export const cardShadow = (deg, back = false) => {
   const y = Math.round(14 - 5 * lift);
   const blur = Math.round(34 + 16 * lift);
   const a = (0.18 + 0.1 * lift).toFixed(3);
-  // 内側の細い線2本が、カードの厚みになる。上に明かり、下に影。
-  return `${x}px ${y}px ${blur}px rgba(38,37,31,${a}), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -1px 0 rgba(0,0,0,.14)`;
+  // 影は2枚。接地の影（近く・濃い）と、環境の影（遠く・薄い）。
+  // 1枚だけだと、机に置いた物ではなく、宙に浮いた絵に見える。
+  const cy = Math.round(2 + 2 * lift);
+  const cb = Math.round(3 + 3 * lift);
+  const ca = (0.26 + 0.06 * lift).toFixed(3);
+  // 縁の面取り。光は左上から当たっている前提で、上と左を明るく、下と右を暗く。
+  // 前は四辺とも同じ色の1本線で、そのせいで「描いた四角」に見えていた。
+  // 内側の細い線2本（上に明かり、下に影）は、カードの厚みとして残す。
+  return [
+    `${Math.round(x * 0.2)}px ${cy}px ${cb}px rgba(38,37,31,${ca})`,
+    `${x}px ${y}px ${blur}px rgba(38,37,31,${a})`,
+    'inset 2px 2px 3px -2px rgba(255,251,232,.75)',
+    'inset -2px -2px 3px -2px rgba(42,28,2,.5)',
+    'inset 0 1px 0 rgba(255,255,255,.5)',
+    'inset 0 -1px 0 rgba(0,0,0,.14)',
+  ].join(', ');
 };
