@@ -15,11 +15,24 @@ const BUNDLE_ID = 'com.kimatteru.app';
 const HOST = 'https://api.appstoreconnect.apple.com';
 const NL = '\n';
 
+// 設定は環境変数か、手元の tools/asc.local.json から。
+// 毎回3つの環境変数を打つのは、打ち間違いのもと（PowerShell と bash で
+// 書き方も違う）。local.json は .gitignore に入れてあるので commit されない。
+// 中身は鍵そのものではなく、Key ID・Issuer ID・鍵の置き場所だけ。
+let LOCAL = null;
+function local() {
+  if (LOCAL) return LOCAL;
+  const at = new URL('./asc.local.json', import.meta.url);
+  try { LOCAL = JSON.parse(fs.readFileSync(at, 'utf8')); } catch { LOCAL = {}; }
+  return LOCAL;
+}
+
 function need(name) {
-  const v = process.env[name];
+  const v = process.env[name] || local()[name];
   if (!v) {
-    console.error(`環境変数 ${name} が要ります。`);
-    console.error('ASC_KEY_ID / ASC_ISSUER_ID / ASC_KEY_PATH の3つを渡してください。');
+    console.error(`${name} が要ります。`);
+    console.error('環境変数で渡すか、tools/asc.local.json にこう書いてください:');
+    console.error('  { "ASC_KEY_ID": "...", "ASC_ISSUER_ID": "...", "ASC_KEY_PATH": "C:/.../AuthKey_XXXX.p8" }');
     process.exit(2);
   }
   return v;

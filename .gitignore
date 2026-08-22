@@ -11,3 +11,4 @@ app/ios/App/App/public
 SECRET_*.pem
 app/tools/*.p8
 *.p8
+app/tools/asc.local.json
