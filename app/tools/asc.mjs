@@ -6,6 +6,7 @@
 //     node tools/asc.mjs status     ← 読むだけ
 //     node tools/asc.mjs notes      ← 審査メモに応援への行き方を足す（書き込み）
 //     node tools/asc.mjs build      ← いちばん新しいビルドを 1.0 に付ける（書き込み）
+//     node tools/asc.mjs cancel     ← 出してしまった審査を取り下げる（書き込み）
 //
 // 鍵はここでしか読まない。表示もしないし、Apple 以外へは送らない。
 import crypto from 'node:crypto';
@@ -255,7 +256,40 @@ async function build() {
   console.log(`  結果      ビルド ${back ? back.attributes.version : '（付かなかった）'}   ${ok ? '✓' : '✗'}`);
 }
 
+/**
+ * 出してしまった審査を取り下げる。
+ *
+ * 課金を置き去りにしたまま本体だけ出てしまったとき用。審査が始まる前
+ * （WAITING_FOR_REVIEW）なら取り下げられる。始まったあと（IN_REVIEW）は
+ * 取り下げると審査中のものまで消えるので、そのときは触らず、ここで止める。
+ *
+ * 取り下げたあと、App Store Connect の画面から出し直すこと。そのとき
+ * 提出物の一覧に課金3つが並んでいるかを必ず目で見る。API からは
+ * 課金を提出物に足せない（Apple がその道を用意していない）。
+ */
+async function cancel() {
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const subs = await get(`/v1/reviewSubmissions?filter[app]=${app.id}&limit=10`);
+  const live = subs.data.find((s) => s.attributes.state === 'WAITING_FOR_REVIEW');
+  if (!live) {
+    const inReview = subs.data.find((s) => s.attributes.state === 'IN_REVIEW');
+    console.log(inReview
+      ? 'すでに審査が始まっています（IN_REVIEW）。ここでは取り下げません。'
+      : '順番待ちの提出がありません。取り下げるものがありません。');
+    return;
+  }
+  console.log(`  取り下げる提出 ${live.id}`);
+  console.log(`  出した日時     ${stamp(live.attributes.submittedDate)}`);
+  await call(`/v1/reviewSubmissions/${live.id}`, 'PATCH',
+    { data: { type: 'reviewSubmissions', id: live.id, attributes: { canceled: true } } });
+  const back = await get(`/v1/reviewSubmissions/${live.id}`);
+  console.log(`  結果           ${back.data.attributes.state}`);
+  console.log('');
+  console.log('  このあと App Store Connect の 1.0 のページから出し直してください。');
+  console.log('  提出の確認画面に、課金3つが並んでいるかを必ず見ること。');
+}
+
 const cmd = process.argv[2] || 'status';
-const jobs = { status, notes, build };
+const jobs = { status, notes, build, cancel };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
