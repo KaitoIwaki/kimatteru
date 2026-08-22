@@ -59,21 +59,45 @@ async function call(path, method = 'GET', body) {
     try {
       why = JSON.parse(text).errors?.map((e) => `${e.title}: ${e.detail}`).join(NL) || text;
     } catch { /* JSON でなければ、そのまま見せる */ }
-    throw new Error(`${r.status} ${path}${NL}${why}`);
+    const err = new Error(`${r.status} ${path}${NL}${why}`);
+    err.status = r.status;
+    throw err;
   }
   return text ? JSON.parse(text) : null;
 }
 const get = (u) => call(u);
-/** 取れなければ null。呼ぶ側で「無い」と「道が違う」を取り違えないこと */
-const tryGet = async (u) => {
-  try { return await call(u); } catch { return null; }
-};
+
+/**
+ * 「有る」「無い」「調べられなかった」の3つを分けて返す。
+ *
+ * 前はここが null か否かの2択で、通信が一度こけただけで「無い」と報告していた。
+ * 実際、中身の揃っている課金を「足りない」と出した。しかも次に走らせると ✓ に
+ * 戻るので、見た人は何を信じればいいか分からなくなる——いちばん質の悪い誤り。
+ * 一度だけ待って引き直し、それでも駄目なら error と正直に言う。
+ *
+ * 404 は「無い」。それ以外の失敗は「調べられなかった」。ここを混ぜない。
+ */
+async function probe(u) {
+  for (let i = 0; i < 2; i += 1) {
+    try {
+      const r = await call(u);
+      const n = r && r.data ? (Array.isArray(r.data) ? r.data.length : 1) : 0;
+      return { state: n ? 'ok' : 'none', body: r };
+    } catch (e) {
+      if (e.status === 404) return { state: 'none', body: null };
+      if (i === 0) await new Promise((done) => { setTimeout(done, 700); });
+      else return { state: 'error', why: String(e.message).split(NL)[0] };
+    }
+  }
+  return { state: 'error', why: '不明' };
+}
+const MARK = { ok: '✓', none: '✗', error: '?' };
 
 const line = (k, v) => console.log(`  ${String(k).padEnd(22)} ${v}`);
 const head = (s) => console.log(NL + s);
 // Apple は時差付きの ISO（例 2026-08-22T05:26:00-07:00）を返す。
 // そのまま切ると Apple 側の地方時になり、UTC と名乗ると嘘になる。必ず変換する。
-const stamp = (d) => new Date(d).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+const stamp = (d) => `${new Date(d).toISOString().replace('T', ' ').slice(0, 16)} UTC`;
 
 /** いちばん新しくて、処理が済んでいて、期限が切れていないビルド */
 async function newestBuild(appId) {
@@ -102,20 +126,25 @@ async function status() {
 
   head('■ 課金アイテム');
   const ips = await get(`/v1/apps/${app.id}/inAppPurchasesV2?limit=20`);
-  const iapOk = [];
+  const iapState = [];
   const sorted = ips.data.slice().sort((a, b) => (a.attributes.productId < b.attributes.productId ? -1 : 1));
   for (const p of sorted) {
     // 道は **/v2/** を使う。/v1/ にも同じ名前の道があるが古い版のもので、
     // そちらを叩くと、入っているスクショまで「無い」と返る（実際に誤報した）。
-    const shot = await tryGet(`/v2/inAppPurchases/${p.id}/appStoreReviewScreenshot`);
-    const loc = await tryGet(`/v2/inAppPurchases/${p.id}/inAppPurchaseLocalizations?limit=5`);
-    const price = await tryGet(`/v2/inAppPurchases/${p.id}/iapPriceSchedule?include=manualPrices`);
-    const named = !!(loc && loc.data.length);
-    const priced = !!(price && (price.included || []).length);
-    iapOk.push(!!shot && named && priced);
+    const shot = await probe(`/v2/inAppPurchases/${p.id}/appStoreReviewScreenshot`);
+    const loc = await probe(`/v2/inAppPurchases/${p.id}/inAppPurchaseLocalizations?limit=5`);
+    const price = await probe(`/v2/inAppPurchases/${p.id}/iapPriceSchedule?include=manualPrices`);
+    iapState.push([shot.state, loc.state, price.state]);
+    const named = loc.state === 'ok' ? ` ${loc.body.data[0].attributes.name}` : '';
     console.log(`  ${p.attributes.productId}   ${p.attributes.state}`);
-    console.log(`     スクショ ${shot ? '✓' : '✗'}   名前 ${named ? `✓ ${loc.data[0].attributes.name}` : '✗'}   価格 ${priced ? '✓' : '✗'}`);
+    console.log(`     スクショ ${MARK[shot.state]}   名前 ${MARK[loc.state]}${named}   価格 ${MARK[price.state]}`);
+    for (const [what, r] of [['スクショ', shot], ['名前', loc], ['価格', price]]) {
+      if (r.state === 'error') console.log(`     ★ ${what}は調べられませんでした: ${r.why}`);
+    }
   }
+  const flat = iapState.flat();
+  const iapAllOk = flat.length > 0 && flat.every((s) => s === 'ok');
+  const iapUnknown = flat.some((s) => s === 'error');
 
   head('■ 届いているビルド（新しい順）');
   const { all, newest } = await newestBuild(app.id);
@@ -127,24 +156,29 @@ async function status() {
   const subs = await get(`/v1/reviewSubmissions?filter[app]=${app.id}&limit=5`);
   if (!subs.data.length) console.log('  ありません');
   for (const s of subs.data) {
-    const items = await tryGet(`/v1/reviewSubmissions/${s.id}/items?limit=20`);
+    const items = await probe(`/v1/reviewSubmissions/${s.id}/items?limit=20`);
+    const n = items.state === 'ok' ? items.body.data.length : MARK[items.state];
     const when = s.attributes.submittedDate ? stamp(s.attributes.submittedDate) : '（未提出）';
-    line(s.attributes.state, `中身 ${items ? items.data.length : '?'} 件   ${when}`);
+    line(s.attributes.state, `中身 ${n} 件   ${when}`);
   }
 
-  const rd = await tryGet(`/v1/appStoreVersions/${v0.id}/appStoreReviewDetail`);
-  const notesText = (rd && rd.data.attributes.notes) || '';
+  const rd = await probe(`/v1/appStoreVersions/${v0.id}/appStoreReviewDetail`);
+  const notesText = rd.state === 'ok' ? (rd.body.data.attributes.notes || '') : '';
 
   head('■ 審査に出せる状態か');
   console.log('');
   const checks = [
-    ['ビルドが選ばれている', !!buildNo],
-    ['それがいちばん新しいビルド', !!buildNo && !!newest && buildNo === newest.attributes.version],
-    ['課金が3つある', ips.data.length === 3],
-    ['課金の中身がすべて揃っている', iapOk.length > 0 && iapOk.every(Boolean)],
-    ['審査メモに応援への行き方がある', /開発を応援する/.test(notesText)],
+    ['ビルドが選ばれている', buildNo ? 'ok' : 'none'],
+    ['それがいちばん新しいビルド', buildNo && newest && buildNo === newest.attributes.version ? 'ok' : 'none'],
+    ['課金が3つある', ips.data.length === 3 ? 'ok' : 'none'],
+    ['課金の中身がすべて揃っている', iapAllOk ? 'ok' : (iapUnknown ? 'error' : 'none')],
+    ['審査メモに応援への行き方がある',
+      rd.state !== 'ok' ? 'error' : (/開発を応援する/.test(notesText) ? 'ok' : 'none')],
   ];
-  for (const [name, ok] of checks) console.log(`  ${ok ? '✓' : '✗'} ${name}`);
+  for (const [name, s] of checks) console.log(`  ${MARK[s]} ${name}`);
+  if (checks.some(([, s]) => s === 'error')) {
+    console.log(NL + '  ? は「駄目」ではなく「調べられなかった」。もう一度走らせてください。');
+  }
   console.log('');
 }
 
