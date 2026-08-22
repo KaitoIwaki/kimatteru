@@ -9,3 +9,5 @@ app/ios/App/App/public
 
 # 署名用の秘密鍵（絶対にコミットしない）
 SECRET_*.pem
+app/tools/*.p8
+*.p8
