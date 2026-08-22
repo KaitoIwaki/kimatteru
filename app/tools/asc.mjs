@@ -2,11 +2,11 @@
 // （鍵を扱うので、依存を増やさない）。
 //
 // 使い方:
-//   ASC_KEY_ID=XXXXXXXXXX ASC_ISSUER_ID=xxxxxxxx-xxxx-... ASC_KEY_PATH=/path/AuthKey_XXXXXXXXXX.p8 \
-//     node tools/asc.mjs status
+//   ASC_KEY_ID=... ASC_ISSUER_ID=... ASC_KEY_PATH=/path/AuthKey_XXXX.p8 \
+//     node tools/asc.mjs status     ← 読むだけ
+//     node tools/asc.mjs notes      ← 審査メモに応援への行き方を足す（書き込み）
 //
-// 鍵はここでしか読まない。表示もしないし、どこにも送らない。
-// 送り先は api.appstoreconnect.apple.com だけ。
+// 鍵はここでしか読まない。表示もしないし、Apple 以外へは送らない。
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 
@@ -44,67 +44,122 @@ function token() {
 }
 
 let TOKEN = null;
-async function get(pathAndQuery) {
+async function call(path, method = 'GET', body) {
   if (!TOKEN) TOKEN = token();
-  const r = await fetch(HOST + pathAndQuery, { headers: { Authorization: `Bearer ${TOKEN}` } });
+  const r = await fetch(HOST + path, {
+    method,
+    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
   const text = await r.text();
   if (!r.ok) {
     let why = text;
-    try { why = JSON.parse(text).errors?.map((e) => `${e.title}: ${e.detail}`).join('\n') || text; } catch {}
-    throw new Error(`${r.status} ${pathAndQuery}\n${why}`);
+    try { why = JSON.parse(text).errors?.map((e) => `${e.title}: ${e.detail}`).join('\n') || text; } catch { /* そのまま */ }
+    throw new Error(`${r.status} ${path}\n${why}`);
   }
-  return JSON.parse(text);
+  return text ? JSON.parse(text) : null;
 }
+const get = (u) => call(u);
+/** 取れなければ null。呼ぶ側で「無い」と「道が違う」を取り違えないこと */
+const tryGet = async (u) => { try { return await call(u); } catch { return null; } };
 
-const line = (k, v) => console.log(`  ${String(k).padEnd(18)} ${v}`);
+const line = (k, v) => console.log(`  ${String(k).padEnd(22)} ${v}`);
 
 async function status() {
-  const apps = await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`);
-  const app = apps.data[0];
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
   if (!app) { console.log('そのバンドルIDのアプリが見つかりません:', BUNDLE_ID); return; }
+
   console.log('\n■ アプリ');
   line('名前', app.attributes.name);
   line('バンドルID', app.attributes.bundleId);
-  line('SKU', app.attributes.sku);
-  const id = app.id;
 
-  console.log('\n■ バージョン（新しい順に3つ）');
-  const vs = await get(`/v1/apps/${id}/appStoreVersions?limit=3&include=build`);
+  console.log('\n■ バージョン');
+  const vs = await get(`/v1/apps/${app.id}/appStoreVersions?limit=3&include=build`);
   const builds = Object.fromEntries((vs.included || []).map((b) => [b.id, b.attributes.version]));
   for (const v of vs.data) {
     const b = v.relationships?.build?.data?.id;
     line(v.attributes.versionString, `${v.attributes.appStoreState}   ビルド ${b ? builds[b] || b : '（未選択）'}`);
   }
+  const v0 = vs.data[0];
+  const buildNo = builds[v0.relationships?.build?.data?.id];
 
   console.log('\n■ 課金アイテム');
-  const ips = await get(`/v1/apps/${id}/inAppPurchasesV2?limit=20`);
-  if (!ips.data.length) console.log('  ありません');
-  for (const p of ips.data) {
-    const a = p.attributes;
-    line(a.productId, `${a.state}   ${a.inAppPurchaseType}   ${a.name}`);
+  const ips = await get(`/v1/apps/${app.id}/inAppPurchasesV2?limit=20`);
+  const iapOk = [];
+  for (const p of ips.data.sort((a, b) => (a.attributes.productId < b.attributes.productId ? -1 : 1))) {
+    // 道は **/v2/** を使う。/v1/ にも同じ名前の道があるが古い版のもので、
+    // そちらを叩くと、入っているスクショまで「無い」と返る（実際に誤報した）。
+    const shot = await tryGet(`/v2/inAppPurchases/${p.id}/appStoreReviewScreenshot`);
+    const loc = await tryGet(`/v2/inAppPurchases/${p.id}/inAppPurchaseLocalizations?limit=5`);
+    const price = await tryGet(`/v2/inAppPurchases/${p.id}/iapPriceSchedule?include=manualPrices`);
+    const named = !!(loc && loc.data.length);
+    const priced = !!(price && (price.included || []).length);
+    iapOk.push(!!shot && named && priced);
+    console.log(`  ${p.attributes.productId}   ${p.attributes.state}`);
+    console.log(`     スクショ ${shot ? '✓' : '✗'}   名前 ${named ? '✓ ' + loc.data[0].attributes.name : '✗'}   価格 ${priced ? '✓' : '✗'}`);
   }
 
-  console.log('\n■ 審査に出せる状態か');
-  const v0 = vs.data[0];
-  const checks = [];
-  checks.push(['ビルドが選ばれている', !!v0.relationships?.build?.data]);
-  checks.push(['課金が3つある', ips.data.length === 3]);
-  checks.push(['課金がすべて審査待ちか承認済み',
-    ips.data.length > 0 && ips.data.every((p) => /REVIEW|APPROVED|READY/i.test(p.attributes.state))]);
-  try {
-    const rd = await get(`/v1/appStoreVersions/${v0.id}/appStoreReviewDetail`);
-    const notes = rd.data?.attributes?.notes || '';
-    checks.push(['審査メモが入っている', notes.trim().length > 20]);
-    if (notes) console.log(`\n  （いまのメモ 冒頭）${notes.slice(0, 60).replace(/\n/g, ' ')}…`);
-  } catch {
-    checks.push(['審査メモが入っている', false]);
+  console.log('\n■ 提出待ちの箱');
+  const subs = await get(`/v1/reviewSubmissions?filter[app]=${app.id}&limit=5`);
+  if (!subs.data.length) console.log('  ありません');
+  for (const s of subs.data) {
+    const items = await tryGet(`/v1/reviewSubmissions/${s.id}/items?limit=20`);
+    line(s.attributes.state, `中身 ${items ? items.data.length : '?'} 件   ${s.attributes.submittedDate || '（未提出）'}`);
   }
-  console.log('');
+
+  const rd = await tryGet(`/v1/appStoreVersions/${v0.id}/appStoreReviewDetail`);
+  const notesText = (rd && rd.data.attributes.notes) || '';
+
+  console.log('\n■ 審査に出せる状態か\n');
+  const checks = [
+    ['ビルドが選ばれている', !!buildNo],
+    ['ビルドがリジェクトされた版でない', !!buildNo && buildNo !== '49'],
+    ['課金が3つある', ips.data.length === 3],
+    ['課金の中身がすべて揃っている', iapOk.length > 0 && iapOk.every(Boolean)],
+    ['審査メモに応援への行き方がある', /開発を応援する/.test(notesText)],
+  ];
   for (const [name, ok] of checks) console.log(`  ${ok ? '✓' : '✗'} ${name}`);
   console.log('');
 }
 
+// 審査メモに、応援への行き方を足す。いまの文は消さず、先頭に付ける。
+// 前のリジェクトとは別に、「課金が見つからない」で返されるのを防ぐため。
+const TIP_NOTE = `【In-app purchases / 課金について】
+In-app purchases are optional tips to support development. No features are unlocked
+by any purchase; every feature of this app is free and unrestricted.
+
+How to reach them: Settings tab (設定) -> scroll to the bottom -> the "応援" section
+-> tap "開発を応援する" to expand the three amounts.
+The "サポーターカード" (supporter card) shown after a purchase is a display of the
+user's own payment history (amount and count), not a feature.
+
+課金は「開発の応援（投げ銭）」のみです。購入しても機能は一切解放されません。
+すべての機能は無料で制限なく使えます。
+到達手順：設定タブ → いちばん下までスクロール →「応援」の群 →「開発を応援する」を
+タップすると3つの金額が開きます。
+購入後に出る「サポーターカード」は、ご自身の支払い履歴（金額と回数）の表示であり、
+機能ではありません。`;
+
+async function notes() {
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
+  const rd = (await get(`/v1/appStoreVersions/${v.id}/appStoreReviewDetail`)).data;
+  const before = rd.attributes.notes || '';
+  if (before.includes('In-app purchases are optional tips')) {
+    console.log('すでに入っています。触りません。');
+    return;
+  }
+  const after = `${TIP_NOTE}\n\n---\n\n${before}`;
+  console.log(`文字数 ${before.length} → ${after.length}（上限 4000）`);
+  if (after.length > 4000) { console.log('★ 上限を超えるので入れません'); return; }
+  await call(`/v1/appStoreReviewDetails/${rd.id}`, 'PATCH',
+    { data: { type: 'appStoreReviewDetails', id: rd.id, attributes: { notes: after } } });
+  const back = (await get(`/v1/appStoreVersions/${v.id}/appStoreReviewDetail`)).data.attributes.notes;
+  console.log('  応援への行き方 :', /開発を応援する/.test(back) ? '✓ 入った' : '✗ 入っていない');
+  console.log('  もとの文       :', back.includes(before.slice(0, 60)) ? '✓ 残っている' : '★ 消えた');
+}
+
 const cmd = process.argv[2] || 'status';
-const jobs = { status };
+const jobs = { status, notes };
 if (!jobs[cmd]) { console.error('できること: ' + Object.keys(jobs).join(', ')); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error('\n失敗:', e.message); process.exit(1); });
