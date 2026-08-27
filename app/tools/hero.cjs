@@ -49,16 +49,18 @@ function pill(x, y, w, hue, solid, label) {
     + t(x + 5, y + 11.5, label, 10, 500, mix(hue, '#ffffff', 0.12));
 }
 
+const MONTH_JA = { Shift: 'マクド', Class: 'ゼミ', Party: '花火', Pickup: '受取', Trip: '合宿', Exam: '試験', Movie: '映画', Return: '返却' };
 // 月表示のかけら。y0 から rows 週ぶん
 const MONTH = [
   [[3, [['baito', 1, 'Shift']]], [4, []], [5, [['yoji', 1, 'Class']]], [6, [['asobi', 0, 'Party']]], [7, []], [8, [['other', 1, 'Pickup']]], [9, []]],
   [[10, [['baito', 1, 'Shift']]], [11, []], [12, [['asobi', 0, 'Trip']]], [13, [['baito', 1, 'Shift']], true], [14, []], [15, [['yoji', 0, 'Exam']]], [16, []]],
   [[17, [['baito', 1, 'Shift']]], [18, [['yoji', 1, 'Class']]], [19, [['baito', 0, 'Shift']]], [20, []], [21, [['asobi', 1, 'Movie']]], [22, []], [23, [['other', 0, 'Return']]]],
 ];
-function month(y0, rows, cellH, dim) {
+function month(y0, rows, cellH, dim, lang) {
   const cw = W / 7;
   let o = '';
-  ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach((d, i) => {
+  const dows = lang === 'ja' ? ['日', '月', '火', '水', '木', '金', '土'] : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  dows.forEach((d, i) => {
     o += t(cw * i + cw / 2, y0 - 10, d, 10, 700, FAINT, 'middle', 1.4);
   });
   o += rect(0, y0 - 2, W, 0.8, LINE);
@@ -72,8 +74,9 @@ function month(y0, rows, cellH, dim) {
       o += t(x + 6, yy + 17, String(day), 12, today ? 700 : 400, today ? TODAY : INK);
       bars.forEach((b, j) => {
         const [ty, solid, label] = b;
+        const word = lang === 'ja' ? (MONTH_JA[label] || label) : label;
         const g = dim && solid ? 0.4 : 1;
-        o += `<g opacity="${g}">${pill(x + 3, yy + 24 + j * 19, cw - 6, TY[ty], solid, label)}</g>`;
+        o += `<g opacity="${g}">${pill(x + 3, yy + 24 + j * 19, cw - 6, TY[ty], solid, word)}</g>`;
       });
     });
     o += rect(0, yy + cellH, W, 0.8, LINE);
@@ -83,65 +86,72 @@ function month(y0, rows, cellH, dim) {
 
 const CASES = {};
 
-// ---- 案A：二つ並べて、比べさせる ----
-CASES['案A｜二つ並べる'] = () => {
-  let o = rect(0, 0, W, H, BG);
-  o += t(34, 132, 'Not every plan', 34, 250, INK, null, -0.5);
-  o += t(34, 176, 'is decided yet.', 34, 250, INK, null, -0.5);
-  o += t(34, 214, '決まった予定も、まだの予定も。', 14, 400, MUT);
-  o += t(34, 288, 'DECIDED', 11, 700, MUT, null, 2);
-  o += bigPill(34, 302, W - 68, 56, TY.baito, true, 'Shift', '17:00');
-  o += t(34, 400, 'MAYBE', 11, 700, MUT, null, 2);
-  o += bigPill(34, 414, W - 68, 56, TY.asobi, false, 'Party', '20:00');
-  o += month(560, 3, 96, false);
-  return o;
+// 言葉。訳ではなく、それぞれの言語で書く。
+// 3択はアプリの中の言葉に合わせる——ここが違うと、入れたあとで話が食い違う。
+// 英語の "It happened" は「実際に起きた」で、このアプリの「確定した」とは別。
+// 聞いているのは「決まったか」なので、on / off で揃える。
+const TXT = {
+  en: {
+    a1: 'Not every plan', a2: 'is decided yet.',
+    on: 'DECIDED', off: 'NOT YET',
+    b1: 'It asks you later:', b2: 'so, is this on?',
+    opts: [['It is on', TY.baito], ['It is off', MUT], ['Still not sure', TY.asobi]],
+    shift: 'Shift', party: 'Party', size: 34, bsize: 30,
+  },
+  ja: {
+    a1: '決まった予定と、', a2: 'まだの予定。',
+    on: '決まってる', off: 'まだ',
+    b1: 'あとで聞きます。', b2: 'その予定、どうなった？',
+    opts: [['決まった', TY.baito], ['無くなった', MUT], ['まだ分からない', TY.asobi]],
+    shift: 'マクド', party: '花火', size: 32, bsize: 28,
+  },
 };
 
-// ---- 案B：流れを見せる（点線 → どうなった？ → 塗り） ----
-CASES['案B｜流れを見せる'] = () => {
+// ---- 案A：二つ並べて、比べさせる ----
+function heroA(lang) {
+  const L = TXT[lang];
   let o = rect(0, 0, W, H, BG);
-  o += t(34, 118, 'Then ask it later:', 30, 250, INK, null, -0.4);
-  o += t(34, 158, 'what happened?', 30, 250, INK, null, -0.4);
-  o += bigPill(34, 210, W - 68, 54, TY.asobi, false, 'Party', '20:00');
-  // 下向きの矢印
+  o += t(34, 138, L.a1, L.size, 250, INK, null, -0.5);
+  o += t(34, 138 + L.size * 1.3, L.a2, L.size, 250, INK, null, -0.5);
+  o += t(34, 288, L.on, 11, 700, MUT, null, 2);
+  o += bigPill(34, 302, W - 68, 56, TY.baito, true, L.shift, '17:00');
+  o += t(34, 400, L.off, 11, 700, MUT, null, 2);
+  o += bigPill(34, 414, W - 68, 56, TY.asobi, false, L.party, '20:00');
+  o += month(560, 3, 96, false, lang);
+  return o;
+}
+
+// ---- 案B：流れを見せる（点線 → どうなった？ → 塗り） ----
+function heroB(lang) {
+  const L = TXT[lang];
+  let o = rect(0, 0, W, H, BG);
+  o += t(34, 118, L.b1, L.bsize, 250, INK, null, -0.4);
+  o += t(34, 118 + L.bsize * 1.35, L.b2, L.bsize, 250, INK, null, -0.4);
+  o += bigPill(34, 210, W - 68, 54, TY.asobi, false, L.party, '20:00');
   o += `<path d="M${(W / 2) * S} ${280 * S} L${(W / 2) * S} ${318 * S}" stroke="${FAINT}" stroke-width="${1.5 * S}"/>`;
   o += `<path d="M${(W / 2 - 5) * S} ${312 * S} L${(W / 2) * S} ${320 * S} L${(W / 2 + 5) * S} ${312 * S}" fill="none" stroke="${FAINT}" stroke-width="${1.5 * S}"/>`;
-  // 3択
   o += rect(28, 336, W - 56, 168, CELL, 18);
   o += `<rect x="${28 * S}" y="${336 * S}" width="${(W - 56) * S}" height="${168 * S}" rx="${18 * S}" fill="none" stroke="${LINE}" stroke-width="${1 * S}"/>`;
-  const opts = [['It happened', TY.baito], ['It fell through', MUT], ['Still not sure', TY.asobi]];
-  opts.forEach(([label, col], i) => {
+  L.opts.forEach(([label, col], i) => {
     const y = 356 + i * 46;
     o += rect(44, y, W - 88, 38, mix(col, CELL, 0.14), 10);
     o += t(60, y + 24, label, 15, 500, mix(col, '#ffffff', 0.34));
   });
   o += `<path d="M${(W / 2) * S} ${524 * S} L${(W / 2) * S} ${560 * S}" stroke="${FAINT}" stroke-width="${1.5 * S}"/>`;
   o += `<path d="M${(W / 2 - 5) * S} ${554 * S} L${(W / 2) * S} ${562 * S} L${(W / 2 + 5) * S} ${554 * S}" fill="none" stroke="${FAINT}" stroke-width="${1.5 * S}"/>`;
-  o += bigPill(34, 578, W - 68, 54, TY.asobi, true, 'Party', '20:00');
-  o += month(720, 2, 96, false);
+  o += bigPill(34, 578, W - 68, 54, TY.asobi, true, L.party, '20:00');
+  o += month(720, 2, 96, false, lang);
   return o;
-};
+}
 
-// ---- 案C：本物の画面。点線だけを立たせる ----
-CASES['案C｜画面のまま、点線を立たせる'] = () => {
-  let o = rect(0, 0, W, H, BG);
-  o += t(34, 118, 'The dotted ones', 30, 250, INK, null, -0.4);
-  o += t(34, 158, 'are not decided.', 30, 250, INK, null, -0.4);
-  o += month(240, 3, 108, true);
-  // 下に凡例
-  const y = 620;
-  o += rect(28, y, W - 56, 108, CELL, 18);
-  o += `<rect x="${28 * S}" y="${y * S}" width="${(W - 56) * S}" height="${108 * S}" rx="${18 * S}" fill="none" stroke="${LINE}" stroke-width="${1 * S}"/>`;
-  o += pill(48, y + 26, 96, TY.baito, true, 'Shift');
-  o += t(160, y + 38, 'Decided', 14, 500, INK);
-  o += pill(48, y + 66, 96, TY.asobi, false, 'Party');
-  o += t(160, y + 78, 'Not yet', 14, 500, INK);
-  return o;
-};
+CASES['案A（English）'] = () => heroA('en');
+CASES['案A（日本語）'] = () => heroA('ja');
+CASES['案B（English）'] = () => heroB('en');
+CASES['案B（日本語）'] = () => heroB('ja');
 
 (async () => {
   const names = Object.keys(CASES);
-  const SC = 0.52, GAP = 26, PAD = 20, LABEL = 26;
+  const SC = 0.42, GAP = 22, PAD = 18, LABEL = 26;
   const imgs = [];
   for (const n of names) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * S}" height="${H * S}">${CASES[n]()}</svg>`;
