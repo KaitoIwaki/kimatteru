@@ -80,6 +80,31 @@ const NOW_DARK = {
   },
 };
 
+// A：地も色もそのまま、作り方だけ地の明暗に合わせた場合。
+// 塗り＝地に色を24%混ぜた面＋色の縁、まだ＝面なし・点線の縁だけ。
+//
+// 縁は飾りではなく必要。面だけだと 用事 #3e3944 と その他 #3e3d39 が
+// ほとんど同じ色になり、**色＝種類 が壊れる**。縁が種類を運ぶ。
+const A_CELL = '#26251F';
+const aTy = (hue) => [
+  hue,                                  // 縁と点線の色
+  mixc(hue, A_CELL, 0.76),              // 塗りの面（色を24%残す）
+  mixc(hue, '#ffffff', 0.22),           // 塗りの字
+  mixc(hue, '#ffffff', 0.12),           // まだの字
+  null,                                 // まだの面は敷かない
+];
+const NOW_DARK_FIXED = {
+  bg: '#1A1A17', cell: A_CELL, line: '#3A392F', lineF: '#2D2C25',
+  ink: '#EDEBE1', mut: '#8C887C', faint: '#5E5C51',
+  // 日曜と土曜も地の明暗を見る。白へ30%で 4.92 / 5.21（元は 2.82 / 2.86）
+  sun: mixc('#B4453A', '#ffffff', 0.30), sat: mixc('#3D6E9C', '#ffffff', 0.30),
+  today: '#EDEBE1', radius: 4, edge: true,
+  ty: {
+    yoji: aTy('#8B7AB8'), baito: aTy('#7FAE85'),
+    asobi: aTy('#D2916A'), other: aTy('#8A8A8A'),
+  },
+};
+
 const WEEKS = [
   [[2, []], [3, [['baito', 1, 'マクド']]], [4, []], [5, [['yoji', 1, 'ゼミ']]],
    [6, [['baito', 1, 'マクド'], ['asobi', 0, '花火']]], [7, []], [8, [['other', 1, '受取']]]],
@@ -134,9 +159,10 @@ function screen(C) {
 }
 
 (async () => {
-  const list = [['いま・明るい方（公開中）', NOW], ['いま・暗い方（公開中）', NOW_DARK],
-    ['決めた案・明るい方', LIGHT], ['決めた案・暗い方', DARK]];
-  const SC = 0.95, GAP = 20, PAD = 16, LABEL = 26;
+  const list = [['いま・暗い方（公開中）', NOW_DARK],
+    ['A：作り方だけ直す', NOW_DARK_FIXED],
+    ['B まで：決めた案の暗い方', DARK]];
+  const SC = 1.2, GAP = 24, PAD = 18, LABEL = 26;
   const imgs = [];
   for (const [, C] of list) imgs.push(await sharp(Buffer.from(screen(C))).resize(Math.round(W * SC)).png().toBuffer());
   const cw = Math.round(W * SC), ch = Math.round((HEAD + WD + CH * ROWS) * SC);
@@ -147,6 +173,6 @@ function screen(C) {
     comp.push({ input: buf, top: PAD + LABEL, left });
   });
   await sharp({ create: { width: PAD * 2 + list.length * cw + (list.length - 1) * GAP, height: PAD * 2 + LABEL + ch, channels: 3, background: '#C9CDD4' } })
-    .composite(comp).png().toFile('../store-assets/theme-decided.png');
+    .composite(comp).png().toFile('../store-assets/theme-a.png');
   console.log('できた');
 })();
