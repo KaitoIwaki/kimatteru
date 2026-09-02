@@ -49,6 +49,37 @@ const DARK = {
   },
 };
 
+// いまのダークモード。色は明るい方と同じものを使っている——
+// softFill も paper も inkOn も、地の明暗を見ていない。
+// つまり「明るい方のピルを、暗い地の上にそのまま置いた」状態。
+const mixc = (a, b, k) => {                    // a から b へ k
+  const h = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
+  return `#${h(a).map((v, i) => Math.round(v * (1 - k) + h(b)[i] * k).toString(16).padStart(2, '0')).join('')}`;
+};
+const over = (a, bg, alpha) => {               // a を alpha で bg に重ねる
+  const h = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
+  return `#${h(a).map((v, i) => Math.round(v * alpha + h(bg)[i] * (1 - alpha)).toString(16).padStart(2, '0')).join('')}`;
+};
+const NOW_DARK_CELL = '#26251F';
+const nowDarkTy = (hue, paperHex) => [
+  mixc(hue, '#ffffff', 0.16),                  // softLine（点線の縁）
+  mixc(hue, '#ffffff', 0.32),                  // softFill（塗りの面）
+  mixc(hue, '#000000', 0.66),                  // inkOn（塗りの字）
+  mixc(hue, '#000000', 0.66),                  // まだの字も同じ
+  over(paperHex, NOW_DARK_CELL, 0.72),         // まだの面（紙を地に重ねる）
+];
+const NOW_DARK = {
+  bg: '#1A1A17', cell: NOW_DARK_CELL, line: '#3A392F', lineF: '#2D2C25',
+  ink: '#EDEBE1', mut: '#8C887C', faint: '#5E5C51',
+  sun: '#B4453A', sat: '#3D6E9C', today: '#EDEBE1', radius: 4, edge: false,
+  ty: {
+    yoji: nowDarkTy('#8B7AB8', '#D3CCE4'),
+    baito: nowDarkTy('#7FAE85', '#CEE0D1'),
+    asobi: nowDarkTy('#D2916A', '#EED5C6'),
+    other: nowDarkTy('#8A8A8A', '#D3D3D3'),
+  },
+};
+
 const WEEKS = [
   [[2, []], [3, [['baito', 1, 'マクド']]], [4, []], [5, [['yoji', 1, 'ゼミ']]],
    [6, [['baito', 1, 'マクド'], ['asobi', 0, '花火']]], [7, []], [8, [['other', 1, '受取']]]],
@@ -103,8 +134,9 @@ function screen(C) {
 }
 
 (async () => {
-  const list = [['いま（公開中）', NOW], ['決めた案・明るい方', LIGHT], ['決めた案・暗い方', DARK]];
-  const SC = 1.2, GAP = 24, PAD = 18, LABEL = 26;
+  const list = [['いま・明るい方（公開中）', NOW], ['いま・暗い方（公開中）', NOW_DARK],
+    ['決めた案・明るい方', LIGHT], ['決めた案・暗い方', DARK]];
+  const SC = 0.95, GAP = 20, PAD = 16, LABEL = 26;
   const imgs = [];
   for (const [, C] of list) imgs.push(await sharp(Buffer.from(screen(C))).resize(Math.round(W * SC)).png().toBuffer());
   const cw = Math.round(W * SC), ch = Math.round((HEAD + WD + CH * ROWS) * SC);
