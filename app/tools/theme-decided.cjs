@@ -105,6 +105,34 @@ const NOW_DARK_FIXED = {
   },
 };
 
+// B だけ：色は新しく（Lab で揃えたもの）、作り方はいまのまま。
+// softFill は白へ32%、paper は白へ62% を 0.72 で重ねる、inkOn は黒へ66%。
+// どれも地の明暗を見ていない——そこが直っていないと、暗い方はどうなるか。
+const bOnlyTy = (hue, cell) => [
+  mixc(hue, '#ffffff', 0.16),                        // softLine
+  mixc(hue, '#ffffff', 0.32),                        // softFill（塗りの面）
+  mixc(hue, '#000000', 0.66),                        // inkOn（塗りの字）
+  mixc(hue, '#000000', 0.66),                        // まだの字も同じ
+  over(mixc(hue, '#ffffff', 0.62), cell, 0.72),      // paper を地に重ねる
+];
+const B_HUES_L = { yoji: '#5a6aa9', baito: '#1b7c58', asobi: '#a35944', other: '#5b707f' };
+const B_HUES_D = { yoji: '#8997df', baito: '#4cac84', asobi: '#d9856d', other: '#889eaf' };
+const bOnly = (hues, base) => ({
+  ...base,
+  ty: Object.fromEntries(Object.entries(hues).map(([k, hue]) => [k, bOnlyTy(hue, base.cell)])),
+});
+// 明るい方はいまの地のまま、暗い方もいまの地のまま（B は色だけの話なので）
+const B_ONLY_LIGHT = bOnly(B_HUES_L, {
+  bg: '#F6F7F9', cell: '#FFFFFF', line: '#E4E7EC', lineF: '#F1F3F6',
+  ink: '#1E2024', mut: '#82878F', faint: '#B3B8C0',
+  sun: '#B4453A', sat: '#3D6E9C', today: '#1E2024', radius: 4, edge: false,
+});
+const B_ONLY_DARK = bOnly(B_HUES_D, {
+  bg: '#1A1A17', cell: '#26251F', line: '#3A392F', lineF: '#2D2C25',
+  ink: '#EDEBE1', mut: '#8C887C', faint: '#5E5C51',
+  sun: '#B4453A', sat: '#3D6E9C', today: '#EDEBE1', radius: 4, edge: false,
+});
+
 const WEEKS = [
   [[2, []], [3, [['baito', 1, 'マクド']]], [4, []], [5, [['yoji', 1, 'ゼミ']]],
    [6, [['baito', 1, 'マクド'], ['asobi', 0, '花火']]], [7, []], [8, [['other', 1, '受取']]]],
@@ -159,9 +187,9 @@ function screen(C) {
 }
 
 (async () => {
-  const list = [['いま・暗い方（公開中）', NOW_DARK],
-    ['A：作り方だけ直す', NOW_DARK_FIXED],
-    ['B まで：決めた案の暗い方', DARK]];
+  const list = [['B だけ・明るい方', B_ONLY_LIGHT],
+    ['B だけ・暗い方', B_ONLY_DARK],
+    ['（参考）A も入れた暗い方', DARK]];
   const SC = 1.2, GAP = 24, PAD = 18, LABEL = 26;
   const imgs = [];
   for (const [, C] of list) imgs.push(await sharp(Buffer.from(screen(C))).resize(Math.round(W * SC)).png().toBuffer());
@@ -173,6 +201,6 @@ function screen(C) {
     comp.push({ input: buf, top: PAD + LABEL, left });
   });
   await sharp({ create: { width: PAD * 2 + list.length * cw + (list.length - 1) * GAP, height: PAD * 2 + LABEL + ch, channels: 3, background: '#C9CDD4' } })
-    .composite(comp).png().toFile('../store-assets/theme-a.png');
+    .composite(comp).png().toFile('../store-assets/theme-b.png');
   console.log('できた');
 })();
