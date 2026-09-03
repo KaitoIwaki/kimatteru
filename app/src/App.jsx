@@ -18,11 +18,15 @@ import { historyFor, othersOnDay, agoText } from './eventctx.js';
 import { textureCss } from './cardtexture.js';
 
 // 曜日と祝日の色。紙の上で浮きすぎないよう、どちらも少し落ち着かせた色にする。
-const HOLIDAY_RED = '#B4453A'; // 祝日と日曜
-const SATURDAY_BLUE = '#3D6E9C'; // 土曜
+// 祝日と日曜／土曜。地の明暗で色が変わるので、値は styles.css に置いてある。
+// 定数のままだと暗い地で日曜の赤が 2.82 しかなく、読めていなかった。
+const HOLIDAY_RED = 'var(--sun)';
+const SATURDAY_BLUE = 'var(--sat)';
 
 // 予定の塗りをどれだけ白に寄せるか。0 = 原色のまま、0.45 くらいでかなり淡い。
 const FILL_SOFT = 0.32;
+// 暗いときの、マスの地。ここに色を混ぜて塗りの面を作る（styles.css の --card と同じ）
+const DARK_CELL = '#12151A';
 import { shareCanvas, shareText } from './shareimg';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
@@ -350,14 +354,48 @@ export default class App extends React.Component {
   paperFrom(hex){ const l=this._mix(hex,'#ffffff',.62); return `rgba(${l[0]},${l[1]},${l[2]},.72)`; }
   darkFrom(hex){ const d=this._mix(hex,'#000000',.5); return `rgb(${d[0]},${d[1]},${d[2]})`; }
   // 塗りの濃さ。白に寄せるほど紙になじむ。FILL_SOFT の一箇所で全体が変わる。
-  softFill(hex){ const l=this._mix(hex,'#ffffff',FILL_SOFT); return `rgb(${l[0]},${l[1]},${l[2]})`; }
-  softLine(hex){ const l=this._mix(hex,'#ffffff',FILL_SOFT*0.5); return `rgb(${l[0]},${l[1]},${l[2]})`; }
+  /**
+   * 暗い画面かどうか。色の作り方はここで分かれる。
+   *
+   * これを見ずに作っていたのが、ダークモードが壊れていた原因。
+   * 明るい紙のために作った式（白へ寄せる／薄い紙を敷く）を暗い地でも
+   * そのまま使っていたので、塗りもまだも「明るい塊」になり、
+   * 決まってる／まだ の差が 1.22 まで落ちていた（明るい方は 1.40）。
+   */
+  dark(){ return !!(this.state.settings && this.state.settings.dark); }
+
+  softFill(hex){
+    // 暗いときは白ではなく地に混ぜる。色は24%だけ残す
+    const l = this.dark() ? this._mix(hex, DARK_CELL, 0.76) : this._mix(hex,'#ffffff',FILL_SOFT);
+    return `rgb(${l[0]},${l[1]},${l[2]})`;
+  }
+  softLine(hex){
+    // 暗いときは色そのものを縁に使う。面に24%しか色が残らないので、
+    // 縁が種類を運ぶ。薄めると 用事 と その他 が見分けられなくなる
+    const l = this.dark() ? this._mix(hex,'#ffffff',0) : this._mix(hex,'#ffffff',FILL_SOFT*0.5);
+    return `rgb(${l[0]},${l[1]},${l[2]})`;
+  }
+  /**
+   * まだ（点線）の地。暗いときは敷かない。
+   * **面の有無**で確定と差をつけるのがこの直しの要。薄い紙を暗い地に
+   * 重ねると中間の明るさになって、塗りの面に寄ってしまう。
+   */
+  paperShow(paper){ return this.dark() ? 'transparent' : paper; }
+  /** まだ（点線）の字。暗いときは面が無いので、地の上で読める明るさにする */
+  inkDash(hex){
+    const l = this.dark() ? this._mix(hex,'#ffffff',0.88) : this._mix(hex,'#000000',.66);
+    return `rgb(${l[0]},${l[1]},${l[2]})`;
+  }
   // 薄い塗りの上に置く文字。読みやすさを保つために濃いめにする。
   // 色のついた地に乗る文字。
   // .58 だったが、やさしい色にしたぶん地が明るくなり、ダークモードの点線ピルで
   // 4.4 まで落ちた（点線の地は白に寄せて作るので、暗い画面では中間の明るさになる）。
   // .66 にすると、明るい画面でも暗い画面でも、濃い色だったころ以上になる。
-  inkOn(hex){ const d=this._mix(hex,'#000000',.66); return `rgb(${d[0]},${d[1]},${d[2]})`; }
+  inkOn(hex){
+    // 暗いときは面が暗いので、字は白へ寄せる（色は22%だけ残す）
+    const d = this.dark() ? this._mix(hex,'#ffffff',0.78) : this._mix(hex,'#000000',.66);
+    return `rgb(${d[0]},${d[1]},${d[2]})`;
+  }
 
   // ---- time ----
   mins(s){ const [h,m]=s.split(':').map(Number); return h*60+m; }
@@ -467,7 +505,7 @@ export default class App extends React.Component {
     // letterSpacing を少し詰めるだけで、日本語は1文字ぶん稼げる。
     const base={height:16,boxSizing:'border-box',borderRadius:4,padding:'0 2px',marginBottom:3,fontSize:11,fontWeight:500,letterSpacing:'-.04em',lineHeight:'16px',whiteSpace:'nowrap',overflow:'hidden',cursor:'pointer',display:'flex',alignItems:'center',transition:'background .28s cubic-bezier(.2,.9,.2,1),border-color .28s,color .28s'};
     if(ev.status==='kakutei') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color)};
-    if(ev.status==='mikakutei') return {...base,height:17,background:t.paper,color:this.inkOn(t.color),border:'1.5px dashed '+this.softLine(t.color),lineHeight:'13px'};
+    if(ev.status==='mikakutei') return {...base,height:17,background:this.paperShow(t.paper),color:this.inkDash(t.color),border:'1.5px dashed '+this.softLine(t.color),lineHeight:'13px'};
     if(ev.status==='jisseki') return {...base,background:this.softFill(t.color),color:this.inkOn(t.color),opacity:.92};
     return {...base,background:'transparent',color:'#9AA0A6',textDecoration:'line-through',opacity:.5};
   }
@@ -530,7 +568,7 @@ export default class App extends React.Component {
     const t=this.T(ev.type);
     const dash=m.phase==='dash', filling=m.phase==='fill'||m.phase==='settle';
     const style={height:H,boxSizing:'border-box',fontSize:MONTH_BAR_FS,fontWeight:500,letterSpacing:'-.04em',lineHeight:(H-3)+'px',whiteSpace:'nowrap',overflow:'hidden',display:'flex',alignItems:'center',position:'relative',cursor:'pointer',
-      background:t.paper, border:'1.5px '+(dash?'dashed':'solid')+' '+this.softLine(t.color), transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none', ...shape};
+      background:this.paperShow(t.paper), border:'1.5px '+(dash?'dashed':'solid')+' '+this.softLine(t.color), transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none', ...shape};
     const fillStyle={position:'absolute',left:0,top:0,right:0,bottom:0,background:this.softFill(t.color),transformOrigin:'left center',transform:filling?'scaleX(1)':'scaleX(0)',animation:m.phase==='fill'?'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none',zIndex:0,borderRadius:2};
     const textStyle={position:'relative',zIndex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',color:this.inkOn(t.color),transition:'color .16s .12s linear'};
     return { text: ev.title, mark: dash?'?':'', markStyle:this.markStyleFor(ev), style:this.trimBorder(style,sh), textStyle, morphing:true, fillStyle };
@@ -1202,7 +1240,7 @@ export default class App extends React.Component {
         cursor: filled ? 'default' : 'pointer',
         // 本物の未確定のピルと同じ地色を使う（paperFrom）。
         // ここだけ薄い色を直に書いていたので、ダークモードで文字が沈んでいた
-        background: filled ? this.softFill(teal) : this.paperFrom(teal),
+        background: filled ? this.softFill(teal) : this.paperShow(this.paperFrom(teal)),
         border: '1.6px '+(filled?'solid':'dashed')+' '+this.softLine(teal),
         color: this.inkOn(teal),
         animation: ob.demo==='done' ? 'pillSettle .24s cubic-bezier(.3,1.4,.5,1)' : 'none',
@@ -2584,7 +2622,7 @@ export default class App extends React.Component {
           flex:1,minWidth:0};
         // 点線の枠そのものが「まだ」を示すので、月表示のような「？」は付けない
         const pill = o.status==='mikakutei'
-          ? {...base, background:ot.paper, color:this.inkOn(ot.color), lineHeight:'21px',
+          ? {...base, background:this.paperShow(ot.paper), color:this.inkDash(ot.color), lineHeight:'21px',
              border:'1.5px dashed '+this.softLine(ot.color)}
           : {...base, background:this.softFill(ot.color), color:this.inkOn(ot.color)};
         return { title:o.title, when: o.allDay ? '終日' : (o.start||''), pillStyle:pill,

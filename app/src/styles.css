@@ -24,21 +24,29 @@
   --ink-soft: #4A4E55;
   --ink-mut: #82878F;
   --ink-faint: #B3B8C0;
+  /* 日曜・祝日と土曜。暗いときは同じ色では沈むので、地の明暗で持ち替える */
+  --sun: #B4453A;
+  --sat: #3D6E9C;
   --glass: rgba(246, 247, 249, 0.9);
 }
 
+/* 暗い方は、温かい黒（#1A1A17）から冷たい黒へ。
+   種類の色は寒色寄りなので、茶色っぽい地と喧嘩していた。 */
 [data-theme='dark'] {
-  --bg: #1A1A17;
-  --bg2: #242320;
-  --card: #26251F;
-  --line: #3A392F;
-  --line-faint: #2D2C25;
-  --press: #33322A;                 /* 明るい方と同じ濃さ（ΔE 7.7） */
-  --ink: #EDEBE1;
-  --ink-soft: #B6B2A6;
-  --ink-mut: #8C887C;
-  --ink-faint: #5E5C51;
-  --glass: rgba(26, 26, 23, 0.9);
+  --bg: #0B0D10;
+  --bg2: #171C22;
+  --card: #12151A;
+  --line: #1F252D;
+  --line-faint: #171C22;
+  --press: #232A33;
+  --ink: #E7EBF0;
+  --ink-soft: #B4BCC6;
+  --ink-mut: #8A939F;
+  --ink-faint: #565F6B;
+  /* 白へ30%。もとの #B4453A は暗い地で 2.82 しかなく、読めていなかった */
+  --sun: #CB7D75;
+  --sat: #779ABA;
+  --glass: rgba(11, 13, 16, 0.9);
 }
 
 html,
