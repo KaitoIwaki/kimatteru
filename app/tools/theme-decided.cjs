@@ -61,6 +61,13 @@ const over = (a, bg, alpha) => {               // a を alpha で bg に重ね�
   return `#${h(a).map((v, i) => Math.round(v * alpha + h(bg)[i] * (1 - alpha)).toString(16).padStart(2, '0')).join('')}`;
 };
 const NOW_DARK_CELL = '#26251F';
+const nowDarkTyOn = (hue, paperHex, cell) => [
+  mixc(hue, '#ffffff', 0.16),
+  mixc(hue, '#ffffff', 0.32),
+  mixc(hue, '#000000', 0.66),
+  mixc(hue, '#000000', 0.66),
+  over(paperHex, cell, 0.72),
+];
 const nowDarkTy = (hue, paperHex) => [
   mixc(hue, '#ffffff', 0.16),                  // softLine（点線の縁）
   mixc(hue, '#ffffff', 0.32),                  // softFill（塗りの面）
@@ -89,8 +96,10 @@ const A_CELL = '#26251F';
 const aTy = (hue) => [
   hue,                                  // 縁と点線の色
   mixc(hue, A_CELL, 0.76),              // 塗りの面（色を24%残す）
-  mixc(hue, '#ffffff', 0.22),           // 塗りの字
-  mixc(hue, '#ffffff', 0.12),           // まだの字
+  // 字は「色を22%だけ残した、ほぼ白」。mixc は a から b へ k なので 0.78。
+  // ここを 0.22 にすると色が78%残った濃い字になり、面に近づく（一度やった）
+  mixc(hue, '#ffffff', 0.78),           // 塗りの字
+  mixc(hue, '#ffffff', 0.88),           // まだの字
   null,                                 // まだの面は敷かない
 ];
 const NOW_DARK_FIXED = {
@@ -132,6 +141,43 @@ const B_ONLY_DARK = bOnly(B_HUES_D, {
   ink: '#EDEBE1', mut: '#8C887C', faint: '#5E5C51',
   sun: '#B4453A', sat: '#3D6E9C', today: '#EDEBE1', radius: 4, edge: false,
 });
+
+// 地だけ替えた場合。ピルの作り方も色もいまのまま、暗い地だけ冷たい黒にする。
+// まだの紙は 0.72 で重ねるので、地が暗くなっても 72% は紙のまま。
+// つまり塗りとまだの差は、地を替えてもほとんど動かない。
+const COOL_CELL = '#12151A';
+const GROUND_ONLY = {
+  bg: '#0B0D10', cell: COOL_CELL, line: '#1F252D', lineF: '#171C22',
+  ink: '#EDEBE1', mut: '#8C887C', faint: '#5E5C51',
+  sun: '#B4453A', sat: '#3D6E9C', today: '#EDEBE1', radius: 4, edge: false,
+  ty: {
+    yoji: nowDarkTyOn('#8B7AB8', '#D3CCE4', COOL_CELL),
+    baito: nowDarkTyOn('#7FAE85', '#CEE0D1', COOL_CELL),
+    asobi: nowDarkTyOn('#D2916A', '#EED5C6', COOL_CELL),
+    other: nowDarkTyOn('#8A8A8A', '#D3D3D3', COOL_CELL),
+  },
+};
+
+// A ＋ 冷たい地。作り方は A のまま、地だけ冷たい黒に替える。
+// 色（種類の hue）は替えない＝移行もウィジェットの作り直しも要らない。
+const AC_CELL = '#12151A';
+const acTy = (hue) => [
+  hue,
+  mixc(hue, AC_CELL, 0.76),
+  mixc(hue, '#ffffff', 0.78),
+  mixc(hue, '#ffffff', 0.88),
+  null,
+];
+const A_COOL = {
+  bg: '#0B0D10', cell: AC_CELL, line: '#1F252D', lineF: '#171C22',
+  ink: '#E7EBF0', mut: '#8A939F', faint: '#565F6B',
+  sun: mixc('#B4453A', '#ffffff', 0.30), sat: mixc('#3D6E9C', '#ffffff', 0.30),
+  today: '#E7EBF0', radius: 4, edge: true,
+  ty: {
+    yoji: acTy('#8B7AB8'), baito: acTy('#7FAE85'),
+    asobi: acTy('#D2916A'), other: acTy('#8A8A8A'),
+  },
+};
 
 const WEEKS = [
   [[2, []], [3, [['baito', 1, 'マクド']]], [4, []], [5, [['yoji', 1, 'ゼミ']]],
@@ -187,8 +233,10 @@ function screen(C) {
 }
 
 (async () => {
-  const list = [['A＋B・明るい方', LIGHT], ['A＋B・暗い方', DARK]];
-  const SC = 1.55, GAP = 28, PAD = 20, LABEL = 28;
+  const list = [['いま・暗い方', NOW_DARK],
+    ['A ＋ 冷たい地', A_COOL],
+    ['（参考）A＋B・暗い方', DARK]];
+  const SC = 1.2, GAP = 24, PAD = 18, LABEL = 26;
   const imgs = [];
   for (const [, C] of list) imgs.push(await sharp(Buffer.from(screen(C))).resize(Math.round(W * SC)).png().toBuffer());
   const cw = Math.round(W * SC), ch = Math.round((HEAD + WD + CH * ROWS) * SC);
@@ -199,6 +247,6 @@ function screen(C) {
     comp.push({ input: buf, top: PAD + LABEL, left });
   });
   await sharp({ create: { width: PAD * 2 + list.length * cw + (list.length - 1) * GAP, height: PAD * 2 + LABEL + ch, channels: 3, background: '#C9CDD4' } })
-    .composite(comp).png().toFile('../store-assets/theme-ab.png');
+    .composite(comp).png().toFile('../store-assets/theme-acool.png');
   console.log('できた');
 })();
