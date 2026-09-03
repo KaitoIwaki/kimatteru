@@ -187,10 +187,8 @@ function screen(C) {
 }
 
 (async () => {
-  const list = [['B だけ・明るい方', B_ONLY_LIGHT],
-    ['B だけ・暗い方', B_ONLY_DARK],
-    ['（参考）A も入れた暗い方', DARK]];
-  const SC = 1.2, GAP = 24, PAD = 18, LABEL = 26;
+  const list = [['A＋B・明るい方', LIGHT], ['A＋B・暗い方', DARK]];
+  const SC = 1.55, GAP = 28, PAD = 20, LABEL = 28;
   const imgs = [];
   for (const [, C] of list) imgs.push(await sharp(Buffer.from(screen(C))).resize(Math.round(W * SC)).png().toBuffer());
   const cw = Math.round(W * SC), ch = Math.round((HEAD + WD + CH * ROWS) * SC);
@@ -201,6 +199,6 @@ function screen(C) {
     comp.push({ input: buf, top: PAD + LABEL, left });
   });
   await sharp({ create: { width: PAD * 2 + list.length * cw + (list.length - 1) * GAP, height: PAD * 2 + LABEL + ch, channels: 3, background: '#C9CDD4' } })
-    .composite(comp).png().toFile('../store-assets/theme-b.png');
+    .composite(comp).png().toFile('../store-assets/theme-ab.png');
   console.log('できた');
 })();
