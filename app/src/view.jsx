@@ -681,12 +681,14 @@ export function renderApp(v) {
                 <div style={s('font-size:24px;font-weight:300;color:var(--ink);margin:6px 0 2px 0;letter-spacing:-.3px')}>{v.dTitle}</div>
                 <div style={s('font-size:14px;color:var(--ink-mut);margin-bottom:20px')}>{v.monthLabel}月{v.dDay}日</div>
 
-                <div style={s('display:flex;align-items:baseline;gap:8px')}>
-                  <span style={s('font-size:15px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dTimeText}</span>
-                  {v.dTimeChanged && (
-                    <span style={s('font-size:12px;font-weight:400;color:#D85A30')}>→ 変更あり</span>
-                  )}
-                </div>
+                {v.dTimeShown && (
+                  <div style={s('display:flex;align-items:baseline;gap:8px')}>
+                    <span style={s('font-size:15px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dTimeText}</span>
+                    {v.dTimeChanged && (
+                      <span style={s('font-size:12px;font-weight:400;color:#D85A30')}>→ 変更あり</span>
+                    )}
+                  </div>
+                )}
                 {!!v.dRemindText && (
                   <div style={s('display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink-mut);margin-top:4px')}>
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
@@ -696,7 +698,7 @@ export function renderApp(v) {
                     {v.dRemindText}
                   </div>
                 )}
-                {!!v.dWantText && (
+                {v.dTimeShown && !!v.dWantText && (
                   <div style={s('font-size:12px;color:var(--ink-mut);margin-top:3px')}>{v.dWantText}</div>
                 )}
 
@@ -714,19 +716,18 @@ export function renderApp(v) {
                   <div style={s('margin-top:10px;padding:12px 14px;border-radius:13px;background:var(--bg2);font-size:14px;color:var(--ink-soft);line-height:1.9;white-space:pre-wrap;text-align:justify')}>{v.dMemo}</div>
                 )}
 
+                {/* 実績の主役はここだけ。金額を大きく、根拠は下に2行で畳む。
+                    ラベル（給料・実働時間）は書かない —— 記号と数字の形で分かる */}
                 {v.dWageShown && (
-                  <div style={s('margin-top:22px;padding-top:18px;border-top:1px solid var(--line);animation:riseUp .32s cubic-bezier(.2,.9,.2,1)')}>
-                    <div style={s('display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px')}>
-                      <span style={s('font-size:13px;color:var(--ink-mut)')}>実働時間</span>
-                      <span style={s('font-size:15px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dWorkHours}</span>
+                  <div style={s(v.dWageBlockStyle)}>
+                    <div style={s('display:flex;align-items:baseline;gap:3px')}>
+                      <span style={s('font-size:16px;font-weight:400;color:var(--ink-mut)')}>{v.dWageParts.unit}</span>
+                      <span style={s('font-size:34px;font-weight:300;color:var(--ink);letter-spacing:-.6px;font-variant-numeric:tabular-nums;line-height:1')}>{v.dWageParts.num}</span>
                     </div>
-                    {!!v.dBreakText && (
-                      <div style={s('font-size:11px;color:var(--ink-faint);margin:-4px 0 10px;text-align:right')}>{v.dBreakText}</div>
+                    <div style={s('font-size:14px;color:var(--ink-mut);margin-top:9px;font-variant-numeric:tabular-nums')}>{v.dWorkLine}</div>
+                    {!!v.dWhyLine && (
+                      <div style={s('font-size:11px;color:var(--ink-faint);margin-top:3px')}>{v.dWhyLine}</div>
                     )}
-                    <div style={s('display:flex;justify-content:space-between;align-items:baseline')}>
-                      <span style={s('font-size:13px;color:var(--ink-mut)')}>給料</span>
-                      <span style={s('font-size:24px;font-weight:300;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{v.dWage}</span>
-                    </div>
                   </div>
                 )}
               </div>

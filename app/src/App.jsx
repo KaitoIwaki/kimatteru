@@ -381,6 +381,15 @@ export default class App extends React.Component {
    * 重ねると中間の明るさになって、塗りの面に寄ってしまう。
    */
   paperShow(paper){ return this.dark() ? 'transparent' : paper; }
+  // 種類の色で書く小さな字（地の上に直に置くもの）。
+  // t.dark は色を黒へ 50% 寄せた値で、白い紙の上でしか読めない。暗い地では
+  // カードとの差が 2.32 まで落ちる。暗いときは白の側へ寄せる —— ただし
+  // 寄せすぎる（inkOn の 78%）と白になって「色＝種類」が消えるので 45% で止める。
+  typeInk(t){
+    if(!this.dark()) return t.dark;
+    const l = this._mix(t.color, '#ffffff', 0.45);
+    return `rgb(${l[0]},${l[1]},${l[2]})`;
+  }
   /** まだ（点線）の字。暗いときは面が無いので、地の上で読める明るさにする */
   inkDash(hex){
     const l = this.dark() ? this._mix(hex,'#ffffff',0.88) : this._mix(hex,'#000000',.66);
@@ -461,6 +470,9 @@ export default class App extends React.Component {
   }
   wage(ev){ if(ev.type!=='baito')return 0; return Math.round(this.paidHours(ev)*this.hourlyFor(ev)); }
   fmtHours(h){ const H=Math.floor(h); const M=Math.round((h-H)*60); return M? H+'時間'+M+'分' : H+'時間'; }
+  // 分の長さを短く言う。fmtHours だと35分が「0時間35分」になってしまう
+  fmtSpanMin(m){ const a=Math.abs(Math.round(m)), H=Math.floor(a/60), M=a%60;
+    return H ? (M? H+'時間'+M+'分' : H+'時間') : M+'分'; }
   fmtMin(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
   // お知らせの「いつ」を短い言葉にする。行にたたんだときの値にも、詳細画面にも使う。
   remindLabel(min, allDay){
@@ -2530,7 +2542,7 @@ export default class App extends React.Component {
     if(ev){
       const t=this.T(ev.type);
       const pct = ev.status==='mikakutei'?34: ev.status==='kakutei'?67: ev.status==='jisseki'?100: 20;
-      v.dTitle=ev.title; v.dDay=ev.day; v.dTypeDark=t.dark;
+      v.dTitle=ev.title; v.dDay=ev.day; v.dTypeDark=this.typeInk(t);
       v.dStatusLabel = this.statusWord(ev);
       v.badgeChar = (ev.status==='jisseki'||ev.status==='kakutei')?'✓':'？';
       v.badgeStyle = { width:26,height:26,borderRadius:13,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,transition:'all .3s cubic-bezier(.2,.9,.2,1)',
@@ -2540,6 +2552,8 @@ export default class App extends React.Component {
       const endShown = ev.status==='jisseki'? (ev.actualEnd||ev.end) : ev.end;
       v.dTimeText = ev.allDay ? (evSpan(ev)>1 ? this.spanLabel(ev)+'　終日' : '終日') : ev.start+'–'+endShown;
       v.dSpanText = evSpan(ev)>1 ? evSpan(ev)+'日間' : '';
+      // 実績では時刻を上に出さない。金額の下の1行目へ移す（同じことを2回書かない）
+      v.dTimeShown = ev.status!=='jisseki' || !!ev.allDay;
       const drm = typeof ev.remindMin==='number' ? ev.remindMin : null;
       v.dRemindText = drm===null ? '' : this.remindLabel(drm, ev.allDay)+'にお知らせ';
       // 場所は地図で開けるようにする。地図アプリを持っていなくても
@@ -2550,14 +2564,31 @@ export default class App extends React.Component {
       v.dMemo = (ev.memo||'').trim();
       v.dTimeChanged = ev.status==='jisseki' && ev.actualEnd && ev.actualEnd!==ev.end;
       v.dWantText = ev.want ? '希望 '+ev.want[0]+'–'+ev.want[1] : (v.dTimeChanged?'予定 '+ev.start+'–'+ev.end:'');
+      // 実績は「いくらになったか」が主役。時間の話はその根拠なので、金額の下に畳む。
+      // 前は上に 時刻・変更あり・希望、下に 実働時間・休憩・給料 の表を出していて、
+      // **同じことを3通りの言い方で書いて8行**あった。互いに計算で出せる関係なのだから、
+      // 結果（金額）を大きく出して、根拠は2行で足りる。
       v.dWageShown = ev.status==='jisseki';
-      if(v.dWageShown){ v.dWorkHours=this.fmtHours(this.paidHours(ev)); v.dWage=this.fmtWage(this.wage(ev));
-        v.dBreakText = this.breakMin(ev) ? '休憩 '+this.breakMin(ev)+'分を引いています' : ''; }
+      if(v.dWageShown){
+        v.dWageParts = this.splitWage(this.wage(ev));
+        v.dWorkLine = ev.allDay ? this.fmtHours(this.paidHours(ev))
+          : this.fmtHours(this.paidHours(ev))+'　'+ev.start+'–'+(ev.actualEnd||ev.end);
+        // なぜその時間になったか。休憩と、希望（無ければ予定）との差だけ書く
+        const br = this.breakMin(ev);
+        const base = ev.want ? this.hoursBetween(ev.want[0],ev.want[1]) : this.hoursBetween(ev.start,ev.end);
+        const diff = Math.round((this.hoursBetween(ev.start, ev.actualEnd||ev.end) - base)*60);
+        const why = [];
+        if(br) why.push('休憩'+br+'分をひいて');
+        if(diff) why.push((ev.want?'希望':'予定')+'より'+this.fmtSpanMin(diff)+(diff>0?'ながい':'みじかい'));
+        v.dWhyLine = (why.length===1 && br) ? '休憩'+br+'分をひいています' : why.join('、');
+        // 時刻の行が無いときは、日付のすぐ下に線を引く（間が空きすぎる）
+        v.dWageBlockStyle = { marginTop:(v.dTimeShown||v.dPlace||v.dMemo)?22:2, paddingTop:18,
+          borderTop:'1px solid var(--line)', animation:'riseUp .32s cubic-bezier(.2,.9,.2,1)' };
+      }
       const primary=(label,fn)=>{ v.dPrimaryLabel=label; v.dPrimaryAction=fn;
         v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:400,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; };
       if(ev.status==='nakunatta') primary('予定として戻す',()=>{ tapLight(); this.updateEvent(ev.id,{status:'kakutei'}); });
       else if(ev.status==='kakutei' && ev.type==='baito') primary('働いた記録をつける',()=>this.openDialog(ev,'worked',st.returnTo));
-      else if(ev.status==='jisseki') primary('働いた時間を直す',()=>this.openDialog(ev,'worked',st.returnTo));
       else if(ev.status==='mikakutei') primary('この予定、どうなった？',()=>this.openFor(ev,st.returnTo));
       else v.dPrimaryLabel=null;
       // 編集・コピー・削除は「…」の中にしまう。並びはタイムツリーに合わせた。
@@ -2578,7 +2609,13 @@ export default class App extends React.Component {
       v.detailMenuShown = !!st.detailMenu;
       v.onOpenDetailMenu = ()=>{ tapLight(); this.setState(s=>({detailMenu:!s.detailMenu, pressed:null})); };
       v.onCloseDetailMenu = ()=>this.setState({detailMenu:false, pressed:null});
-      const mRows = [ {key:'edit', label:'編集', fn:()=>this.openEdit(ev,st.returnTo)} ];
+      const mRows = [];
+      // 「働いた時間を直す」は緑のボタンから、この中へ降ろした。
+      // 緑は **その予定が次の状態へ進む** ときの色（まだ→決まった→働いた）。
+      // 記録し終えたものを直すのは次へ進む操作ではないので、色を借りてはいけない。
+      if(ev.status==='jisseki') mRows.push({key:'fix', label:'働いた時間を直す',
+        fn:()=>this.openDialog(ev,'worked',st.returnTo)});
+      mRows.push({key:'edit', label:'編集', fn:()=>this.openEdit(ev,st.returnTo)});
       if(canCopy) mRows.push({key:'copy', label:'コピー', fn:()=>this.openCopy(ev,st.returnTo)});
       mRows.push({key:'del', red:true, fn:()=>this.askDelete(ev.id),
         label: ev.status==='jisseki' ? 'この実績を削除' : 'この予定を削除'});
