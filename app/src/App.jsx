@@ -2538,14 +2538,11 @@ export default class App extends React.Component {
     const ev = st.events.find(e=>e.id===st.detailId);
     if(ev){
       const t=this.T(ev.type);
-      const pct = ev.status==='mikakutei'?34: ev.status==='kakutei'?67: ev.status==='jisseki'?100: 20;
       v.dTitle=ev.title; v.dDay=ev.day; v.dTypeDark=this.typeInk(t);
       v.dStatusLabel = this.statusWord(ev);
       v.badgeChar = (ev.status==='jisseki'||ev.status==='kakutei')?'✓':'？';
       v.badgeStyle = { width:26,height:26,borderRadius:13,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,transition:'all .3s cubic-bezier(.2,.9,.2,1)',
         ...(v.badgeChar==='✓'?{background:t.color,color:'#fff'}:{background:t.paper,color:t.dark,border:'1.5px dashed '+t.color}) };
-      v.gaugeTrackStyle={ width:10,alignSelf:'stretch',background:t.paper,position:'relative',flexShrink:0 };
-      v.gaugeFillStyle={ position:'absolute',left:0,right:0,bottom:0,height:pct+'%',background:t.color,transition:'height .32s cubic-bezier(.2,.9,.2,1)' };
       const endShown = ev.status==='jisseki'? (ev.actualEnd||ev.end) : ev.end;
       v.dTimeText = ev.allDay ? (evSpan(ev)>1 ? this.spanLabel(ev)+'　終日' : '終日') : ev.start+'–'+endShown;
       v.dSpanText = evSpan(ev)>1 ? evSpan(ev)+'日間' : '';

@@ -669,11 +669,8 @@ export function renderApp(v) {
             <span role="button" aria-label="この予定の操作" style={s('font-size:20px;line-height:1;letter-spacing:2px;color:var(--ink-mut);cursor:pointer;padding:6px 0 6px 12px;user-select:none')} onClick={v.onOpenDetailMenu}>···</span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:14px 16px 40px 16px')}>
-            <div style={s('background:var(--card);border-radius:16px;overflow:hidden;display:flex;border:1px solid var(--line);min-height:170px')}>
-              <div style={s(v.gaugeTrackStyle)}>
-                <div style={s(v.gaugeFillStyle)} />
-              </div>
-              <div style={s('flex:1;padding:20px 20px 22px 22px')}>
+            <div style={s('background:var(--card);border-radius:16px;overflow:hidden;border:1px solid var(--line);min-height:170px')}>
+              <div style={s('padding:20px 20px 22px 22px')}>
                 <div style={s('display:flex;align-items:center;gap:10px;margin-bottom:4px')}>
                   <span style={s(v.badgeStyle)}>{v.badgeChar}</span>
                   <span style={s(`font-size:13px;font-weight:400;color:${v.dTypeDark}`)}>{v.dStatusLabel}</span>
