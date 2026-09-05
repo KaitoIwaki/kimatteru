@@ -325,7 +325,9 @@ export default class App extends React.Component {
     freeDir: 0,           // 直前に月を送った向き（滑り込む向きに使う）
     today: todayParts(),
     shareChoices:{ o1:null, o2:null, o3:null }, shareSubmitted:false, shareToast:false, shareMsg:'', morph:null,
-    settings:{ hourly:1120, weekStart:0, remind:true, hideCanceled:false, dark:false, onboarded:false },
+    settings:{ hourly:1120, weekStart:0, remind:true, hideCanceled:false, dark:false, onboarded:false,
+      // 使い始める前の額。年をまたいで持つので、年ごとの入れ物にする（{'2026':120000}）
+      priorWage:{} },
     // はじめての案内。step は 0=しくみ 1=時給 2=取り込み
     onboard:{ step:0, demo:'dash' },
     draft:{ title:'', type:'yoji', status:'kakutei', start:'10:00', end:'11:00', y:todayParts().y, m:todayParts().m, day:todayParts().d, allDay:false, picking:null },
@@ -469,6 +471,30 @@ export default class App extends React.Component {
     return Math.max(0, this.hoursBetween(ev.start, end) - this.breakMin(ev)/60);
   }
   wage(ev){ if(ev.type!=='baito')return 0; return Math.round(this.paidHours(ev)*this.hourlyFor(ev)); }
+  /**
+   * 使い始める前の額。年ごとに、手で入れてもらう。
+   * 年の途中から使い始めた人は、それまでの給料がこのアプリに無い。合計が実際と合わない。
+   * 記録が無いものを推測で埋めるわけにはいかないので、本人に入れてもらう。
+   *
+   * **足すのは金額だけ。** 働いた時間と日数には足さない —— 何時間だったかは
+   * 誰も知らないので、入れたら嘘になる。画面にもそう書く。
+   * 一つの数字で持つと、年を移動したときに全部の年が同じだけ増えてしまう。
+   */
+  priorFor(y){
+    const p = this.state.settings && this.state.settings.priorWage;
+    const n = p && p[String(y)];
+    return typeof n==='number' && isFinite(n) && n>0 ? Math.min(99999999, Math.round(n)) : 0;
+  }
+  setPrior(y, n){
+    const v = Math.max(0, Math.min(99999999, Math.round(Number(n)||0)));
+    this.setState(s=>{
+      // 控えから戻したものが壊れていても、ここで巻き添えにしない
+      const cur = s.settings.priorWage;
+      const p = (cur && typeof cur==='object' && !Array.isArray(cur)) ? {...cur} : {};
+      if(v) p[String(y)] = v; else delete p[String(y)];
+      return { settings:{...s.settings, priorWage:p} };
+    });
+  }
   fmtHours(h){ const H=Math.floor(h); const M=Math.round((h-H)*60); return M? H+'時間'+M+'分' : H+'時間'; }
   fmtMin(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
   // お知らせの「いつ」を短い言葉にする。行にたたんだときの値にも、詳細画面にも使う。
@@ -1837,7 +1863,7 @@ export default class App extends React.Component {
       {
         const n = v.cardJobs.length;
         v.cardAspect = isYear
-          ? '1080/'+(1440 + Math.max(0, n-2)*116)
+          ? '1080/'+(1440 + (this.priorFor(Y)?44:0) + Math.max(0, n-2)*116)
           : '1080/'+(680 + Math.max(0, n-2)*88);
       }
       // 年のカードだけ、月ごとの棒を出す
@@ -1875,8 +1901,20 @@ export default class App extends React.Component {
       v.repMonthWageParts = this.splitWage(mo.wage);
       v.repMonthDays = String(mo.days);
       v.repYearHours = this.fmtHours(yr.hours);
-      v.repYearWage = this.fmtWage(yr.wage);
-      v.repYearWageParts = this.splitWage(yr.wage);
+      const prior = this.priorFor(Y);
+      v.repYearWage = this.fmtWage(yr.wage + prior);
+      v.repYearWageParts = this.splitWage(yr.wage + prior);
+      // 足したことは必ず書く。書かないと、時間と金額が合わない理由が誰にも分からない
+      v.repPriorText = prior
+        ? 'うち '+this.fmtWage(prior)+' は使い始める前の分として手で入れた額で、時間と日数には入っていません。'
+        : '';
+      v.repPriorLabel = prior ? this.fmtWage(prior) : '未設定';
+      v.repPriorHint = Y+'年の、記録を始める前に稼いだぶん';
+      v.repPriorValue = prior ? String(prior) : '';
+      v.repPriorOpen = !!st.priorOpen;
+      v.onTogglePrior = ()=>{ tapLight(); this.setState(s=>({priorOpen:!s.priorOpen})); };
+      v.onPriorChange = (e)=>{ const n=parseInt((e.target.value||'').replace(/[^0-9]/g,'').slice(0,8),10);
+        this.setPrior(Y, isNaN(n)?0:n); };
       v.repYearDays = String(yr.days);
       // バイト先ごとの内訳。今月と今年、どちらも出す
       v.repMonthJobs = this._jobBreakdown(doneAll.filter(e=>e.y===Y && e.m===M));
@@ -3080,9 +3118,11 @@ export default class App extends React.Component {
     const Y = st.ym.y, M = st.ym.m;
     if (kind === 'year') {
       const yr = st.events.filter((e) => e.y === Y && e.status === 'jisseki');
+      const prior = this.priorFor(Y);
       return drawYearCard({
         year: `${Y}年`,
-        wage: this.splitWage(Math.round(yr.reduce((a, e) => a + this.wage(e), 0))),
+        wage: this.splitWage(Math.round(yr.reduce((a, e) => a + this.wage(e), 0)) + prior),
+        note: prior ? `うち ¥${prior.toLocaleString('ja-JP')} は使い始める前の分` : '',
         hours: this.fmtHours(yr.reduce((a, e) => a + this.paidHours(e), 0)),
         jobs: this._jobBreakdown(yr),
         months: Array.from({ length: 12 }, (_, i) =>

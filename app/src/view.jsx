@@ -1381,8 +1381,40 @@ export function renderApp(v) {
                 </div>
                 {/* 金額は時給×実働の概算。割増も交通費も入らないので、そう書いておく。
                     扶養の線を判定できる数字ではない。 */}
-                <div style={s('font-size:11px;color:var(--ink-faint);margin:-14px 6px 22px;line-height:1.8;text-wrap:pretty')}>
+                <div style={s('font-size:11px;color:var(--ink-faint);margin:-14px 6px 10px;line-height:1.8;text-wrap:pretty')}>
                   {''}<Jp parts={['時間は', '記録したそのものです。', '金額は時給から出した目安で、', '割増や交通費は', '入っていません。']} />
+                </div>
+                {!!v.repPriorText && (
+                  <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 10px;line-height:1.8;text-wrap:pretty')}>{v.repPriorText}</div>
+                )}
+                <div style={s('margin-bottom:12px')} />
+
+                {/* 年の途中から使い始めた人のための、手で入れる額。
+                    設定ではなくここに置く —— 年を選ぶのはこの画面で、
+                    合計が実際と合わないと気づくのもこの画面だから。 */}
+                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:22px')}>
+                  <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onTogglePrior}>
+                    <div style={s('display:flex;flex-direction:column;gap:2px;flex:1;padding-right:12px;min-width:0')}>
+                      <span style={s('font-size:15px;color:var(--ink)')}>使い始める前の額</span>
+                      <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.repPriorHint}</span>
+                    </div>
+                    <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums;flex-shrink:0')}>{v.repPriorLabel}</span>
+                    <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>{v.repPriorOpen ? '⌄' : '›'}</span>
+                  </div>
+                  {v.repPriorOpen && (
+                    <div style={s('padding:2px 16px 16px')}>
+                      <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
+                        <span style={s('font-size:14px;color:var(--ink-mut)')}>{v.repYearLabel}のぶん</span>
+                        <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
+                          <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft)')}>¥</span>
+                          <input value={v.repPriorValue} onChange={v.onPriorChange} inputMode="numeric" maxLength={8} placeholder="0" style={s('width:9ch;min-width:9ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
+                        </div>
+                      </div>
+                      <div style={s('font-size:11px;color:var(--ink-faint);margin-top:12px;line-height:1.8;text-wrap:pretty')}>
+                        {''}<Jp parts={['上の「稼いだ額」と', 'まとめカードに足します。', '働いた時間と日数には', '入りません。']} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}

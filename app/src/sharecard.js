@@ -114,9 +114,10 @@ export function drawMonthCard({ yearMonth, wage, hours, days, jobs }) {
  * 年のカードにカレンダーは合わない（365マスは描けない）ので、
  * 月ごとの棒を置く。いちばん多かった月だけ濃くして、時間を添える。
  */
-export function drawYearCard({ year, wage, hours, jobs, months }) {
+export function drawYearCard({ year, wage, hours, jobs, months, note }) {
   const list = jobs || [];
-  const W = 1080, H = 1440 + Math.max(0, list.length - 2) * 116, PAD = 96;
+  // note（使い始める前の分）があると1行ぶん伸びる。App.jsx の cardAspect と同じ式
+  const W = 1080, H = 1440 + (note ? 44 : 0) + Math.max(0, list.length - 2) * 116, PAD = 96;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const ctx = c.getContext('2d');
@@ -134,6 +135,14 @@ export function drawYearCard({ year, wage, hours, jobs, months }) {
   ctx.fillStyle = INK_MUT;
   ctx.font = f(27, 400);
   ctx.fillText(`およそ　${hours}`, PAD, y);
+
+  // 手で入れた分は、カードにも書く。書かずに足すと、シェアした数字が説明できない
+  if (note) {
+    y += 44;
+    ctx.fillStyle = INK_FAINT;
+    ctx.font = f(23, 400);
+    ctx.fillText(note, PAD, y);
+  }
 
   y += 78;
   ctx.fillStyle = LINE;
