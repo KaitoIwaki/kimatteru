@@ -1,23 +1,60 @@
-// App Store の1枚目、作り込んだ版。
+// App Store の1枚目・2枚目。
 //
 // 凝るといっても、飾りを足すのではない。**このアプリの文法で凝る。**
 //  ・見出しの「決まった」に実線、「まだ」に点線を引く。
 //    宣伝の文字そのものが、アプリの決まりを説明している状態にする。
 //  ・決まった予定には影を落とし、まだの予定には落とさない。
 //    決まったものは重さを持ち、まだのものは浮いている——という理屈。
-//  ・地は真っ黒にせず、光源を左上に置いた面にする。細い格子と粒子を敷く。
-//    無地の黒は「作っていない」に見え、面は「作った」に見える。
+//  ・地は無地にせず、光源を左上に置いた面にする。細い格子と粒子を敷く。
+//    無地は「作っていない」に見え、面は「作った」に見える。
 //
-// 実行: node tools/hero2.cjs
+// **色はアプリが実際に出しているものだけを使う。**
+// 前の版は B（Lab で揃えた色）で描いてあったが、B は入れないと決めた。
+// 今日の印も青緑の線になっていたが、アプリでは字と同じ色の線（borderTop 2px）。
+// 宣伝と中身が違う色をしていたら、開いた人は「別のアプリ」だと思う。
+//
+// 塗り方も App.jsx と同じ式にしてある（softFill / inkOn / paperShow / inkDash）。
+// 明るい方は面が hue 68%、暗い方は 24%。ここを揃えないと、同じ絵にならない。
+//
+// 英語版は出していない。配信は日本だけで、英語のコピーはまだ弱い
+// （英語を母語とする人に見てもらう価値がある）。文言は TXT.en に残してある。
+//
+// 実行:
+//   node tools/hero2.cjs        比べる用の1枚（store-assets/hero2.png）
+//   node tools/hero2.cjs out    提出用 1290×2796（store-assets/appstore-new/）
 const sharp = require('sharp');
+const { mkdirSync } = require('node:fs');
 const F = "'Hiragino Sans','Yu Gothic',sans-serif";
-const S = 2;
+const OUT_MODE = process.argv[2] === 'out';
+const S = OUT_MODE ? 3 : 2;
 const W = 430, H = 932;
 
-const CELL = '#12151A', LINE = '#1F252D', LINEF = '#171C22';
-const INK = '#E7EBF0', MUT = '#8A939F', FAINT = '#565F6B';
-const TY = { yoji: '#8997df', baito: '#4cac84', asobi: '#d9856d', other: '#889eaf' };
-const TODAY = '#00c5d1';
+// アプリが実際に出している種類の色（App.jsx の types）
+const TY = { yoji: '#8B7AB8', baito: '#7FAE85', asobi: '#D2916A', other: '#8A8A8A' };
+
+// 地。styles.css の値をそのまま持ってくる
+const TH = {
+  dark: {
+    CELL: '#12151A', LINE: '#1F252D', LINEF: '#171C22',
+    INK: '#E7EBF0', MUT: '#8A939F', FAINT: '#565F6B',
+    bg: ['#171D28', '#0B0D10', '#05070A'], grid: '#8FA6C8', gridOp: 0.05,
+    dot: '#C8D6EC', edge: '#A9BBD4', edgeOp: 0.14, shadow: 0.55, small: '#737C88',
+    fill: 0.24, ink: ['#FFFFFF', 0.22], dashInk: ['#FFFFFF', 0.12], paper: null,
+  },
+  light: {
+    CELL: '#FFFFFF', LINE: '#E4E7EC', LINEF: '#F1F3F6',
+    INK: '#1E2024', MUT: '#82878F', FAINT: '#B3B8C0',
+    bg: ['#FFFFFF', '#F4F6F9', '#E6EAEF'], grid: '#6B7A90', gridOp: 0.06,
+    dot: '#41474F', edge: '#8A93A3', edgeOp: 0.18, shadow: 0.16, small: '#666C74',
+    fill: 0.68, ink: ['#000000', 0.34], dashInk: ['#000000', 0.34], paper: 0.32,
+  },
+};
+let TK = 'dark', CELL, LINE, LINEF, INK, MUT, FAINT, TODAY, TH_;
+function setTheme(k) {
+  TK = k; TH_ = TH[k];
+  ({ CELL, LINE, LINEF, INK, MUT, FAINT } = TH_);
+  TODAY = INK;   // アプリの今日の印は、字と同じ色の線
+}
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const t = (x, y, s, size, w, color, anchor, ls) =>
@@ -27,9 +64,15 @@ const rect = (x, y, w, h, fill, r = 0, op) =>
 const hexRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const mix = (a, b, k) => `#${hexRgb(a).map((v, i) => Math.round(v * k + hexRgb(b)[i] * (1 - k)).toString(16).padStart(2, '0')).join('')}`;
 
+// アプリと同じ作り方で色を出す（App.jsx の softFill / inkOn / paperShow / inkDash）
+const face = (hue) => mix(hue, CELL, TH_.fill);
+const inkOn = (hue) => mix(hue, TH_.ink[0], TH_.ink[1]);
+const dashInk = (hue) => mix(hue, TH_.dashInk[0], TH_.dashInk[1]);
+// まだの面。暗い方は敷かない（アプリの paperShow がそうしている）
+const dashFace = (hue) => (TH_.paper == null ? null : mix(hue, CELL, TH_.paper));
+
 // 文字の幅を測る。下線を引くのに要る——長さを勘で決めると必ずずれる。
 // 英字を一律 0.56 で見ていたら、下線が語からはみ出した。
-// 大文字・小文字・記号・空白で幅が違うので、そこまで分ける。
 const wide = (ch) => {
   if (/[　-鿿＀-￯]/.test(ch)) return 1;      // 日本語
   if (ch === ' ') return 0.26;
@@ -46,25 +89,25 @@ const tw = (s, size) => [...s].reduce((a, c) => a + wide(c), 0) * size;
 function ground(id) {
   let o = `<defs>
     <radialGradient id="bg${id}" cx="18%" cy="10%" r="105%">
-      <stop offset="0%" stop-color="#171D28"/>
-      <stop offset="55%" stop-color="#0B0E14"/>
-      <stop offset="100%" stop-color="#05070A"/>
+      <stop offset="0%" stop-color="${TH_.bg[0]}"/>
+      <stop offset="55%" stop-color="${TH_.bg[1]}"/>
+      <stop offset="100%" stop-color="${TH_.bg[2]}"/>
     </radialGradient>
     <filter id="sh${id}" x="-40%" y="-40%" width="180%" height="200%">
-      <feDropShadow dx="0" dy="${5 * S}" stdDeviation="${7 * S}" flood-color="#000000" flood-opacity="0.55"/>
+      <feDropShadow dx="0" dy="${5 * S}" stdDeviation="${7 * S}" flood-color="#000000" flood-opacity="${TH_.shadow}"/>
     </filter>
-    <filter id="soft${id}" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="${26 * S}"/>
-    </filter>
+    <linearGradient id="fade${id}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${TH_.bg[2]}" stop-opacity="0"/>
+      <stop offset="100%" stop-color="${TH_.bg[2]}" stop-opacity="1"/>
+    </linearGradient>
   </defs>`;
   o += rect(0, 0, W, H, `url(#bg${id})`);
-  // 細い格子。40pt ごと、ほとんど見えない濃さで
-  for (let x = 0; x <= W; x += 40) o += rect(x, 0, 0.5, H, '#8FA6C8', 0, 0.05);
-  for (let y = 0; y <= H; y += 40) o += rect(0, y, W, 0.5, '#8FA6C8', 0, 0.04);
-  // 粒子。決め打ちの位置で、開くたびに変わらないように
+  for (let x = 0; x <= W; x += 40) o += rect(x, 0, 0.5, H, TH_.grid, 0, TH_.gridOp);
+  for (let y = 0; y <= H; y += 40) o += rect(0, y, W, 0.5, TH_.grid, 0, TH_.gridOp * 0.8);
+  // 粒子。決め打ちの位置で、走るたびに変わらないように
   const rnd = (n) => { const v = Math.sin(n * 12.9898) * 43758.5453; return v - Math.floor(v); };
   for (let i = 0; i < 420; i += 1) {
-    o += rect(rnd(i * 2 + 1) * W, rnd(i * 2 + 2) * H, 0.9, 0.9, i % 2 ? '#C8D6EC' : '#000000', 0, i % 2 ? 0.05 : 0.05);
+    o += rect(rnd(i * 2 + 1) * W, rnd(i * 2 + 2) * H, 0.9, 0.9, i % 2 ? TH_.dot : TH_.bg[2], 0, 0.05);
   }
   return o;
 }
@@ -79,26 +122,30 @@ function bigPill(id, x, y, w, h, hue, solid, label, time) {
   const r = 14;
   if (solid) {
     // 決まったものは影を落とす。重さがあるという理屈
-    return `<g filter="url(#sh${id})">${rect(x, y, w, h, mix(hue, CELL, 0.28), r)}</g>`
+    return `<g filter="url(#sh${id})">${rect(x, y, w, h, face(hue), r)}</g>`
       + `<rect x="${(x + 0.75) * S}" y="${(y + 0.75) * S}" width="${(w - 1.5) * S}" height="${(h - 1.5) * S}" rx="${(r - 1) * S}" fill="none" stroke="${hue}" stroke-width="${1.5 * S}"/>`
-      + t(x + 22, y + h / 2 + 2, label, 18, 500, mix(hue, '#ffffff', 0.34))
-      + t(x + w - 22, y + h / 2 + 2, time, 14, 400, mix(hue, '#ffffff', 0.06), 'end');
+      + t(x + 22, y + h / 2 + 2, label, 18, 500, inkOn(hue))
+      + t(x + w - 22, y + h / 2 + 2, time, 14, 400, mix(inkOn(hue), face(hue), 0.62), 'end');
   }
   // まだのものは影を落とさない。浮いているという理屈
-  return `<rect x="${(x + 1) * S}" y="${(y + 1) * S}" width="${(w - 2) * S}" height="${(h - 2) * S}" rx="${(r - 1) * S}" fill="none" stroke="${hue}" stroke-width="${2 * S}" stroke-dasharray="${5.5 * S} ${5 * S}" stroke-linecap="round" opacity=".92"/>`
-    + t(x + 22, y + h / 2 + 2, label, 18, 500, mix(hue, '#ffffff', 0.18))
-    + t(x + w - 22, y + h / 2 + 2, time, 14, 400, mix(hue, '#ffffff', 0.02), 'end');
+  const bg = dashFace(hue);
+  return (bg ? rect(x, y, w, h, bg, r) : '')
+    + `<rect x="${(x + 1) * S}" y="${(y + 1) * S}" width="${(w - 2) * S}" height="${(h - 2) * S}" rx="${(r - 1) * S}" fill="none" stroke="${hue}" stroke-width="${2 * S}" stroke-dasharray="${5.5 * S} ${5 * S}" stroke-linecap="round" opacity=".92"/>`
+    + t(x + 22, y + h / 2 + 2, label, 18, 500, dashInk(hue))
+    + t(x + w - 22, y + h / 2 + 2, time, 14, 400, mix(dashInk(hue), CELL, 0.62), 'end');
 }
 
 function pill(x, y, w, hue, solid, label) {
   const h = 16, r = 5;
   if (solid) {
-    return rect(x, y, w, h, mix(hue, CELL, 0.26), r)
+    return rect(x, y, w, h, face(hue), r)
       + `<rect x="${(x + 0.5) * S}" y="${(y + 0.5) * S}" width="${(w - 1) * S}" height="${(h - 1) * S}" rx="${(r - 0.5) * S}" fill="none" stroke="${hue}" stroke-width="${1 * S}"/>`
-      + t(x + 5, y + 11.5, label, 10, 500, mix(hue, '#ffffff', 0.26));
+      + t(x + 5, y + 11.5, label, 10, 500, inkOn(hue));
   }
-  return `<rect x="${(x + 0.75) * S}" y="${(y + 0.75) * S}" width="${(w - 1.5) * S}" height="${(h - 1.5) * S}" rx="${(r - 0.5) * S}" fill="none" stroke="${hue}" stroke-width="${1.2 * S}" stroke-dasharray="${3 * S} ${2.5 * S}" opacity=".85"/>`
-    + t(x + 5, y + 11.5, label, 10, 500, mix(hue, '#ffffff', 0.14));
+  const bg = dashFace(hue);
+  return (bg ? rect(x, y, w, h, bg, r) : '')
+    + `<rect x="${(x + 0.75) * S}" y="${(y + 0.75) * S}" width="${(w - 1.5) * S}" height="${(h - 1.5) * S}" rx="${(r - 0.5) * S}" fill="none" stroke="${hue}" stroke-width="${1.2 * S}" stroke-dasharray="${3 * S} ${2.5 * S}" opacity=".85"/>`
+    + t(x + 5, y + 11.5, label, 10, 500, dashInk(hue));
 }
 
 const MONTH_JA = { Shift: 'マクド', Class: 'ゼミ', Party: '花火', Pickup: '受取', Trip: '合宿', Exam: '試験', Movie: '映画', Return: '返却' };
@@ -108,7 +155,7 @@ const MONTH = [
   [[17, [['baito', 1, 'Shift']]], [18, [['yoji', 1, 'Class']]], [19, [['baito', 0, 'Shift']]], [20, []], [21, [['asobi', 1, 'Movie']]], [22, []], [23, [['other', 0, 'Return']]]],
 ];
 
-/** 画面を「板」として置く。角を丸め、縁に光を1本、下に影。切って画面外へ流す */
+/** 画面を「板」として置く。角を丸め、縁に光を1本、下に影。下は霞ませて画面外へ流す */
 function device(id, x, y, w, rows, lang) {
   const cw = w / 7, cellH = 96, r = 26;
   const h = 30 + rows * cellH + 40;
@@ -123,7 +170,7 @@ function device(id, x, y, w, rows, lang) {
     week.forEach(([day, bars, today], k) => {
       const cx = x + cw * k;
       if (k < 6) o += rect(cx + cw - 0.5, yy, 0.8, cellH, LINEF);
-      if (today) o += rect(cx, yy, cw, 2.5, TODAY);
+      if (today) o += rect(cx, yy, cw, 2, TODAY);
       o += t(cx + 6, yy + 17, String(day), 12, today ? 700 : 400, today ? TODAY : INK);
       bars.forEach((b, j) => {
         const [ty, solid, label] = b;
@@ -134,8 +181,9 @@ function device(id, x, y, w, rows, lang) {
     o += rect(x, yy + cellH, w, 0.8, LINE);
   });
   o += `</g>`;
-  // 縁の光。左上を明るく
-  o += `<rect x="${(x + 0.5) * S}" y="${(y + 0.5) * S}" width="${(w - 1) * S}" height="${(h - 1) * S}" rx="${r * S}" fill="none" stroke="#A9BBD4" stroke-width="${1 * S}" opacity=".14"/>`;
+  o += `<rect x="${(x + 0.5) * S}" y="${(y + 0.5) * S}" width="${(w - 1) * S}" height="${(h - 1) * S}" rx="${r * S}" fill="none" stroke="${TH_.edge}" stroke-width="${1 * S}" opacity="${TH_.edgeOp}"/>`;
+  // 下を霞ませる。ぶつ切りだと「切り忘れ」に見えるので、地へ溶かして終わらせる
+  if (y + h > H - 10) o += rect(0, H - 120, W, 120, `url(#fade${id})`);
   return o;
 }
 
@@ -145,7 +193,7 @@ const TXT = {
     a1: ['Some plans ', 'are set', '.'], a2: ['Some are still ', 'maybe', '.'],
     on: 'SET', off: 'MAYBE',
     b1: 'It asks you later:', b2: 'so, is this on?',
-    opts: [['It is on', TY.baito], ['It is off', MUT], ['Still not sure', TY.asobi]],
+    opts: [['It is on', TY.baito], ['It is off', TY.other], ['Still not sure', TY.asobi]],
     shift: 'Shift', party: 'Party', size: 30, bsize: 29,
   },
   ja: {
@@ -153,7 +201,7 @@ const TXT = {
     a1: ['', '決まった', '予定と、'], a2: ['', 'まだ', 'の予定。'],
     on: '決まってる', off: 'まだ',
     b1: 'あとで聞きます。', b2: 'その予定、どうなった？',
-    opts: [['決まった', TY.baito], ['無くなった', MUT], ['まだ分からない', TY.asobi]],
+    opts: [['決まった', TY.baito], ['無くなった', TY.other], ['まだ分からない', TY.asobi]],
     shift: 'マクド', party: '花火', size: 32, bsize: 28,
   },
 };
@@ -170,12 +218,12 @@ function headline(x, y, parts, size, solid) {
 function heroA(lang, id) {
   const L = TXT[lang];
   let o = ground(id);
-  o += t(34, 92, L.eyebrow, 10, 700, mix(MUT, FAINT, 0.55), null, 1.8);
+  o += t(34, 92, L.eyebrow, 10, 700, TH_.small, null, 1.8);
   o += headline(34, 152, L.a1, L.size, true);
   o += headline(34, 152 + L.size * 1.34, L.a2, L.size, false);
-  o += t(34, 300, L.on, 10, 700, MUT, null, 2.2);
+  o += t(34, 300, L.on, 10, 700, TH_.small, null, 2.2);
   o += bigPill(id, 34, 314, W - 68, 58, TY.baito, true, L.shift, '17:00');
-  o += t(34, 416, L.off, 10, 700, MUT, null, 2.2);
+  o += t(34, 416, L.off, 10, 700, TH_.small, null, 2.2);
   o += bigPill(id, 34, 430, W - 68, 58, TY.asobi, false, L.party, '20:00');
   o += device(id, 30, 560, W - 60, 3, lang);
   return o;
@@ -184,7 +232,7 @@ function heroA(lang, id) {
 function heroB(lang, id) {
   const L = TXT[lang];
   let o = ground(id);
-  o += t(34, 92, L.eyebrow, 10, 700, mix(MUT, FAINT, 0.55), null, 1.8);
+  o += t(34, 92, L.eyebrow, 10, 700, TH_.small, null, 1.8);
   o += t(34, 148, L.b1, L.bsize, 250, INK, null, -0.4);
   o += t(34, 148 + L.bsize * 1.34, L.b2, L.bsize, 250, INK, null, -0.4);
   o += bigPill(id, 34, 250, W - 68, 56, TY.asobi, false, L.party, '20:00');
@@ -192,11 +240,11 @@ function heroB(lang, id) {
   o += `<line x1="${(W / 2) * S}" y1="${322 * S}" x2="${(W / 2) * S}" y2="${352 * S}" stroke="${FAINT}" stroke-width="${1 * S}" opacity=".7"/>`;
   o += `<circle cx="${(W / 2) * S}" cy="${356 * S}" r="${2.2 * S}" fill="${FAINT}"/>`;
   o += `<g filter="url(#sh${id})">${rect(28, 372, W - 56, 172, CELL, 20)}</g>`;
-  o += `<rect x="${28 * S}" y="${372 * S}" width="${(W - 56) * S}" height="${172 * S}" rx="${20 * S}" fill="none" stroke="#A9BBD4" stroke-width="${1 * S}" opacity=".12"/>`;
+  o += `<rect x="${28 * S}" y="${372 * S}" width="${(W - 56) * S}" height="${172 * S}" rx="${20 * S}" fill="none" stroke="${TH_.edge}" stroke-width="${1 * S}" opacity="${TH_.edgeOp}"/>`;
   L.opts.forEach(([label, col], i) => {
     const y = 394 + i * 46;
-    o += rect(44, y, W - 88, 38, mix(col, CELL, 0.16), 11);
-    o += t(62, y + 24, label, 15, 500, mix(col, '#ffffff', 0.36));
+    o += rect(44, y, W - 88, 38, mix(col, CELL, TK === 'dark' ? 0.16 : 0.30), 11);
+    o += t(62, y + 24, label, 15, 500, inkOn(col));
   });
   o += `<line x1="${(W / 2) * S}" y1="${560 * S}" x2="${(W / 2) * S}" y2="${590 * S}" stroke="${FAINT}" stroke-width="${1 * S}" opacity=".7"/>`;
   o += `<circle cx="${(W / 2) * S}" cy="${594 * S}" r="${2.2 * S}" fill="${FAINT}"/>`;
@@ -205,20 +253,34 @@ function heroB(lang, id) {
   return o;
 }
 
+// 出すのは日本語だけ（配信は日本のみ）。明るい方と暗い方を比べる
 const CASES = {
-  '案A（日本語）': (id) => heroA('ja', id),
-  '案A（English）': (id) => heroA('en', id),
-  '案B（日本語）': (id) => heroB('ja', id),
-  '案B（English）': (id) => heroB('en', id),
+  '案A（明るい）': (id) => { setTheme('light'); return heroA('ja', id); },
+  '案A（暗い）': (id) => { setTheme('dark'); return heroA('ja', id); },
+  '案B（明るい）': (id) => { setTheme('light'); return heroB('ja', id); },
+  '案B（暗い）': (id) => { setTheme('dark'); return heroB('ja', id); },
 };
 
 (async () => {
   const names = Object.keys(CASES);
+  const svgOf = (i) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W * S}" height="${H * S}">${CASES[names[i]](i)}</svg>`;
+
+  if (OUT_MODE) {
+    // 提出用。1290×2796（430×932 の3倍）
+    const dir = '../store-assets/appstore-new';
+    mkdirSync(dir, { recursive: true });
+    const file = ['heroA-light', 'heroA-dark', 'heroB-light', 'heroB-dark'];
+    for (let i = 0; i < names.length; i += 1) {
+      await sharp(Buffer.from(svgOf(i))).png().toFile(`${dir}/${file[i]}.png`);
+      console.log('書いた', `${file[i]}.png`, `${W * S}×${H * S}`);
+    }
+    return;
+  }
+
   const SC = 0.42, GAP = 22, PAD = 18, LABEL = 26;
   const imgs = [];
   for (let i = 0; i < names.length; i += 1) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * S}" height="${H * S}">${CASES[names[i]](i)}</svg>`;
-    imgs.push(await sharp(Buffer.from(svg)).resize(Math.round(W * S * SC)).png().toBuffer());
+    imgs.push(await sharp(Buffer.from(svgOf(i))).resize(Math.round(W * S * SC)).png().toBuffer());
   }
   const cw = Math.round(W * S * SC), ch = Math.round(H * S * SC);
   const comp = [];
@@ -229,5 +291,5 @@ const CASES = {
   });
   await sharp({ create: { width: PAD * 2 + names.length * cw + (names.length - 1) * GAP, height: PAD * 2 + LABEL + ch, channels: 3, background: '#1B1F26' } })
     .composite(comp).png().toFile('../store-assets/hero2.png');
-  console.log('できた');
+  console.log('できた store-assets/hero2.png');
 })();

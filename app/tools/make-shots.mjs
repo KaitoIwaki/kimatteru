@@ -92,7 +92,9 @@ await boot();
 await page.getByText('まとめ', { exact: true }).last().click();
 await page.waitForTimeout(700);
 await shot('ss-5-report');                                   // 一覧。密度がある
-await page.getByText('今月のまとめカード', { exact: true }).click();
+// 行の文言は「9月のまとめカード」のように月が入る。完全一致で待つと、月が変わった
+// 瞬間に止まる（実際ここで一度止まった）。末尾だけで拾う。
+await page.getByText(/のまとめカード$/).first().click();
 await page.waitForTimeout(900);
 await shot('ss-5b-summary-card');                            // シェア用カード
 
@@ -101,11 +103,11 @@ await shot('ss-5b-summary-card');                            // シェア用カ�
 //   バイト → このシフト、どうなりました？ ／ 遊び → 約束、決まった？
 // 説明文が「どうなりました？」と書いているので、バイト版を本命にする。
 await boot();
-// 「カフェ」の帯は月内に複数ある。未確定は破線なので、枠線の種類で選び分ける
+// 「バイト」の帯は月内に複数ある。未確定は破線なので、枠線の種類で選び分ける
 // （文字は span、破線は親の帯に付いている）。
 const dashed = await page.evaluate(() => {
   for (const sp of document.querySelectorAll('span')) {
-    if (sp.textContent.trim() !== 'カフェ' || sp.children.length) continue;
+    if (sp.textContent.trim() !== 'バイト' || sp.children.length) continue;
     let p = sp.parentElement;
     for (let i = 0; i < 3 && p; i++, p = p.parentElement) {
       if (getComputedStyle(p).borderStyle.includes('dashed')) {
@@ -116,10 +118,10 @@ const dashed = await page.evaluate(() => {
   }
   return null;
 });
-if (!dashed) throw new Error('未確定（破線）のカフェが月表示に見つからない');
+if (!dashed) throw new Error('未確定（破線）のバイトが月表示に見つからない');
 await tapCellUnder(dashed);
-const shiftRow = await rectOf(page.getByText(/カフェ/).last());
-if (!shiftRow) throw new Error('その日の一覧にカフェの行が無い');
+const shiftRow = await rectOf(page.getByText(/バイト/).last());
+if (!shiftRow) throw new Error('その日の一覧にバイトの行が無い');
 await page.mouse.click(shiftRow.x + shiftRow.w / 2, shiftRow.y + shiftRow.h / 2);
 await page.waitForTimeout(900);
 let body = await page.locator('body').innerText();
