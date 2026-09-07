@@ -103,18 +103,48 @@ function headline(x, y, parts, size, solid) {
   return o;
 }
 
+/** 枠からはみ出す分を切ってから重ねる。sharp は枠より大きい画像を受け取らない */
+async function place(img, left, top) {
+  const m = await sharp(img).metadata();
+  const CW = W * S, CH = H * S;
+  const sx = Math.max(0, -left), sy = Math.max(0, -top);
+  const w = Math.min(m.width - sx, CW - Math.max(0, left));
+  const h = Math.min(m.height - sy, CH - Math.max(0, top));
+  if (w <= 0 || h <= 0) return null;
+  const cut = (sx || sy || w !== m.width || h !== m.height)
+    ? await sharp(img).extract({ left: sx, top: sy, width: w, height: h }).png().toBuffer() : img;
+  return { input: cut, left: Math.max(0, left), top: Math.max(0, top) };
+}
+
+/** 傾けた板の影。四角い影を回すと形が合わないので、板と同じ形の黒を作ってぼかす */
+async function shadowOf(buf, blur, alpha) {
+  const { data, info } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const out = Buffer.alloc(info.width * info.height * 4);
+  for (let i = 0; i < info.width * info.height; i += 1) {
+    out[i * 4] = 58; out[i * 4 + 1] = 65; out[i * 4 + 2] = 80;
+    out[i * 4 + 3] = Math.round(data[i * info.channels + 3] * alpha);
+  }
+  return sharp(out, { raw: { width: info.width, height: info.height, channels: 4 } }).blur(blur).png().toBuffer();
+}
+
 // 5枚。見出しは1行につき [前, 線を引く語, 後]。線を引かない行は語を空にする
+//
+// **1枚目だけ正面。** 掴む役なので、まっすぐ置いて迷いを出さない。
+// 2枚目から板を傾ける。真正面に並べ続けると「貼っただけ」に見えるので、
+// 傾きと向きでリズムを作る。切れてもよいが、**その画面の要点が残ることだけ確かめる**
+// （2枚目はダイアログ、3枚目は金額の帯、4枚目は大きい数字、5枚目は○の並び）。
 const CARDS = [
   { file: 'card-1', src: 'ss-1-month.png',
     eyebrow: 'まだ決まっていない予定の、カレンダー',
     lines: [[['', '決まった', '予定と、'], true], [['', 'まだ', 'の予定。'], false]], size: 32 },
-  { file: 'card-2', src: 'ss-6-dialog.png',
+  // 傾きは向きを交互にする。ダイアログと大きい数字は真ん中に要るので外へ出さない
+  { file: 'card-2', src: 'ss-6-dialog.png', tilt: { deg: -5, x: 46, y: 268, w: 338 },
     lines: [[['あとで聞きます。', '', ''], null], [['その予定、どうなった？', '', ''], null]], size: 28 },
-  { file: 'card-3', src: 'ss-2-wage.png',
+  { file: 'card-3', src: 'ss-2-wage.png', tilt: { deg: 6, x: -26, y: 258, w: 370 },
     lines: [[['給料は、', '', ''], null], [['見たいときだけ。', '', ''], null]], size: 30 },
-  { file: 'card-4', src: 'ss-5-report.png',
+  { file: 'card-4', src: 'ss-5-report.png', tilt: { deg: -5, x: 46, y: 268, w: 338 },
     lines: [[['働いた時間と、稼いだ額。', '', ''], null], [['月ごとに、まとまる。', '', ''], null]], size: 27 },
-  { file: 'card-5', src: 'ss-4-share.png',
+  { file: 'card-5', src: 'ss-4-share.png', tilt: { deg: 6, x: 62, y: 258, w: 370 },
     lines: [[['予定は隠して、', '', ''], null], [['空いてる日だけ。', '', ''], null]], size: 30 },
 ];
 
@@ -137,31 +167,45 @@ const CARDS = [
       o += headline(DX + 4, y, parts, c.size, solid === true);
       y += c.size * 1.34;
     }
-    // 板の影と縁。中身はあとで重ねる
-    o += `<g filter="url(#sh)">${rect(DX, top, DW, DH, CELL, R)}</g>`;
+    const PW = c.tilt ? c.tilt.w : DW;
+    const PH = Math.round(PW * (H / W));
+    // 正面のときだけ、下に四角い影を敷く（傾けるときは形が合わないので別に作る）
+    if (!c.tilt) o += `<g filter="url(#sh)">${rect(DX, top, DW, DH, CELL, R)}</g>`;
     const under = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * S}" height="${H * S}">${o}</svg>`;
 
     // 画面はそのままの比で置き、上に帯を足してから丸角で切り抜く
     const meta = await sharp(join(SRC, c.src)).metadata();
     const band = await sharp(join(SRC, c.src))
       .extract({ left: 0, top: 0, width: meta.width, height: 1 })   // 画面の一番上の行
-      .resize(DW * S, BAND * S, { fit: 'fill' }).png().toBuffer();
+      .resize((c.tilt ? c.tilt.w : DW) * S, BAND * S, { fit: 'fill' }).png().toBuffer();
     const inner = await sharp(join(SRC, c.src))
-      .resize(DW * S, Math.round(DW * (H / W)) * S, { fit: 'fill' }).png().toBuffer();
-    const mask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${DW * S}" height="${DH * S}"><rect width="${DW * S}" height="${DH * S}" rx="${R * S}" fill="#fff"/></svg>`);
-    const screen = await sharp({ create: { width: DW * S, height: DH * S, channels: 4, background: '#FFFFFF' } })
-      .composite([{ input: band, top: 0, left: 0 }, { input: inner, top: BAND * S, left: 0 }, { input: mask, blend: 'dest-in' }])
+      .resize(PW * S, PH * S, { fit: 'fill' }).png().toBuffer();
+    // 傾けるときは板を1枚に閉じるので、縁の線もここで焼き込む
+    const mask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${PW * S}" height="${PH * S}"><rect width="${PW * S}" height="${PH * S}" rx="${R * S}" fill="#fff"/></svg>`);
+    const edge = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${PW * S}" height="${PH * S}"><rect x="${0.5 * S}" y="${0.5 * S}" width="${(PW - 1) * S}" height="${(PH - 1) * S}" rx="${R * S}" fill="none" stroke="${EDGE}" stroke-width="${1 * S}" opacity=".18"/></svg>`);
+    const screen = await sharp({ create: { width: PW * S, height: PH * S, channels: 4, background: '#FFFFFF' } })
+      .composite([{ input: band, top: 0, left: 0 }, { input: inner, top: BAND * S, left: 0 },
+        ...(c.tilt ? [{ input: edge }] : []), { input: mask, blend: 'dest-in' }])
       .png().toBuffer();
 
-    // 縁の線と、下の霞み。板の上に重ねる
+    // 下の霞み。正面のときは縁の線もここで引く（傾きのときは板に焼いてある）
     const over = `<svg xmlns="http://www.w3.org/2000/svg" width="${W * S}" height="${H * S}">`
-      + `<rect x="${(DX + 0.5) * S}" y="${(top + 0.5) * S}" width="${(DW - 1) * S}" height="${(DH - 1) * S}" rx="${R * S}" fill="none" stroke="${EDGE}" stroke-width="${1 * S}" opacity=".18"/>`
+      + (c.tilt ? '' : `<rect x="${(DX + 0.5) * S}" y="${(top + 0.5) * S}" width="${(DW - 1) * S}" height="${(DH - 1) * S}" rx="${R * S}" fill="none" stroke="${EDGE}" stroke-width="${1 * S}" opacity=".18"/>`)
       + `<defs><linearGradient id="f2" x1="0" y1="0" x2="0" y2="1">`
       + `<stop offset="0%" stop-color="${BG[2]}" stop-opacity="0"/><stop offset="100%" stop-color="${BG[2]}" stop-opacity="1"/></linearGradient></defs>`
       + `<rect x="0" y="${(H - 130) * S}" width="${W * S}" height="${130 * S}" fill="url(#f2)"/></svg>`;
 
+    let layers;
+    if (c.tilt) {
+      const rot = await sharp(screen).rotate(c.tilt.deg, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+      const sh = await shadowOf(rot, 20 * S, 0.30);
+      layers = [await place(sh, c.tilt.x * S + 2 * S, c.tilt.y * S + 14 * S),
+                await place(rot, c.tilt.x * S, c.tilt.y * S)].filter(Boolean);
+    } else {
+      layers = [{ input: screen, top: top * S, left: DX * S }];
+    }
     await sharp(Buffer.from(under))
-      .composite([{ input: screen, top: top * S, left: DX * S }, { input: Buffer.from(over) }])
+      .composite([...layers, { input: Buffer.from(over) }])
       .png().toFile(join(OUT, `${c.file}.png`));
     console.log('書いた', `${c.file}.png`, `${W * S}×${H * S}`, '←', c.src);
   }
