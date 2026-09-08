@@ -323,6 +323,13 @@ async function text() {
         const val = a[key];
         if (!val) { line(name, '（空）'); continue; }
         const one = String(val).replace(/\s+/g, ' ').trim();
+        // 欄の名前を渡すと丸ごと出す（node tools/asc.mjs text 説明）。
+        // 先頭だけ見て「入っている」と判断すると、途中の書き損じを見落とす
+        if (process.argv[3] && process.argv[3] === name) {
+          line(name, `${one.length}字`);
+          console.log(NL + val + NL);
+          continue;
+        }
         line(name, `${one.length}字  ${one.slice(0, 46)}${one.length > 46 ? '…' : ''}`);
       }
     }
@@ -379,7 +386,36 @@ async function fill() {
   });
   console.log('書き込みました。node tools/asc.mjs text で読み返せます。');
 }
+
+/**
+ * 課金アイテムの名前と説明を読む。
+ * ここは App Store の商品ページの「App内課金」の欄に出るので、
+ * 書き損じがあると商品ページに出たままになる。
+ */
+/** 審査メモ（レビュー担当者向けの欄）を読む */
+async function memo() {
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const vs = await get(`/v1/apps/${app.id}/appStoreVersions?limit=2`);
+  for (const v of vs.data) {
+    head(`■ ${v.attributes.versionString}`);
+    const d = await get(`/v1/appStoreVersions/${v.id}/appStoreReviewDetail`).catch(() => null);
+    console.log(d && d.data ? (d.data.attributes.notes || '（空）') : '（取れない）');
+  }
+}
+
+async function iap() {
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const ps = await get(`/v1/apps/${app.id}/inAppPurchasesV2?limit=20`);
+  for (const it of ps.data) {
+    head(`■ ${it.attributes.productId}`);
+    const ls = await get(`/v2/inAppPurchases/${it.id}/inAppPurchaseLocalizations`);
+    for (const l of ls.data) {
+      line(`名前（${l.attributes.locale}）`, l.attributes.name || '（空）');
+      line('説明', l.attributes.description || '（空）');
+    }
+  }
+}
 const cmd = process.argv[2] || 'status';
-const jobs = { status, text, fill, notes, build, cancel };
+const jobs = { status, text, iap, memo, fill, notes, build, cancel };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
