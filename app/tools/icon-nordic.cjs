@@ -78,6 +78,9 @@ function cal({ bg = OAT, ink = CHARCOAL, band = null, sw = 28, flat = false, dot
 
 const DOTS = [1, 0, 1, 1, 1, 0];
 
+module.exports = { wrap, cal, OAT, CHARCOAL, SAGE, DUSTY, TERRA, DOTS, N };
+if (require.main !== module) return;
+
 const IDEAS = {
   'いま（比べる用）': { src: true },
   'A｜生成りの地・炭の細線': { svg: wrap(OAT, cal({ dots: DOTS })) },
