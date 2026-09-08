@@ -1,6 +1,6 @@
 //
 //  KimatteruWidget.swift
-//  ルッコのウィジェット
+//  LUKKO のウィジェット
 //
 //  答える一文は「今日、何が決まっていて、何がまだか」。
 //
@@ -663,7 +663,7 @@ struct KimatteruWidget: Widget {
             RootView(entry: entry)
                 .containerBackground(BG, for: .widget)
         }
-        .configurationDisplayName("ルッコ")
+        .configurationDisplayName("LUKKO")
         .description("今日の予定と、まだ決まっていないものが出ます。")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
         // iOS 17 から中身に自動で余白が付く。こちらで持っているので二重になる
