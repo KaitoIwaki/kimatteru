@@ -299,6 +299,17 @@ async function cancel() {
 async function text() {
   const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
   if (!app) { console.log('そのバンドルIDのアプリが見つかりません:', BUNDLE_ID); return; }
+  head('■ アプリ全体');
+  line('主言語', app.attributes.primaryLocale);
+  const infos = await get(`/v1/apps/${app.id}/appInfos`);
+  for (const inf of infos.data) {
+    const ils = await get(`/v1/appInfos/${inf.id}/appInfoLocalizations`);
+    for (const il of ils.data) {
+      const a = il.attributes;
+      line(`名前（${a.locale}）`, a.name || '（空）');
+      line(`サブタイトル（${a.locale}）`, a.subtitle || '（空）');
+    }
+  }
   const vs = await get(`/v1/apps/${app.id}/appStoreVersions?limit=3`);
   for (const v of vs.data) {
     head(`■ ${v.attributes.versionString}（${v.attributes.appStoreState}）`);

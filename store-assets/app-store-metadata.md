@@ -155,17 +155,17 @@ App Store Connect の入力欄にそのまま貼れる形でまとめていま�
 2026-09-08、ここが「英語」になっていると指摘を受けた。App Store Connect 側は主言語も
 名前もサブタイトルも文言もすべて日本語だったが、**本体が英語だと名乗っていた**。
 
-直したのは3か所（どれも  の中）。
+直したのは4か所（どれも `app/ios/App/` の中）。
 
 | 場所 | 前 | 後 |
 |---|---|---|
-|  の  |  |  |
-|  の  | 無し |  を追加 |
-|  の  |  |  |
-| 同  |  |  |
+| `App/Info.plist` の `CFBundleDevelopmentRegion` | `en` | `ja` |
+| `App/Info.plist` の `CFBundleLocalizations` | 無し | `[ja]` を追加 |
+| `App.xcodeproj/project.pbxproj` の `developmentRegion` | `en` | `ja` |
+| 同 `knownRegions` | `(en, Base)` | `(ja, en, Base)` |
 
-** が肝。** このアプリの UI は WebView の中にあるので  を
-持たず（ だけ）、この列挙が無いと iOS は「英語だけのアプリ」として扱う。
+**`CFBundleLocalizations` が肝。** このアプリの UI は WebView の中にあるので `.lproj` を
+持たず（`Base.lproj` だけ）、この列挙が無いと iOS は「英語だけのアプリ」として扱う。
 
 **反映にはビルドし直しが要る。** メタデータではなく本体の中身なので、
 App Store Connect で直すことはできない。
