@@ -287,8 +287,9 @@ async function cancel() {
   const back = await get(`/v1/reviewSubmissions/${live.id}`);
   console.log(`  結果           ${back.data.attributes.state}`);
   console.log('');
-  console.log('  このあと App Store Connect の 1.0 のページから出し直してください。');
-  console.log('  提出の確認画面に、課金3つが並んでいるかを必ず見ること。');
+  console.log('  このあと App Store Connect の、その版のページから出し直してください。');
+  console.log('  課金が未審査のときだけ、提出の確認画面に3つ並んでいるかを見ること。');
+  console.log('  すでに APPROVED なら、本体だけの提出で正しい。');
 }
 
 /**
