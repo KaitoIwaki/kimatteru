@@ -6,6 +6,7 @@
 //     node tools/asc.mjs status     ← 読むだけ
 //     node tools/asc.mjs text       ← いま登録されている文言を読む
 //     node tools/asc.mjs fill       ← 原稿から文言を流し込む（書き込み）
+//                                     App名・サブタイトル・プロモーション・新機能・説明・キーワード
 //     node tools/asc.mjs notes      ← 審査メモに応援への行き方を足す（書き込み）
 //     node tools/asc.mjs build      ← いちばん新しいビルドを 1.0 に付ける（書き込み）
 //     node tools/asc.mjs cancel     ← 出してしまった審査を取り下げる（書き込み）
@@ -302,13 +303,18 @@ async function text() {
   if (!app) { console.log('そのバンドルIDのアプリが見つかりません:', BUNDLE_ID); return; }
   head('■ アプリ全体');
   line('主言語', app.attributes.primaryLocale);
+  // **appInfos は2つ返る。** 公開中のものと、これから出すもの。
+  // どちらか書かずに名前を2行並べると、食い違って見えたときに
+  // どちらが本当か分からなくなる（実際そう読めて迷った）。
   const infos = await get(`/v1/apps/${app.id}/appInfos`);
+  const nameOf = (st) => (st === 'READY_FOR_SALE' ? '公開中' : st === 'PREPARE_FOR_SUBMISSION' ? 'これから出す' : st);
   for (const inf of infos.data) {
+    const where = nameOf(inf.attributes.appStoreState);
     const ils = await get(`/v1/appInfos/${inf.id}/appInfoLocalizations`);
     for (const il of ils.data) {
       const a = il.attributes;
-      line(`名前（${a.locale}）`, a.name || '（空）');
-      line(`サブタイトル（${a.locale}）`, a.subtitle || '（空）');
+      line(`名前 ${where}`, a.name || '（空）');
+      line(`サブタイトル ${where}`, a.subtitle || '（空）');
     }
   }
   const vs = await get(`/v1/apps/${app.id}/appStoreVersions?limit=3`);
@@ -336,15 +342,24 @@ async function text() {
   }
 }
 /**
- * 原稿（store-assets/app-store-metadata.md）から、プロモーションテキストと
- * 「このバージョンの新機能」を、いちばん新しい版へ流し込む。
+ * 原稿（store-assets/app-store-metadata.md）から、商品ページの文言をまとめて流し込む。
+ *
+ * 書くのは6つ。**書き込む先が2か所に分かれている。**
+ *   App情報（版に属さない）  … App名、サブタイトル
+ *   版（1.1 など）           … プロモーション、新機能、説明、キーワード
+ * 名前を版のほうへ書こうとしても弾かれるので、ここを混ぜないこと。
+ *
+ * **なぜ全部ここから書くのか。**
+ * 前は プロモーション と 新機能 の2つだけを書いていて、説明と名前は画面から手で
+ * 打っていた。その結果、**原稿とストアが41字ずれたまま誰も気づかなかった**
+ * （2026-09-09 に発覚。名前を変えたのに、ストアだけ古い名前が残っていた）。
+ * 手で打つ欄が1つでもあると、そこがいつか必ずずれる。
  *
  * **プロモーションテキストは版をまたいで引き継がれない。**
  * キーワードと説明は新しい版へ自動で入るのに、この欄だけ空で始まる。
  * 気づかずに出すと、いま出ている文が消える（1.1 を作った直後に実際そうなっていた）。
  *
- * 手で貼ってもよいが、そのたびに貼り間違いの機会が増える。原稿を1か所に置いて、
- * ここから流し込む。書き込む前に中身を出すので、目で見てから通せる。
+ * 書き込む前に「いま」と「これから」を並べて出す。変わらない欄は触らない。
  */
 async function fill() {
   const md = fs.readFileSync(new URL('../../store-assets/app-store-metadata.md', import.meta.url), 'utf8');
@@ -357,34 +372,96 @@ async function fill() {
     if (a < 0 || b < 0) throw new Error(`見出しの下にコード塊が無い: ${heading}`);
     return md.slice(a + 3, b).replace(/^\r?\n/, '').replace(/\r?\n$/, '');
   };
-  const promo = block('## プロモーションテキスト');
-  const whats = block('## このバージョンの新機能');
-  if (promo.length > 170) throw new Error(`プロモーションが ${promo.length}字。170字まで`);
-  if (whats.length > 4000) throw new Error(`新機能が ${whats.length}字。4000字まで`);
+  // 「基本情報」の表から、いちばん左がこの語で始まる行の ` ` の中を取る。
+  // 語で見つけるので、原稿に行を足しても動かない（行番号で取るとすぐずれる）
+  const cell = (label) => {
+    const row = md.split(/\r?\n/).find((l) => l.startsWith(`| ${label}`));
+    if (!row) throw new Error(`原稿の表に行が無い: ${label}`);
+    const q = row.match(/`([^`]+)`/);
+    if (!q) throw new Error(`表の行に値が無い: ${label}`);
+    return q[1];
+  };
+
+  const want = {
+    name: cell('App名'),
+    subtitle: cell('サブタイトル'),
+    promotionalText: block('## プロモーションテキスト'),
+    whatsNew: block('## このバージョンの新機能'),
+    description: block('## 説明（Description）'),
+    keywords: block('## キーワード'),
+  };
+  const JA = { name: 'App名', subtitle: 'サブタイトル', promotionalText: 'プロモーション', whatsNew: '新機能', description: '説明', keywords: 'キーワード' };
+  const MAX = { name: 30, subtitle: 30, promotionalText: 170, whatsNew: 4000, description: 4000, keywords: 100 };
+  for (const k of Object.keys(want)) {
+    if (want[k].length > MAX[k]) throw new Error(`${JA[k]}が ${want[k].length}字。${MAX[k]}字まで`);
+  }
+  // キーワードは「,」区切りでスペース無し。空白が混ざると1語として数えられ、
+  // 枠を食ったうえに引っかからない
+  if (/\s/.test(want.keywords)) throw new Error('キーワードに空白が混ざっている');
 
   const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+
+  // App名とサブタイトルは「App情報」に付く。版ではない。
+  // appInfos は2つある（公開中のものと、これから出すもの）。公開中は書けない
+  const infos = (await get(`/v1/apps/${app.id}/appInfos`)).data;
+  const info = infos.find((x) => x.attributes.appStoreState === 'PREPARE_FOR_SUBMISSION');
+
   const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
   if (v.attributes.appStoreState !== 'PREPARE_FOR_SUBMISSION') {
     console.log(`いちばん新しい版は ${v.attributes.versionString}（${v.attributes.appStoreState}）。`);
     console.log('提出前の版でないと書き換えられないので、ここで止めます。');
     return;
   }
-  const l = (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data
-    .find((x) => x.attributes.locale === 'ja') 
-    || (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data[0];
+  const vls = (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data;
+  const vl = vls.find((x) => x.attributes.locale === 'ja') || vls[0];
 
-  head(`■ ${v.attributes.versionString} に書き込みます`);
-  line('言語', l.attributes.locale);
-  line('プロモーション', `${promo.length}字`);
-  console.log(NL + promo + NL);
-  line('新機能', `${whats.length}字`);
-  console.log(NL + whats + NL);
+  let il = null;
+  if (info) {
+    const ils = (await get(`/v1/appInfos/${info.id}/appInfoLocalizations`)).data;
+    il = ils.find((x) => x.attributes.locale === 'ja') || ils[0];
+  }
 
-  await call(`/v1/appStoreVersionLocalizations/${l.id}`, 'PATCH', {
-    data: { type: 'appStoreVersionLocalizations', id: l.id,
-      attributes: { promotionalText: promo, whatsNew: whats } },
-  });
-  console.log('書き込みました。node tools/asc.mjs text で読み返せます。');
+  // いまの値と並べて出す。変わらない欄は触らない
+  const cut = (t) => (t == null || t === '' ? '（空）' : `${t.length}字  ${t.slice(0, 38).replace(/\n/g, ' ')}${t.length > 38 ? '…' : ''}`);
+  const show = (label, now, next) => {
+    if (now === next) { line(label, `変わらない   ${cut(now)}`); return true; }
+    line(label, '★ 変わる');
+    console.log(`      いま      ${cut(now)}`);
+    console.log(`      これから  ${cut(next)}`);
+    return false;
+  };
+
+  head('■ App情報（名前とサブタイトル）');
+  const infoPatch = {};
+  if (!il) {
+    console.log('  書ける App情報がありません（公開中のものしか無い）。名前は画面から替えてください。');
+  } else {
+    for (const k of ['name', 'subtitle']) {
+      if (!show(JA[k], il.attributes[k], want[k])) infoPatch[k] = want[k];
+    }
+  }
+
+  head(`■ ${v.attributes.versionString}（${vl.attributes.locale}）`);
+  const verPatch = {};
+  for (const k of ['promotionalText', 'whatsNew', 'description', 'keywords']) {
+    if (!show(JA[k], vl.attributes[k], want[k])) verPatch[k] = want[k];
+  }
+
+  if (!Object.keys(infoPatch).length && !Object.keys(verPatch).length) {
+    console.log(`${NL}すべて原稿と同じです。触りません。`);
+    return;
+  }
+  if (Object.keys(infoPatch).length) {
+    await call(`/v1/appInfoLocalizations/${il.id}`, 'PATCH',
+      { data: { type: 'appInfoLocalizations', id: il.id, attributes: infoPatch } });
+    console.log(`${NL}App情報を書きました: ${Object.keys(infoPatch).map((k) => JA[k]).join('、')}`);
+  }
+  if (Object.keys(verPatch).length) {
+    await call(`/v1/appStoreVersionLocalizations/${vl.id}`, 'PATCH',
+      { data: { type: 'appStoreVersionLocalizations', id: vl.id, attributes: verPatch } });
+    console.log(`${v.attributes.versionString} を書きました: ${Object.keys(verPatch).map((k) => JA[k]).join('、')}`);
+  }
+  console.log('node tools/asc.mjs text で読み返せます。');
 }
 
 /**
