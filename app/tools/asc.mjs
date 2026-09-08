@@ -18,6 +18,11 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 
 const BUNDLE_ID = 'com.kimatteru.app';
+// 文言を書き換えられる版の状態。**1つではない。**
+// 出す前（PREPARE_FOR_SUBMISSION）のほかに、取り下げたあと（DEVELOPER_REJECTED）と
+// Apple に返されたあと（REJECTED / METADATA_REJECTED）も直して出し直せる。
+// ここを1つに決め打ちすると、取り下げて直すという道がふさがる
+const EDITABLE = ['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED'];
 const HOST = 'https://api.appstoreconnect.apple.com';
 const NL = '\n';
 
@@ -406,12 +411,12 @@ async function fill() {
   // App名とサブタイトルは「App情報」に付く。版ではない。
   // appInfos は2つある（公開中のものと、これから出すもの）。公開中は書けない
   const infos = (await get(`/v1/apps/${app.id}/appInfos`)).data;
-  const info = infos.find((x) => x.attributes.appStoreState === 'PREPARE_FOR_SUBMISSION');
+  const info = infos.find((x) => EDITABLE.includes(x.attributes.appStoreState));
 
   const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
-  if (v.attributes.appStoreState !== 'PREPARE_FOR_SUBMISSION') {
+  if (!EDITABLE.includes(v.attributes.appStoreState)) {
     console.log(`いちばん新しい版は ${v.attributes.versionString}（${v.attributes.appStoreState}）。`);
-    console.log('提出前の版でないと書き換えられないので、ここで止めます。');
+    console.log(`書き換えられるのは ${EDITABLE.join(' / ')} のときだけなので、ここで止めます。`);
     return;
   }
   const vls = (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data;
@@ -525,7 +530,7 @@ async function submit() {
   line('版', `${v.attributes.versionString}（${v.attributes.appStoreState}）`);
 
   head('■ 出す前に調べる');
-  check('提出前の版か', v.attributes.appStoreState === 'PREPARE_FOR_SUBMISSION', v.attributes.appStoreState);
+  check('出せる状態か', EDITABLE.includes(v.attributes.appStoreState), v.attributes.appStoreState);
 
   const nowBuild = (await get(`/v1/appStoreVersions/${v.id}/build`)).data;
   const { newest } = await newestBuild(app.id);
@@ -555,6 +560,8 @@ async function submit() {
   // 出しかけのものが残っていないか。残ったまま出すと二重になる
   const subs = (await get(`/v1/reviewSubmissions?filter[app]=${app.id}&limit=10`)).data;
   const open = subs.find((s) => !['COMPLETE', 'CANCELING', 'CANCELED'].includes(s.attributes.state));
+  // 取り下げは Apple 側で少し遅れて効く。CANCELING のまま次を出すと二重になるので、
+  // 済むまで待つこと（状態は status で見られる）
   check('出しかけが残っていない', !open, open ? `${open.attributes.state} のものがある` : '無し');
 
   head('■ 提出物に入るもの');
