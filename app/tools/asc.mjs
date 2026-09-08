@@ -328,7 +328,7 @@ async function text() {
  * ここから流し込む。書き込む前に中身を出すので、目で見てから通せる。
  */
 async function fill() {
-  const md = readFileSync(new URL('../../store-assets/app-store-metadata.md', import.meta.url), 'utf8');
+  const md = fs.readFileSync(new URL('../../store-assets/app-store-metadata.md', import.meta.url), 'utf8');
   // 見出しの次に来る、最初のコード塊の中身を取る
   const block = (heading) => {
     const i = md.indexOf(heading);
