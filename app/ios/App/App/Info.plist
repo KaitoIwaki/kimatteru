@@ -11,7 +11,7 @@
 		<string>ja</string>
 	</array>
 	<key>CFBundleDisplayName</key>
-        <string>決まってる？</string>
+        <string>ルッコ</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

@@ -1469,7 +1469,7 @@ export function renderApp(v) {
                   <div style={s('position:relative;z-index:1;display:flex;flex-direction:column;height:100%;justify-content:space-between')}>
                     <div style={s('display:flex;align-items:flex-start;justify-content:space-between')}>
                       <span style={s('display:flex;flex-direction:column;gap:3px')}>
-                        <span style={s(v.foilTextStyle)}>決まってる？</span>
+                        <span style={s(v.foilTextStyle)}>ルッコ</span>
                         <span style={s(v.foilSmallStyle)}>SUPPORTER</span>
                       </span>
                       <span style={s('font-size:17px;letter-spacing:-2px;flex-shrink:0')}>

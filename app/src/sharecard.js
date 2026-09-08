@@ -46,7 +46,7 @@ function badge(ctx, x, y, d, bg, glyph, fg, fontSize) {
 
 // 末尾の合印「✓？」— アプリの署名
 // sub を渡すと2段になる。1行に続けると長すぎて、
-// 「決まってる？」がどこまでなのか分からなくなる。
+// 「ルッコ」がどこまでなのか分からなくなる。
 function signature(ctx, x, y, size, label, sub) {
   ctx.font = f(size, 700);
   ctx.textBaseline = 'middle';
@@ -104,7 +104,7 @@ export function drawMonthCard({ yearMonth, wage, hours, days, jobs }) {
   if (list.length) jobRows(ctx, PAD, 424, W - PAD * 2, list, 30, 88);
   else emptyNote(ctx, PAD, 424, 26);
 
-  signature(ctx, PAD, H - 46, 30, '決まってる？');
+  signature(ctx, PAD, H - 46, 30, 'ルッコ');
   return c;
 }
 
@@ -160,7 +160,7 @@ export function drawYearCard({ year, wage, hours, jobs, months, note }) {
   y += 40;
   monthBars(ctx, PAD, y, W - PAD * 2, 240, months);
 
-  signature(ctx, PAD, H - 84, 38, '決まってる？');
+  signature(ctx, PAD, H - 84, 38, 'ルッコ');
   return c;
 }
 
@@ -378,7 +378,7 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
   ctx.fillStyle = '#55524A';
   ctx.fillText('予定あり', PAD + 296, y);
 
-  signature(ctx, PAD, H - 96, 40, '決まってる？');
+  signature(ctx, PAD, H - 96, 40, 'ルッコ');
 
   return c;
 }
@@ -486,7 +486,7 @@ export function drawSupporterCard({ owner, since, total, times, paper, foil, mar
   ctx.fillStyle = FOIL;
 
   ctx.font = f(40, 800);
-  ctx.fillText('決まってる？', PAD, PAD + 40);
+  ctx.fillText('ルッコ', PAD, PAD + 40);
   ctx.font = f(23, 700);
   ctx.fillText('S U P P O R T E R', PAD, PAD + 78);
 
