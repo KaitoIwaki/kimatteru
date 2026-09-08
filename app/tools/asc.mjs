@@ -4,6 +4,8 @@
 // 使い方:
 //   ASC_KEY_ID=... ASC_ISSUER_ID=... ASC_KEY_PATH=/path/AuthKey_XXXX.p8 \
 //     node tools/asc.mjs status     ← 読むだけ
+//     node tools/asc.mjs text       ← いま登録されている文言を読む
+//     node tools/asc.mjs fill       ← 原稿から文言を流し込む（書き込み）
 //     node tools/asc.mjs notes      ← 審査メモに応援への行き方を足す（書き込み）
 //     node tools/asc.mjs build      ← いちばん新しいビルドを 1.0 に付ける（書き込み）
 //     node tools/asc.mjs cancel     ← 出してしまった審査を取り下げる（書き込み）
@@ -289,7 +291,83 @@ async function cancel() {
   console.log('  提出の確認画面に、課金3つが並んでいるかを必ず見ること。');
 }
 
+/**
+ * ストアに **いま登録されている文言** を読む。
+ * 手元の store-assets/app-store-metadata.md は原稿でしかない。
+ * 貼り忘れ・貼り間違いは、ここで実物を読まないと分からない。
+ */
+async function text() {
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  if (!app) { console.log('そのバンドルIDのアプリが見つかりません:', BUNDLE_ID); return; }
+  const vs = await get(`/v1/apps/${app.id}/appStoreVersions?limit=3`);
+  for (const v of vs.data) {
+    head(`■ ${v.attributes.versionString}（${v.attributes.appStoreState}）`);
+    const ls = await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`);
+    for (const l of ls.data) {
+      const a = l.attributes;
+      line('言語', a.locale);
+      for (const [name, key] of [['プロモーション', 'promotionalText'], ['新機能', 'whatsNew'],
+        ['キーワード', 'keywords'], ['説明', 'description']]) {
+        const val = a[key];
+        if (!val) { line(name, '（空）'); continue; }
+        const one = String(val).replace(/\s+/g, ' ').trim();
+        line(name, `${one.length}字  ${one.slice(0, 46)}${one.length > 46 ? '…' : ''}`);
+      }
+    }
+  }
+}
+/**
+ * 原稿（store-assets/app-store-metadata.md）から、プロモーションテキストと
+ * 「このバージョンの新機能」を、いちばん新しい版へ流し込む。
+ *
+ * **プロモーションテキストは版をまたいで引き継がれない。**
+ * キーワードと説明は新しい版へ自動で入るのに、この欄だけ空で始まる。
+ * 気づかずに出すと、いま出ている文が消える（1.1 を作った直後に実際そうなっていた）。
+ *
+ * 手で貼ってもよいが、そのたびに貼り間違いの機会が増える。原稿を1か所に置いて、
+ * ここから流し込む。書き込む前に中身を出すので、目で見てから通せる。
+ */
+async function fill() {
+  const md = readFileSync(new URL('../../store-assets/app-store-metadata.md', import.meta.url), 'utf8');
+  // 見出しの次に来る、最初のコード塊の中身を取る
+  const block = (heading) => {
+    const i = md.indexOf(heading);
+    if (i < 0) throw new Error(`原稿に見出しが無い: ${heading}`);
+    const a = md.indexOf('```', i);
+    const b = md.indexOf('```', a + 3);
+    if (a < 0 || b < 0) throw new Error(`見出しの下にコード塊が無い: ${heading}`);
+    return md.slice(a + 3, b).replace(/^\r?\n/, '').replace(/\r?\n$/, '');
+  };
+  const promo = block('## プロモーションテキスト');
+  const whats = block('## このバージョンの新機能');
+  if (promo.length > 170) throw new Error(`プロモーションが ${promo.length}字。170字まで`);
+  if (whats.length > 4000) throw new Error(`新機能が ${whats.length}字。4000字まで`);
+
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
+  if (v.attributes.appStoreState !== 'PREPARE_FOR_SUBMISSION') {
+    console.log(`いちばん新しい版は ${v.attributes.versionString}（${v.attributes.appStoreState}）。`);
+    console.log('提出前の版でないと書き換えられないので、ここで止めます。');
+    return;
+  }
+  const l = (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data
+    .find((x) => x.attributes.locale === 'ja') 
+    || (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data[0];
+
+  head(`■ ${v.attributes.versionString} に書き込みます`);
+  line('言語', l.attributes.locale);
+  line('プロモーション', `${promo.length}字`);
+  console.log(NL + promo + NL);
+  line('新機能', `${whats.length}字`);
+  console.log(NL + whats + NL);
+
+  await call(`/v1/appStoreVersionLocalizations/${l.id}`, 'PATCH', {
+    data: { type: 'appStoreVersionLocalizations', id: l.id,
+      attributes: { promotionalText: promo, whatsNew: whats } },
+  });
+  console.log('書き込みました。node tools/asc.mjs text で読み返せます。');
+}
 const cmd = process.argv[2] || 'status';
-const jobs = { status, notes, build, cancel };
+const jobs = { status, text, fill, notes, build, cancel };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
