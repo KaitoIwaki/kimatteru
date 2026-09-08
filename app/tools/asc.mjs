@@ -9,6 +9,8 @@
 //                                     App名・サブタイトル・プロモーション・新機能・説明・キーワード
 //     node tools/asc.mjs notes      ← 審査メモに応援への行き方を足す（書き込み）
 //     node tools/asc.mjs build      ← いちばん新しいビルドを 1.0 に付ける（書き込み）
+//     node tools/asc.mjs submit     ← 調べるだけ（出さない）
+//     node tools/asc.mjs submit go  ← 審査に出す（書き込み）
 //     node tools/asc.mjs cancel     ← 出してしまった審査を取り下げる（書き込み）
 //
 // 鍵はここでしか読まない。表示もしないし、Apple 以外へは送らない。
@@ -492,7 +494,119 @@ async function iap() {
     }
   }
 }
+
+/**
+ * 審査に出す。
+ *
+ * **そのままでは出さない。** 引数に go を付けたときだけ出す:
+ *   node tools/asc.mjs submit      ← 調べるだけ。出さない
+ *   node tools/asc.mjs submit go   ← 実際に出す
+ * 出したあと取り下げられるのは審査が始まる前だけなので、間違って走らせて
+ * 出てしまう形にはしない。
+ *
+ * **今回は課金を連れて行かない。** 課金3つはすでに APPROVED なので、
+ * 提出物は本体1件だけが正しい。1.0 のときは逆に、本体だけ出して課金を
+ * 置き去りにして失敗した。**入れるべきときと入れないときがある**ので、
+ * 出す前に何が入っているかを必ず出す。
+ * なお API からは課金を提出物に足せない（Apple がその道を用意していない）。
+ * 課金も一緒に出す必要があるときは、画面から出すこと。
+ */
+async function submit() {
+  const go = process.argv[3] === 'go';
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
+  const ng = [];
+  const check = (label, ok, detail) => {
+    line(label, `${ok ? '✓' : '✗'}  ${detail}`);
+    if (!ok) ng.push(label);
+  };
+
+  head(`■ 出そうとしているもの`);
+  line('版', `${v.attributes.versionString}（${v.attributes.appStoreState}）`);
+
+  head('■ 出す前に調べる');
+  check('提出前の版か', v.attributes.appStoreState === 'PREPARE_FOR_SUBMISSION', v.attributes.appStoreState);
+
+  const nowBuild = (await get(`/v1/appStoreVersions/${v.id}/build`)).data;
+  const { newest } = await newestBuild(app.id);
+  check('ビルドが付いている', !!nowBuild, nowBuild ? `ビルド ${nowBuild.attributes.version}` : '付いていない');
+  check('それがいちばん新しい', !!(nowBuild && newest && nowBuild.id === newest.id),
+    newest ? `いちばん新しいのは ${newest.attributes.version}` : '新しいビルドが取れない');
+
+  // 文言。空の欄があると審査で落ちるより先に、出す前に気づきたい
+  const vls = (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data;
+  const vl = vls.find((x) => x.attributes.locale === 'ja') || vls[0];
+  for (const [k, ja] of [['description', '説明'], ['keywords', 'キーワード'], ['whatsNew', '新機能'], ['promotionalText', 'プロモーション']]) {
+    const t = vl.attributes[k];
+    check(ja, !!(t && t.length), t ? `${t.length}字` : '空');
+  }
+
+  // スクリーンショット。版を作り直すと引き継がれないことがある
+  const sets = (await get(`/v1/appStoreVersionLocalizations/${vl.id}/appScreenshotSets`)).data;
+  let shots = 0;
+  const kinds = [];
+  for (const set of sets) {
+    const ss = (await get(`/v1/appScreenshotSets/${set.id}/appScreenshots`)).data;
+    shots += ss.length;
+    kinds.push(`${set.attributes.screenshotDisplayType} ${ss.length}枚`);
+  }
+  check('スクリーンショット', shots > 0, kinds.length ? kinds.join(' / ') : '1枚も無い');
+
+  // 出しかけのものが残っていないか。残ったまま出すと二重になる
+  const subs = (await get(`/v1/reviewSubmissions?filter[app]=${app.id}&limit=10`)).data;
+  const open = subs.find((s) => !['COMPLETE', 'CANCELING', 'CANCELED'].includes(s.attributes.state));
+  check('出しかけが残っていない', !open, open ? `${open.attributes.state} のものがある` : '無し');
+
+  head('■ 提出物に入るもの');
+  console.log(`  本体 ${v.attributes.versionString}（ビルド ${nowBuild ? nowBuild.attributes.version : '？'}）  1件だけ`);
+  const ps = (await get(`/v1/apps/${app.id}/inAppPurchasesV2?limit=20`)).data;
+  for (const it of ps.data ? ps.data : ps) {
+    const st = it.attributes.state;
+    console.log(`  課金 ${it.attributes.productId}  ${st}  ${st === 'APPROVED' ? '← 済み。連れて行かない' : '★ 済んでいない'}`);
+  }
+
+  if (ng.length) {
+    console.log(`${NL}✗ ${ng.join(' / ')} が駄目なので出しません。`);
+    process.exit(1);
+  }
+  if (!go) {
+    console.log(`${NL}調べただけ。出していません。`);
+    console.log('実際に出すには: node tools/asc.mjs submit go');
+    return;
+  }
+
+  head('■ 出します');
+  const sub = (await call('/v1/reviewSubmissions', 'POST', {
+    data: {
+      type: 'reviewSubmissions',
+      attributes: { platform: 'IOS' },
+      relationships: { app: { data: { type: 'apps', id: app.id } } },
+    },
+  })).data;
+  console.log(`  箱を作った       ${sub.id}`);
+
+  await call('/v1/reviewSubmissionItems', 'POST', {
+    data: {
+      type: 'reviewSubmissionItems',
+      relationships: {
+        reviewSubmission: { data: { type: 'reviewSubmissions', id: sub.id } },
+        appStoreVersion: { data: { type: 'appStoreVersions', id: v.id } },
+      },
+    },
+  });
+  console.log(`  本体を入れた     ${v.attributes.versionString}`);
+
+  await call(`/v1/reviewSubmissions/${sub.id}`, 'PATCH', {
+    data: { type: 'reviewSubmissions', id: sub.id, attributes: { submitted: true } },
+  });
+
+  const back = (await get(`/v1/reviewSubmissions/${sub.id}`)).data;
+  const v2 = (await get(`/v1/appStoreVersions/${v.id}`)).data;
+  console.log(`  提出の状態       ${back.attributes.state}`);
+  console.log(`  版の状態         ${v2.attributes.appStoreState}`);
+  console.log(`${NL}審査が始まる前なら node tools/asc.mjs cancel で取り下げられます。`);
+}
 const cmd = process.argv[2] || 'status';
-const jobs = { status, text, iap, memo, fill, notes, build, cancel };
+const jobs = { status, text, iap, memo, fill, notes, build, submit, cancel };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
