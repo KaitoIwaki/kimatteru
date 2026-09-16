@@ -26,10 +26,10 @@ const textToBase64 = (text) => {
  * 取る手段はアプリ側が用意していないと筋が通らない。
  * ネイティブ以外ではダウンロードにフォールバックする。
  */
-export async function shareText(text, filename) {
+export async function shareText(text, filename, mime = 'application/json') {
   if (!native()) {
     try {
-      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      const url = URL.createObjectURL(new Blob([text], { type: mime }));
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;

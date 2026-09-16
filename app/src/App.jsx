@@ -28,6 +28,7 @@ const FILL_SOFT = 0.32;
 // 暗いときの、マスの地。ここに色を混ぜて塗りの面を作る（styles.css の --card と同じ）
 const DARK_CELL = '#12151A';
 import { shareCanvas, shareText } from './shareimg';
+import { toIcs, parseIcs } from './ics';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
 // 保存は store.js に閉じている（localStorage とファイルの二重書き）
@@ -1048,7 +1049,8 @@ export default class App extends React.Component {
     // 取り込んだ予定は「決まっている」扱い。あとから点線に変えられる。
     const tag = uid('i');
     const add = on.map((e,i)=>({ id:tag+'-'+i, type:e.type, title:e.title, y:e.y, m:e.m, day:e.day,
-      start:e.start, end:e.end, status:'kakutei', allDay:e.allDay, updatedAt:now }));
+      start:e.start, end:e.end, status:e.status||'kakutei', allDay:e.allDay, updatedAt:now,
+      ...(e.allDay && e.days>1 ? {days:e.days} : {}), ...(e.memo ? {memo:e.memo} : {}), ...(e.place ? {place:e.place} : {}) }));
     this.setState(s=>({ events:[...s.events, ...add], imp:{...s.imp, phase:'done', added:add.length} }));
   }
   toggleImportRow(key){ this.setState(s=>({imp:{...s.imp, found:s.imp.found.map(e=>e.key===key?{...e,on:!e.on}:e)}})); }
@@ -1473,7 +1475,7 @@ export default class App extends React.Component {
         const ty=st.types.find(t=>t.key===e.type)||st.types[0];
         return {
           key:e.key, title:e.title, on:e.on, guessed:!!e.guessed,
-          when:`${e.m+1}/${e.day}　${e.allDay?'終日':e.start+'–'+e.end}`,
+          when:`${e.m+1}/${e.day}　${e.allDay?'終日':e.start+'–'+e.end}${e.status==='mikakutei'?'　まだ':''}`,
           onToggle:()=>this.toggleImportRow(e.key),
           rowStyle:{display:'flex',alignItems:'center',gap:10,padding:'11px 13px',borderBottom:'1px solid var(--line)',
             cursor:'pointer', opacity:e.on?1:0.45},
@@ -1492,6 +1494,7 @@ export default class App extends React.Component {
       });
       v.impAdded=String(im.added||0);
       v.impNone = im.phase==='found' && (im.found||[]).length===0;
+      v.impFromIcs = im.source==='ics';
       // ほかのカレンダーの案内。開閉できるようにして、ふだんは見出しだけにする。
       // 全員に要るものではないが、要る人にとっては「使えない」と「使える」の差になる。
       v.impOtherOpen = !!im.otherOpen;
@@ -1756,6 +1759,9 @@ export default class App extends React.Component {
     v.onExportBackup = ()=>this.exportBackup();
     // 戻すのは「ファイルをえらぶ」が本筋。貼り付けは、えらべなかったときの逃げ道。
     v.onPickBackup = ()=>this.pickBackupFile();
+    v.onExportIcs = ()=>this.exportIcs();
+    v.onPickIcs = ()=>this.pickIcsFile();
+    v.onIcsFile = (e)=>this.readIcsFile(e);
     v.onBackupFile = (e)=>this.readBackupFile(e);
     v.pasteOpen = !!st.pasteOpen;
     v.onTogglePaste = ()=>{ tapLight(); this.setState(s=>({pasteOpen:!s.pasteOpen, backupText:'', backupError:''})); };
@@ -3075,9 +3081,50 @@ export default class App extends React.Component {
   // input[type=file] は WKWebView からでもファイルアプリを開けるので、
   // これだけのためにプラグインを増やさない（増やすと iOS 側の同期も要る）。
   BACKUP_INPUT_ID = 'backup-file';
+  ICS_INPUT_ID = 'ics-file';
   // 控えは予定200件でも数十KBにしかならない。桁違いのものを読みに行かない。
   BACKUP_MAX_BYTES = 5 * 1024 * 1024;
 
+  // ---- .ics（ファイルでの出し入れ）----
+  // ここが PC やほかのアプリとの橋。同期が無いあいだは、これで行き来する。
+  async exportIcs() {
+    tapLight();
+    const text = toIcs(this.state.events);
+    const now = new Date();
+    const stamp = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+    const msg = await shareText(text, `LUKKO-${stamp}.ics`, 'text/calendar');
+    if (msg) { this.setState({ shareToast: true, shareMsg: msg }); setTimeout(() => this.setState({ shareToast: false }), 2400); }
+  }
+  pickIcsFile() {
+    tapLight();
+    const el = document.getElementById(this.ICS_INPUT_ID);
+    if (el) el.click();
+  }
+  async readIcsFile(e) {
+    const el = e.target;
+    const file = el.files && el.files[0];
+    el.value = '';
+    if (!file) return;
+    let text = '';
+    try { text = await file.text(); } catch (err) { text = ''; }
+    this.runIcs(text);
+  }
+  // .ics の中身を、カレンダーの取り込みと同じ一覧に流す。画面も同じ
+  runIcs(text) {
+    const all = parseIcs(text);
+    const fresh = dedupe(all, this.state.events);
+    const guesses = guessTypes(fresh, this.state.types);
+    const known = (k) => this.state.types.some((t) => t.key === k);
+    const picked = fresh.map((e, i) => ({
+      ...e, key: 'k' + i, on: true,
+      // LUKKO が書いた種類ならそのまま。無ければ名前から当てる
+      type: e.ltype && known(e.ltype) ? e.ltype : guesses[i].key,
+      guessed: !(e.ltype && known(e.ltype)) && !!guesses[i].why,
+      // TENTATIVE は「まだ」。LUKKO の実績はそのまま実績で戻す
+      status: e.tentative ? 'mikakutei' : (e.lstatus === 'jisseki' ? 'jisseki' : 'kakutei'),
+    }));
+    this.setState((s) => ({ screen: 'import', imp: { ...s.imp, phase: 'found', found: picked, error: '', source: 'ics', otherOpen: false } }));
+  }
   pickBackupFile() {
     tapLight();
     const el = document.getElementById(this.BACKUP_INPUT_ID);

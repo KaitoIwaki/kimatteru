@@ -335,7 +335,7 @@ function OtherCal({ v, s }) {
             ))}
           </div>
           <div style={s('margin-top:12px;font-size:11.5px;color:var(--ink-faint);line-height:1.85;text-wrap:pretty')}>
-            {''}<Jp parts={['TimeTree や ジョルテ のように、', 'アプリの中だけに', '予定を持っているものは、', 'このやり方では', '出てきません。']} />
+            {''}<Jp parts={['TimeTree や ジョルテ のように、', 'アプリの中だけに', '予定を持っているものは、', 'このやり方では', '出てきません。', 'そのアプリから', '.ics で書き出したファイルなら、', '設定の', '「ファイルから取り込む」で', '入れられます。']} />
           </div>
         </div>
       )}
@@ -1456,6 +1456,18 @@ export function renderApp(v) {
                   <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
                 </div>
               )}
+              {/* .ics はほかのカレンダーや PC との橋。Google カレンダーや TimeTree から
+                  書き出したファイル、メールで届いたファイルを、ここから入れる */}
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onPickIcs}>
+                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>ファイルから取り込む（.ics）</span>
+                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+              </div>
+              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onExportIcs}>
+                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↑</span>
+                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>予定をファイルに書き出す（.ics）</span>
+                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+              </div>
               <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onExportBackup}>
                 <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↑</span>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えを書き出す</span>
@@ -1469,6 +1481,7 @@ export function renderApp(v) {
               </div>
             </div>
             {/* 見えない入力。行から click() で開く */}
+            <input id="ics-file" type="file" accept=".ics,text/calendar" onChange={v.onIcsFile} style={s('display:none')} />
             <input id="backup-file" type="file" accept=".json,application/json" onChange={v.onBackupFile}
               style={s('display:none')} />
             {!!v.backupError && (
@@ -1928,12 +1941,14 @@ export function renderApp(v) {
                   {v.impNone ? '予定が見つかりませんでした' : `${v.impCount}件の予定が見つかりました`}
                 </div>
                 <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-bottom:16px;text-wrap:pretty')}>
-                  {v.impNone
-                    ? <Jp parts={['iPhone のカレンダーに', '読める予定が', 'ありませんでした。']} />
-                    : <Jp parts={['先月から1年ぶん。', 'もう入っているものは', '除いてあります。']} />}
+                  {v.impFromIcs
+                    ? (v.impNone ? <Jp parts={['このファイルに', '読める予定が', 'ありませんでした。']} /> : <Jp parts={['ファイルの中の予定です。', 'もう入っているものは', '除いてあります。']} />)
+                    : v.impNone
+                      ? <Jp parts={['iPhone のカレンダーに', '読める予定が', 'ありませんでした。']} />
+                      : <Jp parts={['先月から1年ぶん。', 'もう入っているものは', '除いてあります。']} />}
                 </div>
                 {/* 1件も無かったときは、ここで手が止まる。ほかのカレンダーの案内を出す */}
-                {v.impNone && <OtherCal v={v} s={s} />}
+                {v.impNone && !v.impFromIcs && <OtherCal v={v} s={s} />}
                 {!v.impNone && (
                   <>
                     {/* 前は1件ごとに種類の札が4つ並んでいた。いまは1つだけ。押すと次の種類に変わる */}
