@@ -60,10 +60,12 @@ const NOBAITO = [
 ];
 
 const CASES = [
-  { name: 'バイトあり（掛け持ち）', dark: false, events: MIXED, jobs: JOBS, tall: true },
-  { name: 'バイトなし', dark: false, events: NOBAITO, jobs: [], tall: true },
-  { name: 'バイトなし・暗い方', dark: true, events: NOBAITO, jobs: [] },
-  { name: '何も無い', dark: false, events: [], jobs: [] },
+  { name: 'バイトあり・月', dark: false, events: MIXED, jobs: JOBS, tab: 'month', tall: true },
+  { name: 'バイトあり・年', dark: false, events: MIXED, jobs: JOBS, tab: 'year', tall: true },
+  { name: 'バイトなし・月', dark: false, events: NOBAITO, jobs: [], tab: 'month', tall: true },
+  { name: 'バイトなし・年', dark: false, events: NOBAITO, jobs: [], tab: 'year', tall: true },
+  { name: 'バイトなし・月・暗い方', dark: true, events: NOBAITO, jobs: [], tab: 'month' },
+  { name: '何も無い', dark: false, events: [], jobs: [], tab: 'month' },
 ];
 
 const browser = await chromium.launch();
@@ -85,7 +87,7 @@ for (const c of CASES) {
   await page.evaluate((c) => new Promise((r) => window.__app.setState((s) => ({
     events: c.events, jobs: c.jobs, ym: { y: 2026, m: 8 },
     settings: { ...s.settings, dark: c.dark, onboarded: true, hourly: 1120 },
-    screen: 'report', priorOpen: false,
+    screen: 'report', priorOpen: false, repTab: c.tab || 'month',
   }), () => setTimeout(r, 350))), c);
   if (c.tall) {
     // 画面の中身を全部。スクロールする箱を開いて、その高さで撮る

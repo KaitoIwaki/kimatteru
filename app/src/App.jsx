@@ -1960,6 +1960,14 @@ export default class App extends React.Component {
       v.repMonthLabel = (M+1)+'月';
       v.repYearLabel = Y+'年';
       v.repEmpty = spent.length===0;
+      // 月と年でタブを分ける。1枚に全部並べると、バイトの人は 2.5 画面ぶんになる
+      v.repTab = st.repTab || 'month';
+      const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:11,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',transition:'all .2s cubic-bezier(.2,.9,.2,1)',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+      v.repSeg = [['month','月'],['year','年']].map(([key,label])=>({ label, style:segCell(v.repTab===key),
+        onClick:()=>{ tapLight(); this.setState({repTab:key}); } }));
+      const shiftMonth=(d)=>this.setState(s=>{ let m=s.ym.m+d, y=s.ym.y; if(m<0){m=11;y-=1;} if(m>11){m=0;y+=1;} return {ym:{y,m}}; });
+      v.onRepPrevMonth = ()=>shiftMonth(-1);
+      v.onRepNextMonth = ()=>shiftMonth(1);
       v.repMonthKinds = moK;
       v.repYearKinds = yrK;
       v.repMonthNone = moK.length===0;
@@ -1976,7 +1984,7 @@ export default class App extends React.Component {
         isCur: i===M,
         barStyle:{ height: Math.max(3, Math.round(h/peak*74))+'px', borderRadius:4, background: i===M?'var(--ink)':(h>0?'var(--ink-faint)':'var(--line)'), transition:'height .3s cubic-bezier(.2,.9,.2,1)' },
         labelStyle:{ fontSize:9, marginTop:5, color: i===M?'var(--ink)':'var(--ink-faint)', fontWeight:i===M?700:500 },
-        onClick:()=>this.setState({ym:{y:Y,m:i}}),
+        onClick:()=>this.setState({ym:{y:Y,m:i}, repTab:'month'}),
       }));
 
       // ---- 給料。バイトの実績がその年に1件でもあるときだけ。無い人には金の話は要らない ----
