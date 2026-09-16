@@ -1481,13 +1481,13 @@ export default class App extends React.Component {
             fontSize:12,fontWeight:800,
             background:e.on?'#1D9E75':'transparent', color:'#fff',
             border:'1.5px solid '+(e.on?'#1D9E75':'var(--line)')},
-          typeChips: st.types.map(t=>({ label:t.name, sel:t.key===e.type,
-            onClick:(ev)=>{ if(ev)ev.stopPropagation(); this.setImportRowType(e.key,t.key); },
-            style:{padding:'3px 9px',borderRadius:999,fontSize:11,fontWeight:t.key===e.type?700:500,cursor:'pointer',whiteSpace:'nowrap',
-              background:t.key===e.type?this.softFill(t.color):'transparent',
-              color:t.key===e.type?this.inkOn(t.color):'var(--ink-faint)',
-              border:'1px solid '+(t.key===e.type?this.softLine(t.color):'var(--line)')} })),
+          // 種類の札は1つだけ。押すと次の種類に変わる（前は4つ並べていて、行が忙しかった）
           typeName:ty.name,
+          typeStyle:{padding:'5px 11px',borderRadius:999,fontSize:12,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap',flexShrink:0,
+            background:this.softFill(ty.color), color:this.inkOn(ty.color), border:'1px solid '+this.softLine(ty.color)},
+          onCycleType:(ev)=>{ if(ev)ev.stopPropagation(); tapLight();
+            const keys=st.types.map(t=>t.key); const n=keys[(keys.indexOf(e.type)+1)%keys.length];
+            this.setImportRowType(e.key,n); },
         };
       });
       v.impAdded=String(im.added||0);
@@ -1496,6 +1496,8 @@ export default class App extends React.Component {
       // 全員に要るものではないが、要る人にとっては「使えない」と「使える」の差になる。
       v.impOtherOpen = !!im.otherOpen;
       v.impAskOpen = !!im.askOpen;
+      v.impBulkOpen = !!im.bulkOpen;
+      v.onToggleBulk = ()=>{ tapLight(); this.setState(s=>({imp:{...s.imp, bulkOpen:!s.imp.bulkOpen}})); };
       v.onToggleAsk = ()=>{ tapLight(); this.setState(s=>({imp:{...s.imp, askOpen:!s.imp.askOpen}})); };
       v.onToggleOther = ()=>{ tapLight(); this.setState(s=>({imp:{...s.imp, otherOpen:!s.imp.otherOpen}})); };
       // 設定アプリの中の言い方は iOS の版で変わる。

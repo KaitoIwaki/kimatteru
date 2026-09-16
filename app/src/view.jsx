@@ -1927,51 +1927,52 @@ export function renderApp(v) {
                 <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>
                   {v.impNone ? '予定が見つかりませんでした' : `${v.impCount}件の予定が見つかりました`}
                 </div>
-                <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.9;margin-bottom:14px;text-wrap:pretty')}>
+                <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-bottom:16px;text-wrap:pretty')}>
                   {v.impNone
-                    ? <Jp parts={['iPhone のカレンダーに','読める予定が','ありませんでした。','ほかのカレンダーアプリを','お使いなら、','下をご覧ください。']} />
-                    : <Jp parts={['先月から','1年ぶんを','読みました。','すでに入っている予定は','除いてあります。']} />}
+                    ? <Jp parts={['iPhone のカレンダーに', '読める予定が', 'ありませんでした。']} />
+                    : <Jp parts={['先月から1年ぶん。', 'もう入っているものは', '除いてあります。']} />}
                 </div>
-
                 {/* 1件も無かったときは、ここで手が止まる。ほかのカレンダーの案内を出す */}
                 {v.impNone && <OtherCal v={v} s={s} />}
-                {!!v.impGuessText && (
-                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.8;margin-bottom:20px;padding:11px 13px;border-radius:13px;background:var(--bg2);text-wrap:pretty')}>{v.impGuessText}</div>
-                )}
-
-                <div style={s('display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 2px 8px')}>
-                  <span style={s('font-size:12px;font-weight:400;color:var(--ink-mut)')}>入れるものをえらぶ</span>
-                  <span style={s('font-size:13px;color:var(--ink-mut);cursor:pointer;white-space:nowrap')} onClick={v.onToggleAll}>
-                    {v.impAllOn ? 'すべて外す' : 'すべて選ぶ'}
-                  </span>
-                </div>
-
-                <div style={s('display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:0 2px 12px')}>
-                  <span style={s('font-size:11px;color:var(--ink-faint)')}>まとめて種類を変える</span>
-                  {(v.impBulkChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
-                </div>
-
-                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:14px')}>
-                  {(v.impRows || []).map((r) => (
-                    <div key={r.key} style={s(r.rowStyle)} onClick={r.onToggle}>
-                      <span style={s(r.checkStyle)}>{r.on ? '✓' : ''}</span>
-                      <div style={s('flex:1;min-width:0')}>
-                        <div style={s('display:flex;align-items:baseline;gap:8px')}>
-                          <span style={s('font-size:11px;color:var(--ink-mut);font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.when}</span>
-                          <span style={s('flex:1;font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.title}</span>
-                        </div>
-                        <div style={s('display:flex;gap:5px;margin-top:6px;flex-wrap:wrap')}>
-                          {r.typeChips.map((t, j) => (<div key={j} style={s(t.style)} onClick={t.onClick}>{t.label}</div>))}
-                        </div>
-                      </div>
+                {!v.impNone && (
+                  <>
+                    {/* 前は1件ごとに種類の札が4つ並んでいた。いまは1つだけ。押すと次の種類に変わる */}
+                    <div style={s('display:flex;align-items:center;justify-content:space-between;margin:0 4px 8px')}>
+                      <span style={s('font-size:12px;color:var(--ink-mut)')}>右の札を押すと、種類が変わります</span>
+                      <span style={s('font-size:13px;color:var(--ink-mut);cursor:pointer;white-space:nowrap')} onClick={v.onToggleAll}>
+                        {v.impAllOn ? 'すべて外す' : 'すべて選ぶ'}
+                      </span>
                     </div>
-                  ))}
-                </div>
-
-                <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-faint)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onDoImport}>
-                  {v.impOnCount}件を取り込む
-                </div>
+                    <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:14px')}>
+                      {(v.impRows || []).map((r) => (
+                        <div key={r.key} style={s(r.rowStyle)} onClick={r.onToggle}>
+                          <span style={s(r.checkStyle)}>{r.on ? '✓' : ''}</span>
+                          <div style={s('flex:1;min-width:0')}>
+                            <div style={s('font-size:11px;color:var(--ink-mut);font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.when}</div>
+                            <div style={s('font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px')}>{r.title}</div>
+                          </div>
+                          <div style={s(r.typeStyle)} onClick={r.onCycleType}>{r.typeName}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {!v.impNone && (
+                  <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onDoImport}>
+                    {v.impOnCount}件を取り込む
+                  </div>
+                )}
                 <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
+                {!v.impNone && (
+                  <div style={s('margin-top:10px')}>
+                    <Fold title="まとめて種類を変える" open={v.impBulkOpen} onToggle={v.onToggleBulk}>
+                      <div style={s('display:flex;gap:6px;flex-wrap:wrap;margin-top:2px')}>
+                        {(v.impBulkChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
+                      </div>
+                      <div style={s('margin-top:10px;font-size:12px;color:var(--ink-mut)')}>選んでいるものが、まとめてその種類になります。</div>
+                    </Fold>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -1982,9 +1983,6 @@ export function renderApp(v) {
                 <ImportPic />
                 <div style={s('font-size:14px;color:var(--ink);line-height:1.9')}>
                   {''}<Jp parts={['iPhone のカレンダーから読んで、', 'ここに並べます。']} />
-                </div>
-                <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-top:2px')}>
-                  {''}<Jp parts={['書き込みません。', '外にも送りません。']} />
                 </div>
 
                 {!!v.impError && (
