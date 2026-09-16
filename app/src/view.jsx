@@ -13,6 +13,222 @@ function Jp({ parts, style }) {
   );
 }
 
+// まとめの、種類ごとの時間。上の行が種類、その下に何が多かったか。
+// 下の行は名前が2つ以上あるときだけ来る（App.jsx の _timeBreakdown が絞る）。
+// 1つしか無いなら上の行と同じことを二度言うだけになる。
+function Kinds({ kinds }) {
+  return (
+    <div style={s('margin-top:16px;padding-top:14px;border-top:1px solid var(--line)')}>
+      {(kinds || []).map((k, i) => (
+        <div key={k.key} style={s(i ? 'margin-top:14px' : '')}>
+          <div style={s('display:flex;align-items:center;gap:8px')}>
+            <span style={s({ width: 8, height: 8, borderRadius: 4, background: k.color, flexShrink: 0 })} />
+            <span style={s('flex:1;font-size:14px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{k.name}</span>
+            <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>{k.times}件</span>
+            <span style={s('font-size:14px;font-weight:400;color:var(--ink);flex-shrink:0;font-variant-numeric:tabular-nums')}>{k.amount}</span>
+          </div>
+          {k.tops.map((t, j) => (
+            <div key={j} style={s('display:flex;align-items:center;gap:8px;margin-top:6px;padding-left:16px')}>
+              <span style={s('flex:1;font-size:12px;color:var(--ink-mut);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{t.name}</span>
+              <span style={s('font-size:12px;color:var(--ink-mut);flex-shrink:0;font-variant-numeric:tabular-nums')}>{t.amount}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// まとめの画面。本体の木から切り出してある。
+// **切り出したのは見た目のためではない。** 本体の JSX に入れたまま入れ子を深くしたら、
+// rollup の構文解析（Rust 側）がスタックを使い切って落ちた（Windows で 0xC0000409）。
+// エラーは1行も出ず、「84 modules transformed」の直後に黙って死ぬ。
+// 入れ子を増やすときは、こうして別の関数に切ること。
+function Report({ v }) {
+  return (
+    <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
+      <div className="scr-head-solo" style={s('padding:0 20px 10px')}>
+        <span style={s('font-size:30px;font-weight:300;color:var(--ink);letter-spacing:-.5px')}>まとめ</span>
+      </div>
+      <div style={s('flex:1;overflow-y:auto;padding:8px 16px 110px')}>
+
+        {v.repEmpty ? (
+          <div style={s('text-align:center;padding:56px 24px;color:var(--ink-faint);font-size:14px;line-height:1.9;text-wrap:pretty')}>
+            {''}<Jp parts={['まだ何も','ありません。','予定を確定すると、','何にどれだけ','時間を使ったかが、','ここに','積み上がっていきます。']} />
+          </div>
+        ) : (
+          <>
+            {/* 今月、何にどれだけ時間を使ったか。この画面の主役。ここだけが大きい。
+                バイトの実績だけを数えていた頃は、バイトの無い人には画面が空だった。 */}
+            <div style={s('font-size:11px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px;letter-spacing:.12em')}>{v.repMonthLabel}</div>
+            <div style={s('background:var(--card);border-radius:17px;padding:20px 18px 20px;margin-bottom:22px;border:1px solid var(--line)')}>
+              {v.repMonthNone ? (
+                <div style={s('font-size:13px;color:var(--ink-faint);line-height:1.8;text-wrap:pretty')}>
+                  {''}<Jp parts={['この月には、','確定した予定が','ありません。']} />
+                </div>
+              ) : (
+                <>
+                  <div style={s('display:flex;align-items:baseline;gap:3px;margin-bottom:6px')}>
+                    <span style={s('font-size:40px;font-weight:300;color:var(--ink);letter-spacing:-.8px;font-variant-numeric:tabular-nums;line-height:1')}>{v.repMonthHead.num}</span>
+                    <span style={s('font-size:18px;font-weight:400;color:var(--ink-mut)')}>{v.repMonthHead.unit}</span>
+                    {!!v.repMonthHead.rest && <span style={s('font-size:14px;color:var(--ink-mut);margin-left:4px')}>{v.repMonthHead.rest}</span>}
+                  </div>
+                  <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.06em')}>{v.repMonthSub}</div>
+                  <Kinds kinds={v.repMonthKinds} />
+                </>
+              )}
+            </div>
+
+            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>月ごとの時間</div>
+            <div style={s('background:var(--card);border-radius:17px;padding:16px 12px 12px;margin-bottom:22px;border:1px solid var(--line)')}>
+              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:0 4px 12px')}>
+                <span role="button" aria-label="前の年" style={s('width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onRepPrevYear}>‹</span>
+                <span style={s('font-size:14px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearLabel}</span>
+                <span role="button" aria-label="次の年" style={s('width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onRepNextYear}>›</span>
+              </div>
+              <div style={s('display:flex;align-items:flex-end;justify-content:space-between;gap:3px;height:96px;padding:0 2px')}>
+                {(v.repBars || []).map((b, i) => (
+                  <div key={i} style={s('flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer')} onClick={b.onClick}>
+                    <div style={s('width:100%;display:flex;align-items:flex-end;justify-content:center;flex:1')}>
+                      <div style={s('width:100%;max-width:14px')}>
+                        <div style={s(b.barStyle)} />
+                      </div>
+                    </div>
+                    <span style={s(b.labelStyle)}>{b.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 今年。今月と同じ形で、1年ぶん */}
+            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>{v.repYearLabel}の合計</div>
+            <div style={s('background:var(--card);border-radius:17px;padding:20px 18px 20px;margin-bottom:22px;border:1px solid var(--line)')}>
+              <div style={s('display:flex;align-items:baseline;gap:3px;margin-bottom:6px')}>
+                <span style={s('font-size:28px;font-weight:300;color:var(--ink);letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1')}>{v.repYearHead.num}</span>
+                <span style={s('font-size:15px;font-weight:400;color:var(--ink-mut)')}>{v.repYearHead.unit}</span>
+                {!!v.repYearHead.rest && <span style={s('font-size:12px;color:var(--ink-mut);margin-left:4px')}>{v.repYearHead.rest}</span>}
+              </div>
+              <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.06em')}>{v.repYearSub}</div>
+              <Kinds kinds={v.repYearKinds} />
+            </div>
+
+            {/* ---- 給料。バイトの実績がその年にあるときだけ。無い人には金の話はいらない ---- */}
+            {v.repWageShown && (
+              <>
+                <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>給料</div>
+                <div style={s('background:var(--card);border-radius:17px;padding:20px 18px 20px;margin-bottom:12px;border:1px solid var(--line)')}>
+                  <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.12em;margin-bottom:10px')}>{v.repMonthLabel}</div>
+                  <div style={s('display:flex;align-items:baseline;gap:3px;margin-bottom:6px')}>
+                    <span style={s('font-size:18px;font-weight:400;color:var(--ink-mut)')}>{v.repMonthWageParts.unit}</span>
+                    <span style={s('font-size:34px;font-weight:300;color:var(--ink);letter-spacing:-.6px;font-variant-numeric:tabular-nums;line-height:1')}>{v.repMonthWageParts.num}</span>
+                  </div>
+                  <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.06em')}>働いた {v.repMonthHours}・{v.repMonthDays}日</div>
+                  {/* バイト先ごとの内訳。掛け持ちだと、どちらでいくら稼いだかが要る */}
+                  {(v.repMonthJobs || []).length > 1 && (
+                    <div style={s('margin-top:16px;padding-top:14px;border-top:1px solid var(--line)')}>
+                      {(v.repMonthJobs || []).map((j, i) => (
+                        <div key={i} style={s(`display:flex;align-items:center;gap:8px;${i ? 'margin-top:10px' : ''}`)}>
+                          <span style={s({ width: 8, height: 8, borderRadius: 4, background: j.color, flexShrink: 0 })} />
+                          <span style={s('flex:1;font-size:13px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{j.name}</span>
+                          <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>{j.hours}</span>
+                          <span style={s('font-size:14px;font-weight:400;color:var(--ink);flex-shrink:0;font-variant-numeric:tabular-nums')}>{j.wage}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px;border:1px solid var(--line)')}>
+                  <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.12em;padding:14px 16px 4px')}>{v.repYearLabel}</div>
+                  <div style={s('display:flex;align-items:center;justify-content:space-between;padding:10px 16px 14px;border-bottom:1px solid var(--line)')}>
+                    <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた時間</span>
+                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearHours}</span>
+                  </div>
+                  <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
+                    <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた日数</span>
+                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearDays}日</span>
+                  </div>
+                  <div style={s(`display:flex;align-items:center;justify-content:space-between;padding:14px 16px;${(v.repYearJobs || []).length > 1 ? 'border-bottom:1px solid var(--line)' : ''}`)}>
+                    <span style={s('font-size:14px;color:var(--ink-mut)')}>稼いだ額</span>
+                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>およそ {v.repYearWage}</span>
+                  </div>
+                  {/* バイト先ごとの内訳。掛け持ちのときだけ出す */}
+                  {(v.repYearJobs || []).length > 1 && (v.repYearJobs || []).map((j, i) => (
+                    <div key={i} style={s(`display:flex;align-items:center;gap:8px;padding:12px 16px;${i ? 'border-top:1px solid var(--line)' : ''}`)}>
+                      <span style={s({ width: 8, height: 8, borderRadius: 4, background: j.color, flexShrink: 0 })} />
+                      <span style={s('flex:1;font-size:13px;color:var(--ink-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{j.name}</span>
+                      <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>{j.hours}</span>
+                      <span style={s('font-size:14px;font-weight:400;color:var(--ink);flex-shrink:0;font-variant-numeric:tabular-nums')}>{j.wage}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* 金額は時給×実働の概算。割増も交通費も入らないので、そう書いておく。
+                    扶養の線を判定できる数字ではない。 */}
+                <div style={s('font-size:11px;color:var(--ink-faint);margin:-14px 6px 10px;line-height:1.8;text-wrap:pretty')}>
+                  {''}<Jp parts={['時間は', '記録したそのものです。', '金額は時給から出した目安で、', '割増や交通費は', '入っていません。']} />
+                </div>
+                {!!v.repPriorText && (
+                  <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 10px;line-height:1.8;text-wrap:pretty')}>{v.repPriorText}</div>
+                )}
+                <div style={s('margin-bottom:12px')} />
+
+                {/* 年の途中から使い始めた人のための、手で入れる額。
+                    設定ではなくここに置く —— 年を選ぶのはこの画面で、
+                    合計が実際と合わないと気づくのもこの画面だから。 */}
+                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:22px')}>
+                  <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onTogglePrior}>
+                    <div style={s('display:flex;flex-direction:column;gap:2px;flex:1;padding-right:12px;min-width:0')}>
+                      <span style={s('font-size:15px;color:var(--ink)')}>使い始める前の額</span>
+                      <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.repPriorHint}</span>
+                    </div>
+                    <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums;flex-shrink:0')}>{v.repPriorLabel}</span>
+                    <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>{v.repPriorOpen ? '⌄' : '›'}</span>
+                  </div>
+                  {v.repPriorOpen && (
+                    <div style={s('padding:2px 16px 16px')}>
+                      <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
+                        <span style={s('font-size:14px;color:var(--ink-mut)')}>{v.repYearLabel}のぶん</span>
+                        <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
+                          <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft)')}>¥</span>
+                          <input value={v.repPriorValue} onChange={v.onPriorChange} inputMode="numeric" maxLength={8} placeholder="0" style={s('width:9ch;min-width:9ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
+                        </div>
+                      </div>
+                      <div style={s('font-size:11px;color:var(--ink-faint);margin-top:12px;line-height:1.8;text-wrap:pretty')}>
+                        {''}<Jp parts={['上の「稼いだ額」と', 'まとめカードに足します。', '働いた時間と日数には', '入りません。']} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+
+        {/* 「空いてる日をシェア」はここには置かない。この画面の数字と関係がなく、
+            どの月を送るのかも分からなくなる。空き状況の画面に置いてある。 */}
+        {/* まとめカードはいまも給料が主役の絵なので、バイトの実績が無い人には出さない。
+            ¥0 のカードを渡すことになる。カードの作り直しは別件（NEXT.md 1-4） */}
+        {v.repWageShown && (<>
+        <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>シェア</div>
+        <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line)')}>
+          <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenMonthCard}>
+            <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
+            <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{v.repMonthLabel}のまとめカード</span>
+            <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+          </div>
+          <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onOpenYearCard}>
+            <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
+            <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{v.repYearLabel}のまとめカード</span>
+            <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+          </div>
+        </div>
+        </>)}
+
+      </div>
+    </div>
+  );
+}
+
 /**
  * ほかのカレンダーアプリを使っている人への案内。
  *
@@ -1298,146 +1514,7 @@ export function renderApp(v) {
       )}
 
       {/* ===================== まとめ（働いた時間） ===================== */}
-      {v.reportShown && (
-        <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
-          <div className="scr-head-solo" style={s('padding:0 20px 10px')}>
-            <span style={s('font-size:30px;font-weight:300;color:var(--ink);letter-spacing:-.5px')}>まとめ</span>
-          </div>
-          <div style={s('flex:1;overflow-y:auto;padding:8px 16px 110px')}>
-
-            {v.repEmpty ? (
-              <div style={s('text-align:center;padding:56px 24px;color:var(--ink-faint);font-size:14px;line-height:1.9;text-wrap:pretty')}>
-                {''}<Jp parts={['働いた記録が','まだありません。','バイトの予定を','確定して、','終わったら','実働時間をつけると、','ここに','積み上がっていきます。']} />
-              </div>
-            ) : (
-              <>
-                <div style={s('font-size:11px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px;letter-spacing:.12em')}>{v.repMonthLabel}</div>
-                <div style={s('background:var(--card);border-radius:17px;padding:20px 18px 20px;margin-bottom:22px;border:1px solid var(--line)')}>
-                  {/* この画面の主役。ここだけが大きい。 */}
-                  <div style={s('display:flex;align-items:baseline;gap:3px;margin-bottom:6px')}>
-                    <span style={s('font-size:18px;font-weight:400;color:var(--ink-mut)')}>{v.repMonthWageParts.unit}</span>
-                    <span style={s('font-size:40px;font-weight:300;color:var(--ink);letter-spacing:-.8px;font-variant-numeric:tabular-nums;line-height:1')}>{v.repMonthWageParts.num}</span>
-                  </div>
-                  <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.06em')}>{v.repMonthHours}・{v.repMonthDays}日</div>
-                  {/* バイト先ごとの内訳。掛け持ちだと、どちらでいくら稼いだかが要る */}
-                  {(v.repMonthJobs || []).length > 1 && (
-                    <div style={s('margin-top:16px;padding-top:14px;border-top:1px solid var(--line)')}>
-                      {(v.repMonthJobs || []).map((j, i) => (
-                        <div key={i} style={s(`display:flex;align-items:center;gap:8px;${i ? 'margin-top:10px' : ''}`)}>
-                          <span style={s({ width: 8, height: 8, borderRadius: 4, background: j.color, flexShrink: 0 })} />
-                          <span style={s('flex:1;font-size:13px;color:var(--ink);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{j.name}</span>
-                          <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>{j.hours}</span>
-                          <span style={s('font-size:14px;font-weight:400;color:var(--ink);flex-shrink:0;font-variant-numeric:tabular-nums')}>{j.wage}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>月ごとの働いた時間</div>
-                <div style={s('background:var(--card);border-radius:17px;padding:16px 12px 12px;margin-bottom:22px;border:1px solid var(--line)')}>
-                  <div style={s('display:flex;align-items:center;justify-content:space-between;padding:0 4px 12px')}>
-                    <span role="button" aria-label="前の年" style={s('width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onRepPrevYear}>‹</span>
-                    <span style={s('font-size:14px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearLabel}</span>
-                    <span role="button" aria-label="次の年" style={s('width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onRepNextYear}>›</span>
-                  </div>
-                  <div style={s('display:flex;align-items:flex-end;justify-content:space-between;gap:3px;height:96px;padding:0 2px')}>
-                    {(v.repBars || []).map((b, i) => (
-                      <div key={i} style={s('flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;cursor:pointer')} onClick={b.onClick}>
-                        <div style={s('width:100%;display:flex;align-items:flex-end;justify-content:center;flex:1')}>
-                          <div style={s(`width:100%;max-width:14px;${b.barStyle ? '' : ''}`)}>
-                            <div style={s(b.barStyle)} />
-                          </div>
-                        </div>
-                        <span style={s(b.labelStyle)}>{b.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>{v.repYearLabel}の合計</div>
-                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px;border:1px solid var(--line)')}>
-                  <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
-                    <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた時間</span>
-                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearHours}</span>
-                  </div>
-                  <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
-                    <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた日数</span>
-                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearDays}日</span>
-                  </div>
-                  <div style={s(`display:flex;align-items:center;justify-content:space-between;padding:14px 16px;${(v.repYearJobs || []).length > 1 ? 'border-bottom:1px solid var(--line)' : ''}`)}>
-                    <span style={s('font-size:14px;color:var(--ink-mut)')}>稼いだ額</span>
-                    <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>およそ {v.repYearWage}</span>
-                  </div>
-                  {/* バイト先ごとの内訳。掛け持ちのときだけ出す */}
-                  {(v.repYearJobs || []).length > 1 && (v.repYearJobs || []).map((j, i) => (
-                    <div key={i} style={s(`display:flex;align-items:center;gap:8px;padding:12px 16px;${i ? 'border-top:1px solid var(--line)' : ''}`)}>
-                      <span style={s({ width: 8, height: 8, borderRadius: 4, background: j.color, flexShrink: 0 })} />
-                      <span style={s('flex:1;font-size:13px;color:var(--ink-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{j.name}</span>
-                      <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>{j.hours}</span>
-                      <span style={s('font-size:14px;font-weight:400;color:var(--ink);flex-shrink:0;font-variant-numeric:tabular-nums')}>{j.wage}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* 金額は時給×実働の概算。割増も交通費も入らないので、そう書いておく。
-                    扶養の線を判定できる数字ではない。 */}
-                <div style={s('font-size:11px;color:var(--ink-faint);margin:-14px 6px 10px;line-height:1.8;text-wrap:pretty')}>
-                  {''}<Jp parts={['時間は', '記録したそのものです。', '金額は時給から出した目安で、', '割増や交通費は', '入っていません。']} />
-                </div>
-                {!!v.repPriorText && (
-                  <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 10px;line-height:1.8;text-wrap:pretty')}>{v.repPriorText}</div>
-                )}
-                <div style={s('margin-bottom:12px')} />
-
-                {/* 年の途中から使い始めた人のための、手で入れる額。
-                    設定ではなくここに置く —— 年を選ぶのはこの画面で、
-                    合計が実際と合わないと気づくのもこの画面だから。 */}
-                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:22px')}>
-                  <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onTogglePrior}>
-                    <div style={s('display:flex;flex-direction:column;gap:2px;flex:1;padding-right:12px;min-width:0')}>
-                      <span style={s('font-size:15px;color:var(--ink)')}>使い始める前の額</span>
-                      <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.repPriorHint}</span>
-                    </div>
-                    <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums;flex-shrink:0')}>{v.repPriorLabel}</span>
-                    <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>{v.repPriorOpen ? '⌄' : '›'}</span>
-                  </div>
-                  {v.repPriorOpen && (
-                    <div style={s('padding:2px 16px 16px')}>
-                      <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
-                        <span style={s('font-size:14px;color:var(--ink-mut)')}>{v.repYearLabel}のぶん</span>
-                        <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
-                          <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft)')}>¥</span>
-                          <input value={v.repPriorValue} onChange={v.onPriorChange} inputMode="numeric" maxLength={8} placeholder="0" style={s('width:9ch;min-width:9ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
-                        </div>
-                      </div>
-                      <div style={s('font-size:11px;color:var(--ink-faint);margin-top:12px;line-height:1.8;text-wrap:pretty')}>
-                        {''}<Jp parts={['上の「稼いだ額」と', 'まとめカードに足します。', '働いた時間と日数には', '入りません。']} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* 「空いてる日をシェア」はここには置かない。この画面の数字と関係がなく、
-                どの月を送るのかも分からなくなる。空き状況の画面に置いてある。 */}
-            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>シェア</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line)')}>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenMonthCard}>
-                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{v.repMonthLabel}のまとめカード</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onOpenYearCard}>
-                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{v.repYearLabel}のまとめカード</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
+      {v.reportShown && <Report v={v} />}
 
       {/* ===================== サポーターカード =====================
           金ぴかにはしない。生成りの紙に真鍮の箔を押したもの、という見立て。

@@ -419,6 +419,71 @@ export default class App extends React.Component {
   splitWage(n){ return { unit:'¥', num:n.toLocaleString('ja-JP') }; }
 
   /**
+   * 時間の内訳。種類で束ねて、その中で同じ名前の予定をまとめる。
+   *
+   * まとめは長いあいだ「働いた記録」だけを数えていて、バイトの実績が無い人には
+   * 画面がまるごと空だった。用事と遊びしか置いていない人にとって、まとめは
+   * 存在しなかった。ここは種類を問わず、その月に何へどれだけ時間を使ったかを出す。
+   *
+   * 同じ名前をまとめるので、くり返しの予定（ジム、塾、部活）がそのまま
+   * 「多かったこと」として浮く。バイトはバイト先でまとめる —— 名前は毎回「バイト」なので、
+   * 名前でまとめても何も分からない。
+   *
+   * **終日の予定は時間にしない。** 24時間と数えたら嘘になる。日数で別に数える。
+   * 時間と日は足せないので、出すときは「6時間・2日」と並べる。
+   */
+  spentHours(ev){
+    if(ev.allDay) return 0;
+    // バイトは休憩を引いた実働。給料の計算と同じ道を通す（ここだけ違うと数字が合わなくなる）
+    return ev.type==='baito' ? this.paidHours(ev) : this.hoursBetween(ev.start, ev.end);
+  }
+  _timeBreakdown(list){
+    const jobs = this.state.jobs || [];
+    const out = [];
+    for(const t of this.state.types){
+      const evs = list.filter(e=>e.type===t.key);
+      if(!evs.length) continue;
+      const by = new Map();
+      let hours=0, days=0;
+      for(const e of evs){
+        const job = t.key==='baito' && e.jobId ? jobs.find(j=>j.id===e.jobId) : null;
+        const name = job ? (job.name||'（名前なし）') : ((e.title||'').trim() || '（名前なし）');
+        const cur = by.get(name) || { name, hours:0, days:0, times:0 };
+        const h = this.spentHours(e), d = e.allDay ? evSpan(e) : 0;
+        cur.hours += h; cur.days += d; cur.times += 1;
+        hours += h; days += d;
+        by.set(name, cur);
+      }
+      const tops = [...by.values()]
+        .sort((a,b)=>(b.hours-a.hours) || (b.days-a.days) || (b.times-a.times))
+        .slice(0,3)
+        .map(r=>({ name:r.name, amount:this.fmtSpent(r.hours, r.days), times:r.times }));
+      out.push({ key:t.key, name:t.name, color:t.color, hours, days, times:evs.length,
+        amount:this.fmtSpent(hours, days),
+        // 名前が1つしか無いなら内訳は出さない。上の行と同じことを二度言うだけになる
+        tops: by.size>=2 ? tops : [] });
+    }
+    // 多かった順。種類の決まった並びではなく、その月に多かったものが上
+    return out.sort((a,b)=>(b.hours-a.hours)||(b.days-a.days));
+  }
+  // 「6時間30分」「2日」「6時間・2日」。時間と日は足せないので並べる
+  fmtSpent(h, d){
+    const parts=[];
+    if(h>0) parts.push(this.fmtHours(h));
+    if(d>0) parts.push(d+'日');
+    return parts.length ? parts.join('・') : '0時間';
+  }
+  // 大きく出す数字。時間があれば時間、無ければ日。分は小さく添える
+  _spentHead(h, d){
+    if(h>0){
+      const H=Math.floor(h), Mi=Math.round((h-H)*60);
+      if(H>0) return { num:String(H), unit:'時間', rest: Mi ? Mi+'分' : '' };
+      return { num:String(Mi), unit:'分', rest:'' };
+    }
+    if(d>0) return { num:String(d), unit:'日', rest:'' };
+    return { num:'0', unit:'時間', rest:'' };
+  }
+  /**
    * バイト先ごとの内訳。まとめ画面にも、書き出すカードにも同じものを使う。
    *
    * 色はバイト先ごとに変えるが、種類の色（バイトの緑）から濃淡をずらして作る。
@@ -1882,20 +1947,48 @@ export default class App extends React.Component {
       v.onShareCard = ()=>this._shareCard(isYear ? 'year' : 'summary');
     }
 
-    // ---------- まとめ（働いた時間） ----------
+    // ---------- まとめ（時間の内訳） ----------
     v.reportShown = st.screen==='report';
     if(v.reportShown){
       const Y=st.ym.y, M=st.ym.m;
+      // 数えるのは確定と実績。未確定はまだ起きていない。無くなったものは無かった
+      const spent = st.events.filter(e=>e.status==='kakutei'||e.status==='jisseki');
+      const moK = this._timeBreakdown(spent.filter(e=>e.y===Y && e.m===M));
+      const yrK = this._timeBreakdown(spent.filter(e=>e.y===Y));
+      const tot = (ks)=>ks.reduce((a,k)=>({hours:a.hours+k.hours, days:a.days+k.days, times:a.times+k.times}),{hours:0,days:0,times:0});
+      const tm = tot(moK), ty = tot(yrK);
+      v.repMonthLabel = (M+1)+'月';
+      v.repYearLabel = Y+'年';
+      v.repEmpty = spent.length===0;
+      v.repMonthKinds = moK;
+      v.repYearKinds = yrK;
+      v.repMonthNone = moK.length===0;
+      v.repMonthHead = this._spentHead(tm.hours, tm.days);
+      v.repMonthSub = tm.times+'件の予定';
+      v.repYearHead = this._spentHead(ty.hours, ty.days);
+      v.repYearSub = ty.times+'件の予定';
+      // 月ごとの棒。今年の12ヶ月ぶん。働いた時間ではなく、全部の時間
+      const perMonth = Array.from({length:12},(_,i)=>spent.filter(e=>e.y===Y && e.m===i).reduce((a,e)=>a+this.spentHours(e),0));
+      const peak = Math.max(1, ...perMonth);
+      v.repBars = perMonth.map((h,i)=>({
+        label: (i+1),
+        hours: h,
+        isCur: i===M,
+        barStyle:{ height: Math.max(3, Math.round(h/peak*74))+'px', borderRadius:4, background: i===M?'var(--ink)':(h>0?'var(--ink-faint)':'var(--line)'), transition:'height .3s cubic-bezier(.2,.9,.2,1)' },
+        labelStyle:{ fontSize:9, marginTop:5, color: i===M?'var(--ink)':'var(--ink-faint)', fontWeight:i===M?700:500 },
+        onClick:()=>this.setState({ym:{y:Y,m:i}}),
+      }));
+
+      // ---- 給料。バイトの実績がその年に1件でもあるときだけ。無い人には金の話は要らない ----
+      const doneAll = st.events.filter(e=>e.status==='jisseki');
+      v.repWageShown = doneAll.some(e=>e.y===Y && e.type==='baito');
       const sum=(list)=>{
         const hours=list.reduce((a,e)=>a+this.paidHours(e),0);
         const wage=list.reduce((a,e)=>a+this.wage(e),0);
         return { hours, wage, days:list.length };
       };
-      const doneAll = st.events.filter(e=>e.status==='jisseki');
       const mo = sum(doneAll.filter(e=>e.y===Y && e.m===M));
       const yr = sum(doneAll.filter(e=>e.y===Y));
-      v.repMonthLabel = (M+1)+'月';
-      v.repYearLabel = Y+'年';
       v.repMonthHours = this.fmtHours(mo.hours);
       v.repMonthWage = this.fmtWage(mo.wage);
       v.repMonthWageParts = this.splitWage(mo.wage);
@@ -1919,18 +2012,6 @@ export default class App extends React.Component {
       // バイト先ごとの内訳。今月と今年、どちらも出す
       v.repMonthJobs = this._jobBreakdown(doneAll.filter(e=>e.y===Y && e.m===M));
       v.repYearJobs = this._jobBreakdown(doneAll.filter(e=>e.y===Y));
-      v.repEmpty = doneAll.length===0;
-      // 月ごとの棒。今年の12ヶ月ぶんを並べて、働いた量の起伏を見せる
-      const perMonth = Array.from({length:12},(_,i)=>sum(doneAll.filter(e=>e.y===Y && e.m===i)).hours);
-      const peak = Math.max(1, ...perMonth);
-      v.repBars = perMonth.map((h,i)=>({
-        label: (i+1),
-        hours: h,
-        isCur: i===M,
-        barStyle:{ height: Math.max(3, Math.round(h/peak*74))+'px', borderRadius:4, background: i===M?'#1D9E75':(h>0?'rgba(29,158,117,.32)':'var(--line)'), transition:'height .3s cubic-bezier(.2,.9,.2,1)' },
-        labelStyle:{ fontSize:9, marginTop:5, color: i===M?'var(--ink)':'var(--ink-faint)', fontWeight:i===M?700:500 },
-        onClick:()=>this.setState({ym:{y:Y,m:i}}),
-      }));
       v.onRepPrevYear = ()=>this.setState(s=>({ym:{y:s.ym.y-1,m:s.ym.m}}));
       v.onRepNextYear = ()=>this.setState(s=>({ym:{y:s.ym.y+1,m:s.ym.m}}));
       // カードは月のぶんと年のぶん。開くところが違うだけで、画面は同じ
