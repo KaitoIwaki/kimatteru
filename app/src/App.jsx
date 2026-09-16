@@ -6,7 +6,7 @@ import { readLocal, readFile, saveLocal, saveFile } from './store';
 import { pushWidget, widgetAvailable } from './widgetbridge';
 import { endsNextDay, busyEndMin } from './whenlib';
 import { loadTips, buyTip, probeTips, TIPS } from './tipjar';
-import { syncReminders, onNotificationTap } from './notify';
+import { syncReminders, onNotificationTap, canNotify } from './notify';
 import { drawMonthCard, drawYearCard, drawFreeCard, drawSupporterCard } from './sharecard';
 import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
 import { applyStatusBarTheme } from './statusbar';
@@ -2365,6 +2365,8 @@ export default class App extends React.Component {
     }));
     v.onAddJob = ()=>this.addJob();
     v.jobsEmpty = (st.jobs||[]).length===0;
+    // リマインドは通知が使える環境だけ。ブラウザでは行ごと出さない（押しても何も起きない設定を見せない）
+    v.remindRowShown = !v.jobsEmpty && canNotify();
 
     v.timed = !dr.allDay; v.allDayShown = dr.allDay;
     // 何日間つづくか。終日のときだけ選べる（時間指定は1日で完結するもの、という決め）

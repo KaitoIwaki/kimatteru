@@ -1,6 +1,9 @@
 node_modules
 app/dist
 
+# ブラウザ版の出力（npm run build:web）。置く先で作るので追跡しない
+web/
+
 # cap sync が dist から生成するので追跡しない
 app/ios/App/App/public
 

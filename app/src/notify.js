@@ -18,6 +18,9 @@ function numericId(id) {
   return Math.abs(h) % 2000000000 || 1;
 }
 
+// 通知が使える環境か。ブラウザでは使えない（閉じていると鳴らないので、無いものとして扱う）
+export const canNotify = () => native();
+
 export async function ensurePermission() {
   if (!native()) return false;
   try {

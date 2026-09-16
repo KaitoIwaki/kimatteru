@@ -1,12 +1,15 @@
 {
-  "name": "決まってる？",
-  "short_name": "決まってる？",
-  "description": "不確定な予定と決まっている予定が一目でわかるカレンダー",
+  "name": "LUKKO",
+  "short_name": "LUKKO",
+  "description": "未定のまま置けるカレンダー。決まった予定と、まだの予定が一目でわかる",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FAF9F4",
-  "theme_color": "#FAF9F4",
-  "icons": []
+  "background_color": "#F6F7F9",
+  "theme_color": "#F6F7F9",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
 }

@@ -1426,7 +1426,7 @@ export function renderApp(v) {
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バイト先を追加</span>
               </div>
             </div>
-            {!v.jobsEmpty && (
+            {v.remindRowShown && (
               <div style={s('background:var(--card);border-radius:17px;overflow:hidden')}>
                 <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
                 <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>

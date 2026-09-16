@@ -5,6 +5,10 @@ import { fileURLToPath } from 'node:url';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
 
+// 出す先。ふだんは dist（iPhone のアプリに入る）。LUKKO_OUT=web ならリポジトリ直下の web/
+// （ブラウザ版。そのまま静的なホスティングに置ける）。中身は同じで、置く場所だけ違う
+const OUT = process.env.LUKKO_OUT === 'web' ? '../web' : 'dist';
+
 /**
  * dist を自分で空にする。Vite に任せない。
  *
@@ -29,13 +33,13 @@ function emptyDirSafe(dir) {
 export default defineConfig({
   plugins: [
     react(),
-    { name: 'empty-outdir-safe', apply: 'build', buildStart() { emptyDirSafe(fileURLToPath(new URL('./dist', import.meta.url))); } },
+    { name: 'empty-outdir-safe', apply: 'build', buildStart() { emptyDirSafe(fileURLToPath(new URL(OUT, import.meta.url))); } },
   ],
   // 設定画面のバージョン表記は package.json を唯一の出どころにする
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   // 相対パスにしておくと、どんなホスティング先のサブパスでもそのまま動く
   base: './',
-  build: { emptyOutDir: false },
+  build: { emptyOutDir: false, outDir: OUT },
   server: {
     host: true,
     port: process.env.PORT ? Number(process.env.PORT) : undefined,
