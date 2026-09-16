@@ -28,6 +28,10 @@
   --sun: #B4453A;
   --sat: #3D6E9C;
   --glass: rgba(246, 247, 249, 0.9);
+  /* ボトムナビだけの、透けるガラス。--glass は9割不透明で後ろが見えない */
+  --glass-nav: rgba(248, 249, 251, 0.62);
+  --glass-rim: rgba(255, 255, 255, 0.85);
+  --glass-top: rgba(255, 255, 255, 0.34);
 }
 
 /* 暗い方は、温かい黒（#1A1A17）から冷たい黒へ。
@@ -47,6 +51,9 @@
   --sun: #CB7D75;
   --sat: #779ABA;
   --glass: rgba(11, 13, 16, 0.9);
+  --glass-nav: rgba(20, 24, 30, 0.6);
+  --glass-rim: rgba(255, 255, 255, 0.1);
+  --glass-top: rgba(255, 255, 255, 0.06);
 }
 
 html,
@@ -149,7 +156,12 @@ input { font-family: inherit; }
   padding-top: calc(env(safe-area-inset-top) + 14px) !important;
 }
 
-/* ボトムナビは浮かせる（アイランド） */
+/* ボトムナビは浮かせる（アイランド）。
+   iOS 26 のガラスに寄せてある。純正の効果は WebView には掛からないので CSS で似せる。
+   透け（62%）＋強めのぼかし＋彩度を上げる＋上の縁に細い光、で「厚みのある板」に見える。
+   ガラスにするのはここと＋だけ。中身のボタンには使わない —— ガラスの上にガラスは濁るし、
+   このアプリは紙とインクの見立てで艶が無い。
+   透けると後ろのピルの色が字の下に来る。字の差は tools/shot-glass.mjs で測る。 */
 .tabbar {
   left: 14px !important;
   right: 14px !important;
@@ -157,14 +169,17 @@ input { font-family: inherit; }
   height: 64px !important;
   padding: 0 6px !important;
   border-radius: 24px !important;
-  border: 1px solid var(--line) !important;
-  border-top: 1px solid var(--line) !important;
+  border: 1px solid var(--glass-rim) !important;
+  border-top: 1px solid var(--glass-rim) !important;
   align-items: center !important;
-  box-shadow: 0 10px 28px rgba(38, 37, 31, 0.13), 0 2px 6px rgba(38, 37, 31, 0.06);
+  background: linear-gradient(180deg, var(--glass-top), rgba(255, 255, 255, 0) 55%), var(--glass-nav) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(170%) !important;
+  backdrop-filter: blur(24px) saturate(170%) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 10px 28px rgba(38, 37, 31, 0.13), 0 2px 6px rgba(38, 37, 31, 0.06);
 }
 
 [data-theme='dark'] .tabbar {
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 28px rgba(0, 0, 0, 0.4);
 }
 
 /* 保存についての知らせ。ステータスバーの下に出す */
