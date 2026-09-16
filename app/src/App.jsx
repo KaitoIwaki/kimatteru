@@ -1495,6 +1495,8 @@ export default class App extends React.Component {
       // ほかのカレンダーの案内。開閉できるようにして、ふだんは見出しだけにする。
       // 全員に要るものではないが、要る人にとっては「使えない」と「使える」の差になる。
       v.impOtherOpen = !!im.otherOpen;
+      v.impAskOpen = !!im.askOpen;
+      v.onToggleAsk = ()=>{ tapLight(); this.setState(s=>({imp:{...s.imp, askOpen:!s.imp.askOpen}})); };
       v.onToggleOther = ()=>{ tapLight(); this.setState(s=>({imp:{...s.imp, otherOpen:!s.imp.otherOpen}})); };
       // 設定アプリの中の言い方は iOS の版で変わる。
       // iOS 18 から「設定 → アプリ → カレンダー → カレンダーアカウント」、

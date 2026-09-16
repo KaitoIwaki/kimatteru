@@ -13,6 +13,43 @@ function Jp({ parts, style }) {
   );
 }
 
+// 取り込みの画面の絵。「iPhone のカレンダー → LUKKO、読むだけ」を1枚で言う。
+// 文で3段落書いていたものを、これと2行に置き換えた。説明が一気に出ると
+// 読む気が失せて、結局どのボタンを押せばいいか分からない、という指摘から。
+function ImportPic() {
+  // LUKKO のアイコンと同じ、詰まった点と点線の輪
+  const mark = (cx, cy, open) => (open
+    ? <circle key={cx + ':' + cy} cx={cx} cy={cy} r="4.5" fill="none" stroke="#3A3D40" strokeWidth="1.3" strokeDasharray="2 1.8" />
+    : <circle key={cx + ':' + cy} cx={cx} cy={cy} r="4.5" fill="#3A3D40" />);
+  return (
+    <svg width="100%" viewBox="0 0 300 110" style={s('display:block;margin:18px 0 14px')} aria-hidden="true">
+      <rect x="20" y="20" width="76" height="76" rx="16" fill="#fff" stroke="var(--line)" strokeWidth="1" />
+      <rect x="20" y="20" width="76" height="22" rx="16" fill="#E5463C" />
+      <rect x="20" y="34" width="76" height="8" fill="#E5463C" />
+      <text x="58" y="74" textAnchor="middle" fontSize="30" fontWeight="300" fill="#1E2024" fontFamily="inherit">16</text>
+      <path d="M108 58 H186" stroke="var(--ink-mut)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <path d="M180 52 L188 58 L180 64" stroke="var(--ink-mut)" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <text x="148" y="46" textAnchor="middle" fontSize="11" fill="var(--ink-mut)" fontFamily="inherit">読むだけ</text>
+      <rect x="204" y="20" width="76" height="76" rx="16" fill="#F2EEE6" stroke="var(--line)" strokeWidth="1" />
+      <rect x="222" y="34" width="40" height="5" rx="2.5" fill="#8CA3B8" />
+      {[[228, 56, false], [242, 56, true], [256, 56, false], [228, 72, true], [242, 72, false], [256, 72, false]].map(([x, y, o]) => mark(x, y, o))}
+    </svg>
+  );
+}
+
+// 開いたり閉じたりする小さな説明。要る人だけが開く
+function Fold({ title, open, onToggle, children }) {
+  return (
+    <div style={s('background:var(--card);border:1px solid var(--line);border-radius:17px;overflow:hidden')}>
+      <div style={s('display:flex;align-items:center;gap:10px;padding:13px 16px;cursor:pointer')} onClick={onToggle}>
+        <span style={s('flex:1;font-size:13px;font-weight:700;color:var(--ink);line-height:1.6')}>{title}</span>
+        <span style={s(`font-size:12px;color:var(--ink-mut);flex-shrink:0;transition:transform .2s ease;transform:rotate(${open ? '90deg' : '0deg'})`)}>▶</span>
+      </div>
+      {open && <div style={s('padding:0 16px 16px;font-size:12.5px;color:var(--ink-soft);line-height:1.95;text-wrap:pretty;animation:riseUp .22s cubic-bezier(.2,.9,.2,1)')}>{children}</div>}
+    </div>
+  );
+}
+
 // まとめの、種類ごとの時間。上の行が種類、その下に何が多かったか。
 // 下の行は名前が2つ以上あるときだけ来る（App.jsx の _timeBreakdown が絞る）。
 // 1つしか無いなら上の行と同じことを二度言うだけになる。
@@ -1938,37 +1975,16 @@ export function renderApp(v) {
               </>
             ) : (
               <>
-                <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:12px;line-height:1.55')}>
+                <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:4px;line-height:1.55')}>
                   {''}<Jp parts={['いま使っている', 'カレンダーの', '予定を', '持ってくる']} />
                 </div>
-                <div style={s('font-size:14px;color:var(--ink-soft);line-height:1.95')}>
-                  {''}<Jp parts={['iPhone のカレンダーに', '入っている予定を', '読み込んで、', 'このアプリに', '並べます。']} />
+                {/* 絵1枚と2行。前はここに3段落＋箱2つがあって、読む気が失せると言われた */}
+                <ImportPic />
+                <div style={s('font-size:14px;color:var(--ink);line-height:1.9')}>
+                  {''}<Jp parts={['iPhone のカレンダーから読んで、', 'ここに並べます。']} />
                 </div>
-                <div style={s('font-size:14px;color:var(--ink-soft);line-height:1.95;margin-top:2px')}>
-                  {''}<Jp parts={['はじめから', '作り直さなくて', '済みます。']} />
-                </div>
-
-                {/* ここは**事実だけ**にする。どちらを選べとは書かない。
-                    App Store の 5.1.1(iv) は「許可するように促す・仕向ける」ことを
-                    禁じている。緑で目立たせて「選んでください」と書いていたのは、
-                    まさにそれだった（v1.0(49) でリジェクト）。
-                    アプリに何ができるかを述べるのは許されているので、そこだけ残す。 */}
-                <div style={s('margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:17px;padding:16px 18px')}>
-                  <div style={s('font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px')}>iPhone が2つの選び方を聞いてきます</div>
-                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95')}>
-                    {''}<Jp parts={['「追加のみ」と', '「フルアクセス」です。', 'このアプリが', '予定を読み込めるのは', '「フルアクセス」のときで、', '「追加のみ」では', '読み込めません。']} />
-                  </div>
-                </div>
-
-                <div style={s('margin-top:14px;background:var(--card);border-radius:17px;padding:16px 18px;border:1px solid var(--line)')}>
-                  <div style={s('font-size:13px;font-weight:700;color:var(--ink);margin-bottom:10px')}>読むだけです</div>
-                  <div style={s('font-size:12.5px;color:var(--ink-soft);line-height:1.95')}>
-                    {['あなたのカレンダーに書き込むことはありません', '読んだ予定はこの端末の中だけに保存されます', '外部に送られることはありません'].map((t, i) => (
-                      <div key={i} style={s('display:flex;gap:6px')}>
-                        <span>・</span><span style={s('flex:1')}>{t}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-top:2px')}>
+                  {''}<Jp parts={['書き込みません。', '外にも送りません。']} />
                 </div>
 
                 {!!v.impError && (
@@ -1982,18 +1998,26 @@ export function renderApp(v) {
                   </div>
                 )}
 
-                {/* ほかのカレンダーアプリを使っている人へ。読む前に見えていてほしいので
-                    ボタンの上に置くが、全員に要るものではないので見出しだけ出す */}
-                <div style={s('margin-top:14px')}><OtherCal v={v} s={s} /></div>
-
                 {/* 「カレンダーを読む」から「続ける」へ。
                     許可を聞く前の画面のボタンに、許可した先の動きを書いてはいけない
                     （5.1.1(iv)）。Apple から Continue か Next を使うよう名指しで
                     指摘された。「やめる」も並べて、進まない道を同じ画面に置く。 */}
-                <div style={s(`margin-top:26px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
+                <div style={s(`margin-top:22px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
                   {v.impPhase === 'scanning' ? '読み込んでいます…' : '続ける'}
                 </div>
                 <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
+
+                {/* ここから下は、要る人だけが開く。
+                    許可の話は**事実だけ**にする。どちらを選べとは書かない。
+                    App Store の 5.1.1(iv) は「許可するように促す・仕向ける」ことを
+                    禁じている。緑で目立たせて「選んでください」と書いていたのは、
+                    まさにそれだった（v1.0(49) でリジェクト）。 */}
+                <div style={s('margin-top:10px;display:flex;flex-direction:column;gap:10px')}>
+                  <Fold title="次に iPhone が聞くこと" open={v.impAskOpen} onToggle={v.onToggleAsk}>
+                    {''}<Jp parts={['「追加のみ」と', '「フルアクセス」の', '2つを聞かれます。', 'このアプリが予定を', '読めるのは', '「フルアクセス」のときです。']} />
+                  </Fold>
+                  <OtherCal v={v} s={s} />
+                </div>
               </>
             )}
 
