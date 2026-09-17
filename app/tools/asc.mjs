@@ -5,6 +5,7 @@
 //   ASC_KEY_ID=... ASC_ISSUER_ID=... ASC_KEY_PATH=/path/AuthKey_XXXX.p8 \
 //     node tools/asc.mjs status     ← 読むだけ
 //     node tools/asc.mjs text       ← いま登録されている文言を読む
+//     node tools/asc.mjs version    ← 次の版を作る。番号は MARKETING_VERSION から（書き込み）
 //     node tools/asc.mjs fill       ← 原稿から文言を流し込む（書き込み）
 //                                     App名・サブタイトル・プロモーション・新機能・説明・キーワード
 //     node tools/asc.mjs notes      ← 審査メモに応援への行き方を足す（書き込み）
@@ -613,7 +614,36 @@ async function submit() {
   console.log(`  版の状態         ${v2.attributes.appStoreState}`);
   console.log(`${NL}審査が始まる前なら node tools/asc.mjs cancel で取り下げられます。`);
 }
+
+/**
+ * 次の版を App Store Connect に作る。番号は Xcode の MARKETING_VERSION から取る
+ * （原稿とストアで番号がずれないように、ここで手で打たない）。
+ *
+ *   node tools/asc.mjs version      ← 作る。もう有れば何もしない
+ *
+ * 作ったあとは fill で文言を、build でビルドを付ける。プロモーションは版をまたいで
+ * 引き継がれないので、fill を忘れると空で出る。
+ */
+async function version() {
+  const pbx = fs.readFileSync(new URL('../ios/App/App.xcodeproj/project.pbxproj', import.meta.url), 'utf8');
+  const m = pbx.match(/MARKETING_VERSION = ([\d.]+);/);
+  if (!m) throw new Error('project.pbxproj に MARKETING_VERSION が無い');
+  const want = m[1];
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const vs = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=5`)).data;
+  head('■ 版');
+  for (const v of vs) line(v.attributes.versionString, v.attributes.appStoreState);
+  const has = vs.find((v) => v.attributes.versionString === want);
+  if (has) { console.log(`${NL}${want} はもう有ります（${has.attributes.appStoreState}）。触りません。`); return; }
+  const live = vs.find((v) => !['READY_FOR_SALE', 'REPLACED_WITH_NEW_VERSION', 'REMOVED_FROM_SALE'].includes(v.attributes.appStoreState));
+  if (live) { console.log(`${NL}${live.attributes.versionString} が ${live.attributes.appStoreState} のままです。同時に2つは持てないので、ここで止めます。`); return; }
+  const made = (await call('/v1/appStoreVersions', 'POST', {
+    data: { type: 'appStoreVersions', attributes: { platform: 'IOS', versionString: want },
+      relationships: { app: { data: { type: 'apps', id: app.id } } } },
+  })).data;
+  console.log(`${NL}${want} を作りました（${made.attributes.appStoreState}）。次は fill と build。`);
+}
 const cmd = process.argv[2] || 'status';
-const jobs = { status, text, iap, memo, fill, notes, build, submit, cancel };
+const jobs = { status, text, iap, memo, version, fill, notes, build, submit, cancel };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
