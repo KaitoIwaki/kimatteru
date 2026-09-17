@@ -1468,6 +1468,15 @@ export function renderApp(v) {
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>予定をファイルに書き出す（.ics）</span>
                 <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
               </div>
+              {/* 誕生日や祝日が取り込みで入ってしまった人のため。対象が無ければ出さない */}
+              {v.tidyCount > 0 && (
+                <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenTidy}>
+                  <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>…</span>
+                  <span style={s('flex:1;font-size:15px;color:var(--ink)')}>取り込んだ予定を整理する</span>
+                  <span style={s('font-size:13px;color:var(--ink-mut)')}>{v.tidyCount}件</span>
+                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+                </div>
+              )}
               <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onExportBackup}>
                 <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↑</span>
                 <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えを書き出す</span>
@@ -1924,15 +1933,23 @@ export function renderApp(v) {
             {v.impPhase === 'done' ? (
               <div style={s('text-align:center;padding:56px 10px')}>
                 <div style={s('width:56px;height:56px;border-radius:28px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;animation:checkPop .5s cubic-bezier(.2,.9,.2,1) both')}>✓</div>
-                <div style={s('font-size:19px;font-weight:400;color:var(--ink);margin-top:18px')}>{v.impAdded}件を取り込みました</div>
+                <div style={s('font-size:19px;font-weight:400;color:var(--ink);margin-top:18px')}>
+                  {v.impTidied === 'skip' ? `${v.impAdded}件をまとめから外しました` : v.impTidied === 'delete' ? `${v.impAdded}件を消しました` : `${v.impAdded}件を取り込みました`}
+                </div>
                 <div style={s('font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.9;text-wrap:pretty')}>
-                  {''}<Jp parts={['すべて','「決まってる」として','置きました。','まだ分からない予定は、','タップして','点線に','変えられます。']} />
+                  {v.impTidied === 'skip'
+                    ? <Jp parts={['予定はカレンダーに','残っています。','時間には','数えません。']} />
+                    : v.impTidied === 'delete'
+                      ? <Jp parts={['カレンダーから','消えました。']} />
+                      : <Jp parts={['すべて','「決まってる」として','置きました。','まだ分からない予定は、','タップして','点線に','変えられます。']} />}
                 </div>
                 {/* 取り込んだ瞬間に案内が消えるので、ここで新しい予定の入れ方を伝える。
                     前は取り込んだあと、追加のしかたがどこにも出ていなかった。 */}
-                <div style={s('margin-top:20px;padding:14px 16px;border-radius:15px;background:var(--bg2);font-size:13px;color:var(--ink-soft);line-height:1.9;text-wrap:pretty')}>
-                  {''}<Jp parts={['新しい予定は、','下の ＋ から','入れられます。']} />
-                </div>
+                {!v.impTidied && (
+                  <div style={s('margin-top:20px;padding:14px 16px;border-radius:15px;background:var(--bg2);font-size:13px;color:var(--ink-soft);line-height:1.9;text-wrap:pretty')}>
+                    {''}<Jp parts={['新しい予定は、','下の ＋ から','入れられます。']} />
+                  </div>
+                )}
                 <div style={s('margin-top:28px;padding:15px;border-radius:16px;background:var(--ink);color:var(--card);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onImportDone}>カレンダーを見る</div>
               </div>
             ) : v.impPhase === 'found' ? (
@@ -1941,7 +1958,9 @@ export function renderApp(v) {
                   {v.impNone ? '予定が見つかりませんでした' : `${v.impCount}件の予定が見つかりました`}
                 </div>
                 <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-bottom:16px;text-wrap:pretty')}>
-                  {v.impFromIcs
+                  {v.impTidy
+                    ? <Jp parts={['取り込みで入った、','終日の予定です。','誕生日や祝日らしいものに','印を付けてあります。']} />
+                    : v.impFromIcs
                     ? (v.impNone ? <Jp parts={['このファイルに', '読める予定が', 'ありませんでした。']} /> : <Jp parts={['ファイルの中の予定です。', 'もう入っているものは', '除いてあります。']} />)
                     : v.impNone
                       ? <Jp parts={['iPhone のカレンダーに', '読める予定が', 'ありませんでした。']} />
@@ -1953,7 +1972,7 @@ export function renderApp(v) {
                   <>
                     {/* 前は1件ごとに種類の札が4つ並んでいた。いまは1つだけ。押すと次の種類に変わる */}
                     <div style={s('display:flex;align-items:center;justify-content:space-between;margin:0 4px 8px')}>
-                      <span style={s('font-size:12px;color:var(--ink-mut)')}>右の札を押すと、種類が変わります</span>
+                      <span style={s('font-size:12px;color:var(--ink-mut)')}>{v.impTidy ? '押すと選べます' : '右の札を押すと、種類が変わります'}</span>
                       <span style={s('font-size:13px;color:var(--ink-mut);cursor:pointer;white-space:nowrap')} onClick={v.onToggleAll}>
                         {v.impAllOn ? 'すべて外す' : 'すべて選ぶ'}
                       </span>
@@ -1966,19 +1985,31 @@ export function renderApp(v) {
                             <div style={s('font-size:11px;color:var(--ink-mut);font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.when}</div>
                             <div style={s('font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px')}>{r.title}</div>
                           </div>
-                          <div style={s(r.typeStyle)} onClick={r.onCycleType}>{r.typeName}</div>
+                          {!v.impTidy && <div style={s(r.typeStyle)} onClick={r.onCycleType}>{r.typeName}</div>}
                         </div>
                       ))}
                     </div>
                   </>
                 )}
-                {!v.impNone && (
+                {!v.impNone && !v.impTidy && (
                   <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onDoImport}>
                     {v.impOnCount}件を取り込む
                   </div>
                 )}
+                {/* 整理：外すのが本筋（予定は残る）。消すのは下に小さく、赤で */}
+                {!v.impNone && v.impTidy && (
+                  <>
+                    <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onTidySkip}>
+                      {v.impOnCount}件をまとめから外す
+                    </div>
+                    <div style={s('font-size:11px;color:var(--ink-faint);text-align:center;margin-top:8px')}>予定はカレンダーに残ります</div>
+                    <div style={s(`margin-top:14px;padding:12px;text-align:center;font-size:14px;cursor:pointer;color:${v.impOnCount === '0' ? 'var(--ink-faint)' : '#A8452B'}`)} onClick={v.impOnCount === '0' ? undefined : v.onTidyDelete}>
+                      {v.impOnCount}件をカレンダーから消す
+                    </div>
+                  </>
+                )}
                 <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
-                {!v.impNone && (
+                {!v.impNone && !v.impTidy && (
                   <div style={s('margin-top:10px')}>
                     <Fold title="まとめて種類を変える" open={v.impBulkOpen} onToggle={v.onToggleBulk}>
                       <div style={s('display:flex;gap:6px;flex-wrap:wrap;margin-top:2px')}>

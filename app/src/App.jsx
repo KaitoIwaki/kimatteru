@@ -1503,6 +1503,10 @@ export default class App extends React.Component {
       v.impAdded=String(im.added||0);
       v.impNone = im.phase==='found' && (im.found||[]).length===0;
       v.impFromIcs = im.source==='ics';
+      v.impTidy = im.source==='tidy';
+      v.impTidied = im.tidied||'';
+      v.onTidySkip = ()=>this.tidySkip();
+      v.onTidyDelete = ()=>this.tidyDelete();
       // ほかのカレンダーの案内。開閉できるようにして、ふだんは見出しだけにする。
       // 全員に要るものではないが、要る人にとっては「使えない」と「使える」の差になる。
       v.impOtherOpen = !!im.otherOpen;
@@ -1768,6 +1772,8 @@ export default class App extends React.Component {
     // 戻すのは「ファイルをえらぶ」が本筋。貼り付けは、えらべなかったときの逃げ道。
     v.onPickBackup = ()=>this.pickBackupFile();
     v.onExportIcs = ()=>this.exportIcs();
+    v.tidyCount = this.tidyTargets().length;
+    v.onOpenTidy = ()=>this.openTidy();
     v.onPickIcs = ()=>this.pickIcsFile();
     v.onIcsFile = (e)=>this.readIcsFile(e);
     v.onBackupFile = (e)=>this.readBackupFile(e);
@@ -1970,7 +1976,8 @@ export default class App extends React.Component {
     if(v.reportShown){
       const Y=st.ym.y, M=st.ym.m;
       // 数えるのは確定と実績。未確定はまだ起きていない。無くなったものは無かった
-      const spent = st.events.filter(e=>e.status==='kakutei'||e.status==='jisseki');
+      // 「まとめに入れない」と付けたものは、確定でも数えない（誕生日・祝日などの、本人の予定ではないもの）
+      const spent = st.events.filter(e=>(e.status==='kakutei'||e.status==='jisseki') && !e.noReport);
       const moK = this._timeBreakdown(spent.filter(e=>e.y===Y && e.m===M));
       const yrK = this._timeBreakdown(spent.filter(e=>e.y===Y));
       const tot = (ks)=>ks.reduce((a,k)=>({hours:a.hours+k.hours, days:a.days+k.days, times:a.times+k.times}),{hours:0,days:0,times:0});
@@ -2006,7 +2013,7 @@ export default class App extends React.Component {
       }));
 
       // ---- 給料。バイトの実績がその年に1件でもあるときだけ。無い人には金の話は要らない ----
-      const doneAll = st.events.filter(e=>e.status==='jisseki');
+      const doneAll = st.events.filter(e=>e.status==='jisseki' && !e.noReport);
       v.repWageShown = doneAll.some(e=>e.y===Y && e.type==='baito');
       const sum=(list)=>{
         const hours=list.reduce((a,e)=>a+this.paidHours(e),0);
@@ -2737,6 +2744,9 @@ export default class App extends React.Component {
       if(ev.status==='jisseki') mRows.push({key:'fix', label:'働いた時間を直す',
         fn:()=>this.openDialog(ev,'worked',st.returnTo)});
       mRows.push({key:'edit', label:'編集', fn:()=>this.openEdit(ev,st.returnTo)});
+      // 誕生日や祝日のように、予定としては置いておきたいが「使った時間」ではないもの
+      mRows.push({key:'rep', label: ev.noReport ? 'まとめに入れる' : 'まとめに入れない',
+        fn:()=>this.updateEvent(ev.id,{noReport: ev.noReport ? undefined : true})});
       if(canCopy) mRows.push({key:'copy', label:'コピー', fn:()=>this.openCopy(ev,st.returnTo)});
       mRows.push({key:'del', red:true, fn:()=>this.askDelete(ev.id),
         label: ev.status==='jisseki' ? 'この実績を削除' : 'この予定を削除'});
@@ -3139,6 +3149,40 @@ export default class App extends React.Component {
       status: e.tentative ? 'mikakutei' : (e.lstatus === 'jisseki' ? 'jisseki' : 'kakutei'),
     }));
     this.setState((s) => ({ screen: 'import', imp: { ...s.imp, phase: 'found', found: picked, error: '', source: 'ics', otherOpen: false } }));
+  }
+  // ---- 取り込んだ予定の整理 ----
+  // iPhone のカレンダーから、誕生日や祝日（行事）が本人の予定として入っていたことがある。
+  // いまの取り込みはそれらを読まないが、すでに入っているものは残る。
+  // ここで一覧にして、「まとめから外す」か「消す」を本人に選んでもらう。勝手には何もしない。
+  // 対象は、取り込みで入った（ID が i で始まる）終日の予定。
+  TIDY_WORDS = /誕生日|birthday|七夕|七五三|バレンタイン|ホワイトデー|ハロウィン|クリスマス|イブ|母の日|父の日|敬老の日|節分|ひな祭り|ひなまつり|こどもの日|大晦日|正月|元日|成人の日|建国記念|春分|昭和の日|憲法記念|みどりの日|海の日|山の日|秋分|スポーツの日|文化の日|勤労感謝|天皇誕生日|祝日|休日|振替/i;
+  tidyTargets(){
+    return this.state.events.filter(e => e.allDay && typeof e.id==='string' && e.id.startsWith('i') && !e.noReport);
+  }
+  openTidy(){
+    tapLight();
+    const list = this.tidyTargets()
+      .sort((a,b)=>(a.y-b.y)||(a.m-b.m)||(a.day-b.day))
+      .map(e=>({ key:e.id, id:e.id, title:e.title, y:e.y, m:e.m, day:e.day, start:e.start, end:e.end, allDay:true,
+        type:e.type, status:e.status, on: this.TIDY_WORDS.test(e.title||'') }));
+    this.setState(s=>({ screen:'import', imp:{ ...s.imp, phase:'found', found:list, error:'', source:'tidy', otherOpen:false } }));
+  }
+  // まとめから外す。予定はカレンダーに残る
+  tidySkip(){
+    const ids = new Set((this.state.imp.found||[]).filter(e=>e.on).map(e=>e.id));
+    if(!ids.size) return;
+    tapLight();
+    const now=Date.now();
+    this.setState(s=>({ events:s.events.map(e=>ids.has(e.id)?{...e, noReport:true, updatedAt:now}:e),
+      imp:{...s.imp, phase:'done', added:ids.size, tidied:'skip'} }));
+  }
+  // 消す。戻せないので、いまの削除と同じ重さで
+  tidyDelete(){
+    const ids = new Set((this.state.imp.found||[]).filter(e=>e.on).map(e=>e.id));
+    if(!ids.size) return;
+    stampHeavy();
+    this.setState(s=>({ events:s.events.filter(e=>!ids.has(e.id)),
+      imp:{...s.imp, phase:'done', added:ids.size, tidied:'delete'} }));
   }
   pickBackupFile() {
     tapLight();
