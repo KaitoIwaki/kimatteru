@@ -194,12 +194,18 @@ const sanitizeEvents = (list) => {
     if (!isNum(e.y) || !isNum(e.m) || !isNum(e.day)) continue;
     if (e.m < 0 || e.m > 11 || e.day < 1 || e.day > 31) continue;
     const start = fixTime(e.start, '09:00');
+    const end = fixTime(e.end, start);
+    // 0:00〜23:59 の予定は、終日として置いたもの。iPhone のカレンダーから来た誕生日や
+    // 行事がこの形で入っていて、まとめで「23時間59分」と数えられていた。
+    // 終日なら時間にせず、日数で数える（まとめの決まり）
+    const allDay = !!e.allDay || (start === '00:00' && end === '23:59');
     out.push({
       ...e,
+      allDay,
       id: typeof e.id === 'string' && e.id ? e.id : uid('x'),
       title: typeof e.title === 'string' ? e.title : '無題',
       start,
-      end: fixTime(e.end, start),
+      end,
       actualEnd: typeof e.actualEnd === 'string' && HHMM.test(e.actualEnd) ? e.actualEnd : undefined,
       want: Array.isArray(e.want) && e.want.length === 2 ? e.want : undefined,
     });
@@ -1198,8 +1204,10 @@ export default class App extends React.Component {
       onFreeBack:()=>this.setState({screen:'month'}),
       // 控えを貼りつけている間はナビを隠す。浮かせてあるので、
       // キーボードが上がると入力欄に重なって、貼りつけの邪魔になる。
+      // キーボードが出ているあいだも隠す。ナビは浮かせてあるので、キーボードで画面が縮むと
+      // 一緒に持ち上がって、入力欄の上に乗る（TestFlight の実機で見た）
       navShown: (st.screen==='month' || st.screen==='free' || st.screen==='report'
-        || (st.screen==='settings' && !st.pasteOpen)),
+        || (st.screen==='settings' && !st.pasteOpen)) && !st.kbOpen,
       onBell:()=>this.openNotices(),
       navCur: st.screen,
       onNavCal:()=>this.setState({screen:'month', dayNum:null, detailId:null}),
@@ -2951,6 +2959,11 @@ export default class App extends React.Component {
 
   componentDidMount() {
     this._applyTheme();
+    // 入力欄に入ったらキーボードが出る。出ているあいだナビを隠す（navShown）。
+    // focusout は次の入力欄へ移るときにも来るので、少し待ってから本当に離れたかを見る
+    const isField = (el) => !!el && /^(INPUT|TEXTAREA)$/.test(el.tagName) && el.type !== 'file' && el.type !== 'checkbox';
+    document.addEventListener('focusin', (e) => { if (isField(e.target)) this.setState({ kbOpen: true }); });
+    document.addEventListener('focusout', () => { setTimeout(() => { if (!isField(document.activeElement)) this.setState({ kbOpen: false }); }, 60); });
     // スクリーンショット撮影用。?demo=1 のときだけサンプルを表示中の月に入れる
     if (wantsDemo() && this.state.events.length === 0) {
       const { y, m } = this.state.ym;

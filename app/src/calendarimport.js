@@ -77,8 +77,18 @@ export async function readCalendarEvents({ monthsBack = 1, monthsAhead = 12 } = 
   const from = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1).getTime();
   const to = new Date(now.getFullYear(), now.getMonth() + monthsAhead + 1, 0, 23, 59, 59).getTime();
 
+  // 誕生日のカレンダー（連絡先から作られるもの）と、購読しているカレンダー（祝日・行事など）は
+  // 読まない。本人の予定ではないのに用事として入り、まとめで時間に数えられていた
+  // （七夕・七五三・○○さんの誕生日、が 23時間59分 ずつ）。
+  // 3 = SUBSCRIPTION、4 = BIRTHDAY（@ebarooni/capacitor-calendar の CalendarType）
+  const skip = new Set();
+  try {
+    const cals = await CapacitorCalendar.listCalendars();
+    for (const c of (cals && cals.result) || []) if (c && (c.type === 3 || c.type === 4 || c.isSubscribed)) skip.add(String(c.id));
+  } catch (e) { /* 一覧が取れなくても、読むこと自体は続ける */ }
+
   const res = await CapacitorCalendar.listEventsInRange({ from, to });
-  const list = (res && res.result) || [];
+  const list = ((res && res.result) || []).filter((e) => !(e && e.calendarId != null && skip.has(String(e.calendarId))));
 
   return list
     .map((e) => {
