@@ -13,6 +13,11 @@ const RAW = [
   { day: 16, type: 'baito', title: 'バイト', start: '17:00', end: '22:00', status: 'jisseki', actualEnd: '23:00' },
   { day: 18, type: 'asobi', title: 'ライブ', start: '18:00', end: '22:00', status: 'mikakutei' },
   { day: 20, type: 'yoji', title: '健康診断', start: '09:00', end: '11:00', status: 'kakutei' },
+  // まとめで「同じ名前はまとめる」が見えるように。朝のジムを3回、映画をもう1本
+  { day: 7, type: 'yoji', title: 'ジム', start: '07:00', end: '08:30', status: 'kakutei' },
+  { day: 14, type: 'yoji', title: 'ジム', start: '07:00', end: '08:30', status: 'kakutei' },
+  { day: 21, type: 'yoji', title: 'ジム', start: '07:00', end: '08:30', status: 'kakutei' },
+  { day: 12, type: 'asobi', title: '映画', start: '19:00', end: '22:00', status: 'kakutei' },
   { day: 21, type: 'baito', title: 'バイト', start: '17:00', end: '22:00', status: 'kakutei' },
   { day: 24, type: 'baito', title: 'バイト', start: '17:00', end: '22:00', status: 'mikakutei', want: ['17:00', '22:00'] },
   { day: 25, type: 'baito', title: 'バイト', start: '12:00', end: '18:00', status: 'mikakutei' },
