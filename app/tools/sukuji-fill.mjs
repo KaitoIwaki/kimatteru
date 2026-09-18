@@ -58,24 +58,36 @@ async function whiteBlob(buf, thr = 248, region = null, seed = null) {
     // seed（この点を含む塊）が指定されていればそれを、無ければいちばん大きいものを
     if (seed ? label[seed[1] * W + seed[0]] === id : n > best.n) best = { id, n };
   }
+  // 四隅。「x+y が最小の点」で取ると、角が丸い画面では丸みの上の点になり、
+  // 画面が一回り小さく貼られる（下と横に白い隙間が出た）。
+  // 塊の向き（主軸の角度）を出し、その向きに揃えた枠の最小・最大から角を出す。
+  // 丸い角は直線の辺より内側にあるので、揃えた枠の最小・最大には効かない
   const mask = new Uint8Array(W * H);
-  let tl = [1e9, null], tr = [-1e9, null], br = [-1e9, null], bl = [1e9, null];
-  for (let p = 0; p < W * H; p++) {
-    if (label[p] !== best.id) continue;
-    mask[p] = 255;
-    const x = p % W, y = (p / W) | 0;
-    if (x + y < tl[0]) tl = [x + y, [x, y]];
-    if (x - y > tr[0]) tr = [x - y, [x, y]];
-    if (x + y > br[0]) br = [x + y, [x, y]];
-    if (x - y < bl[0]) bl = [x - y, [x, y]];
+  let sx = 0, sy = 0, cnt = 0;
+  for (let p = 0; p < W * H; p++) if (label[p] === best.id) { mask[p] = 255; sx += p % W; sy += (p / W) | 0; cnt += 1; }
+  const cx = sx / cnt, cy = sy / cnt;
+  let vxx = 0, vyy = 0, vxy = 0;
+  for (let p = 0; p < W * H; p++) if (label[p] === best.id) { const dx = (p % W) - cx, dy = ((p / W) | 0) - cy; vxx += dx * dx; vyy += dy * dy; vxy += dx * dy; }
+  // 主軸。縦長の画面なら主軸は縦。横の辺の傾きにしたいので、縦向きなら 90° 戻す
+  let th = 0.5 * Math.atan2(2 * vxy, vxx - vyy);
+  if (vyy > vxx) th += Math.PI / 2;
+  th = ((th + Math.PI / 2) % Math.PI) - Math.PI / 2;      // -90°〜90° に
+  if (th > Math.PI / 4) th -= Math.PI / 2; if (th < -Math.PI / 4) th += Math.PI / 2;
+  const cs = Math.cos(th), sn = Math.sin(th);
+  let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
+  for (let p = 0; p < W * H; p++) if (label[p] === best.id) {
+    const dx = (p % W) - cx, dy = ((p / W) | 0) - cy;
+    const u = dx * cs + dy * sn, v = -dx * sn + dy * cs;
+    if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v;
   }
-  return { W, H, mask, corners: { tl: tl[1], tr: tr[1], br: br[1], bl: bl[1] }, n: best.n };
+  const back = (u, v) => [cx + u * cs - v * sn, cy + u * sn + v * cs];
+  return { W, H, mask, corners: { tl: back(u0, v0), tr: back(u1, v0), br: back(u1, v1), bl: back(u0, v1) }, n: best.n, tilt: th * 180 / Math.PI };
 }
 
 // スクショを四隅に合わせて歪め、白い塊の形で切り抜いて、絵の上に貼る
 async function fill(genFile, srcBuf, outFile) {
   const gen = await sharp(join(GEN, genFile)).resize(TARGET_W).png().toBuffer();
-  const { W, H, mask, corners: c, n } = await whiteBlob(gen);
+  const { W, H, mask, corners: c, n, tilt: th } = await whiteBlob(gen);
   const sm = await sharp(srcBuf).metadata();
   const sw = sm.width, sh = sm.height;
   // 左上を原点に、右上・左下へ向かうベクトルで行列を作る
@@ -85,12 +97,16 @@ async function fill(genFile, srcBuf, outFile) {
   // 歪めたあとの絵は、四隅の最小の x・y から始まる。左上の点に合わせて置く
   const xs = [0, a * sw, b * sh, a * sw + b * sh], ys = [0, cc * sw, d * sh, cc * sw + d * sh];
   const left = Math.round(c.tl[0] + Math.min(...xs)), top = Math.round(c.tl[1] + Math.min(...ys));
-  const maskPng = await sharp(Buffer.from(mask), { raw: { width: W, height: H, channels: 1 } }).png().toBuffer();
+  // 1チャンネルの絵を dest-in に渡しても、アルファとして効かなかった（島が塗りつぶされた）。
+  // アルファの層を持つ RGBA にして渡す
+  const rgba = Buffer.alloc(W * H * 4);
+  for (let p = 0; p < W * H; p++) { rgba[p * 4] = 255; rgba[p * 4 + 1] = 255; rgba[p * 4 + 2] = 255; rgba[p * 4 + 3] = mask[p]; }
+  const maskPng = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
   const layer = await sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
     .composite([{ input: warped, left, top }]).png().toBuffer();
   const clipped = await sharp(layer).composite([{ input: maskPng, blend: 'dest-in' }]).png().toBuffer();
   await sharp(gen).composite([{ input: clipped }]).png().toFile(outFile);
-  const tilt = (Math.atan2(cc, a) * 180 / Math.PI).toFixed(1);
+  const tilt = th.toFixed(1);
   console.log(`${genFile} → ${outFile.split(/[\\/]/).pop()}  画面 ${Math.round(Math.hypot(c.tr[0] - c.tl[0], c.tr[1] - c.tl[1]))}×${Math.round(Math.hypot(c.bl[0] - c.tl[0], c.bl[1] - c.tl[1]))}px  傾き ${tilt}°  白 ${n}px`);
 }
 
