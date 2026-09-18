@@ -80,34 +80,43 @@ async function whiteBlob(buf, thr = 248, region = null, seed = null) {
     const u = dx * cs + dy * sn, v = -dx * sn + dy * cs;
     if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v;
   }
+  // 枠の中心（塊の重心ではない。島の切り欠きで重心は少し下にずれる）
+  const mu = (u0 + u1) / 2, mv = (v0 + v1) / 2;
+  const rect = { w: u1 - u0, h: v1 - v0, cx: cx + mu * cs - mv * sn, cy: cy + mu * sn + mv * cs };
   const back = (u, v) => [cx + u * cs - v * sn, cy + u * sn + v * cs];
-  return { W, H, mask, corners: { tl: back(u0, v0), tr: back(u1, v0), br: back(u1, v1), bl: back(u0, v1) }, n: best.n, tilt: th * 180 / Math.PI };
+  return { W, H, mask, rect, corners: { tl: back(u0, v0), tr: back(u1, v0), br: back(u1, v1), bl: back(u0, v1) }, n: best.n, tilt: th * 180 / Math.PI };
 }
 
-// スクショを四隅に合わせて歪め、白い塊の形で切り抜いて、絵の上に貼る
+// スクショを画面の大きさに縮め、画面の傾きだけ回し、画面の中心に置いて、白い塊の形で切り抜く。
+// アフィンで一度にやると、出てきた絵の原点がどこか分からず、大きめ・上寄りに貼られた。
+// 回転は中心まわりなので、回した絵の中心を画面の中心に合わせれば済む。
 async function fill(genFile, srcBuf, outFile) {
   const gen = await sharp(join(GEN, genFile)).resize(TARGET_W).png().toBuffer();
-  const { W, H, mask, corners: c, n, tilt: th } = await whiteBlob(gen);
-  const sm = await sharp(srcBuf).metadata();
-  const sw = sm.width, sh = sm.height;
-  // 左上を原点に、右上・左下へ向かうベクトルで行列を作る
-  const a = (c.tr[0] - c.tl[0]) / sw, cc = (c.tr[1] - c.tl[1]) / sw;
-  const b = (c.bl[0] - c.tl[0]) / sh, d = (c.bl[1] - c.tl[1]) / sh;
-  const warped = await sharp(srcBuf).affine([[a, b], [cc, d]], { background: { r: 0, g: 0, b: 0, alpha: 0 }, interpolator: 'bicubic' }).png().toBuffer();
-  // 歪めたあとの絵は、四隅の最小の x・y から始まる。左上の点に合わせて置く
-  const xs = [0, a * sw, b * sh, a * sw + b * sh], ys = [0, cc * sw, d * sh, cc * sw + d * sh];
-  const left = Math.round(c.tl[0] + Math.min(...xs)), top = Math.round(c.tl[1] + Math.min(...ys));
-  // 1チャンネルの絵を dest-in に渡しても、アルファとして効かなかった（島が塗りつぶされた）。
-  // アルファの層を持つ RGBA にして渡す
+  const { W, H, mask, rect, tilt } = await whiteBlob(gen);
+  const { w, h, cx, cy } = rect;
+  const rotated = await sharp(srcBuf).resize(Math.round(w), Math.round(h), { fit: 'fill' })
+    .rotate(tilt, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+  const rm = await sharp(rotated).metadata();
+  const left = Math.round(cx - rm.width / 2), top = Math.round(cy - rm.height / 2);
+  // 型。しきい値で切った縁はギザギザで、縁の外側にはもとの白の滲みが1〜2px 残る。
+  // 2px 太らせて、1px ぼかす。太らせた分は暗い縁（ベゼル）に乗るので目立たない
+  const dil = new Uint8Array(W * H);
+  for (let p = 0; p < W * H; p++) {
+    if (!mask[p]) continue;
+    const x = p % W, y = (p / W) | 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+      const xx = x + dx, yy = y + dy;
+      if (xx >= 0 && yy >= 0 && xx < W && yy < H) dil[yy * W + xx] = 255;
+    }
+  }
   const rgba = Buffer.alloc(W * H * 4);
-  for (let p = 0; p < W * H; p++) { rgba[p * 4] = 255; rgba[p * 4 + 1] = 255; rgba[p * 4 + 2] = 255; rgba[p * 4 + 3] = mask[p]; }
-  const maskPng = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
+  for (let p = 0; p < W * H; p++) { rgba[p * 4] = 255; rgba[p * 4 + 1] = 255; rgba[p * 4 + 2] = 255; rgba[p * 4 + 3] = dil[p]; }
+  const maskPng = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).blur(0.8).png().toBuffer();
   const layer = await sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-    .composite([{ input: warped, left, top }]).png().toBuffer();
+    .composite([{ input: rotated, left, top }]).png().toBuffer();
   const clipped = await sharp(layer).composite([{ input: maskPng, blend: 'dest-in' }]).png().toBuffer();
   await sharp(gen).composite([{ input: clipped }]).png().toFile(outFile);
-  const tilt = th.toFixed(1);
-  console.log(`${genFile} → ${outFile.split(/[\\/]/).pop()}  画面 ${Math.round(Math.hypot(c.tr[0] - c.tl[0], c.tr[1] - c.tl[1]))}×${Math.round(Math.hypot(c.bl[0] - c.tl[0], c.bl[1] - c.tl[1]))}px  傾き ${tilt}°  白 ${n}px`);
+  console.log(`${genFile} → ${outFile.split(/[\/]/).pop()}  画面 ${Math.round(w)}×${Math.round(h)}px（比 ${(h / w).toFixed(2)}）  傾き ${tilt.toFixed(1)}°  中心 (${Math.round(cx)},${Math.round(cy)})`);
 }
 
 // ---- ウィジェット：実機のホーム画面から切り出す ----
