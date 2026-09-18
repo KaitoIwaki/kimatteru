@@ -142,7 +142,17 @@ async function widgetCrop() {
   // 四角に切ると、丸い角の外の壁紙が隅に残る。角を丸く抜いて、外は白にする（貼る先の白と揃う）
   const r = Math.round(width * 0.062);
   const round = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${r}" fill="#fff"/></svg>`);
-  const cut = await sharp(home).extract({ left, top, width, height }).ensureAlpha().composite([{ input: round, blend: 'dest-in' }]).png().toBuffer();
+  // 「このあと」の行に、本人の予定の名前（塾の名前）が写っていた。そこだけ白で消して、
+  // 同じ色・同じ大きさで別の名前を置く。場所はこのスクショに合わせて測ったもの
+  // （crop の座標。別のスクショでは合わないので、そのときは REDACT を消すか測り直す）
+  const REDACT = { x: 266, y: 244, w: 170, h: 44, text: 'ランチ', size: 31, baseline: 279, color: '#8B887D' };
+  const patch = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+    <rect x="${REDACT.x}" y="${REDACT.y}" width="${REDACT.w}" height="${REDACT.h}" fill="#FBFBFD"/>
+    <text x="${REDACT.x + 4}" y="${REDACT.baseline}" font-family="'Hiragino Sans','Yu Gothic UI','Yu Gothic',sans-serif" font-size="${REDACT.size}" fill="${REDACT.color}">${REDACT.text}</text></svg>`);
+  // composite は1つのパイプラインで1回しか効かない（2回呼ぶと後の方だけ残る）。段階を分ける
+  const base = await sharp(home).extract({ left, top, width, height }).png().toBuffer();
+  const patched = await sharp(base).composite([{ input: patch }]).png().toBuffer();
+  const cut = await sharp(patched).ensureAlpha().composite([{ input: round, blend: 'dest-in' }]).png().toBuffer();
   return sharp({ create: { width, height, channels: 3, background: '#FFFFFF' } }).composite([{ input: cut }]).png().toBuffer();
 }
 
