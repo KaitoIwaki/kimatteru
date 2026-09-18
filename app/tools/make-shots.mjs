@@ -15,16 +15,26 @@
 // 別のポートで動かしているときは URL を渡す：
 //   node app/tools/make-shots.mjs http://127.0.0.1:4180/
 //
+// SAFE=1 を付けると、**スマホの枠に入れても壊れない版**を store-assets/sukuji/ に出す。
+// 枠には上にノッチ（ダイナミックアイランド）と下にホームバーがある。素のキャプチャは
+// 上端から中身が始まるので、枠に入れると 9月の見出しやダイアログの頭がノッチに隠れた
+// （sukuji.com で実際そうなった）。上 59pt・下 34pt をアプリの地の色で空けて、
+// その内側に画面を置く。iPhone 15 Pro の safe area と同じ寸法。
+//   SAFE=1 node app/tools/make-shots.mjs
+//
 // 予定は `?demo=1` のサンプル（src/demo.js）を表示中の月に流し込んで撮る。
 // 以前ここは html2canvas で作っていて、**重なりとぼかしを描けなかった**ため
 // 確認ダイアログの1枚だけ撮れていなかった。本物のブラウザで撮れば出る。
 import { chromium } from 'playwright';
+import sharp from 'sharp';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const OUT = join(here, '..', '..', 'store-assets', 'screenshots-6.9');
+const SAFE = process.env.SAFE === '1';
+const TOP = 59, BOTTOM = 34;                   // iPhone 15 Pro の safe area（pt）
+const OUT = join(here, '..', '..', 'store-assets', SAFE ? 'sukuji' : 'screenshots-6.9');
 const BASE = (process.argv[2] || 'http://127.0.0.1:4173/').replace(/\/$/, '');
 const URL = `${BASE}/?demo=1`;
 
@@ -39,7 +49,8 @@ const SEED = { events: [], jobs: [], overrides: {},
 const browser = await chromium.launch(
   process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}
 );
-const ctx = await browser.newContext({ viewport: { width: 430, height: 932 }, deviceScaleFactor: 3 });
+// SAFE のときは safe area のぶん低い画面で撮り、あとで上下に地を足して 932 に戻す
+const ctx = await browser.newContext({ viewport: { width: 430, height: SAFE ? 932 - TOP - BOTTOM : 932 }, deviceScaleFactor: 3 });
 const page = await ctx.newPage();
 const log = [];
 page.on('pageerror', (e) => log.push('!! ページで例外: ' + e.message));
@@ -53,8 +64,19 @@ const boot = async () => {
 
 const shot = async (name) => {
   await page.waitForTimeout(500);
-  await page.screenshot({ path: join(OUT, `${name}.png`) });
-  log.push(`撮影 ${name}`);
+  if (!SAFE) { await page.screenshot({ path: join(OUT, `${name}.png`) }); log.push(`撮影 ${name}`); return; }
+  // 上下に地を足す。色は画面の一番上の行と一番下の行から取る（ダイアログの暗い幕もそのまま続く）
+  const buf = await page.screenshot();
+  const meta = await sharp(buf).metadata();
+  // 行をそのまま伸ばすと、一覧の途中で切れた行が縞になる。行の平均の色で塗る
+  const band = async (row, h) => { const { data, info } = await sharp(buf).extract({ left: 0, top: row, width: meta.width, height: 1 }).raw().toBuffer({ resolveWithObject: true });
+    const c = [0, 1, 2].map((i) => { let t = 0; for (let x = 0; x < info.width; x++) t += data[x * info.channels + i]; return Math.round(t / info.width); });
+    return sharp({ create: { width: meta.width, height: h, channels: 3, background: { r: c[0], g: c[1], b: c[2] } } }).png().toBuffer(); };
+  const top = await band(0, TOP * 3), bottom = await band(meta.height - 1, BOTTOM * 3);
+  await sharp({ create: { width: meta.width, height: 932 * 3, channels: 3, background: '#F6F7F9' } })
+    .composite([{ input: top, top: 0, left: 0 }, { input: buf, top: TOP * 3, left: 0 }, { input: bottom, top: (932 - BOTTOM) * 3, left: 0 }])
+    .png().toFile(join(OUT, `${name}.png`));
+  log.push(`撮影 ${name}（枠用）`);
 };
 
 // 帯は pointer-events:none なので、帯そのものではなく「その下のマス」を押す
