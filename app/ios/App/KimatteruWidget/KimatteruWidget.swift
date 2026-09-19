@@ -676,7 +676,7 @@ struct WeekRow: View {
             ZStack(alignment: .topLeading) {
                 HStack(spacing: 0) {
                     ForEach(0..<7, id: \.self) { c in
-                        cellBase(week[c], dow: c, over: lay.overflow[c]).frame(width: cw, height: g.size.height)
+                        cellBase(week[c], dow: c, over: lay.overflow[c]).frame(width: cw, height: g.size.height, alignment: .topLeading)
                     }
                 }
                 ForEach(lay.bars) { b in
@@ -690,16 +690,18 @@ struct WeekRow: View {
 
     @ViewBuilder
     private func cellBase(_ m: MonthCell, dow: Int, over: Int) -> some View {
+        // 数字は左上。帯がマスの左端から始まるので、数字も左に揃えないと「ずれて」見える。
+        // 今日の印はマスいっぱいの板にしない（数字だけ左上に寄って、他のマスと違って見えた）。
+        // 数字の後ろに小さな丸い地を敷くだけにする
         ZStack(alignment: .topLeading) {
-            if m.isToday {
-                RoundedRectangle(cornerRadius: 4).fill(TODAY_BG).padding(.horizontal, 0.5)
-            }
             if let d = m.day {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("\(d)")
                         .font(.system(size: 9, weight: m.isToday ? .semibold : .regular))
                         .foregroundColor(numColor(d, dow: dow))
-                        .padding(.leading, 2.5).padding(.top, 1.5)
+                        .padding(.horizontal, 3).padding(.vertical, 1)
+                        .background(Group { if m.isToday { RoundedRectangle(cornerRadius: 3).fill(TODAY_BG) } })
+                        .padding(.leading, 1).padding(.top, 1)
                         .frame(height: WeekRow.numH, alignment: .topLeading)
                     Spacer(minLength: 0)
                     if over > 0 {
@@ -750,14 +752,27 @@ struct MonthCalendar: View {
 
 struct LargeView: View {
     let entry: Entry
+    /// 今月の未定の数。今日の分（entry.undecided）ではなく月ぶん——大は月のカレンダーなので。
+    /// 日をまたぐ予定は k で1つに数える（k が無い古い中身は日ごとに数える）
+    private var monthUndecided: Int {
+        var seen = Set<String>()
+        var n = 0
+        for (i, cell) in entry.month.enumerated() {
+            for it in cell.dots where !it.solid {
+                let key = it.k.flatMap { $0.isEmpty ? nil : $0 } ?? "\(i)-\(it.n)"
+                if seen.insert(key).inserted { n += 1 }
+            }
+        }
+        return n
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // 上の1行：月と、まだの数だけ。今日はマスの色で分かるので、日付は繰り返さない
             HStack(alignment: .firstTextBaseline) {
                 Text(entry.monthLabel).font(.system(size: 14, weight: .semibold)).foregroundColor(INK)
                 Spacer(minLength: 4)
-                if entry.undecided > 0 {
-                    Text("まだ \(entry.undecided)件").font(.system(size: 10.5)).foregroundColor(UNDECIDED)
+                if monthUndecided > 0 {
+                    Text("まだ \(monthUndecided)件").font(.system(size: 10.5)).foregroundColor(UNDECIDED)
                 }
             }
             .padding(.bottom, 6)
