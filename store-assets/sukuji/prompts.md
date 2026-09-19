@@ -51,6 +51,24 @@ and a solid green rounded pill with a white check mark on the right.
 → 画面には `2-dialog.png` を貼る。
 
 ## 3 枚目　ホーム画面にも（ウィジェット）
+**大・中・小の3つを見せる版**（2026-09-19。こちらを本命にする）：
+
+```
+[共通のテイスト]
+Headline: 「ホーム画面に、まだ何件か」
+Subline: 「小・中・大、好きな大きさで」
+No phone in this image. Instead, three blank white rounded rectangles floating
+above the desk like paper cards, each with a soft drop shadow, slightly overlapping:
+- a small square (1:1) at the upper left
+- a wide rectangle (2:1, twice the width of the square) at the upper right
+- a large near-square rectangle (about 1:1.05, same width as the wide one) at the bottom center
+Leave all three rectangles completely blank white. No icons, no text inside them.
+Same corner radius on all three (like iOS widgets).
+```
+→ 出た絵を `gen/gen-3-sizes.png` に。実機のホーム画面を `gen/widget-small.png` `widget-medium.png`
+　`widget-large.png` に置く。`node app/tools/sukuji-fill.mjs` が比（横長・正方形・縦長め）で振り分けて貼る。
+
+**1つだけの版**（前のもの）：
 
 ```
 [共通のテイスト]

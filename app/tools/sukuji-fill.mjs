@@ -131,38 +131,89 @@ async function fill(genFile, srcBuf, outFile, ramp) {
 // ---- ウィジェット：実機のホーム画面から切り出す ----
 // 白い塊で取ろうとしたが、壁紙の明るい所がウィジェットの上辺とつながって外れた。
 // 左右と下は壁紙の暗い所に接しているので、そこは白が途切れる所を探して決める。
-// 上辺だけは iOS の中サイズの比（1092×510 @3x ＝ 2.14）から出す。
-async function widgetCrop() {
-  const home = join(GEN, 'widget-home.png');
+// 上辺だけは iOS の大きさの比から出す（小 1:1、中 2.14:1、大 1:1.05）。
+// 「このあと」の行に本人の予定の名前が写っていたら redact で消せる。
+const WIDGET = {
+  small:  { file: 'widget-small.png',  ratio: 1.0,        seeds: [[0.25, 0.19], [0.3, 0.22], [0.2, 0.25], [0.35, 0.27]] },
+  medium: { file: 'widget-medium.png', ratio: 1 / 2.14,   seeds: [[0.5, 0.19], [0.55, 0.22], [0.3, 0.25], [0.8, 0.27], [0.5, 0.26]],
+            redact: { x: 266, y: 244, w: 170, h: 44, text: 'ランチ', size: 31, baseline: 279, color: '#8B887D' } },
+  large:  { file: 'widget-large.png',  ratio: 382 / 364,  seeds: [[0.5, 0.3], [0.5, 0.35], [0.3, 0.4], [0.7, 0.45]] },
+};
+async function widgetCrop(kind) {
+  const def = WIDGET[kind];
+  let home = join(GEN, def.file);
+  if (kind === 'medium' && !existsSync(home)) home = join(GEN, 'widget-home.png');   // 前の名前
   if (!existsSync(home)) return null;
   const { data, info } = await sharp(home).raw().toBuffer({ resolveWithObject: true });
   const W = info.width, C = info.channels;
   const white = (x, y) => { const o = (y * W + x) * C; return data[o] >= 240 && data[o + 1] >= 240 && data[o + 2] >= 240; };
-  // 種：ウィジェットの中の白い所。文字や札に当たったら次
-  const cands = [[0.5, 0.19], [0.55, 0.22], [0.3, 0.25], [0.8, 0.27], [0.5, 0.26]].map(([fx, fy]) => [Math.round(W * fx), Math.round(info.height * fy)]);
+  const cands = def.seeds.map(([fx, fy]) => [Math.round(W * fx), Math.round(info.height * fy)]);
   const seed = cands.find(([x, y]) => white(x, y));
-  if (!seed) throw new Error('ウィジェットの白い所が見つからない');
-  // その行で左右へ、その列で下へ。白が 12px 続けて途切れた所を縁とする（文字は跳び越える）
+  if (!seed) throw new Error(`${def.file}: ウィジェットの白い所が見つからない`);
   const run = (sx, sy, dx, dy) => { let x = sx, y = sy, gap = 0, last = [sx, sy]; while (x > 0 && y > 0 && x < W - 1 && y < info.height - 1) { x += dx; y += dy; if (white(x, y)) { gap = 0; last = [x, y]; } else if (++gap > 12) break; } return last; };
-  // 縁ぎりぎりは壁紙が1〜2px 混ざるので、少し内側で切る
   const left = run(seed[0], seed[1], -1, 0)[0] + 3, right = run(seed[0], seed[1], 1, 0)[0] - 3, bottom = run(seed[0], seed[1], 0, 1)[1] - 4;
-  const width = right - left, height = Math.round(width / 2.14), top = bottom - height;
-  console.log(`ウィジェット: (${left},${top})–(${right},${bottom})  ${width}×${height}px`);
-  // 四角に切ると、丸い角の外の壁紙が隅に残る。角を丸く抜いて、外は白にする（貼る先の白と揃う）
-  const r = Math.round(width * 0.062);
+  const width = right - left, height = Math.round(width * def.ratio), top = bottom - height;
+  console.log(`ウィジェット ${kind}: (${left},${top})–(${right},${bottom})  ${width}×${height}px`);
+  const r = Math.round(Math.min(width, height) * 0.13);
   const round = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${r}" fill="#fff"/></svg>`);
-  // 「このあと」の行に、本人の予定の名前（塾の名前）が写っていた。そこだけ白で消して、
-  // 同じ色・同じ大きさで別の名前を置く。場所はこのスクショに合わせて測ったもの
-  // （crop の座標。別のスクショでは合わないので、そのときは REDACT を消すか測り直す）
-  const REDACT = { x: 266, y: 244, w: 170, h: 44, text: 'ランチ', size: 31, baseline: 279, color: '#8B887D' };
-  const patch = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-    <rect x="${REDACT.x}" y="${REDACT.y}" width="${REDACT.w}" height="${REDACT.h}" fill="#FBFBFD"/>
-    <text x="${REDACT.x + 4}" y="${REDACT.baseline}" font-family="'Hiragino Sans','Yu Gothic UI','Yu Gothic',sans-serif" font-size="${REDACT.size}" fill="${REDACT.color}">${REDACT.text}</text></svg>`);
-  // composite は1つのパイプラインで1回しか効かない（2回呼ぶと後の方だけ残る）。段階を分ける
-  const base = await sharp(home).extract({ left, top, width, height }).png().toBuffer();
-  const patched = await sharp(base).composite([{ input: patch }]).png().toBuffer();
-  const cut = await sharp(patched).ensureAlpha().composite([{ input: round, blend: 'dest-in' }]).png().toBuffer();
+  let base = await sharp(home).extract({ left, top, width, height }).png().toBuffer();
+  if (def.redact) {
+    const R = def.redact;
+    const patch = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect x="${R.x}" y="${R.y}" width="${R.w}" height="${R.h}" fill="#FBFBFD"/><text x="${R.x + 4}" y="${R.baseline}" font-family="'Hiragino Sans','Yu Gothic UI','Yu Gothic',sans-serif" font-size="${R.size}" fill="${R.color}">${R.text}</text></svg>`);
+    base = await sharp(base).composite([{ input: patch }]).png().toBuffer();
+  }
+  const cut = await sharp(base).ensureAlpha().composite([{ input: round, blend: 'dest-in' }]).png().toBuffer();
   return sharp({ create: { width, height, channels: 3, background: '#FFFFFF' } }).composite([{ input: cut }]).png().toBuffer();
+}
+
+// 白い塊を大きい順に n 個。取った塊を塗りつぶして、次を取る
+async function whiteBlobs(buf, n, ramp) {
+  const out = [];
+  let cur = buf;
+  for (let i = 0; i < n; i++) {
+    const b = await whiteBlob(cur, 248, null, null, ramp);
+    if (b.n < 2000) break;
+    out.push(b);
+    const { data, info } = await sharp(cur).raw().toBuffer({ resolveWithObject: true });
+    for (let p = 0; p < info.width * info.height; p++) if (b.mask[p]) { const o = p * info.channels; data[o] = 0; data[o + 1] = 0; data[o + 2] = 0; }
+    cur = await sharp(data, { raw: { width: info.width, height: info.height, channels: info.channels } }).png().toBuffer();
+  }
+  return out;
+}
+
+// 1つの塊に1枚を貼る（型は塊のなめらかな縁）。戻り値は貼ったあとの絵
+async function paste(canvas, b, src, W, H) {
+  const { w, h, cx, cy } = b.rect;
+  const rotated = await sharp(src).resize(Math.round(w), Math.round(h), { fit: 'fill' }).rotate(b.tilt, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+  const rm = await sharp(rotated).metadata();
+  const dil = new Uint8Array(W * H);
+  for (let p = 0; p < W * H; p++) { if (!b.mask[p]) continue; const x = p % W, y = (p / W) | 0; for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < W && yy < H) dil[yy * W + xx] = 1; } }
+  const rgba = Buffer.alloc(W * H * 4);
+  for (let p = 0; p < W * H; p++) { rgba[p * 4] = 255; rgba[p * 4 + 1] = 255; rgba[p * 4 + 2] = 255; rgba[p * 4 + 3] = dil[p] ? b.soft[p] : 0; }
+  const maskPng = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
+  const layer = await sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite([{ input: rotated, left: Math.round(cx - rm.width / 2), top: Math.round(cy - rm.height / 2) }]).png().toBuffer();
+  const clipped = await sharp(layer).composite([{ input: maskPng, blend: 'dest-in' }]).png().toBuffer();
+  return sharp(canvas).composite([{ input: clipped }]).png().toBuffer();
+}
+
+// 3枚目：白い四角が3つ。比の順（横長→正方形→縦長め）で 中・小・大 に振り分けて貼る
+async function fillWidgets(genFile, outFile) {
+  const gen = await sharp(join(GEN, genFile)).resize(TARGET_W).png().toBuffer();
+  const blobs = await whiteBlobs(gen, 3, [232, 250]);
+  if (blobs.length < 3) { console.log(`${genFile}: 白い四角が ${blobs.length} つしか無い`); return false; }
+  const byA = blobs.map((b) => ({ b, a: b.rect.h / b.rect.w })).sort((x, y) => x.a - y.a);
+  const kinds = [['medium', byA[0].b], ['small', byA[1].b], ['large', byA[2].b]];
+  const { W, H } = blobs[0];
+  let canvas = gen;
+  for (const [kind, b] of kinds) {
+    const src = await widgetCrop(kind);
+    if (!src) { console.log(`  ${kind} のスクショが無い（gen/${WIDGET[kind].file}）。空のまま`); continue; }
+    canvas = await paste(canvas, b, src, W, H);
+    console.log(`  ${kind}: ${Math.round(b.rect.w)}×${Math.round(b.rect.h)}px 傾き ${b.tilt.toFixed(1)}°`);
+  }
+  await sharp(canvas).png().toFile(outFile);
+  console.log(`${genFile} → 3.png（3つ）`);
+  return true;
 }
 
 const jobs = [
@@ -171,9 +222,13 @@ const jobs = [
   ['gen-5.png', join(ROOT, '5-report.png'), '5.png'],
 ];
 for (const [g, s, o] of jobs) await fill(g, await sharp(s).png().toBuffer(), join(OUT, o));
-const wc = await widgetCrop();
-if (wc) await fill('gen-3.png', wc, join(OUT, '3.png'), [232, 250]);   // 壁紙が明るいので、高めから立ち上げる
-else console.log('gen/widget-home.png が無いので 3 は飛ばした');
+// 3枚目：白い四角が3つある絵（gen-3-sizes.png）なら大・中・小を貼る。無ければ前の1つの絵に中を貼る
+if (existsSync(join(GEN, 'gen-3-sizes.png'))) await fillWidgets('gen-3-sizes.png', join(OUT, '3.png'));
+else {
+  const wc = await widgetCrop('medium');
+  if (wc) await fill('gen-3.png', wc, join(OUT, '3.png'), [232, 250]);   // 壁紙が明るいので、高めから立ち上げる
+  else console.log('gen/widget-home.png が無いので 3 は飛ばした');
+}
 // 1 はスマホの無い絵なので、そのまま拡げて置く
 await sharp(join(GEN, 'gen-1.png')).resize(TARGET_W).png().toFile(join(OUT, '1.png'));
 console.log('できた store-assets/sukuji/out/');
