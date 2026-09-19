@@ -28,7 +28,7 @@ mkdirSync(OUT, { recursive: true });
 const TARGET_W = 1290;   // 絵は 853 幅で来るので、先に店の寸法へ拡げてから貼る
 
 // 真っ白（しきい値以上）の、いちばん大きい塊。戻り値は塊のマスク（Uint8Array）と四隅
-async function whiteBlob(buf, thr = 248, region = null, seed = null) {
+async function whiteBlob(buf, thr = 248, region = null, seed = null, ramp = [200, 236]) {
   const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
   const W = info.width, H = info.height, C = info.channels;
   const white = new Uint8Array(W * H);
@@ -62,6 +62,14 @@ async function whiteBlob(buf, thr = 248, region = null, seed = null) {
   // 画面が一回り小さく貼られる（下と横に白い隙間が出た）。
   // 塊の向き（主軸の角度）を出し、その向きに揃えた枠の最小・最大から角を出す。
   // 丸い角は直線の辺より内側にあるので、揃えた枠の最小・最大には効かない
+  // 白の度合い（ramp の下〜上を 0〜255 に）。スマホの画面は暗い縁に接するので低め（200〜236）から
+  // 立ち上げて、縁の中間色を画面で覆う（下を高くすると、縁の内側に白い筋が残る）。しきい値で 0/1 に切ると縁が階段になり、
+  // 島のまわりや角がギザギザに見えた。もとの絵の縁の中間色をそのままアルファにする
+  const soft = new Uint8Array(W * H);
+  for (let p = 0; p < W * H; p++) {
+    const o = p * C; const v = Math.min(data[o], data[o + 1], data[o + 2]);
+    soft[p] = v <= ramp[0] ? 0 : v >= ramp[1] ? 255 : Math.round((v - ramp[0]) / (ramp[1] - ramp[0]) * 255);
+  }
   const mask = new Uint8Array(W * H);
   let sx = 0, sy = 0, cnt = 0;
   for (let p = 0; p < W * H; p++) if (label[p] === best.id) { mask[p] = 255; sx += p % W; sy += (p / W) | 0; cnt += 1; }
@@ -84,34 +92,35 @@ async function whiteBlob(buf, thr = 248, region = null, seed = null) {
   const mu = (u0 + u1) / 2, mv = (v0 + v1) / 2;
   const rect = { w: u1 - u0, h: v1 - v0, cx: cx + mu * cs - mv * sn, cy: cy + mu * sn + mv * cs };
   const back = (u, v) => [cx + u * cs - v * sn, cy + u * sn + v * cs];
-  return { W, H, mask, rect, corners: { tl: back(u0, v0), tr: back(u1, v0), br: back(u1, v1), bl: back(u0, v1) }, n: best.n, tilt: th * 180 / Math.PI };
+  return { W, H, mask, soft, rect, corners: { tl: back(u0, v0), tr: back(u1, v0), br: back(u1, v1), bl: back(u0, v1) }, n: best.n, tilt: th * 180 / Math.PI };
 }
 
 // スクショを画面の大きさに縮め、画面の傾きだけ回し、画面の中心に置いて、白い塊の形で切り抜く。
 // アフィンで一度にやると、出てきた絵の原点がどこか分からず、大きめ・上寄りに貼られた。
 // 回転は中心まわりなので、回した絵の中心を画面の中心に合わせれば済む。
-async function fill(genFile, srcBuf, outFile) {
+async function fill(genFile, srcBuf, outFile, ramp) {
   const gen = await sharp(join(GEN, genFile)).resize(TARGET_W).png().toBuffer();
-  const { W, H, mask, rect, tilt } = await whiteBlob(gen);
+  const { W, H, mask, soft, rect, tilt } = await whiteBlob(gen, 248, null, null, ramp);
   const { w, h, cx, cy } = rect;
   const rotated = await sharp(srcBuf).resize(Math.round(w), Math.round(h), { fit: 'fill' })
     .rotate(tilt, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
   const rm = await sharp(rotated).metadata();
   const left = Math.round(cx - rm.width / 2), top = Math.round(cy - rm.height / 2);
-  // 型。しきい値で切った縁はギザギザで、縁の外側にはもとの白の滲みが1〜2px 残る。
-  // 2px 太らせて、1px ぼかす。太らせた分は暗い縁（ベゼル）に乗るので目立たない
+  // 型。塊を 3px 太らせた範囲の中で、白の度合い（soft）をそのままアルファにする。
+  // 縁の中間色がそのまま効くので、もとの絵と同じなめらかさで切れる。
+  // 太らせるのは、縁の中間色の画素（しきい値では塊に入らない）を範囲に入れるため
   const dil = new Uint8Array(W * H);
   for (let p = 0; p < W * H; p++) {
     if (!mask[p]) continue;
     const x = p % W, y = (p / W) | 0;
-    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
       const xx = x + dx, yy = y + dy;
-      if (xx >= 0 && yy >= 0 && xx < W && yy < H) dil[yy * W + xx] = 255;
+      if (xx >= 0 && yy >= 0 && xx < W && yy < H) dil[yy * W + xx] = 1;
     }
   }
   const rgba = Buffer.alloc(W * H * 4);
-  for (let p = 0; p < W * H; p++) { rgba[p * 4] = 255; rgba[p * 4 + 1] = 255; rgba[p * 4 + 2] = 255; rgba[p * 4 + 3] = dil[p]; }
-  const maskPng = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).blur(0.8).png().toBuffer();
+  for (let p = 0; p < W * H; p++) { rgba[p * 4] = 255; rgba[p * 4 + 1] = 255; rgba[p * 4 + 2] = 255; rgba[p * 4 + 3] = dil[p] ? soft[p] : 0; }
+  const maskPng = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
   const layer = await sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
     .composite([{ input: rotated, left, top }]).png().toBuffer();
   const clipped = await sharp(layer).composite([{ input: maskPng, blend: 'dest-in' }]).png().toBuffer();
@@ -163,7 +172,7 @@ const jobs = [
 ];
 for (const [g, s, o] of jobs) await fill(g, await sharp(s).png().toBuffer(), join(OUT, o));
 const wc = await widgetCrop();
-if (wc) await fill('gen-3.png', wc, join(OUT, '3.png'));
+if (wc) await fill('gen-3.png', wc, join(OUT, '3.png'), [232, 250]);   // 壁紙が明るいので、高めから立ち上げる
 else console.log('gen/widget-home.png が無いので 3 は飛ばした');
 // 1 はスマホの無い絵なので、そのまま拡げて置く
 await sharp(join(GEN, 'gen-1.png')).resize(TARGET_W).png().toFile(join(OUT, '1.png'));
