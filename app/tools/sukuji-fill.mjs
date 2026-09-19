@@ -74,20 +74,28 @@ async function whiteBlob(buf, thr = 248, region = null, seed = null, ramp = [200
   let sx = 0, sy = 0, cnt = 0;
   for (let p = 0; p < W * H; p++) if (label[p] === best.id) { mask[p] = 255; sx += p % W; sy += (p / W) | 0; cnt += 1; }
   const cx = sx / cnt, cy = sy / cnt;
-  let vxx = 0, vyy = 0, vxy = 0;
-  for (let p = 0; p < W * H; p++) if (label[p] === best.id) { const dx = (p % W) - cx, dy = ((p / W) | 0) - cy; vxx += dx * dx; vyy += dy * dy; vxy += dx * dy; }
-  // 主軸。縦長の画面なら主軸は縦。横の辺の傾きにしたいので、縦向きなら 90° 戻す
-  let th = 0.5 * Math.atan2(2 * vxy, vxx - vyy);
-  if (vyy > vxx) th += Math.PI / 2;
-  th = ((th + Math.PI / 2) % Math.PI) - Math.PI / 2;      // -90°〜90° に
-  if (th > Math.PI / 4) th -= Math.PI / 2; if (th < -Math.PI / 4) th += Math.PI / 2;
-  const cs = Math.cos(th), sn = Math.sin(th);
-  let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
-  for (let p = 0; p < W * H; p++) if (label[p] === best.id) {
-    const dx = (p % W) - cx, dy = ((p / W) | 0) - cy;
-    const u = dx * cs + dy * sn, v = -dx * sn + dy * cs;
-    if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < v0) v0 = v; if (v > v1) v1 = v;
+  // 傾き。主軸（分散の向き）で取ると、正方形の塊では向きが決まらず角度が暴れる
+  // （小のウィジェットで 35.8° と出た）。-12°〜12° を 0.25° 刻みで回してみて、
+  // 揃えた枠がいちばん小さくなる角度を取る。塊の縁の画素だけ使えば足りる
+  const edge = [];
+  for (let p = 0; p < W * H; p++) {
+    if (label[p] !== best.id) continue;
+    const x = p % W, y = (p / W) | 0;
+    if (x === 0 || y === 0 || x === W - 1 || y === H - 1 || label[p - 1] !== best.id || label[p + 1] !== best.id || label[p - W] !== best.id || label[p + W] !== best.id) edge.push(x - cx, y - cy);
   }
+  const boxAt = (t) => {
+    const c = Math.cos(t), sn2 = Math.sin(t);
+    let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9;
+    for (let i = 0; i < edge.length; i += 2) {
+      const u = edge[i] * c + edge[i + 1] * sn2, v = -edge[i] * sn2 + edge[i + 1] * c;
+      if (u < a0) a0 = u; if (u > a1) a1 = u; if (v < b0) b0 = v; if (v > b1) b1 = v;
+    }
+    return { t, u0: a0, u1: a1, v0: b0, v1: b1, area: (a1 - a0) * (b1 - b0) };
+  };
+  let bestBox = null;
+  for (let deg = -12; deg <= 12; deg += 0.25) { const b = boxAt(deg * Math.PI / 180); if (!bestBox || b.area < bestBox.area) bestBox = b; }
+  const th = bestBox.t, cs = Math.cos(th), sn = Math.sin(th);
+  const { u0, u1, v0, v1 } = bestBox;
   // 枠の中心（塊の重心ではない。島の切り欠きで重心は少し下にずれる）
   const mu = (u0 + u1) / 2, mv = (v0 + v1) / 2;
   const rect = { w: u1 - u0, h: v1 - v0, cx: cx + mu * cs - mv * sn, cy: cy + mu * sn + mv * cs };
@@ -134,7 +142,9 @@ async function fill(genFile, srcBuf, outFile, ramp) {
 // 上辺だけは iOS の大きさの比から出す（小 1:1、中 2.14:1、大 1:1.05）。
 // 「このあと」の行に本人の予定の名前が写っていたら redact で消せる。
 const WIDGET = {
-  small:  { file: 'widget-small.png',  ratio: 1.0,        seeds: [[0.25, 0.19], [0.3, 0.22], [0.2, 0.25], [0.35, 0.27]] },
+  small:  { file: 'widget-small.png',  ratio: 1.0,        seeds: [[0.25, 0.19], [0.3, 0.22], [0.2, 0.25], [0.35, 0.27]],
+            // ウィジェットだけを切り抜いた画像（幅 800 未満）のとき。上半分は壁紙の明るい所と地続きなので、下の方で取る
+            cropSeeds: [[0.5, 0.65], [0.5, 0.55], [0.5, 0.75], [0.3, 0.65]] },
   medium: { file: 'widget-medium.png', ratio: 1 / 2.14,   seeds: [[0.5, 0.19], [0.55, 0.22], [0.3, 0.25], [0.8, 0.27], [0.5, 0.26]],
             redact: { x: 266, y: 244, w: 170, h: 44, text: 'ランチ', size: 31, baseline: 279, color: '#8B887D' } },
   large:  { file: 'widget-large.png',  ratio: 382 / 364,  seeds: [[0.5, 0.3], [0.5, 0.35], [0.3, 0.4], [0.7, 0.45]] },
@@ -147,11 +157,48 @@ async function widgetCrop(kind) {
   const { data, info } = await sharp(home).raw().toBuffer({ resolveWithObject: true });
   const W = info.width, C = info.channels;
   const white = (x, y) => { const o = (y * W + x) * C; return data[o] >= 240 && data[o + 1] >= 240 && data[o + 2] >= 240; };
-  const cands = def.seeds.map(([fx, fy]) => [Math.round(W * fx), Math.round(info.height * fy)]);
-  const seed = cands.find(([x, y]) => white(x, y));
-  if (!seed) throw new Error(`${def.file}: ウィジェットの白い所が見つからない`);
+  const cands = ((W < 800 && def.cropSeeds) ? def.cropSeeds : def.seeds).map(([fx, fy]) => [Math.round(W * fx), Math.round(info.height * fy)]);
+  // 白い候補の中で、その行を左右に走らせたときいちばん広いものを種にする。
+  // 文字や小さなカレンダーの中に落ちた種だと、走らせても手前で止まる
+  const runAt = (sx, sy, dx, dy) => { let x = sx, y = sy, gap = 0, last = [sx, sy]; while (x > 0 && y > 0 && x < W - 1 && y < info.height - 1) { x += dx; y += dy; if (white(x, y)) { gap = 0; last = [x, y]; } else if (++gap > 12) break; } return last; };
+  const whites = cands.filter(([x, y]) => white(x, y));
+  if (!whites.length) throw new Error(`${def.file}: ウィジェットの白い所が見つからない`);
+  const seed = whites.map((c) => ({ c, w: runAt(c[0], c[1], 1, 0)[0] - runAt(c[0], c[1], -1, 0)[0] })).sort((a, b) => b.w - a.w)[0].c;
   const run = (sx, sy, dx, dy) => { let x = sx, y = sy, gap = 0, last = [sx, sy]; while (x > 0 && y > 0 && x < W - 1 && y < info.height - 1) { x += dx; y += dy; if (white(x, y)) { gap = 0; last = [x, y]; } else if (++gap > 12) break; } return last; };
-  const left = run(seed[0], seed[1], -1, 0)[0] + 3, right = run(seed[0], seed[1], 1, 0)[0] - 3, bottom = run(seed[0], seed[1], 0, 1)[1] - 4;
+  // 1行だけ走らせると、予定の帯や数字に当たって手前で止まる（大で右端と下端が縮んだ）。
+  // 逆に「いちばん広いもの」を取ると、壁紙の明るい所へ抜けた行が勝ってしまう（左右が画像の端まで行った）。
+  // 何行も走らせて、**いちばん多く出た値**を取る。何にも当たらない行は全部同じ縁で止まるが、
+  // 帯に当たった行や壁紙へ抜けた行は止まる場所がばらばらなので、多数決で縁が残る。
+  // 行は種より下だけ（種より上は壁紙の明るい所と地続きになりやすい）
+  const mode = (vals, pickMax) => {
+    const bins = new Map();
+    for (const v of vals) { const k = Math.round(v / 12); bins.set(k, (bins.get(k) || 0) + 1); }
+    let bestK = null, bestN = 0;
+    for (const [k, n] of bins) if (n > bestN || (n === bestN && (pickMax ? k > bestK : k < bestK))) { bestK = k; bestN = n; }
+    const near = vals.filter((v) => Math.round(v / 12) === bestK);
+    return pickMax ? Math.max(...near) : Math.min(...near);
+  };
+  const lefts = [], rights = [];
+  const span = Math.round(info.height * 0.15);
+  for (let y = seed[1]; y <= Math.min(info.height - 2, seed[1] + span); y += 2) {
+    if (!white(seed[0], y)) continue;
+    lefts.push(run(seed[0], y, -1, 0)[0]); rights.push(run(seed[0], y, 1, 0)[0]);
+  }
+  let left = mode(lefts, false), right = mode(rights, true);
+  const bottoms = [];
+  for (let x = left + 8; x <= right - 8; x += 2) {
+    if (!white(x, seed[1])) continue;
+    bottoms.push(run(x, seed[1], 0, 1)[1]);
+  }
+  // 下は多数決だと帯の上辺が勝つ（帯は列をまたいで同じ高さに並ぶ）。カードの下辺はまっすぐなので、
+  // 何にも当たらなかった列は全部同じ y で止まる。**3列以上が同じ y で止まった中で、いちばん下**を取る。
+  // 壁紙の明るい所へ抜けた列は止まる場所がばらばらなので、束にならず外れる
+  const bins = new Map();
+  for (const v of bottoms) { const k = Math.round(v / 12); bins.set(k, (bins.get(k) || 0) + 1); }
+  let bk = null;
+  for (const [k, n] of bins) if (n >= 3 && (bk === null || k > bk)) bk = k;
+  let bottom = bk === null ? Math.max(...bottoms) : Math.max(...bottoms.filter((v) => Math.round(v / 12) === bk));
+  left += 3; right -= 3; bottom -= 4;
   const width = right - left, height = Math.round(width * def.ratio), top = bottom - height;
   console.log(`ウィジェット ${kind}: (${left},${top})–(${right},${bottom})  ${width}×${height}px`);
   const r = Math.round(Math.min(width, height) * 0.13);
