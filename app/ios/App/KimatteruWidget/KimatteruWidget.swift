@@ -36,6 +36,8 @@ struct Item: Decodable, Hashable {
     let c: String       // 種類の色
     let s: Int          // 1 = 決まっている（塗り）／0 = まだ（点線）
     let m: [String]?    // 持ち物
+    let k: String?      // 予定の id。大のカレンダーで日をまたぐ帯をつなぐ
+    let p: Int?         // その日が何日目か。0=1日だけ 1=初日 2=途中 3=最終日
     var solid: Bool { s == 1 }
     var time: String { t ?? "終日" }
 }
@@ -580,90 +582,129 @@ struct MediumView: View {
 // 塗り（決まった）と点線（まだ）で並べる。小と中が「今日と、この先」を答えるのに対して、
 // 大は「今月がどう見えているか」を答える。
 //
-// マスの高さは決め打ちにしない。5週の月と6週の月で行数が変わるので、余った高さを
-// 行で分け合う。1マスに出す名前は3つまで、それ以上は「+○」。
-// 文字は 7.5pt。これより小さいと読めず、大きいと「バイト」しか収まらない。
+// 日をまたぐ予定は、アプリと同じやり方でつなぐ：週ごとに、長い予定から先に段を決める。
+// 同じ段に居続けるので、隣のマスと横一列につながる。帯の端は、その予定の初日／最終日の
+// ときだけ丸める。途中で週が変わる側は切り落とし、「まだ続く」を形で言う。
+// 1週に段は3つまで、あふれた分はマスの下に「+○」。文字は 7.5pt。
 
-struct MonthPill: View {
+/// 1本の帯。何列目から何列目まで、何段目か
+struct Bar: Identifiable {
+    let id: String
     let item: Item
+    let c0: Int, c1: Int, lane: Int
+    let startsHere: Bool, endsHere: Bool
+}
+
+struct MonthBar: View {
+    let bar: Bar
+    private var shape: UnevenRoundedRectangle {
+        let r: CGFloat = 2.5
+        return UnevenRoundedRectangle(topLeadingRadius: bar.startsHere ? r : 0, bottomLeadingRadius: bar.startsHere ? r : 0,
+                                      bottomTrailingRadius: bar.endsHere ? r : 0, topTrailingRadius: bar.endsHere ? r : 0)
+    }
     var body: some View {
-        Text(item.n)
+        Text(bar.item.n)
             .font(.system(size: 7.5, weight: .medium))
-            .foregroundColor(toBlack(item.c, 0.66))
-            .lineLimit(1)
-            .truncationMode(.tail)
+            .foregroundColor(toBlack(bar.item.c, 0.66))
+            .lineLimit(1).truncationMode(.tail)
             .padding(.horizontal, 3)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: 11)
-            .background(
-                RoundedRectangle(cornerRadius: 2.5)
-                    .fill(item.solid ? toWhite(item.c, 0.32) : toWhite(item.c, 0.62))
-            )
-            .overlay(
-                Group {
-                    if !item.solid {
-                        RoundedRectangle(cornerRadius: 2.5)
-                            .strokeBorder(plain(item.c), style: StrokeStyle(lineWidth: 1, dash: [2, 1.5]))
-                    }
+            .background(shape.fill(bar.item.solid ? toWhite(bar.item.c, 0.32) : toWhite(bar.item.c, 0.62)))
+            .overlay(Group {
+                if !bar.item.solid {
+                    shape.strokeBorder(plain(bar.item.c), style: StrokeStyle(lineWidth: 1, dash: [2, 1.5]))
                 }
-            )
+            })
     }
 }
 
-struct MonthCalendar: View {
-    let weekdays: [String]
-    let cells: [MonthCell]
-    let hol: Set<Int>          // 祝日の日
+/// 1週ぶん。帯の段をここで決める
+struct WeekRow: View {
+    let week: [MonthCell]
+    let hol: Set<Int>
     let weekStart: Int
+    static let pillH: CGFloat = 11, gap: CGFloat = 1.5, numH: CGFloat = 12, maxLanes = 3
 
-    private var rows: Int { max(1, cells.count / 7) }
+    private struct Seg { var first: Item; var last: Item; var c0: Int; var c1: Int }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                ForEach(Array(weekdays.enumerated()), id: \.offset) { i, w in
-                    Text(w).font(.system(size: 8)).foregroundColor(dowColor(i))
-                        .frame(maxWidth: .infinity)
+    /// 帯と、段に入りきらなかった数（列ごと）
+    private var layout: (bars: [Bar], overflow: [Int]) {
+        var ranges: [String: Seg] = [:]
+        var order: [String] = []
+        for (c, cell) in week.enumerated() {
+            for (i, it) in cell.dots.enumerated() {
+                // k が無い古い中身は、1日ずつ別の帯として扱う
+                let base = it.k.flatMap { $0.isEmpty ? nil : $0 } ?? "\(c)-\(i)-\(it.n)"
+                if var rg = ranges[base], rg.c1 == c - 1 {
+                    rg.c1 = c; rg.last = it; ranges[base] = rg
+                } else if ranges[base] == nil {
+                    ranges[base] = Seg(first: it, last: it, c0: c, c1: c); order.append(base)
+                } else {
+                    let k2 = base + "#\(c)"
+                    ranges[k2] = Seg(first: it, last: it, c0: c, c1: c); order.append(k2)
                 }
             }
-            .padding(.bottom, 3)
-            ForEach(0..<rows, id: \.self) { r in
-                HStack(spacing: 1.5) {
+        }
+        // 長い帯から。同じ長さなら左から、同じ列なら時刻の早い順
+        let sorted = order.sorted { a, b in
+            let A = ranges[a]!, B = ranges[b]!
+            if (A.c1 - A.c0) != (B.c1 - B.c0) { return (A.c1 - A.c0) > (B.c1 - B.c0) }
+            if A.c0 != B.c0 { return A.c0 < B.c0 }
+            return (A.first.t ?? "") < (B.first.t ?? "")
+        }
+        var lanes: [[(Int, Int)]] = []
+        var bars: [Bar] = []
+        var overflow = [Int](repeating: 0, count: 7)
+        for key in sorted {
+            let rg = ranges[key]!
+            var li = 0
+            while li < lanes.count && lanes[li].contains(where: { rg.c0 <= $0.1 && rg.c1 >= $0.0 }) { li += 1 }
+            if li >= WeekRow.maxLanes { for c in rg.c0...rg.c1 { overflow[c] += 1 }; continue }
+            if li == lanes.count { lanes.append([]) }
+            lanes[li].append((rg.c0, rg.c1))
+            let pf = rg.first.p ?? 0, pl = rg.last.p ?? 0
+            bars.append(Bar(id: key, item: rg.first, c0: rg.c0, c1: rg.c1, lane: li,
+                            startsHere: pf == 0 || pf == 1, endsHere: pl == 0 || pl == 3))
+        }
+        return (bars, overflow)
+    }
+
+    var body: some View {
+        let lay = layout
+        return GeometryReader { g in
+            let cw = g.size.width / 7
+            ZStack(alignment: .topLeading) {
+                HStack(spacing: 0) {
                     ForEach(0..<7, id: \.self) { c in
-                        cell(cells[r * 7 + c], dow: c).frame(maxWidth: .infinity, maxHeight: .infinity)
+                        cellBase(week[c], dow: c, over: lay.overflow[c]).frame(width: cw, height: g.size.height)
                     }
                 }
-                .frame(maxHeight: .infinity)
-                .overlay(Rectangle().fill(LINE).frame(height: 0.5), alignment: .top)
+                ForEach(lay.bars) { b in
+                    MonthBar(bar: b)
+                        .frame(width: cw * CGFloat(b.c1 - b.c0 + 1) - 2, height: WeekRow.pillH)
+                        .offset(x: cw * CGFloat(b.c0) + 1, y: WeekRow.numH + CGFloat(b.lane) * (WeekRow.pillH + WeekRow.gap))
+                }
             }
         }
     }
 
-    // 曜日の色。日曜（と祝日）は赤、土曜は青。アプリの月表示と同じ
-    private func dowColor(_ i: Int) -> Color {
-        let dow = (weekStart + i) % 7
-        return dow == 0 ? HOLIDAY_RED : dow == 6 ? SATURDAY_BLUE : INK_FAINT
-    }
-
     @ViewBuilder
-    private func cell(_ m: MonthCell, dow: Int) -> some View {
+    private func cellBase(_ m: MonthCell, dow: Int, over: Int) -> some View {
         ZStack(alignment: .topLeading) {
             if m.isToday {
-                RoundedRectangle(cornerRadius: 4).fill(TODAY_BG)
+                RoundedRectangle(cornerRadius: 4).fill(TODAY_BG).padding(.horizontal, 0.5)
             }
             if let d = m.day {
-                VStack(alignment: .leading, spacing: 1.5) {
+                VStack(alignment: .leading, spacing: 0) {
                     Text("\(d)")
                         .font(.system(size: 9, weight: m.isToday ? .semibold : .regular))
                         .foregroundColor(numColor(d, dow: dow))
-                        .padding(.leading, 2).padding(.top, 1.5)
-                    ForEach(Array(m.dots.prefix(3).enumerated()), id: \.offset) { _, it in
-                        MonthPill(item: it)
-                    }
-                    if m.dots.count > 3 {
-                        Text("+\(m.dots.count - 3)").font(.system(size: 7)).foregroundColor(INK_FAINT).padding(.leading, 2)
-                    }
+                        .padding(.leading, 2.5).padding(.top, 1.5)
+                        .frame(height: WeekRow.numH, alignment: .topLeading)
                     Spacer(minLength: 0)
+                    if over > 0 {
+                        Text("+\(over)").font(.system(size: 7)).foregroundColor(INK_FAINT).padding(.leading, 2.5).padding(.bottom, 1)
+                    }
                 }
             }
         }
@@ -677,15 +718,43 @@ struct MonthCalendar: View {
     }
 }
 
-struct LargeView: View {
-    let entry: Entry
+struct MonthCalendar: View {
+    let weekdays: [String]
+    let cells: [MonthCell]
+    let hol: Set<Int>
+    let weekStart: Int
+    private var rows: Int { max(1, cells.count / 7) }
 
     var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                ForEach(Array(weekdays.enumerated()), id: \.offset) { i, w in
+                    Text(w).font(.system(size: 8)).foregroundColor(dowColor(i)).frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.bottom, 3)
+            ForEach(0..<rows, id: \.self) { r in
+                WeekRow(week: Array(cells[(r * 7)..<(r * 7 + 7)]), hol: hol, weekStart: weekStart)
+                    .frame(maxHeight: .infinity)
+                    .overlay(Rectangle().fill(LINE).frame(height: 0.5), alignment: .top)
+            }
+        }
+    }
+
+    // 曜日の色。日曜は赤、土曜は青。アプリの月表示と同じ
+    private func dowColor(_ i: Int) -> Color {
+        let dow = (weekStart + i) % 7
+        return dow == 0 ? HOLIDAY_RED : dow == 6 ? SATURDAY_BLUE : INK_FAINT
+    }
+}
+
+struct LargeView: View {
+    let entry: Entry
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 上の1行：月と、まだの数。今日の予定は下のカレンダーの中にあるので、ここでは繰り返さない
+            // 上の1行：月と、まだの数だけ。今日はマスの色で分かるので、日付は繰り返さない
             HStack(alignment: .firstTextBaseline) {
                 Text(entry.monthLabel).font(.system(size: 14, weight: .semibold)).foregroundColor(INK)
-                Text("\(entry.dayNum)日（\(entry.dayWeek)）").font(.system(size: 10)).foregroundColor(INK_MUT)
                 Spacer(minLength: 4)
                 if entry.undecided > 0 {
                     Text("まだ \(entry.undecided)件").font(.system(size: 10.5)).foregroundColor(UNDECIDED)

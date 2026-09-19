@@ -96,12 +96,16 @@ export function buildWidgetPayload(state, today) {
       n: cut(e.title, TITLE_LEN) || '予定',
       c: colorOf(e.type),
       s: isSolid(e) ? 1 : 0,
+      k: String(e.id || ''),   // 同じ予定かどうか。大のカレンダーで日をまたぐ帯をつなぐのに使う
     };
     const m = memoLines(e.memo);
     if (m.length) item.m = m;
+    const f = evFrom(e), l = evTo(e);
     for (let n = a; n <= b; n++) {
       const k = key(n);
-      (days[k] || (days[k] = [])).push(item);
+      // その日が、この予定の何日目か。0=1日だけ 1=初日 2=途中 3=最終日。帯の端を丸めるかに使う
+      const pos = f === l ? 0 : n === f ? 1 : n === l ? 3 : 2;
+      (days[k] || (days[k] = [])).push(pos ? { ...item, p: pos } : item);
     }
   }
 
