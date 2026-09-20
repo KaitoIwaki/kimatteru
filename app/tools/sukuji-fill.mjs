@@ -16,7 +16,7 @@
 import sharp from 'sharp';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '..', '..', 'store-assets', 'sukuji');
@@ -326,6 +326,7 @@ const TEXT = {
   // 見出し 2 行で下端が 770 くらい。スマホの上端はその 60px 下（830）。ChatGPT のスマホの上端（877〜892）より上に来て隠せる
   head: { max: 175, color: '#111111', gapAbove: 50, lineGap: 1.16, spacing: -4 },
   margin: 70,
+  accent: '#5E8F66',
 };
 
 // 文字の幅を測る（描いてみて、透明を切り落として測る）
@@ -358,7 +359,9 @@ async function eraseTitle(canvas, W, H) {
 }
 
 // 小見出し 1 行と見出し 1〜2 行を描く。戻り値は文字の下端
-async function drawTitle(canvas, W, H, sub, lines) {
+// accent に入れた言葉は緑にする（見出しの中の売りの言葉。例 ['未定']）
+async function drawTitle(canvas, W, H, sub, lines, accent = []) {
+  const mark = (t) => { let out = t; for (const a of accent) out = out.split(a).join(`<tspan fill="${TEXT.accent}">${a}</tspan>`); return out; };
   const usable = W - TEXT.margin * 2;
   let size = TEXT.head.max;
   for (const t of lines) { const w = await textWidth(t, size, 'bold', TEXT.head.spacing); if (w > usable) size = Math.floor(size * usable / w); }
@@ -367,7 +370,7 @@ async function drawTitle(canvas, W, H, sub, lines) {
   const parts = [`<text x="${W / 2}" y="${subBase}" text-anchor="middle" font-family="${TEXT.font}" font-weight="bold" font-size="${TEXT.sub.size}" letter-spacing="2" fill="${TEXT.sub.color}">${sub}</text>`];
   for (const t of lines) {
     const base = y + Math.round(size * 0.88);
-    parts.push(`<text x="${W / 2}" y="${base}" text-anchor="middle" font-family="${TEXT.font}" font-weight="bold" font-size="${size}" letter-spacing="${TEXT.head.spacing}" fill="${TEXT.head.color}">${t}</text>`);
+    parts.push(`<text x="${W / 2}" y="${base}" text-anchor="middle" font-family="${TEXT.font}" font-weight="bold" font-size="${size}" letter-spacing="${TEXT.head.spacing}" fill="${TEXT.head.color}">${mark(t)}</text>`);
     y += Math.round(size * TEXT.head.lineGap);
   }
   const bottom = y - Math.round(size * (TEXT.head.lineGap - 1));
@@ -506,6 +509,9 @@ async function fillWidgets(genFile, outFile) {
   return true;
 }
 
+export { drawTitle, drawPhone, textWidth, widgetCrop, renameBars, eraseVertical, PHONE, TEXT, WIDGET, GEN, ROOT, TARGET_W };
+// 直接動かしたときだけ 5 枚を組む（sukuji-flat.mjs から部品として読むときは動かさない）
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 // 小見出しと見出し。見出しは 2 行までで、幅に合わせて大きさが決まる
 await buildCard('gen-1.png', join(OUT, '1.png'), 'たぶんの予定も、そのまま', ['未定のまま、置ける'], null);
 await buildCard('gen-2.png', join(OUT, '2.png'), '点線が、塗りに変わる', ['決まったら、', '押すだけ'], join(ROOT, '2-dialog.png'));
@@ -515,3 +521,4 @@ await buildCard('gen-5.png', join(OUT, '5.png'), 'バイトも、遊びも、用
 if (existsSync(join(GEN, 'gen-3-sizes.png'))) await fillWidgets('gen-3-sizes.png', join(OUT, '3.png'));
 else console.log('gen/gen-3-sizes.png が無いので 3 は飛ばした');
 console.log('できた store-assets/sukuji/out/');
+}
