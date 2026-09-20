@@ -5,6 +5,39 @@
 > なので下のプロンプトで描き直すときも、Headline の文言やスマホの大きさは結果に影響しない。
 > 大事なのは机・小物・葉の雰囲気だけ。
 
+## いまの作り方（2026-09-21〜）：机と小物だけ描いてもらう
+
+スマホも文字もこちらで描くので、ChatGPT には**下地だけ**を頼む。空けておく場所を伝えると、
+小物がスマホの裏に隠れない。5 枚は**同じ会話の中で続けて**出すと、光と机の色が揃いやすい。
+出た絵は `gen/gen-N.png` に上書きして `node app/tools/sukuji-fill.mjs`。
+
+**共通（毎回、先頭に貼る）**
+
+```
+Background plate for an app promotional image, portrait 1290x2796 (9:19.5).
+A desk seen from directly above. Soft off-white paper / light wood surface with a very subtle
+warm gradient and gentle studio light from the top-left. Soft, natural shadows.
+One accent color only: muted green (#6E9E78). No other saturated colors. Calm, minimal, Japanese
+stationery-store feeling.
+
+IMPORTANT — leave these areas completely empty (plain surface, nothing on them):
+- the top 30% of the image (a headline will be placed there later)
+- a vertical band in the middle, 70% of the width, from 30% down to the bottom (a phone will be placed there later)
+Props may appear only along the left and right edges (outer 15% of the width) and the bottom edge.
+A few leaves with soft shadows may peek in from the top corners only.
+No phone. No text. No letters or numbers anywhere. No app UI.
+```
+
+**1 枚目**（未定のまま、置ける）：`Props: a green pen and a wooden pencil along the bottom edge; a corner of graph paper at the bottom-left.`
+**2 枚目**（決まったら、押すだけ）：`Props: a green pen at the bottom-right; a corner of a notebook at the bottom-left.`
+**3 枚目**（ウィジェット）：`Props: a notebook corner at the bottom-left and a green pen at the bottom-right.` ＋ 白い角丸 3 つ（下の「大・中・小」の指定をそのまま。3 つの四角だけは中央に置いてよい）
+**4 枚目**（いつ空いてる？）：`Props: three small square paper cards along the LEFT and RIGHT edges only, drawn with a thin green circle, a thin amber triangle, and a thin grey cross. A pen at the bottom.`
+**5 枚目**（何に時間を）：`Props: three small square paper cards along the RIGHT edge only, with simple line icons: a coffee cup, a ticket, a dumbbell. A notebook corner at the bottom-left.`
+
+うまく空けてくれないときは、「Think of it as a photo of an empty desk; the props are only at the edges」と言い足す。
+
+---
+
 2026-09-19。サイト（sukuji.com）用。**App Store には出さない**（描いた UI は審査で弾かれる）。
 
 ## 進め方（ここを外すと、画面が描き変えられる）
