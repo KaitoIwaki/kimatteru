@@ -1,21 +1,18 @@
-// ChatGPT が描いた「画面が白いスマホ」の絵に、本物のスクショを貼る。
+// ChatGPT が描いた机の絵を下地にして、sukuji.com 用の 5 枚を組む。
 //
 //   node app/tools/sukuji-fill.mjs
 //
-// 入力: store-assets/sukuji/gen/gen-N.png（画面が白い絵）と、貼る画面。
-// 出力: store-assets/sukuji/out/N.png
+// 入力: store-assets/sukuji/gen/gen-N.png（ChatGPT の絵）と、貼る画面。
+// 出力: store-assets/sukuji/out/N.png（1290×2787）
 //
-// やっていること:
-//   1. 絵の中の「真っ白な、いちばん大きい塊」を見つける（それが画面）。
-//      背景は生成りで真っ白ではないので、白（RGB がどれも 248 以上）だけを拾える
-//   2. 塊の四隅を取る。スマホは少し傾いているので、x+y が最小の点が左上、といった
-//      取り方で4つの角を出す
-//   3. スクショをその四角に合わせて歪める（アフィン。回転と拡縮）
-//   4. 白い塊そのものを型にして切り抜く。角の丸みも、ダイナミックアイランドの黒も、
-//      塊の形に含まれているので、そのまま残る
-//
-// ウィジェットの絵（gen-3）だけは、貼るのがスクショではなく、実機のホーム画面から
-// 切り出したウィジェット。その切り出しも同じ「白い塊」の取り方でやる。
+// 最初は ChatGPT が描いたスマホの白い画面にスクショを貼っていたが、描かれたスマホが
+// 幅の 4 割しかなく「画面が小さすぎる、文字ももっと大きく」と本人。いまは：
+//   1. 絵の中の見出しと小見出しを消す（列ごとに上下の地の色でつなぐ）
+//   2. 小見出しと見出しを、こちらで大きく描き直す（幅に合わせて自動で大きさを決める）
+//   3. スマホは ChatGPT のを使わず、こちらで描く（幅の 68%）。ChatGPT のスマホは
+//      その下に隠れる。○△× や道具の札は、スマホの後ろから少し見える
+// ウィジェットの絵（gen-3-sizes）は、ホーム画面から切り出した実物のウィジェットを
+// 3 つ貼る。切り出しは「白い塊」の取り方で。
 import sharp from 'sharp';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -101,39 +98,6 @@ async function whiteBlob(buf, thr = 248, region = null, seed = null, ramp = [200
   const rect = { w: u1 - u0, h: v1 - v0, cx: cx + mu * cs - mv * sn, cy: cy + mu * sn + mv * cs };
   const back = (u, v) => [cx + u * cs - v * sn, cy + u * sn + v * cs];
   return { W, H, mask, soft, rect, corners: { tl: back(u0, v0), tr: back(u1, v0), br: back(u1, v1), bl: back(u0, v1) }, n: best.n, tilt: th * 180 / Math.PI };
-}
-
-// スクショを画面の大きさに縮め、画面の傾きだけ回し、画面の中心に置いて、白い塊の形で切り抜く。
-// アフィンで一度にやると、出てきた絵の原点がどこか分からず、大きめ・上寄りに貼られた。
-// 回転は中心まわりなので、回した絵の中心を画面の中心に合わせれば済む。
-async function fill(genFile, srcBuf, outFile, ramp) {
-  const gen = await sharp(join(GEN, genFile)).resize(TARGET_W).png().toBuffer();
-  const { W, H, mask, soft, rect, tilt } = await whiteBlob(gen, 248, null, null, ramp);
-  const { w, h, cx, cy } = rect;
-  const rotated = await sharp(srcBuf).resize(Math.round(w), Math.round(h), { fit: 'fill' })
-    .rotate(tilt, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
-  const rm = await sharp(rotated).metadata();
-  const left = Math.round(cx - rm.width / 2), top = Math.round(cy - rm.height / 2);
-  // 型。塊を 3px 太らせた範囲の中で、白の度合い（soft）をそのままアルファにする。
-  // 縁の中間色がそのまま効くので、もとの絵と同じなめらかさで切れる。
-  // 太らせるのは、縁の中間色の画素（しきい値では塊に入らない）を範囲に入れるため
-  const dil = new Uint8Array(W * H);
-  for (let p = 0; p < W * H; p++) {
-    if (!mask[p]) continue;
-    const x = p % W, y = (p / W) | 0;
-    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-      const xx = x + dx, yy = y + dy;
-      if (xx >= 0 && yy >= 0 && xx < W && yy < H) dil[yy * W + xx] = 1;
-    }
-  }
-  const rgba = Buffer.alloc(W * H * 4);
-  for (let p = 0; p < W * H; p++) { rgba[p * 4] = 255; rgba[p * 4 + 1] = 255; rgba[p * 4 + 2] = 255; rgba[p * 4 + 3] = dil[p] ? soft[p] : 0; }
-  const maskPng = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
-  const layer = await sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-    .composite([{ input: rotated, left, top }]).png().toBuffer();
-  const clipped = await sharp(layer).composite([{ input: maskPng, blend: 'dest-in' }]).png().toBuffer();
-  await sharp(gen).composite([{ input: clipped }]).png().toFile(outFile);
-  console.log(`${genFile} → ${outFile.split(/[\/]/).pop()}  画面 ${Math.round(w)}×${Math.round(h)}px（比 ${(h / w).toFixed(2)}）  傾き ${tilt.toFixed(1)}°  中心 (${Math.round(cx)},${Math.round(cy)})`);
 }
 
 // ---- ウィジェット：実機のホーム画面から切り出す ----
@@ -352,22 +316,109 @@ async function eraseBlob(canvas, b, avoid, rIn = 48, rOut = 80, feather = 10) {
   return sharp(canvas).composite([{ input: layer, left: 0, top: 0 }]).png().toBuffer();
 }
 
-// 見出しを書き換える。ChatGPT の絵に焼き込まれた「ホーム画面に、まだ何件か」は文として変だった
-// （「何件か…何が？」で止まる）。y0〜y1 の暗い画素（黒い文字とその影）を消して、1行で描き直す。
-// 書体は Windows の游ゴシック太字。ChatGPT の書体とは少し違うが、この大きさなら気にならない
-// x0〜x1 は元の文字があった幅。左端の葉の影も暗いので、そこまで含めると影が縞になる
-// 游ゴシック UI は字面が細めで、size 165・字間 -5 で幅 1120px ほど（左右 85px 残る）
-const HEADLINE = { text: 'ウィジェットで表示', x0: 220, x1: 1110, y0: 440, y1: 800, size: 165, spacing: -5 };
-async function replaceHeadline(canvas, W, H) {
+// ---- 見出し ----
+// ChatGPT の絵に焼き込まれた見出しは小さかったので、消して描き直す。
+// 書体は Windows の游ゴシック太字。ChatGPT の書体とは少し違うが、この大きさなら気にならない。
+// 小見出しは緑（絵の緑を拾った）、見出しは黒。幅は左右 70px を残して自動で決める
+const TEXT = {
+  font: "'Yu Gothic UI','Yu Gothic','Meiryo',sans-serif",
+  sub: { size: 60, color: '#476A4B', top: 280 },   // 小見出しの上端
+  // 見出し 2 行で下端が 770 くらい。スマホの上端はその 60px 下（830）。ChatGPT のスマホの上端（877〜892）より上に来て隠せる
+  head: { max: 175, color: '#111111', gapAbove: 50, lineGap: 1.16, spacing: -4 },
+  margin: 70,
+};
+
+// 文字の幅を測る（描いてみて、透明を切り落として測る）
+async function textWidth(text, size, weight, spacing) {
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="${Math.round(size * 1.6)}"><text x="10" y="${Math.round(size * 1.1)}" font-family="${TEXT.font}" font-weight="${weight}" font-size="${size}" letter-spacing="${spacing}" fill="#000">${text}</text></svg>`);
+  const { info } = await sharp(svg).trim().raw().toBuffer({ resolveWithObject: true });
+  return info.width;
+}
+
+// 絵の上の方にある文字（見出し・小見出し）を探して消す。
+// 中央の列（400〜890）に暗い画素のある行をまとめ、そのまとまりごとに x 200〜1090 の暗い画素を型にする。
+// 端の葉は x で外れる。スマホの上端（y 830 より下）は見ない
+async function eraseTitle(canvas, W, H) {
   const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
+  const ch = info.channels;
+  const dark = (x, y) => { const o = (y * W + x) * ch; return data[o] + data[o + 1] + data[o + 2] < 660; };
+  const rows = [];
+  for (let y = 150; y < 830; y++) { let c = 0; for (let x = 400; x < 890; x++) if (dark(x, y)) c++; if (c > 2) rows.push(y); }
+  const groups = [];
+  for (const y of rows) { const g = groups[groups.length - 1]; if (g && y - g[1] <= 40) g[1] = y; else groups.push([y, y]); }
+  // 見出し（高さ 80 以上のまとまり）は端まで届く（1 枚目は x 132〜1157）ので x 100〜1190 まで見る。
+  // ただし黒〜灰色の画素だけ（葉は緑なので外れる）。小見出しは細いので 200〜1090 で色を問わない
+  const neutral = (x, y) => { const o = (y * W + x) * ch; const mx = Math.max(data[o], data[o + 1], data[o + 2]), mn = Math.min(data[o], data[o + 1], data[o + 2]); return mx - mn < 40; };
   const mask = new Uint8Array(W * H);
-  for (let y = HEADLINE.y0; y < HEADLINE.y1; y++) for (let x = HEADLINE.x0; x < HEADLINE.x1; x++) { const o = (y * W + x) * info.channels; if (data[o] + data[o + 1] + data[o + 2] < 600) mask[y * W + x] = 255; }
-  // 行ごとの平均色で塗ると、地の左右のグラデーションが平らになって、うっすら帯が見えた。
-  // 文字の行は縦に短いので、列ごとに「文字の上の色」と「下の色」を直線でつなぐ方がなじむ
-  const erased = await eraseVertical(canvas, mask, W, H, 24, 6);
-  const cy = (HEADLINE.y0 + HEADLINE.y1) / 2;
-  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><text x="${W / 2}" y="${Math.round(cy + HEADLINE.size * 0.38)}" text-anchor="middle" font-family="'Yu Gothic UI','Yu Gothic','Meiryo',sans-serif" font-weight="bold" font-size="${HEADLINE.size}" letter-spacing="${HEADLINE.spacing || 0}" fill="#111111">${HEADLINE.text}</text></svg>`);
-  return sharp(erased).composite([{ input: svg }]).png().toBuffer();
+  for (const [y0, y1] of groups) {
+    const big = y1 - y0 > 80, x0 = big ? 100 : 200, x1 = big ? 1190 : 1090;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x < x1; x++) if (dark(x, y) && (!big || neutral(x, y))) mask[y * W + x] = 255;
+  }
+  return eraseVertical(canvas, mask, W, H, 24, 6);
+}
+
+// 小見出し 1 行と見出し 1〜2 行を描く。戻り値は文字の下端
+async function drawTitle(canvas, W, H, sub, lines) {
+  const usable = W - TEXT.margin * 2;
+  let size = TEXT.head.max;
+  for (const t of lines) { const w = await textWidth(t, size, 'bold', TEXT.head.spacing); if (w > usable) size = Math.floor(size * usable / w); }
+  const subBase = TEXT.sub.top + Math.round(TEXT.sub.size * 0.88);
+  let y = TEXT.sub.top + TEXT.sub.size + TEXT.head.gapAbove;
+  const parts = [`<text x="${W / 2}" y="${subBase}" text-anchor="middle" font-family="${TEXT.font}" font-weight="bold" font-size="${TEXT.sub.size}" letter-spacing="2" fill="${TEXT.sub.color}">${sub}</text>`];
+  for (const t of lines) {
+    const base = y + Math.round(size * 0.88);
+    parts.push(`<text x="${W / 2}" y="${base}" text-anchor="middle" font-family="${TEXT.font}" font-weight="bold" font-size="${size}" letter-spacing="${TEXT.head.spacing}" fill="${TEXT.head.color}">${t}</text>`);
+    y += Math.round(size * TEXT.head.lineGap);
+  }
+  const bottom = y - Math.round(size * (TEXT.head.lineGap - 1));
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${parts.join('')}</svg>`);
+  console.log(`  見出し ${size}px（${lines.join('／')}） 下端 ${bottom}`);
+  return { canvas: await sharp(canvas).composite([{ input: svg }]).png().toBuffer(), bottom, size };
+}
+
+// ---- スマホ ----
+// 幅 880px（幅の 68%）。縁 22px、角は画面の角 + 縁。上の帯（SAFE=1 で撮ったスクショの
+// ステータスバーの所）にダイナミックアイランドを描く。影は下へ落とす
+const PHONE = { w: 880, bezel: 22, rim: 3, screenR: 107, island: { w: 245, h: 72, top: 21 } };
+async function drawPhone(canvas, W, H, shotFile, top) {
+  const { w, bezel, rim, screenR } = PHONE;
+  const sw = w - bezel * 2;
+  const sm = await sharp(shotFile).metadata();
+  const sh = Math.round(sw * sm.height / sm.width);
+  const h = sh + bezel * 2, outerR = screenR + bezel;
+  const left = Math.round((W - w) / 2);
+  // 画面：角を丸く抜いたスクショ
+  const round = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${sw}" height="${sh}"><rect width="${sw}" height="${sh}" rx="${screenR}" fill="#fff"/></svg>`);
+  const screen = await sharp(shotFile).resize(sw, sh, { fit: 'fill' }).ensureAlpha().composite([{ input: round, blend: 'dest-in' }]).png().toBuffer();
+  // 本体：黒に近いグレー、外側に細い明るい縁。アイランドは画面の上に
+  const body = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+    <rect width="${w}" height="${h}" rx="${outerR}" fill="#4A4A4E"/>
+    <rect x="${rim}" y="${rim}" width="${w - rim * 2}" height="${h - rim * 2}" rx="${outerR - rim}" fill="#1C1C1F"/>
+  </svg>`);
+  const island = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect x="${(w - PHONE.island.w) / 2}" y="${bezel + PHONE.island.top}" width="${PHONE.island.w}" height="${PHONE.island.h}" rx="${PHONE.island.h / 2}" fill="#0B0B0C"/></svg>`);
+  const phone = await sharp(body).composite([{ input: screen, left: bezel, top: bezel }, { input: island }]).png().toBuffer();
+  // 影：本体の形を黒 35% で、下へ 36px ずらして大きくぼかす。もう一つ、近い影を薄く
+  const pad = 120;
+  const shadowSvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w + pad * 2}" height="${h + pad * 2}"><rect x="${pad}" y="${pad + 36}" width="${w}" height="${h}" rx="${outerR}" fill="#2A241C" fill-opacity="0.35"/></svg>`);
+  const shadow = await sharp(shadowSvg).blur(28).png().toBuffer();
+  const near = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w + pad * 2}" height="${h + pad * 2}"><rect x="${pad}" y="${pad + 8}" width="${w}" height="${h}" rx="${outerR}" fill="#2A241C" fill-opacity="0.25"/></svg>`)).blur(8).png().toBuffer();
+  const layer = await sharp({ create: { width: w + pad * 2, height: h + pad * 2, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: shadow, left: 0, top: 0 }, { input: near, left: 0, top: 0 }, { input: phone, left: pad, top: pad }]).png().toBuffer();
+  console.log(`  スマホ ${w}×${h}px 上端 ${top} 下端 ${top + h}`);
+  return sharp(canvas).composite([{ input: layer, left: left - pad, top: top - pad }]).png().toBuffer();
+}
+
+// 1 枚組む：見出しを消して描き直し、スマホがあれば描く
+async function buildCard(genFile, outFile, sub, lines, shotFile) {
+  const gen = await sharp(join(GEN, genFile)).resize(TARGET_W).png().toBuffer();
+  const { width: W, height: H } = await sharp(gen).metadata();
+  let canvas = await eraseTitle(gen, W, H);
+  const t = await drawTitle(canvas, W, H, sub, lines);
+  canvas = t.canvas;
+  if (shotFile) canvas = await drawPhone(canvas, W, H, shotFile, t.bottom + 60);
+  await sharp(canvas).png().toFile(outFile);
+  console.log(`${genFile} → ${outFile.split(/[\\/]/).pop()}`);
+  return t;
 }
 
 // mask を r px 太らせた範囲を、列ごとに上下の地の色を直線でつないで塗る（文字消し用）
@@ -417,7 +468,9 @@ async function fillWidgets(genFile, outFile) {
   const { W, H } = blobs[0];
   // ChatGPT の四角は小さめだった（「もっとすべてを大きく」と本人）。四角の傾きと上下の位置は借りて、
   // 大きさと左右の位置はこちらで決める。まず、もとの四角と影を消す
-  let canvas = await replaceHeadline(gen, W, H);
+  let canvas = await eraseTitle(gen, W, H);
+  const title = await drawTitle(canvas, W, H, '小・中・大、好きな大きさで', ['ウィジェットで表示']);
+  canvas = title.canvas;
   const near = new Uint8Array(W * H);
   for (const b of blobs) for (let p = 0; p < W * H; p++) if (b.mask[p]) { near[p] = 1; }
   // 3つぶんの白を 60px 太らせたものを「拾ってはいけない所」に
@@ -430,10 +483,9 @@ async function fillWidgets(genFile, outFile) {
   const sw0 = kinds.small.rect.w, mw0 = kinds.medium.rect.w;
   const topScale = (W - margin * 2 - gap) / (sw0 + mw0);
   const sw = sw0 * topScale, mw = mw0 * topScale;
-  // 大きくしたぶん下へ伸びて、下のノートとペンに乗るので、段ごと上へ。
-  // 見出しを1行にして空いたぶんも詰める（見出しの下端 + 130px に上の段の上端）
+  // 上の段の上端は、見出しの下端 + 110px
   const topH = Math.max(kinds.small.rect.h, kinds.medium.rect.h) * topScale;
-  const topCy = Math.min((kinds.small.rect.cy + kinds.medium.rect.cy) / 2 - 50, (HEADLINE.y0 + HEADLINE.y1) / 2 + HEADLINE.size / 2 + 130 + topH / 2);
+  const topCy = title.bottom + 110 + topH / 2;
   // 下の段：大は幅の 66% に。上の段の下端から 60px あける
   const lw = W * 0.66, largeScale = lw / kinds.large.rect.w;
   const topBottom = topCy + Math.max(kinds.small.rect.h, kinds.medium.rect.h) * topScale / 2;
@@ -454,19 +506,12 @@ async function fillWidgets(genFile, outFile) {
   return true;
 }
 
-const jobs = [
-  ['gen-2.png', join(ROOT, '2-dialog.png'), '2.png'],
-  ['gen-4.png', join(ROOT, '3-free.png'), '4.png'],
-  ['gen-5.png', join(ROOT, '5-report.png'), '5.png'],
-];
-for (const [g, s, o] of jobs) await fill(g, await sharp(s).png().toBuffer(), join(OUT, o));
-// 3枚目：白い四角が3つある絵（gen-3-sizes.png）なら大・中・小を貼る。無ければ前の1つの絵に中を貼る
+// 小見出しと見出し。見出しは 2 行までで、幅に合わせて大きさが決まる
+await buildCard('gen-1.png', join(OUT, '1.png'), 'たぶんの予定も、そのまま', ['未定のまま、置ける'], null);
+await buildCard('gen-2.png', join(OUT, '2.png'), '点線が、塗りに変わる', ['決まったら、', '押すだけ'], join(ROOT, '2-dialog.png'));
+await buildCard('gen-4.png', join(OUT, '4.png'), '○△× で、空きがひと目', ['いつ空いてる？', 'すぐ答える'], join(ROOT, '3-free.png'));
+await buildCard('gen-5.png', join(OUT, '5.png'), 'バイトも、遊びも、用事も', ['何に時間を', '使ったか、見える'], join(ROOT, '5-report.png'));
+// 3枚目：白い四角が3つある絵に、大・中・小を貼る
 if (existsSync(join(GEN, 'gen-3-sizes.png'))) await fillWidgets('gen-3-sizes.png', join(OUT, '3.png'));
-else {
-  const wc = await widgetCrop('medium');
-  if (wc) await fill('gen-3.png', wc, join(OUT, '3.png'), [232, 250]);   // 壁紙が明るいので、高めから立ち上げる
-  else console.log('gen/widget-home.png が無いので 3 は飛ばした');
-}
-// 1 はスマホの無い絵なので、そのまま拡げて置く
-await sharp(join(GEN, 'gen-1.png')).resize(TARGET_W).png().toFile(join(OUT, '1.png'));
+else console.log('gen/gen-3-sizes.png が無いので 3 は飛ばした');
 console.log('できた store-assets/sukuji/out/');
