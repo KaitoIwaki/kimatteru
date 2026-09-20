@@ -356,7 +356,8 @@ async function eraseBlob(canvas, b, avoid, rIn = 48, rOut = 80, feather = 10) {
 // （「何件か…何が？」で止まる）。y0〜y1 の暗い画素（黒い文字とその影）を消して、1行で描き直す。
 // 書体は Windows の游ゴシック太字。ChatGPT の書体とは少し違うが、この大きさなら気にならない
 // x0〜x1 は元の文字があった幅。左端の葉の影も暗いので、そこまで含めると影が縞になる
-const HEADLINE = { text: 'ウィジェットで表示', x0: 220, x1: 1110, y0: 440, y1: 800, size: 112 };
+// 游ゴシック UI は字面が細めで、size 165・字間 -5 で幅 1120px ほど（左右 85px 残る）
+const HEADLINE = { text: 'ウィジェットで表示', x0: 220, x1: 1110, y0: 440, y1: 800, size: 165, spacing: -5 };
 async function replaceHeadline(canvas, W, H) {
   const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
   const mask = new Uint8Array(W * H);
@@ -365,7 +366,7 @@ async function replaceHeadline(canvas, W, H) {
   // 文字の行は縦に短いので、列ごとに「文字の上の色」と「下の色」を直線でつなぐ方がなじむ
   const erased = await eraseVertical(canvas, mask, W, H, 24, 6);
   const cy = (HEADLINE.y0 + HEADLINE.y1) / 2;
-  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><text x="${W / 2}" y="${Math.round(cy + HEADLINE.size * 0.38)}" text-anchor="middle" font-family="'Yu Gothic UI','Yu Gothic','Meiryo',sans-serif" font-weight="bold" font-size="${HEADLINE.size}" fill="#111111">${HEADLINE.text}</text></svg>`);
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><text x="${W / 2}" y="${Math.round(cy + HEADLINE.size * 0.38)}" text-anchor="middle" font-family="'Yu Gothic UI','Yu Gothic','Meiryo',sans-serif" font-weight="bold" font-size="${HEADLINE.size}" letter-spacing="${HEADLINE.spacing || 0}" fill="#111111">${HEADLINE.text}</text></svg>`);
   return sharp(erased).composite([{ input: svg }]).png().toBuffer();
 }
 
