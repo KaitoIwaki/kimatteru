@@ -248,8 +248,10 @@ async function fillWidgets(genFile, outFile) {
   const gen = await sharp(join(GEN, genFile)).resize(TARGET_W).png().toBuffer();
   const blobs = await whiteBlobs(gen, 3, [232, 250]);
   if (blobs.length < 3) { console.log(`${genFile}: 白い四角が ${blobs.length} つしか無い`); return false; }
-  const byA = blobs.map((b) => ({ b, a: b.rect.h / b.rect.w })).sort((x, y) => x.a - y.a);
-  const kinds = [['medium', byA[0].b], ['small', byA[1].b], ['large', byA[2].b]];
+  // 中＝いちばん横長。残り2つは比が近い（描かれた大は 1.02、小は 1.03 だった）ので、面積で決める
+  const byA = blobs.map((b) => ({ b, a: b.rect.h / b.rect.w, area: b.rect.w * b.rect.h })).sort((x, y) => x.a - y.a);
+  const rest = byA.slice(1).sort((x, y) => x.area - y.area);
+  const kinds = [['medium', byA[0].b], ['small', rest[0].b], ['large', rest[1].b]];
   const { W, H } = blobs[0];
   let canvas = gen;
   for (const [kind, b] of kinds) {
