@@ -228,6 +228,29 @@ async function whiteBlobs(buf, n, ramp) {
   return out;
 }
 
+// 塊の中心と傾きだけ借りて、一回り大きいカードとして影ごと描く。
+// ChatGPT の描いた四角は小さめだった（「もっと大きく」と本人）。四角の型で切ると
+// その大きさに縛られるので、型は使わず、四角と影ごと上から覆う。
+// scale はもとの四角に対する倍率。1.3 なら、四隅それぞれ 15% ずつ外へ広がるので、
+// もとの影（10〜20px）も隠れる。dx/dy で少しずらせる（重なりを避けるため）
+async function pasteBig(canvas, b, src, W, H, scale, dx = 0, dy = 0) {
+  const w = Math.round(b.rect.w * scale), h = Math.round(b.rect.h * scale);
+  const cx = b.rect.cx + dx, cy = b.rect.cy + dy;
+  const r = Math.round(Math.min(w, h) * 0.13);
+  // 角を丸く抜いたカード
+  const round = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" rx="${r}" fill="#fff"/></svg>`);
+  const card = await sharp(src).resize(w, h, { fit: 'fill' }).ensureAlpha().composite([{ input: round, blend: 'dest-in' }]).png().toBuffer();
+  // 影：同じ形を黒 22% で、少し下にずらしてぼかす
+  const pad = 60;
+  const shadowSvg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w + pad * 2}" height="${h + pad * 2}"><rect x="${pad}" y="${pad + 10}" width="${w}" height="${h}" rx="${r}" fill="#2A241C" fill-opacity="0.22"/></svg>`);
+  const shadow = await sharp(shadowSvg).blur(14).png().toBuffer();
+  const withShadow = await sharp({ create: { width: w + pad * 2, height: h + pad * 2, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: shadow, left: 0, top: 0 }, { input: card, left: pad, top: pad }]).png().toBuffer();
+  const rotated = await sharp(withShadow).rotate(b.tilt, { background: { r: 0, g: 0, b: 0, alpha: 0 } }).png().toBuffer();
+  const rm = await sharp(rotated).metadata();
+  return sharp(canvas).composite([{ input: rotated, left: Math.round(cx - rm.width / 2), top: Math.round(cy - rm.height / 2) }]).png().toBuffer();
+}
+
 // 1つの塊に1枚を貼る（型は塊のなめらかな縁）。戻り値は貼ったあとの絵
 async function paste(canvas, b, src, W, H) {
   const { w, h, cx, cy } = b.rect;
@@ -244,6 +267,47 @@ async function paste(canvas, b, src, W, H) {
 }
 
 // 3枚目：白い四角が3つ。比の順（横長→正方形→縦長め）で 中・小・大 に振り分けて貼る
+// 白い四角とその影を、まわりの地の色で塗りつぶして消す。
+// 大きく貼り直すと、もとの四角の位置からはみ出す所・はみ出さない所ができて、
+// もとの四角の縁や影が残って見えてしまう。先に消しておく。
+// 地は上下に少しグラデーションがあるので、1色で塗らず、行ごとにその行の（四角の左右の）地の色で塗る
+// avoid は、色を拾ってはいけない所（隣の四角とその影）。小の輪が中の白に届いて、白で塗ってしまった
+async function eraseBlob(canvas, b, avoid) {
+  const { W, H } = b;
+  // r px 太らせる。横に走らせて「x±r に1つでもあるか」、次にその結果を縦に同じく（累積和で）
+  const dilate = (src, r) => {
+    const pass = (inp, len, count, at) => {
+      const out = new Uint8Array(W * H), acc = new Int32Array(len + 1);
+      for (let i = 0; i < count; i++) {
+        for (let j = 0; j < len; j++) acc[j + 1] = acc[j] + inp[at(i, j)];
+        for (let j = 0; j < len; j++) { const lo = Math.max(0, j - r), hi = Math.min(len, j + r + 1); if (acc[hi] - acc[lo] > 0) out[at(i, j)] = 1; }
+      }
+      return out;
+    };
+    const h = pass(src, W, H, (y, x) => y * W + x);
+    return pass(h, H, W, (x, y) => y * W + x);
+  };
+  const inner = dilate(b.mask, 48), outer = dilate(b.mask, 80);
+  const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
+  const ch = info.channels;
+  // 行ごとの地の色（内側の外・外側の内の輪から）。無い行は近い行から借りる
+  const rowCol = new Array(H).fill(null);
+  for (let y = 0; y < H; y++) {
+    let r = 0, g = 0, bl = 0, n = 0;
+    for (let x = 0; x < W; x++) { const p = y * W + x; if (outer[p] && !inner[p] && !avoid[p]) { const o = p * ch; r += data[o]; g += data[o + 1]; bl += data[o + 2]; n++; } }
+    if (n) rowCol[y] = [r / n, g / n, bl / n];
+  }
+  for (let y = 0; y < H; y++) if (!rowCol[y]) { for (let d = 1; d < H; d++) { if (rowCol[y - d]) { rowCol[y] = rowCol[y - d]; break; } if (rowCol[y + d]) { rowCol[y] = rowCol[y + d]; break; } } }
+  // 塗る層：色は行ごと、アルファは内側の型をぼかしたもの（縁をなじませる）
+  // 1チャンネルで入れても、ぼかすと3チャンネルで返ってくることがある。何チャンネルかは長さから
+  const alpha = await sharp(Buffer.from(inner.map((v) => v * 255)), { raw: { width: W, height: H, channels: 1 } }).blur(10).raw().toBuffer();
+  const ac = alpha.length / (W * H);
+  const rgba = Buffer.alloc(W * H * 4);
+  for (let p = 0; p < W * H; p++) { const c = rowCol[(p / W) | 0] || [0, 0, 0]; rgba[p * 4] = c[0]; rgba[p * 4 + 1] = c[1]; rgba[p * 4 + 2] = c[2]; rgba[p * 4 + 3] = alpha[p * ac]; }
+  const layer = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
+  return sharp(canvas).composite([{ input: layer, left: 0, top: 0 }]).png().toBuffer();
+}
+
 async function fillWidgets(genFile, outFile) {
   const gen = await sharp(join(GEN, genFile)).resize(TARGET_W).png().toBuffer();
   const blobs = await whiteBlobs(gen, 3, [232, 250]);
@@ -251,14 +315,39 @@ async function fillWidgets(genFile, outFile) {
   // 中＝いちばん横長。残り2つは比が近い（描かれた大は 1.02、小は 1.03 だった）ので、面積で決める
   const byA = blobs.map((b) => ({ b, a: b.rect.h / b.rect.w, area: b.rect.w * b.rect.h })).sort((x, y) => x.a - y.a);
   const rest = byA.slice(1).sort((x, y) => x.area - y.area);
-  const kinds = [['medium', byA[0].b], ['small', rest[0].b], ['large', rest[1].b]];
+  const kinds = { medium: byA[0].b, small: rest[0].b, large: rest[1].b };
   const { W, H } = blobs[0];
+  // ChatGPT の四角は小さめだった（「もっとすべてを大きく」と本人）。四角の傾きと上下の位置は借りて、
+  // 大きさと左右の位置はこちらで決める。まず、もとの四角と影を消す
   let canvas = gen;
-  for (const [kind, b] of kinds) {
+  const near = new Uint8Array(W * H);
+  for (const b of blobs) for (let p = 0; p < W * H; p++) if (b.mask[p]) { near[p] = 1; }
+  // 3つぶんの白を 60px 太らせたものを「拾ってはいけない所」に
+  const grow = (src, r) => { const out = new Uint8Array(W * H); for (let p = 0; p < W * H; p++) if (src[p]) { const x = p % W, y = (p / W) | 0; for (let dy = -r; dy <= r; dy += 4) for (let dx = -r; dx <= r; dx += 4) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < W && yy < H) out[yy * W + xx] = 1; } } return out; };
+  const avoid = grow(near, 60);
+  for (const b of blobs) canvas = await eraseBlob(canvas, b, avoid);
+  if (process.env.DEBUG_ERASE) await sharp(canvas).png().toFile(process.env.DEBUG_ERASE);
+  // 上の段：小と中を横に並べる。左右の余白 45px、あいだ 40px で、幅いっぱいに
+  const margin = 45, gap = 40;
+  const sw0 = kinds.small.rect.w, mw0 = kinds.medium.rect.w;
+  const topScale = (W - margin * 2 - gap) / (sw0 + mw0);
+  const sw = sw0 * topScale, mw = mw0 * topScale;
+  // 大きくしたぶん下へ伸びて、下のノートとペンに乗るので、段ごと 50px 上へ
+  const topCy = (kinds.small.rect.cy + kinds.medium.rect.cy) / 2 - 50;
+  // 下の段：大は幅の 66% に。上の段の下端から 60px あける
+  const lw = W * 0.66, largeScale = lw / kinds.large.rect.w;
+  const topBottom = topCy + Math.max(kinds.small.rect.h, kinds.medium.rect.h) * topScale / 2;
+  const largeCy = Math.max(kinds.large.rect.cy, topBottom + 60 + kinds.large.rect.h * largeScale / 2);
+  const plan = [
+    ['large', kinds.large, largeScale, W / 2, largeCy],
+    ['medium', kinds.medium, topScale, W - margin - mw / 2, topCy],
+    ['small', kinds.small, topScale, margin + sw / 2, topCy],
+  ];
+  for (const [kind, b, scale, cx, cy] of plan) {
     const src = await widgetCrop(kind);
     if (!src) { console.log(`  ${kind} のスクショが無い（gen/${WIDGET[kind].file}）。空のまま`); continue; }
-    canvas = await paste(canvas, b, src, W, H);
-    console.log(`  ${kind}: ${Math.round(b.rect.w)}×${Math.round(b.rect.h)}px 傾き ${b.tilt.toFixed(1)}°`);
+    canvas = await pasteBig(canvas, b, src, W, H, scale, cx - b.rect.cx, cy - b.rect.cy);
+    console.log(`  ${kind}: ${Math.round(b.rect.w * scale)}×${Math.round(b.rect.h * scale)}px（×${scale.toFixed(2)}） 中心 (${Math.round(cx)},${Math.round(cy)}) 傾き ${b.tilt.toFixed(1)}°`);
   }
   await sharp(canvas).png().toFile(outFile);
   console.log(`${genFile} → 3.png（3つ）`);
