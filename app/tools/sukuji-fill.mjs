@@ -163,6 +163,18 @@ const WIDGET = {
               { x: 929, y: 786, w: 128, text: '塾' },            // マナビズ…
               { x: 259, y: 961, w: 128, text: 'ライブ' },        // ベビモン
               { x: 393, y: 961, w: 128, text: 'ライブ' },        // ベビモン
+              // マクド → バイト（店の名前も出さない）。dashed は点線の「まだ」の帯：枠は残して中だけ塗り直す
+              { x: 795, y: 511, w: 128, text: 'バイト' },
+              { x: 929, y: 473, w: 128, text: 'バイト' },
+              { x: 393, y: 648, w: 128, text: 'バイト' },
+              { x: 795, y: 610, w: 128, text: 'バイト' },
+              { x: 259, y: 786, w: 128, text: 'バイト' },
+              { x: 393, y: 786, w: 128, text: 'バイト' },
+              { x: 661, y: 961, w: 128, text: 'バイト' },
+              { x: 795, y: 961, w: 128, text: 'バイト' },
+              { x: 929, y: 823, w: 128, text: 'バイト', dashed: true },
+              { x: 259, y: 1137, w: 128, text: 'バイト', dashed: true },
+              { x: 393, y: 1137, w: 128, text: 'バイト', dashed: true },
             ] },
 };
 
@@ -172,7 +184,10 @@ async function renameBars(home, list) {
   const { data, info } = await sharp(home).raw().toBuffer({ resolveWithObject: true });
   const px = (x, y) => { const o = (y * info.width + x) * info.channels; return `rgb(${data[o]},${data[o + 1]},${data[o + 2]})`; };
   const h = 27;
-  const parts = list.map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${h}" rx="6" fill="${px(r.x + 3, r.y + 13)}"/><text x="${r.x + 11}" y="${r.y + 22}" font-family="'Hiragino Sans','Yu Gothic UI','Yu Gothic',sans-serif" font-size="23" fill="#2E3A2E">${r.text}</text>`);
+  // 色は帯の右端の内側から拾う（文字は左に寄っているので当たらない）。点線の帯は枠 3px を残す
+  const parts = list.map((r) => (r.dashed
+    ? `<rect x="${r.x + 3}" y="${r.y + 3}" width="${r.w - 6}" height="${h - 6}" rx="4" fill="${px(r.x + r.w - 10, r.y + 13)}"/>`
+    : `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${h}" rx="6" fill="${px(r.x + r.w - 10, r.y + 13)}"/>`) + `<text x="${r.x + 11}" y="${r.y + 22}" font-family="'Hiragino Sans','Yu Gothic UI','Yu Gothic',sans-serif" font-size="23" fill="#2E3A2E">${r.text}</text>`);
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${info.width}" height="${info.height}">${parts.join('')}</svg>`);
   return sharp(home).composite([{ input: svg }]).png().toBuffer();
 }
