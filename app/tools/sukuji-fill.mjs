@@ -315,7 +315,8 @@ async function paste(canvas, b, src, W, H) {
 // もとの四角の縁や影が残って見えてしまう。先に消しておく。
 // 地は上下に少しグラデーションがあるので、1色で塗らず、行ごとにその行の（四角の左右の）地の色で塗る
 // avoid は、色を拾ってはいけない所（隣の四角とその影）。小の輪が中の白に届いて、白で塗ってしまった
-async function eraseBlob(canvas, b, avoid) {
+// rIn/rOut は消す幅と色を拾う輪の幅。四角は影が広いので 48/80、文字は 24/44（文字の影まで消す幅。もっと広くすると左の葉の影まで塗って縞になる）
+async function eraseBlob(canvas, b, avoid, rIn = 48, rOut = 80, feather = 10) {
   const { W, H } = b;
   // r px 太らせる。横に走らせて「x±r に1つでもあるか」、次にその結果を縦に同じく（累積和で）
   const dilate = (src, r) => {
@@ -330,7 +331,7 @@ async function eraseBlob(canvas, b, avoid) {
     const h = pass(src, W, H, (y, x) => y * W + x);
     return pass(h, H, W, (x, y) => y * W + x);
   };
-  const inner = dilate(b.mask, 48), outer = dilate(b.mask, 80);
+  const inner = dilate(b.mask, rIn), outer = dilate(b.mask, rOut);
   const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
   const ch = info.channels;
   // 行ごとの地の色（内側の外・外側の内の輪から）。無い行は近い行から借りる
@@ -343,10 +344,63 @@ async function eraseBlob(canvas, b, avoid) {
   for (let y = 0; y < H; y++) if (!rowCol[y]) { for (let d = 1; d < H; d++) { if (rowCol[y - d]) { rowCol[y] = rowCol[y - d]; break; } if (rowCol[y + d]) { rowCol[y] = rowCol[y + d]; break; } } }
   // 塗る層：色は行ごと、アルファは内側の型をぼかしたもの（縁をなじませる）
   // 1チャンネルで入れても、ぼかすと3チャンネルで返ってくることがある。何チャンネルかは長さから
-  const alpha = await sharp(Buffer.from(inner.map((v) => v * 255)), { raw: { width: W, height: H, channels: 1 } }).blur(10).raw().toBuffer();
+  const alpha = await sharp(Buffer.from(inner.map((v) => v * 255)), { raw: { width: W, height: H, channels: 1 } }).blur(feather).raw().toBuffer();
   const ac = alpha.length / (W * H);
   const rgba = Buffer.alloc(W * H * 4);
   for (let p = 0; p < W * H; p++) { const c = rowCol[(p / W) | 0] || [0, 0, 0]; rgba[p * 4] = c[0]; rgba[p * 4 + 1] = c[1]; rgba[p * 4 + 2] = c[2]; rgba[p * 4 + 3] = alpha[p * ac]; }
+  const layer = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
+  return sharp(canvas).composite([{ input: layer, left: 0, top: 0 }]).png().toBuffer();
+}
+
+// 見出しを書き換える。ChatGPT の絵に焼き込まれた「ホーム画面に、まだ何件か」は文として変だった
+// （「何件か…何が？」で止まる）。y0〜y1 の暗い画素（黒い文字とその影）を消して、1行で描き直す。
+// 書体は Windows の游ゴシック太字。ChatGPT の書体とは少し違うが、この大きさなら気にならない
+// x0〜x1 は元の文字があった幅。左端の葉の影も暗いので、そこまで含めると影が縞になる
+const HEADLINE = { text: 'ウィジェットで表示', x0: 220, x1: 1110, y0: 440, y1: 800, size: 112 };
+async function replaceHeadline(canvas, W, H) {
+  const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
+  const mask = new Uint8Array(W * H);
+  for (let y = HEADLINE.y0; y < HEADLINE.y1; y++) for (let x = HEADLINE.x0; x < HEADLINE.x1; x++) { const o = (y * W + x) * info.channels; if (data[o] + data[o + 1] + data[o + 2] < 600) mask[y * W + x] = 255; }
+  // 行ごとの平均色で塗ると、地の左右のグラデーションが平らになって、うっすら帯が見えた。
+  // 文字の行は縦に短いので、列ごとに「文字の上の色」と「下の色」を直線でつなぐ方がなじむ
+  const erased = await eraseVertical(canvas, mask, W, H, 24, 6);
+  const cy = (HEADLINE.y0 + HEADLINE.y1) / 2;
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><text x="${W / 2}" y="${Math.round(cy + HEADLINE.size * 0.38)}" text-anchor="middle" font-family="'Yu Gothic UI','Yu Gothic','Meiryo',sans-serif" font-weight="bold" font-size="${HEADLINE.size}" fill="#111111">${HEADLINE.text}</text></svg>`);
+  return sharp(erased).composite([{ input: svg }]).png().toBuffer();
+}
+
+// mask を r px 太らせた範囲を、列ごとに上下の地の色を直線でつないで塗る（文字消し用）
+async function eraseVertical(canvas, mask, W, H, r, feather) {
+  const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
+  const ch = info.channels;
+  // 縦横 r の太らせ（累積和）
+  const pass = (inp, len, count, at) => {
+    const out = new Uint8Array(W * H), acc = new Int32Array(len + 1);
+    for (let i = 0; i < count; i++) {
+      for (let j = 0; j < len; j++) acc[j + 1] = acc[j] + (inp[at(i, j)] ? 1 : 0);
+      for (let j = 0; j < len; j++) { const lo = Math.max(0, j - r), hi = Math.min(len, j + r + 1); if (acc[hi] - acc[lo] > 0) out[at(i, j)] = 1; }
+    }
+    return out;
+  };
+  const inner = pass(pass(mask, W, H, (y, x) => y * W + x), H, W, (x, y) => y * W + x);
+  // 塗らない所は元の色を入れておく（縁のぼかしで黒がにじんで、影のような線が出た）
+  const rgba = Buffer.alloc(W * H * 4);
+  for (let p = 0; p < W * H; p++) { const o = p * ch; rgba[p * 4] = data[o]; rgba[p * 4 + 1] = data[o + 1]; rgba[p * 4 + 2] = data[o + 2]; }
+  const avg = (x, y0, y1) => { const c = [0, 0, 0]; let n = 0; for (let y = Math.max(0, y0); y < Math.min(H, y1); y++) { const o = (y * W + x) * ch; c[0] += data[o]; c[1] += data[o + 1]; c[2] += data[o + 2]; n++; } return c.map((v) => v / Math.max(1, n)); };
+  for (let x = 0; x < W; x++) {
+    let y = 0;
+    while (y < H) {
+      if (!inner[y * W + x]) { y++; continue; }
+      let e = y; while (e < H && inner[e * W + x]) e++;
+      const top = avg(x, y - 6, y), bot = avg(x, e, e + 6);
+      for (let yy = y; yy < e; yy++) { const t = (yy - y + 0.5) / (e - y); const o = (yy * W + x) * 4; for (let k = 0; k < 3; k++) rgba[o + k] = Math.round(top[k] + (bot[k] - top[k]) * t); rgba[o + 3] = 255; }
+      y = e;
+    }
+  }
+  // 縁をなじませる：アルファだけぼかす
+  const a1 = await sharp(Buffer.from(inner.map((v) => v * 255)), { raw: { width: W, height: H, channels: 1 } }).blur(feather).raw().toBuffer();
+  const ac = a1.length / (W * H);
+  for (let p = 0; p < W * H; p++) rgba[p * 4 + 3] = a1[p * ac];
   const layer = await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toBuffer();
   return sharp(canvas).composite([{ input: layer, left: 0, top: 0 }]).png().toBuffer();
 }
@@ -362,7 +416,7 @@ async function fillWidgets(genFile, outFile) {
   const { W, H } = blobs[0];
   // ChatGPT の四角は小さめだった（「もっとすべてを大きく」と本人）。四角の傾きと上下の位置は借りて、
   // 大きさと左右の位置はこちらで決める。まず、もとの四角と影を消す
-  let canvas = gen;
+  let canvas = await replaceHeadline(gen, W, H);
   const near = new Uint8Array(W * H);
   for (const b of blobs) for (let p = 0; p < W * H; p++) if (b.mask[p]) { near[p] = 1; }
   // 3つぶんの白を 60px 太らせたものを「拾ってはいけない所」に
@@ -375,12 +429,14 @@ async function fillWidgets(genFile, outFile) {
   const sw0 = kinds.small.rect.w, mw0 = kinds.medium.rect.w;
   const topScale = (W - margin * 2 - gap) / (sw0 + mw0);
   const sw = sw0 * topScale, mw = mw0 * topScale;
-  // 大きくしたぶん下へ伸びて、下のノートとペンに乗るので、段ごと 50px 上へ
-  const topCy = (kinds.small.rect.cy + kinds.medium.rect.cy) / 2 - 50;
+  // 大きくしたぶん下へ伸びて、下のノートとペンに乗るので、段ごと上へ。
+  // 見出しを1行にして空いたぶんも詰める（見出しの下端 + 130px に上の段の上端）
+  const topH = Math.max(kinds.small.rect.h, kinds.medium.rect.h) * topScale;
+  const topCy = Math.min((kinds.small.rect.cy + kinds.medium.rect.cy) / 2 - 50, (HEADLINE.y0 + HEADLINE.y1) / 2 + HEADLINE.size / 2 + 130 + topH / 2);
   // 下の段：大は幅の 66% に。上の段の下端から 60px あける
   const lw = W * 0.66, largeScale = lw / kinds.large.rect.w;
   const topBottom = topCy + Math.max(kinds.small.rect.h, kinds.medium.rect.h) * topScale / 2;
-  const largeCy = Math.max(kinds.large.rect.cy, topBottom + 60 + kinds.large.rect.h * largeScale / 2);
+  const largeCy = topBottom + 60 + kinds.large.rect.h * largeScale / 2;
   const plan = [
     ['large', kinds.large, largeScale, W / 2, largeCy],
     ['medium', kinds.medium, topScale, W - margin - mw / 2, topCy],
