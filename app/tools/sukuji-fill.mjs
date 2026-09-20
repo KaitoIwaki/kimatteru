@@ -147,8 +147,35 @@ const WIDGET = {
             cropSeeds: [[0.5, 0.65], [0.5, 0.55], [0.5, 0.75], [0.3, 0.65]] },
   medium: { file: 'widget-medium.png', ratio: 1 / 2.14,   seeds: [[0.5, 0.19], [0.55, 0.22], [0.3, 0.25], [0.8, 0.27], [0.5, 0.26]],
             redact: { x: 266, y: 244, w: 170, h: 44, text: 'ランチ', size: 31, baseline: 279, color: '#8B887D' } },
-  large:  { file: 'widget-large.png',  ratio: 382 / 364,  seeds: [[0.5, 0.3], [0.5, 0.35], [0.3, 0.4], [0.7, 0.45]] },
+  large:  { file: 'widget-large.png',  ratio: 382 / 364,  seeds: [[0.5, 0.3], [0.5, 0.35], [0.3, 0.4], [0.7, 0.45]],
+            // 本人の予定の名前（人名・会社名・塾名）を架空の用事に書き換える。座標はスクショ全体での帯の位置。
+            // 帯は 134px の格子（x = 125 + 134×列、幅 128、2日なら 262）。色は帯の左端から拾う
+            rename: [
+              { x: 393, y: 435, w: 396, text: 'インターン' },   // インターン ファブ（3日）
+              { x: 795, y: 435, w: 128, text: 'サークル' },      // サイル
+              { x: 795, y: 473, w: 128, text: '英検' },          // G検定
+              { x: 125, y: 610, w: 128, text: '歯医者' },        // あくゆで
+              { x: 259, y: 610, w: 128, text: '友だちとご飯' },  // 小川 ご飯
+              { x: 527, y: 610, w: 262, text: 'インターン' },   // インターン アビーム（2日）
+              { x: 929, y: 610, w: 128, text: '説明会' },        // コンサル…
+              { x: 661, y: 648, w: 128, text: '美容院' },        // 村上さん…
+              { x: 527, y: 786, w: 128, text: '誕生日' },        // ママの誕…
+              { x: 929, y: 786, w: 128, text: '塾' },            // マナビズ…
+              { x: 259, y: 961, w: 128, text: 'ライブ' },        // ベビモン
+              { x: 393, y: 961, w: 128, text: 'ライブ' },        // ベビモン
+            ] },
 };
+
+// 帯の文字を書き換える。帯の色で帯ごと塗り直して（角丸 6px）、その上に文字。
+// 文字は元と同じく、帯の左から 11px、大きさ 23px、下端は帯の上から 22px
+async function renameBars(home, list) {
+  const { data, info } = await sharp(home).raw().toBuffer({ resolveWithObject: true });
+  const px = (x, y) => { const o = (y * info.width + x) * info.channels; return `rgb(${data[o]},${data[o + 1]},${data[o + 2]})`; };
+  const h = 27;
+  const parts = list.map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${h}" rx="6" fill="${px(r.x + 3, r.y + 13)}"/><text x="${r.x + 11}" y="${r.y + 22}" font-family="'Hiragino Sans','Yu Gothic UI','Yu Gothic',sans-serif" font-size="23" fill="#2E3A2E">${r.text}</text>`);
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${info.width}" height="${info.height}">${parts.join('')}</svg>`);
+  return sharp(home).composite([{ input: svg }]).png().toBuffer();
+}
 async function widgetCrop(kind) {
   const def = WIDGET[kind];
   let home = join(GEN, def.file);
@@ -203,7 +230,8 @@ async function widgetCrop(kind) {
   console.log(`ウィジェット ${kind}: (${left},${top})–(${right},${bottom})  ${width}×${height}px`);
   const r = Math.round(Math.min(width, height) * 0.13);
   const round = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${r}" fill="#fff"/></svg>`);
-  let base = await sharp(home).extract({ left, top, width, height }).png().toBuffer();
+  const renamed = def.rename ? await renameBars(home, def.rename) : home;
+  let base = await sharp(renamed).extract({ left, top, width, height }).png().toBuffer();
   if (def.redact) {
     const R = def.redact;
     const patch = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect x="${R.x}" y="${R.y}" width="${R.w}" height="${R.h}" fill="#FBFBFD"/><text x="${R.x + 4}" y="${R.baseline}" font-family="'Hiragino Sans','Yu Gothic UI','Yu Gothic',sans-serif" font-size="${R.size}" fill="${R.color}">${R.text}</text></svg>`);
