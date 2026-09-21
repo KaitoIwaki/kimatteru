@@ -27,18 +27,25 @@ const tl = { x: b.corners.tl[0], y: b.corners.tl[1] }, tr = { x: b.corners.tr[0]
 const w = Math.hypot(tr.x - tl.x, tr.y - tl.y);
 const tilt = Math.atan2(tr.y - tl.y, tr.x - tl.x);   // ラジアン。正なら時計回り
 // ChatGPT の画面は本物より縦長（幅 1060 に高さ 2481。iPhone なら 2297）。幅で合わせると下が 184px 空く。
-// スクショの上の帯（ステータスバーの所。SAFE=1 で撮った一色の帯）を上に伸ばして、画面の高さに合わせる。
-// アイランドはその伸ばした帯の中に来るので、見た目は自然
+// 最初は全部を上の帯（ステータスバー）に足したら、アイランドの下が空きすぎた（「上広すぎない？」）。
+// いまは 3 つに分ける：画面そのものを 3% だけ縦に伸ばし（見て分からない程度）、残りを上と下の帯に半々。
+// 帯は SAFE=1 で撮ったスクショの一色の部分（上はステータスバー、下はホームバーの所）
 const sm0 = await sharp(SHOT).metadata();
 const k = w / sm0.width;
-const extra = Math.max(0, Math.round(b.rect.h / k) - sm0.height);
-const { data: top, info: ti } = await sharp(SHOT).extract({ left: 0, top: 2, width: sm0.width, height: 1 }).raw().toBuffer({ resolveWithObject: true });
-const band = { r: top[0], g: top[1], b: top[2] };
-const shotSrc = await sharp({ create: { width: sm0.width, height: sm0.height + extra, channels: 3, background: band } })
-  .composite([{ input: await sharp(SHOT).png().toBuffer(), left: 0, top: extra }]).png().toBuffer();
+const want = Math.round(b.rect.h / k);                       // スクショの座標での、画面の高さ
+const stretched = Math.min(want, Math.round(sm0.height * 1.03));
+const rest = Math.max(0, want - stretched);
+const topExtra = Math.round(rest * 0.5), botExtra = rest - topExtra;
+const rowColor = async (y) => { const { data } = await sharp(SHOT).extract({ left: 0, top: y, width: sm0.width, height: 1 }).raw().toBuffer({ resolveWithObject: true }); return { r: data[0], g: data[1], b: data[2] }; };
+const bandTop = await rowColor(2), bandBot = await rowColor(sm0.height - 3);
+const shotSrc = await sharp({ create: { width: sm0.width, height: want, channels: 3, background: bandTop } })
+  .composite([
+    { input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${sm0.width}" height="${botExtra + 2}"><rect width="${sm0.width}" height="${botExtra + 2}" fill="rgb(${bandBot.r},${bandBot.g},${bandBot.b})"/></svg>`), left: 0, top: want - botExtra - 2 },
+    { input: await sharp(SHOT).resize(sm0.width, stretched, { fit: 'fill' }).png().toBuffer(), left: 0, top: topExtra },
+  ]).png().toBuffer();
+console.log(`画面の高さ ${want}：スクショを ${stretched}（×${(stretched / sm0.height).toFixed(3)}）、上の帯 +${topExtra}、下の帯 +${botExtra}`);
 const sm = await sharp(shotSrc).metadata();
 const h = w * sm.height / sm.width;
-console.log(`帯を上に ${extra}px 伸ばした（色 ${band.r},${band.g},${band.b}）`);
 // 画面の中心 = 左上の角 + (w/2, h/2) を tilt だけ回したもの
 const cx = tl.x + (w / 2) * Math.cos(tilt) - (h / 2) * Math.sin(tilt);
 const cy = tl.y + (w / 2) * Math.sin(tilt) + (h / 2) * Math.cos(tilt);
