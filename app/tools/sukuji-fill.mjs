@@ -90,7 +90,7 @@ async function whiteBlob(buf, thr = 248, region = null, seed = null, ramp = [200
     return { t, u0: a0, u1: a1, v0: b0, v1: b1, area: (a1 - a0) * (b1 - b0) };
   };
   let bestBox = null;
-  for (let deg = -12; deg <= 12; deg += 0.25) { const b = boxAt(deg * Math.PI / 180); if (!bestBox || b.area < bestBox.area) bestBox = b; }
+  for (let deg = -22; deg <= 22; deg += 0.25) { const b = boxAt(deg * Math.PI / 180); if (!bestBox || b.area < bestBox.area) bestBox = b; }
   const th = bestBox.t, cs = Math.cos(th), sn = Math.sin(th);
   const { u0, u1, v0, v1 } = bestBox;
   // 枠の中心（塊の重心ではない。島の切り欠きで重心は少し下にずれる）
@@ -515,7 +515,7 @@ async function fillWidgets(genFile, outFile) {
   return true;
 }
 
-export { drawTitle, drawPhone, phoneLayer, textWidth, widgetCrop, renameBars, eraseVertical, PHONE, TEXT, WIDGET, GEN, ROOT, TARGET_W };
+export { whiteBlob, drawTitle, drawPhone, phoneLayer, textWidth, widgetCrop, renameBars, eraseVertical, PHONE, TEXT, WIDGET, GEN, ROOT, TARGET_W };
 // 直接動かしたときだけ 5 枚を組む（sukuji-flat.mjs から部品として読むときは動かさない）
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 // 小見出しと見出し。見出しは 2 行までで、幅に合わせて大きさが決まる
