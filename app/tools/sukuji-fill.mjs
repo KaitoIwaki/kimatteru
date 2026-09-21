@@ -382,7 +382,8 @@ async function drawTitle(canvas, W, H, sub, lines, accent = []) {
 // ---- スマホ ----
 // 幅 880px（幅の 68%）。縁 22px、角は画面の角 + 縁。上の帯（SAFE=1 で撮ったスクショの
 // ステータスバーの所）にダイナミックアイランドを描く。影は下へ落とす
-const PHONE = { w: 880, bezel: 22, rim: 3, screenR: 107, island: { w: 245, h: 72, top: 21 } };
+// body / rimColor で白いスマホにもできる（縦型カレンダー風の 2 ページものは白）
+const PHONE = { w: 880, bezel: 22, rim: 3, screenR: 107, island: { w: 245, h: 72, top: 21 }, body: '#1C1C1F', rimColor: '#4A4A4E' };
 // スマホ 1 台を、影ごと 1 枚の透明な絵にする（周りに pad の余白）。drawPhone と、2 ページものの斜め置きで使う
 async function phoneLayer(shotFile, w = PHONE.w) {
   const { bezel, rim, screenR } = PHONE;
@@ -395,8 +396,8 @@ async function phoneLayer(shotFile, w = PHONE.w) {
   const screen = await sharp(shotFile).resize(sw, sh, { fit: 'fill' }).ensureAlpha().composite([{ input: round, blend: 'dest-in' }]).png().toBuffer();
   // 本体：黒に近いグレー、外側に細い明るい縁。アイランドは画面の上に
   const body = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-    <rect width="${w}" height="${h}" rx="${outerR}" fill="#4A4A4E"/>
-    <rect x="${rim}" y="${rim}" width="${w - rim * 2}" height="${h - rim * 2}" rx="${outerR - rim}" fill="#1C1C1F"/>
+    <rect width="${w}" height="${h}" rx="${outerR}" fill="${PHONE.rimColor}"/>
+    <rect x="${rim}" y="${rim}" width="${w - rim * 2}" height="${h - rim * 2}" rx="${outerR - rim}" fill="${PHONE.body}"/>
   </svg>`);
   const island = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect x="${(w - PHONE.island.w) / 2}" y="${bezel + PHONE.island.top}" width="${PHONE.island.w}" height="${PHONE.island.h}" rx="${PHONE.island.h / 2}" fill="#0B0B0C"/></svg>`);
   const phone = await sharp(body).composite([{ input: screen, left: bezel, top: bezel }, { input: island }]).png().toBuffer();
