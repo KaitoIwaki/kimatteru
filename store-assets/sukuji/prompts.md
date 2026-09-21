@@ -173,7 +173,7 @@ Close-up, shallow depth of field.
 3 枚目以降は 1 枚ずつ。ChatGPT の縦長は 2:3 なので **左右 15% ずつ切る**。中央 70% に収めさせる。
 同じ会話で、1〜2 枚目の絵を貼ってから「この続き」で出すと揃う。
 
-並び：3 決まったら、押すだけ（ダイアログ・鏡の構図）／4 いつ空いてる？（空き状況・まっすぐ）／
+並び：3 決まったら、押すだけ（ダイアログ・まっすぐ）／4 いつ空いてる？（空き状況・まっすぐ）／
 5 ウィジェット（白い角丸 3 つ、スマホ無し）／6 何に時間を（まとめ・まっすぐ）
 
 共通：
@@ -188,7 +188,8 @@ THE SCREEN IS COMPLETELY BLANK WHITE — no UI, no text, nothing on the screen.
 Headline in a bold rounded gothic font, near-black; one key word in deep green (#3E7A4D).
 Only sage green, lavender, and soft orange as accents. No people, no hands.
 ```
-3：`Headline top-RIGHT, right-aligned: 「決まったら、」「押すだけ。」(押すだけ green). Sub: 「点線が、塗りに変わる」. Phone rises from the bottom-left, tilted ~12° clockwise, top edge visible, bottom off canvas. Two blank stickers: dashed-orange/cream chip and solid sage chip with a check.`
+3：`Headline top-left: 「決まったら、」「押すだけ。」(押すだけ green). Sub: 「点線が、塗りに変わる」. Phone upright in the center, bottom off canvas. Near the phone's lower edge: a dashed-orange/cream chip, an arrow, and a solid sage chip with a check — both blank.`
+　（傾けるのは 1〜2 だけ。3 以降はまっすぐ。「3 枚目斜める必要ある？」→ 無い。ダイアログの文字を読ませる絵なので）
 4：`Headline top-left: 「いつ空いてる？」「すぐ答える。」(すぐ答える green). Sub: 「○△× で、空きがひと目」. Phone upright in the center, bottom off canvas. Three small square paper cards: green circle, amber triangle, grey cross.`
 5：`Headline top-left: 「ウィジェットで」「表示。」(ウィジェット green). Sub: 「小・中・大、好きな大きさで」. No phone. Three blank white rounded rectangles (small square upper-left, 2:1 wide upper-right, large ~1:1.05 below, centered), soft shadows, slightly tilted, same corner radius.`
 6：`Headline top-left: 「何に時間を」「使ったか、見える。」(見える green). Sub: 「バイトも、遊びも、用事も」. Phone upright in the center, bottom off canvas. Tiny line icons in sage: coffee cup, ticket, dumbbell.`
