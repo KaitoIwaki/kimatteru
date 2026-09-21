@@ -164,3 +164,31 @@ Close-up, shallow depth of field.
 - アプリの言葉は「未定」「まだ」「決まった」。「迷う予定」「仮予定」は使わない（ストアと揃える）
 - 見出しは2行まで。説明を足さない
 - 「今すぐ」「最強」「革命」のような言葉は使わない。このアプリはそういう声で話さない
+
+---
+
+## 縦型カレンダー風（2026-09-22〜。いまの本命）
+
+1〜2 枚目は 2 ページもの（`gen/gen-wide.png` → `node app/tools/sukuji-wide-gen.mjs`）。
+3 枚目以降は 1 枚ずつ。ChatGPT の縦長は 2:3 なので **左右 15% ずつ切る**。中央 70% に収めさせる。
+同じ会話で、1〜2 枚目の絵を貼ってから「この続き」で出すと揃う。
+
+並び：3 決まったら、押すだけ（ダイアログ・鏡の構図）／4 いつ空いてる？（空き状況・まっすぐ）／
+5 ウィジェット（白い角丸 3 つ、スマホ無し）／6 何に時間を（まとめ・まっすぐ）
+
+共通：
+```
+Same visual system as the previous image (this is page N of the same App Store set):
+flat vector style, background off-white with a faint green tint (#F3F7F1), one soft
+sage-green band (#D3E4CF) crossing diagonally, calm and minimal, Japanese app promo style.
+Portrait 2:3 canvas. IMPORTANT: the outer 15% on the left and right will be cropped away,
+so keep every element (text, phone, stickers) inside the central 70% of the width.
+The phone is a white iPhone with a thin light-grey edge and a black pill Dynamic Island.
+THE SCREEN IS COMPLETELY BLANK WHITE — no UI, no text, nothing on the screen.
+Headline in a bold rounded gothic font, near-black; one key word in deep green (#3E7A4D).
+Only sage green, lavender, and soft orange as accents. No people, no hands.
+```
+3：`Headline top-RIGHT, right-aligned: 「決まったら、」「押すだけ。」(押すだけ green). Sub: 「点線が、塗りに変わる」. Phone rises from the bottom-left, tilted ~12° clockwise, top edge visible, bottom off canvas. Two blank stickers: dashed-orange/cream chip and solid sage chip with a check.`
+4：`Headline top-left: 「いつ空いてる？」「すぐ答える。」(すぐ答える green). Sub: 「○△× で、空きがひと目」. Phone upright in the center, bottom off canvas. Three small square paper cards: green circle, amber triangle, grey cross.`
+5：`Headline top-left: 「ウィジェットで」「表示。」(ウィジェット green). Sub: 「小・中・大、好きな大きさで」. No phone. Three blank white rounded rectangles (small square upper-left, 2:1 wide upper-right, large ~1:1.05 below, centered), soft shadows, slightly tilted, same corner radius.`
+6：`Headline top-left: 「何に時間を」「使ったか、見える。」(見える green). Sub: 「バイトも、遊びも、用事も」. Phone upright in the center, bottom off canvas. Tiny line icons in sage: coffee cup, ticket, dumbbell.`
