@@ -383,13 +383,13 @@ async function drawTitle(canvas, W, H, sub, lines, accent = []) {
 // 幅 880px（幅の 68%）。縁 22px、角は画面の角 + 縁。上の帯（SAFE=1 で撮ったスクショの
 // ステータスバーの所）にダイナミックアイランドを描く。影は下へ落とす
 const PHONE = { w: 880, bezel: 22, rim: 3, screenR: 107, island: { w: 245, h: 72, top: 21 } };
-async function drawPhone(canvas, W, H, shotFile, top) {
-  const { w, bezel, rim, screenR } = PHONE;
+// スマホ 1 台を、影ごと 1 枚の透明な絵にする（周りに pad の余白）。drawPhone と、2 ページものの斜め置きで使う
+async function phoneLayer(shotFile, w = PHONE.w) {
+  const { bezel, rim, screenR } = PHONE;
   const sw = w - bezel * 2;
   const sm = await sharp(shotFile).metadata();
   const sh = Math.round(sw * sm.height / sm.width);
   const h = sh + bezel * 2, outerR = screenR + bezel;
-  const left = Math.round((W - w) / 2);
   // 画面：角を丸く抜いたスクショ
   const round = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${sw}" height="${sh}"><rect width="${sw}" height="${sh}" rx="${screenR}" fill="#fff"/></svg>`);
   const screen = await sharp(shotFile).resize(sw, sh, { fit: 'fill' }).ensureAlpha().composite([{ input: round, blend: 'dest-in' }]).png().toBuffer();
@@ -407,6 +407,11 @@ async function drawPhone(canvas, W, H, shotFile, top) {
   const near = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${w + pad * 2}" height="${h + pad * 2}"><rect x="${pad}" y="${pad + 8}" width="${w}" height="${h}" rx="${outerR}" fill="#2A241C" fill-opacity="0.25"/></svg>`)).blur(8).png().toBuffer();
   const layer = await sharp({ create: { width: w + pad * 2, height: h + pad * 2, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
     .composite([{ input: shadow, left: 0, top: 0 }, { input: near, left: 0, top: 0 }, { input: phone, left: pad, top: pad }]).png().toBuffer();
+  return { layer, pad, w, h };
+}
+async function drawPhone(canvas, W, H, shotFile, top) {
+  const { layer, pad, w, h } = await phoneLayer(shotFile);
+  const left = Math.round((W - w) / 2);
   console.log(`  スマホ ${w}×${h}px 上端 ${top} 下端 ${top + h}`);
   return sharp(canvas).composite([{ input: layer, left: left - pad, top: top - pad }]).png().toBuffer();
 }
@@ -509,7 +514,7 @@ async function fillWidgets(genFile, outFile) {
   return true;
 }
 
-export { drawTitle, drawPhone, textWidth, widgetCrop, renameBars, eraseVertical, PHONE, TEXT, WIDGET, GEN, ROOT, TARGET_W };
+export { drawTitle, drawPhone, phoneLayer, textWidth, widgetCrop, renameBars, eraseVertical, PHONE, TEXT, WIDGET, GEN, ROOT, TARGET_W };
 // 直接動かしたときだけ 5 枚を組む（sukuji-flat.mjs から部品として読むときは動かさない）
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 // 小見出しと見出し。見出しは 2 行までで、幅に合わせて大きさが決まる
