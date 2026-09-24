@@ -13,7 +13,7 @@
 // tap があれば、スクショの座標をカードの座標に写してタップの輪を描く。
 import sharp from 'sharp';
 import { join } from 'node:path';
-import { whiteBlob, drawPhone, PHONE, TEXT, GEN, ROOT } from './sukuji-fill.mjs';
+import { whiteBlob, drawPhone, eraseVertical, PHONE, TEXT, GEN, ROOT } from './sukuji-fill.mjs';
 
 const OUT = join(ROOT, 'flat');
 const W = 1290, H = 2796;
@@ -41,16 +41,72 @@ async function chipsCard(canvas, g, y, text) {
   return sharp(canvas).composite([{ input: shadow }, { input: svg }]).png().toBuffer();
 }
 
+// スマホより上（y < limit）を、地と帯だけで描き直す。
+// 見出しを大きく描き直したらスマホの上端が下がり、ChatGPT のスマホの上端がその上からのぞいた。
+// 地は一色、帯は斜めの一色なので、スマホの外（左右の端の列）で帯の上端・下端を拾って直線を当て、
+// その直線で地と帯を塗り分ければ、ChatGPT のスマホも見出しも消えて、帯の斜めはつながる
+async function rebuildTop(canvas, limit) {
+  const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
+  const ch = info.channels;
+  const px = (x, y) => { const o = (y * W + x) * ch; return [data[o], data[o + 1], data[o + 2]]; };
+  const bg = px(10, 10);
+  // 帯の色：左端の列で、地と違う明るい色のうちいちばん多いもの
+  const cnt = new Map();
+  for (let y = 0; y < H; y += 2) for (let x = 0; x < 200; x += 4) { const c = px(x, y); if (Math.abs(c[0] - bg[0]) + Math.abs(c[1] - bg[1]) + Math.abs(c[2] - bg[2]) > 24 && c[0] + c[1] + c[2] > 500) { const k = c.map((v) => v >> 3).join(','); cnt.set(k, (cnt.get(k) || 0) + 1); } }
+  let band = null, bn = 0; for (const [k, n] of cnt) if (n > bn) { bn = n; band = k.split(',').map((v) => (v << 3) + 4); }
+  if (!band) { console.log('  帯が見つからない。地だけで塗る'); }
+  const isBand = (c) => band && Math.abs(c[0] - band[0]) + Math.abs(c[1] - band[1]) + Math.abs(c[2] - band[2]) < 30;
+  // 端の列（x < 240、x > 1050）で、帯の上端と下端
+  const tops = [], bots = [];
+  for (let x = 0; x < W; x += 3) {
+    if (x >= 240 && x <= 1050) continue;
+    // 帯は厚いので、40px 続く所だけ帯と見る（緑の文字の縁が帯の色に近くて、x=200 で上端が 177 になった）
+    let t = -1, b = -1, run = 0;
+    for (let y = 0; y < H; y++) { if (isBand(px(x, y))) { run++; if (run >= 40) { if (t < 0) t = y - 39; b = y; } } else run = 0; }
+    if (t >= 0) { tops.push([x, t]); if (b < H - 2) bots.push([x, b]); }
+  }
+  const fit = (pts) => { const n = pts.length; if (n < 10) return null; let sx = 0, sy = 0, sxx = 0, sxy = 0; for (const [x, y] of pts) { sx += x; sy += y; sxx += x * x; sxy += x * y; } const a = (n * sxy - sx * sy) / (n * sxx - sx * sx); return { a, b: (sy - a * sx) / n }; };
+  const top = fit(tops), bot = fit(bots);
+  console.log(`  地 ${bg.join(',')} 帯 ${band ? band.join(',') : '無し'} 上端の線 ${top ? top.a.toFixed(3) : '-'} 下端の線 ${bot ? bot.a.toFixed(3) : '-'}`);
+  const out = Buffer.from(data);
+  for (let y = 0; y < limit; y++) for (let x = 0; x < W; x++) {
+    const inBand = top && y >= top.a * x + top.b && (!bot || y <= bot.a * x + bot.b);
+    const c = inBand ? band : bg, o = (y * W + x) * ch;
+    out[o] = c[0]; out[o + 1] = c[1]; out[o + 2] = c[2];
+  }
+  return sharp(out, { raw: { width: W, height: H, channels: ch } }).png().toBuffer();
+}
+
+// ChatGPT の見出しは小さく、位置も低かった（「もっと大きく、いい感じの位置に」）。
+// 消して、1〜2 枚目（sukuji-wide.mjs）と同じ書体・大きさ・位置で描き直す。
+// 消すのは、スマホより上（y < limit）にある暗い画素（黒い文字と緑の文字）。地と帯は明るいので残る
+async function retitle(canvas, { lines, accent, sub }, limit) {
+  const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
+  const ch = info.channels, mask = new Uint8Array(W * H);
+  for (let y = 0; y < limit; y++) for (let x = 0; x < W; x++) { const o = (y * W + x) * ch; if (data[o] + data[o + 1] + data[o + 2] < 600) mask[y * W + x] = 255; }
+  const erased = await eraseVertical(canvas, mask, W, H, 24, 6);
+  const INK = '#1C1F1B', GREENT = '#3E7A4D';
+  const mark = (t) => { let out = t; for (const a of accent || []) out = out.split(a).join(`<tspan fill="${GREENT}">${a}</tspan>`); return out; };
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <g font-family="${TEXT.font}" font-weight="bold" fill="${INK}" font-size="168" letter-spacing="-4">
+      <text x="110" y="560">${mark(lines[0])}</text>
+      ${lines[1] ? `<text x="110" y="760">${mark(lines[1])}</text>` : ''}
+    </g>
+    <text x="112" y="900" font-family="${TEXT.font}" fill="#2E3A31" font-size="50" letter-spacing="1">${sub}</text>
+  </svg>`);
+  return sharp(erased).composite([{ input: svg }]).png().toBuffer();
+}
+
 // 上下を継ぎ足して 1290×2796 にする。topExt は上に足す量（見出しの上の余白。他のカードは小見出しが y=330 から）
 async function fitCanvas(genFile, topExt = 300) {
   const body = await sharp(join(GEN, genFile)).resize({ width: W }).png().toBuffer();
   const bh = (await sharp(body).metadata()).height;
   const botExt = H - bh - topExt;
   if (botExt < 0) throw new Error(`絵が高すぎる（${bh}）。topExt を減らす`);
-  const topRow = await sharp(body).extract({ left: 0, top: 0, width: W, height: 1 }).resize(W, topExt, { fit: 'fill', kernel: 'nearest' }).png().toBuffer();
-  const botRow = await sharp(body).extract({ left: 0, top: bh - 1, width: W, height: 1 }).resize(W, botExt, { fit: 'fill', kernel: 'nearest' }).png().toBuffer();
-  return sharp({ create: { width: W, height: H, channels: 3, background: '#F3F7F1' } })
-    .composite([{ input: topRow, left: 0, top: 0 }, { input: body, left: 0, top: topExt }, { input: botRow, left: 0, top: topExt + bh }]).png().toBuffer();
+  const layers = [{ input: body, left: 0, top: topExt }];
+  if (topExt > 0) layers.unshift({ input: await sharp(body).extract({ left: 0, top: 0, width: W, height: 1 }).resize(W, topExt, { fit: 'fill', kernel: 'nearest' }).png().toBuffer(), left: 0, top: 0 });
+  if (botExt > 0) layers.push({ input: await sharp(body).extract({ left: 0, top: bh - 1, width: W, height: 1 }).resize(W, botExt, { fit: 'fill', kernel: 'nearest' }).png().toBuffer(), left: 0, top: topExt + bh });
+  return sharp({ create: { width: W, height: H, channels: 3, background: '#F3F7F1' } }).composite(layers).png().toBuffer();
 }
 
 // 白い画面にスクショを貼る（2 ページものと同じやり方）。戻り値は貼った絵と、座標の写し方
@@ -142,8 +198,9 @@ async function tapRing(canvas, p) {
   return sharp(canvas).composite([{ input: svg }]).png().toBuffer();
 }
 
-async function page(n, shot, { tap = null, topExt = 300, phoneTop = 800, chips = null } = {}) {
-  const base = await fitCanvas(`gen-${n}.png`, topExt);
+async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = null, title = null } = {}) {
+  let base = await fitCanvas(`gen-${n}.png`, topExt);
+  if (title) { base = await rebuildTop(base, phoneTop + 40); base = await retitle(base, title, phoneTop - 60); }
   const shotFile = join(ROOT, shot);
   const sm = await sharp(shotFile).metadata();
   const g = geom(sm.width, phoneTop);
@@ -156,9 +213,9 @@ async function page(n, shot, { tap = null, topExt = 300, phoneTop = 800, chips =
 }
 
 const PAGES = {
-  3: ["2-dialog.png", { tap: [880, 1530], chips: { y: 2350, text: 'バイト' } }],   // 「確定した」に印、下に 点線 → 塗り
-  4: ['3-free.png', {}],
-  6: ['5-report.png', {}],
+  3: ["2-dialog.png", { tap: [880, 1530], chips: { y: 2350, text: 'バイト' }, title: { lines: ['決まったら、', '押すだけ。'], accent: ['押すだけ'], sub: '点線が、塗りに変わる' } }],   // 「確定した」に印、下に 点線 → 塗り
+  4: ['3-free.png', { title: { lines: ['いつ空いてる？', 'すぐ答える。'], accent: ['すぐ答える'], sub: '○△× で、空きがひと目' } }],
+  6: ['5-report.png', { title: { lines: ['何に時間を', '使ったか、見える。'], accent: ['見える'], sub: 'バイトも、遊びも、用事も' } }],
 };
 const only = process.argv[2] ? [process.argv[2]] : Object.keys(PAGES);
 const { existsSync } = await import('node:fs');
