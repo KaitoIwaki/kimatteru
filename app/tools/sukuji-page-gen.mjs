@@ -103,6 +103,35 @@ async function pasteScreen(base, shotFile) {
   return { out, map };
 }
 
+// 押している手（平らなイラスト）。人差し指の先を p に合わせ、右下から -28° で入る。
+// 形は角丸の重ね合わせ：まず全部を太い縁取りで描き、その上に塗りだけを重ねて、内側の線を消す
+async function hand(canvas, p) {
+  const SKIN = '#FFF1E2', LINE = '#2E4B36', SLEEVE = '#A9C5A6';
+  const parts = [
+    ['rect', 120, 0, 58, 230, 29],        // 人差し指
+    ['rect', 178, 122, 46, 74, 23],       // 折った指 ×3
+    ['rect', 222, 136, 44, 74, 22],
+    ['rect', 262, 152, 40, 74, 20],
+    ['rect', 112, 182, 192, 176, 40],     // 手のひら
+    ['thumb'],
+  ];
+  const shape = (fillOnly) => parts.map((q) => {
+    const st = fillOnly ? `fill="${SKIN}"` : `fill="${SKIN}" stroke="${LINE}" stroke-width="15" stroke-linejoin="round"`;
+    if (q[0] === 'thumb') return `<rect x="66" y="205" width="62" height="118" rx="31" transform="rotate(-24 97 264)" ${st}/>`;
+    return `<rect x="${q[1]}" y="${q[2]}" width="${q[3]}" height="${q[4]}" rx="${q[5]}" ${st}/>`;
+  }).join('');
+  const sleeve = (fillOnly) => `<rect x="118" y="340" width="176" height="150" rx="22" fill="${SLEEVE}" ${fillOnly ? '' : `stroke="${LINE}" stroke-width="15"`}/>`;
+  // 指先は (149, 0)。そこを p に置き、1.35 倍、-28° 回す
+  const g = `transform="translate(${p.x} ${p.y}) rotate(-28) scale(1.2) translate(-149 -4)"`;
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <circle cx="${p.x}" cy="${p.y}" r="70" fill="none" stroke="${GREEN}" stroke-width="6" stroke-opacity="0.45"/>
+    <circle cx="${p.x}" cy="${p.y}" r="110" fill="none" stroke="${GREEN}" stroke-width="4" stroke-opacity="0.22"/>
+    <g ${g}>${sleeve(false)}${shape(false)}${sleeve(true)}${shape(true)}</g>
+  </svg>`);
+  const shadow = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><g transform="translate(${p.x + 18} ${p.y + 30}) rotate(-28) scale(1.2) translate(-149 -4)"><rect x="60" y="0" width="250" height="490" rx="60" fill="#000" fill-opacity="0.18"/></g></svg>`)).blur(26).png().toBuffer();
+  return sharp(canvas).composite([{ input: shadow }, { input: svg }]).png().toBuffer();
+}
+
 // タップの印（緑の輪を二重に）
 async function tapRing(canvas, p) {
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
@@ -120,14 +149,14 @@ async function page(n, shot, { tap = null, topExt = 300, phoneTop = 800, chips =
   const g = geom(sm.width, phoneTop);
   let out = await drawPhone(base, W, H, shotFile, phoneTop);
   const map = (x, y) => ({ x: g.x0 + x * g.k, y: g.y0 + y * g.k });
-  if (tap) out = await tapRing(out, map(tap[0], tap[1]));
+  if (tap) out = tap.length > 2 && tap[2] === 'ring' ? await tapRing(out, map(tap[0], tap[1])) : await hand(out, map(tap[0], tap[1]));
   if (chips) out = await chipsCard(out, g, chips.y, chips.text);
   await sharp(out).png().toFile(join(OUT, `${n}.png`));
   console.log(`→ flat/${n}.png`);
 }
 
 const PAGES = {
-  3: ['2-dialog.png', { tap: [645, 1516], chips: { y: 2350, text: 'バイト' } }],   // 「確定した」に印、下に 点線 → 塗り
+  3: ["2-dialog.png", { tap: [880, 1530], chips: { y: 2350, text: 'バイト' } }],   // 「確定した」に印、下に 点線 → 塗り
   4: ['3-free.png', {}],
   6: ['5-report.png', {}],
 };
