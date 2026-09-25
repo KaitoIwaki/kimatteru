@@ -11,6 +11,7 @@
 import sharp from 'sharp';
 import { join } from 'node:path';
 import { whiteBlob, GEN, ROOT } from './sukuji-fill.mjs';
+import { cutTitle, eraseBox, TITLE_LINE } from './sukuji-title.mjs';
 
 const OUT = join(ROOT, 'flat');
 const PW = 1290, H = 2796, W = PW * 2;
@@ -18,7 +19,15 @@ const SHOT = join(ROOT, '1-calendar.png');
 
 const square = await sharp(join(GEN, 'gen-wide.png')).resize({ height: H }).png().toBuffer();
 const sqW = (await sharp(square).metadata()).width;
-const base = await sharp(square).extract({ left: Math.round((sqW - W) / 2), top: 0, width: W, height: H }).png().toBuffer();
+let base = await sharp(square).extract({ left: Math.round((sqW - W) / 2), top: 0, width: W, height: H }).png().toBuffer();
+
+// 見出し：ChatGPT の書体のまま、3 枚目以降と同じ 1 行目の高さ（TITLE_LINE）・同じ位置（x=110, y=410）に置き直す
+// （「1 枚目からすべてこれに」）。左ページの上だけ見る（スマホは右ページ）。行の間は 130px まで同じかたまり
+{
+  const k = await cutTitle(base, { W, H, limitX: PW, limitY: 1400, gap: 130, targetLine: TITLE_LINE });
+  base = await eraseBox(base, { W, H }, k.bbox, k.bg);
+  base = await sharp(base).composite([{ input: k.block, left: k.left, top: k.top }]).png().toBuffer();
+}
 
 // 白い塊（画面）。枠も白いが、画面との境に灰色の線があるので、248 以上で拾えば画面だけになる
 const b = await whiteBlob(base, 248, null, null, [200, 236]);

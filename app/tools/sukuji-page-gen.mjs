@@ -14,6 +14,7 @@
 import sharp from 'sharp';
 import { join } from 'node:path';
 import { whiteBlob, drawPhone, eraseVertical, PHONE, TEXT, GEN, ROOT } from './sukuji-fill.mjs';
+import { cutTitle, TITLE_LINE } from './sukuji-title.mjs';
 
 const OUT = join(ROOT, 'flat');
 const W = 1290, H = 2796;
@@ -76,34 +77,6 @@ async function repaint(canvas, rects) {
     out[o] = c[0]; out[o + 1] = c[1]; out[o + 2] = c[2];
   }
   return sharp(out, { raw: { width: W, height: H, channels: ch } }).png().toBuffer();
-}
-
-// ChatGPT の見出しを「書体はそのまま」で使う（「生成されたフォントをそのまま使いたい」）。
-// スマホより上の暗い画素の範囲（見出し＋小見出し）を切り出し、地の色との差をアルファにして、
-// 拡大して左上（x=110, y=top）に置き直す。大きさは字の高さがだいたい 165px になる倍率か、幅に収まる倍率の小さい方。
-// 戻り値は置いた塊の下端
-async function keepTitle(canvas, limit, targetScale = 1.36, top = 410) {
-  const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
-  const ch = info.channels, bg = [data[(10 * W + 10) * ch], data[(10 * W + 10) * ch + 1], data[(10 * W + 10) * ch + 2]];
-  const diff = (o) => Math.abs(data[o] - bg[0]) + Math.abs(data[o + 1] - bg[1]) + Math.abs(data[o + 2] - bg[2]);
-  // 暗い画素のある行をまとめ、間が 90px 以内で続く最初のかたまりだけを見出しと見る
-  // （その下にある ChatGPT のスマホのアイランドまで拾って、塊が 828px になった）
-  const dark = (x, y) => { const o = (y * W + x) * ch; return data[o] + data[o + 1] + data[o + 2] < 400; };   // 400：スマホの縁の線（519）は拾わず、黒と緑の文字だけ
-  const rows = [];
-  for (let y = 0; y < limit; y++) { let n = 0; for (let x = 0; x < W; x += 2) if (dark(x, y)) { n++; if (n > 2) break; } if (n > 2) rows.push(y); }
-  let y0 = rows[0], y1 = rows[0];
-  for (const y of rows) { if (y - y1 > 90) break; y1 = y; }
-  let x0 = W, x1 = 0;
-  for (let y = y0; y <= y1; y++) for (let x = 0; x < W; x++) if (dark(x, y)) { if (x < x0) x0 = x; if (x > x1) x1 = x; }
-  x0 = Math.max(0, x0 - 8); y0 = Math.max(0, y0 - 8); x1 = Math.min(W - 1, x1 + 8); y1 = Math.min(limit - 1, y1 + 8);
-  const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
-  const rgba = Buffer.alloc(bw * bh * 4);
-  for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) { const o = ((y + y0) * W + (x + x0)) * ch, q = (y * bw + x) * 4; rgba[q] = data[o]; rgba[q + 1] = data[o + 1]; rgba[q + 2] = data[o + 2]; rgba[q + 3] = Math.min(255, diff(o) * 5); }
-  const scale = Math.min(targetScale, (W - 220) / bw);
-  const tw = Math.round(bw * scale), th = Math.round(bh * scale);
-  const block = await sharp(rgba, { raw: { width: bw, height: bh, channels: 4 } }).resize(tw, th).png().toBuffer();
-  console.log(`  見出しの塊 ${bw}×${bh} → ×${scale.toFixed(2)} で ${tw}×${th}、下端 ${top + th}`);
-  return { block, left: 110, top, bottom: top + th };
 }
 
 // ChatGPT の見出しは小さく、位置も低かった（「もっと大きく、いい感じの位置に」）。
@@ -243,7 +216,7 @@ async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = 
   let base = await fitCanvas(`gen-${n}.png`, topExt);
   if (title === 'keep') {
     // 先に文字を切り出してから（repaint で消える前に）、上を塗り直して置き直す
-    const k = await keepTitle(base, phoneTop - 60);
+    const k = await cutTitle(base, { W, H, limitY: phoneTop - 60, targetLine: TITLE_LINE });
     base = await repaint(base, [[0, 0, W, phoneTop + 40], ...repaintRects]);
     base = await sharp(base).composite([{ input: k.block, left: k.left, top: k.top }]).png().toBuffer();
     phoneTop = Math.max(phoneTop, k.bottom + 90);
