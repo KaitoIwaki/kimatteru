@@ -396,9 +396,10 @@ export function renderApp(v) {
             onTouchStart={v.onMonthTouchStart}
             onTouchMove={v.onMonthTouchMove}
             onTouchEnd={v.onMonthTouchEnd}
+            onTouchCancel={v.onMonthTouchCancel}
           >
             <div style={s('flex:1 1 auto;min-height:0;position:relative;overflow:hidden')}>
-              <div style={s(v.trackStyle)}>
+              <div ref={v.trackRef} style={s(v.trackStyle)}>
                 {(v.monthPages || []).map((page) => (
                   <div key={page.key} style={s('flex:0 0 33.3333%;max-width:33.3333%;display:flex;flex-direction:column;box-sizing:border-box')}>
                     {/* 外枠も角丸も付けない。画面の横いっぱいまで使う */}
@@ -500,6 +501,7 @@ export function renderApp(v) {
                   onTouchStart={r.onTouchStart}
                   onTouchMove={r.onTouchMove}
                   onTouchEnd={r.onTouchEnd}
+                  onTouchCancel={r.onTouchCancel}
                 >
                   <div style={s(r.chipStyle)}>{r.chipText}</div>
                   <div style={s('flex:1')} />
@@ -543,6 +545,7 @@ export function renderApp(v) {
             onTouchStart={v.onFreeTouchStart}
             onTouchMove={v.onFreeTouchMove}
             onTouchEnd={v.onFreeTouchEnd}
+            onTouchCancel={v.onFreeTouchCancel}
           >
             {/* 予定が1件も無いと、全部「○」で意味を持たない。
                 取り込みを勧めるのはここが一番いい（その寂しさを見た、その瞬間）。

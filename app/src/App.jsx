@@ -2,7 +2,7 @@
 import { renderApp } from './view.jsx';
 import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
-import { readLocal, readFile, saveLocal, saveFile } from './store';
+import { readLocal, readFile, saveLocal, saveFile, PERSISTED } from './store';
 import { pushWidget, widgetAvailable } from './widgetbridge';
 import { endsNextDay, busyEndMin } from './whenlib';
 import { loadTips, buyTip, probeTips, TIPS } from './tipjar';
@@ -703,6 +703,13 @@ export default class App extends React.Component {
     this.setState(s=>({ freeYM:shiftMonth(s.freeYM,dir), freeDir:dir }));
   }
 
+  // 月の帯（3 か月分を横に並べたもの）を、描き直さずに直接ずらす。払っている間はこれだけ
+  _moveTrack(dx, animate){
+    const el=this._trackEl; if(!el) return;
+    el.style.transition = animate ? 'transform .3s cubic-bezier(.22,.86,.3,1)' : 'none';
+    el.style.transform = `translateX(calc(-33.3333% + ${dx}px))`;
+  }
+
   // 滑り終わったスワイプ1回ぶんを、月の差し替えとして確定させる。
   // 次のスワイプが始まったときにも呼ぶので、素早く続けて払っても
   // 払った回数ぶん動く（以前はタイマーを消すだけで、1回ぶんが消えていた）。
@@ -1224,6 +1231,7 @@ export default class App extends React.Component {
         this._commitSwipe();
         this._sx=t.clientX; this._sy=t.clientY; this._axis=null;
         this._trackW=(e.currentTarget&&e.currentTarget.clientWidth)||320;
+        this._dragDx=0; this._dragging=true;
         this.setState({swipe:{dx:0, animating:false}});
       },
       onMonthTouchMove:(e)=>{
@@ -1238,19 +1246,40 @@ export default class App extends React.Component {
         // 端では少し重くして、紙を引っぱっている感じにする
         const w2=this._trackW||320;
         const d = Math.abs(dx)>w2 ? Math.sign(dx)*(w2+(Math.abs(dx)-w2)*0.3) : dx;
-        this.setState({swipe:{dx:d, animating:false}});
+        // 指が動くたびに setState すると、アプリ全体（3 か月分のマス目）を描き直すことになる。
+        // 900 件の予定でパソコンでも 1 回 30ms 前後かかり、iPhone では指についてこなかった。
+        // 払っている間は描き直さず、帯を直接ずらすだけにする。描き直すのは離したときの 1 回
+        this._dragDx=d;
+        this._moveTrack(d, false);
       },
       onMonthTouchEnd:(e)=>{
         const t=e.changedTouches&&e.changedTouches[0];
-        const wasX=this._axis==='x'; this._sx=null; this._axis=null;
+        const wasX=this._axis==='x'; this._sx=null; this._axis=null; this._dragging=false;
         if(!t||!wasX) return;
-        const dx=this.state.swipe?this.state.swipe.dx:0;
+        const dx=this._dragDx||0;
         const w=this._trackW||320;
         const go = Math.abs(dx) > Math.min(72, w*0.22);
         const dir = dx<0 ? 1 : -1;
         // 指を離したら滑らせる。滑り終わってから月を差し替える（_commitSwipe）
         this._pendingDir = go ? dir : 0;
+        // React は「前に描いた値」と比べて変わった所だけ書く。戻すとき（0px）は前の描画と同じ値なので
+        // 書いてくれず、指で動かした位置のまま残る。だから帯は自分でも動かしておく
+        this._moveTrack(go ? dir*-w : 0, true);
         this.setState({swipe:{dx: go ? dir*-w : 0, animating:true}});
+        this._settle=setTimeout(()=>this._commitSwipe(), 300);
+      },
+      // iOS がタッチを途中で取り消すことがある（通知センターを引き出しかけた、ホームバーに触れた、
+      // 電話や通知が割り込んだ、など）。そのときは touchend が来ない。
+      // 前はこれを受けていなかったので、カレンダーが指を止めた位置でずれたまま止まった
+      // （隣の月が半分見えたり、大きく払っていると端に何も無い白い所が出た）。
+      // 取り消されたら、月は変えずに元の位置へ滑らせて戻す
+      onMonthTouchCancel:()=>{
+        const wasX=this._axis==='x'; this._sx=null; this._axis=null; this._dragging=false;
+        if(!wasX) return;
+        this._pendingDir=0;
+        this._moveTrack(0, true);
+        this.setState({swipe:{dx:0, animating:true}});
+        clearTimeout(this._settle);
         this._settle=setTimeout(()=>this._commitSwipe(), 300);
       },
       onShareCard:()=>{ this._shareCard(st.screen==='summary'?'summary':'free'); },
@@ -1276,6 +1305,8 @@ export default class App extends React.Component {
           this._fAxis = Math.abs(dx)>Math.abs(dy)*1.2 ? 'x' : 'y';
         }
       },
+      // 取り消されたら、覚えていた指の位置を捨てるだけ（こちらは指について動かしていない）
+      onFreeTouchCancel:()=>{ this._fsx=null; this._fAxis=null; },
       onFreeTouchEnd:(e)=>{
         const t=e.changedTouches&&e.changedTouches[0];
         const wasX=this._fAxis==='x'; const sx=this._fsx;
@@ -2206,7 +2237,9 @@ export default class App extends React.Component {
     ];
     // 指の動きぶんだけ横にずらす。離したときだけ滑らせる。
     // 絶対配置にして、flex の縮みで幅が崩れないようにする
-    const sw=st.swipe||{dx:0,animating:false};
+    const sw0=st.swipe||{dx:0,animating:false};
+    const sw=this._dragging ? {dx:this._dragDx||0, animating:false} : sw0;
+    v.trackRef=(el)=>{ this._trackEl=el; };
     v.trackStyle={ position:'absolute', top:0, left:0, height:'100%', width:'300%', display:'flex',
       transform:`translateX(calc(-33.3333% + ${sw.dx}px))`,
       transition: sw.animating ? 'transform .3s cubic-bezier(.22,.86,.3,1)' : 'none' };
@@ -2252,6 +2285,8 @@ export default class App extends React.Component {
           onTouchStart:(e)=>this.rowSwipeStart(ev.id,e),
           onTouchMove:(e)=>this.rowSwipeMove(ev.id,e),
           onTouchEnd:()=>this.rowSwipeEnd(ev.id),
+          // 取り消されたときも、離したときと同じく「開く」か「閉じる」のどちらかに収める
+          onTouchCancel:()=>this.rowSwipeEnd(ev.id),
           // 削除ボタンは行の下に敷いておき、本文をずらして見せる
           wrapStyle:{position:'relative',borderRadius:15,overflow:'hidden',marginBottom:9},
           delWrapStyle:{position:'absolute',top:0,right:0,bottom:0,width:this.SWIPE_W,display:'flex',
@@ -3032,7 +3067,12 @@ export default class App extends React.Component {
 
   componentDidUpdate(prevProps, prevState) {
     this._applyTheme();
-    this._persist();
+    // 保存するのは、保存する中身（store.js の pack と同じ 8 つ）が入れ替わったときだけ。
+    // 前は描き直すたびに保存していた。月を指で払うと、指が少し動くたびに描き直すので、
+    // そのたびに全予定を文字にして localStorage へ書いていた（900 件で 30 回動かすと 32 回）。
+    // 取り込みで予定が多い人ほど、指についてこなくなっていた。
+    // 中身はいつも新しい配列・オブジェクトに置き換えている（直に書き換える所は無い）ので、参照で比べてよい
+    if (PERSISTED.some((k) => prevState[k] !== this.state[k])) this._persist();
     // 予定か通知設定が変わったときだけ予約を貼り直す
     if (prevState.events !== this.state.events || prevState.settings.remind !== this.state.settings.remind) {
       this._syncReminders();
@@ -3407,6 +3447,7 @@ export default class App extends React.Component {
   // 予定が消えることは、機能がひとつ動かないのとは重さが違う。
   // すぐ書くほう（localStorage）と、消えにくいほう（ファイル）の両方に書く。
   _persist() {
+    // ここは保存する中身が変わったときだけ呼ばれる（componentDidUpdate）
     const ok = saveLocal(this.state);
     // 書けなかったことを黙って飲み込まない。画面に出して、控えを促す。
     if (ok === !!this.state.saveFailed) this.setState({ saveFailed: !ok });
