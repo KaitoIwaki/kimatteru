@@ -45,7 +45,8 @@ async function chipsCard(canvas, g, y, text) {
 // 見出しを大きく描き直したらスマホの上端が下がり、ChatGPT のスマホの上端がその上からのぞいた。
 // 地は一色、帯は斜めの一色なので、スマホの外（左右の端の列）で帯の上端・下端を拾って直線を当て、
 // その直線で地と帯を塗り分ければ、ChatGPT のスマホも見出しも消えて、帯の斜めはつながる
-async function rebuildTop(canvas, limit) {
+// rects = [[x, y, w, h], ...] の中を、地と帯で塗り直す
+async function repaint(canvas, rects) {
   const { data, info } = await sharp(canvas).raw().toBuffer({ resolveWithObject: true });
   const ch = info.channels;
   const px = (x, y) => { const o = (y * W + x) * ch; return [data[o], data[o + 1], data[o + 2]]; };
@@ -69,7 +70,7 @@ async function rebuildTop(canvas, limit) {
   const top = fit(tops), bot = fit(bots);
   console.log(`  地 ${bg.join(',')} 帯 ${band ? band.join(',') : '無し'} 上端の線 ${top ? top.a.toFixed(3) : '-'} 下端の線 ${bot ? bot.a.toFixed(3) : '-'}`);
   const out = Buffer.from(data);
-  for (let y = 0; y < limit; y++) for (let x = 0; x < W; x++) {
+  for (const [rx, ry, rw, rh] of rects) for (let y = Math.max(0, ry); y < Math.min(H, ry + rh); y++) for (let x = Math.max(0, rx); x < Math.min(W, rx + rw); x++) {
     const inBand = top && y >= top.a * x + top.b && (!bot || y <= bot.a * x + bot.b);
     const c = inBand ? band : bg, o = (y * W + x) * ch;
     out[o] = c[0]; out[o + 1] = c[1]; out[o + 2] = c[2];
@@ -188,6 +189,18 @@ async function hand(canvas, p) {
   return sharp(canvas).composite([{ input: shadow }, { input: svg }]).png().toBuffer();
 }
 
+// ○△× の札：生成りの角丸に記号 1 つ。少し傾けて影つき。スマホのあとに描くので縁にかかる
+async function stickerCards(canvas, list) {
+  const size = 200, r = 32;   // 右の 2 つが画面の ○△ の列にかかるので、小さめにして右へ寄せる
+  const sym = (kind) => kind === 'o' ? `<circle cx="100" cy="100" r="54" fill="none" stroke="#5E9068" stroke-width="13"/>`
+    : kind === 'tri' ? `<polygon points="100,45 155,146 45,146" fill="none" stroke="#E0A87E" stroke-width="13" stroke-linejoin="round"/>`
+    : `<path d="M54 54 L146 146 M146 54 L54 146" stroke="#8A8A86" stroke-width="13" stroke-linecap="round"/>`;
+  const g = (c, extra) => `<g transform="translate(${c.x} ${c.y}) rotate(${c.rot || 0} 100 100)">${extra}</g>`;
+  const shadow = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${list.map((c) => g({ ...c, y: c.y + 24 }, `<rect width="${size}" height="${size}" rx="${r}" fill="#000" fill-opacity="0.22"/>`)).join('')}</svg>`)).blur(22).png().toBuffer();
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${list.map((c) => g(c, `<rect width="${size}" height="${size}" rx="${r}" fill="#F5F2EA"/>${sym(c.kind)}`)).join('')}</svg>`);
+  return sharp(canvas).composite([{ input: shadow }, { input: svg }]).png().toBuffer();
+}
+
 // タップの印（緑の輪を二重に）
 async function tapRing(canvas, p) {
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
@@ -198,9 +211,9 @@ async function tapRing(canvas, p) {
   return sharp(canvas).composite([{ input: svg }]).png().toBuffer();
 }
 
-async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = null, title = null } = {}) {
+async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = null, title = null, repaintRects = [], stickers = [] } = {}) {
   let base = await fitCanvas(`gen-${n}.png`, topExt);
-  if (title) { base = await rebuildTop(base, phoneTop + 40); base = await retitle(base, title, phoneTop - 60); }
+  if (title) { base = await repaint(base, [[0, 0, W, phoneTop + 40], ...repaintRects]); base = await retitle(base, title, phoneTop - 60); }
   const shotFile = join(ROOT, shot);
   const sm = await sharp(shotFile).metadata();
   const g = geom(sm.width, phoneTop);
@@ -208,13 +221,17 @@ async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = 
   const map = (x, y) => ({ x: g.x0 + x * g.k, y: g.y0 + y * g.k });
   if (tap) out = tap.length > 2 && tap[2] === 'ring' ? await tapRing(out, map(tap[0], tap[1])) : await hand(out, map(tap[0], tap[1]));
   if (chips) out = await chipsCard(out, g, chips.y, chips.text);
+  if (stickers.length) out = await stickerCards(out, stickers);
   await sharp(out).png().toFile(join(OUT, `${n}.png`));
   console.log(`→ flat/${n}.png`);
 }
 
 const PAGES = {
   3: ["2-dialog.png", { tap: [880, 1530], chips: { y: 2350, text: 'バイト' }, title: { lines: ['決まったら、', '押すだけ。'], accent: ['押すだけ'], sub: '点線が、塗りに変わる' } }],   // 「確定した」に印、下に 点線 → 塗り
-  4: ['3-free.png', { title: { lines: ['いつ空いてる？', 'すぐ答える。'], accent: ['すぐ答える'], sub: '○△× で、空きがひと目' } }],
+  // ChatGPT の △ と × は右の帯の上（x 1000〜、y 1000〜1750）にあって、スマホに半分隠れるので消して描き直す
+  4: ['3-free.png', { title: { lines: ['いつ空いてる？', 'すぐ答える。'], accent: ['すぐ答える'], sub: '○△× で、空きがひと目' },
+        repaintRects: [[990, 1000, 300, 760]],
+        stickers: [{ kind: 'o', x: 30, y: 1180, rot: -8 }, { kind: 'tri', x: 1085, y: 1520, rot: 7 }, { kind: 'x', x: 1070, y: 2060, rot: -6 }] }],
   6: ['5-report.png', { title: { lines: ['何に時間を', '使ったか、見える。'], accent: ['見える'], sub: 'バイトも、遊びも、用事も' } }],
 };
 const only = process.argv[2] ? [process.argv[2]] : Object.keys(PAGES);
