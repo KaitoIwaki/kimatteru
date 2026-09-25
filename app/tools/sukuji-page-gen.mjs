@@ -202,6 +202,20 @@ async function stickerCards(canvas, list) {
   return sharp(canvas).composite([{ input: shadow }, { input: svg }]).png().toBuffer();
 }
 
+// 線画の小物（カップ・チケット・ダンベル）。ChatGPT のはスマホに隠れるので、同じ絵柄をこちらで余白に描く。
+// 140×140 の枠で描いて、scale 倍・rot° で置く。線は緑、丸い端。右上に小さな「キラッ」の線
+async function lineIcons(canvas, list) {
+  const C = '#4E7D5C', st = `fill="none" stroke="${C}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"`;
+  const art = {
+    cup: `<rect x="22" y="16" width="96" height="22" rx="8" ${st}/><path d="M32 38 L42 128 Q42 138 52 138 L88 138 Q98 138 98 128 L108 38" ${st}/>`,
+    ticket: `<path d="M22 28 H118 A10 10 0 0 1 128 38 V56 A12 12 0 0 0 128 80 V98 A10 10 0 0 1 118 108 H22 A10 10 0 0 1 12 98 V80 A12 12 0 0 0 12 56 V38 A10 10 0 0 1 22 28 Z" ${st}/><path d="M92 40 V96" ${st} stroke-dasharray="10 9"/>`,
+    dumbbell: `<rect x="12" y="44" width="20" height="52" rx="6" ${st}/><rect x="32" y="52" width="14" height="36" rx="4" ${st}/><path d="M46 70 H94" ${st}/><rect x="94" y="52" width="14" height="36" rx="4" ${st}/><rect x="108" y="44" width="20" height="52" rx="6" ${st}/>`,
+  };
+  const spark = `<path d="M128 6 L136 -8 M142 18 L158 14 M118 -2 L114 -16" fill="none" stroke="${C}" stroke-width="9" stroke-linecap="round"/>`;
+  const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">${list.map((c) => `<g transform="translate(${c.x} ${c.y}) scale(${c.scale || 1.2}) rotate(${c.rot || 0} 70 70)">${art[c.kind]}${spark}</g>`).join('')}</svg>`);
+  return sharp(canvas).composite([{ input: svg }]).png().toBuffer();
+}
+
 // タップの印（緑の輪を二重に）
 async function tapRing(canvas, p) {
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
@@ -212,7 +226,7 @@ async function tapRing(canvas, p) {
   return sharp(canvas).composite([{ input: svg }]).png().toBuffer();
 }
 
-async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = null, title = null, repaintRects = [], stickers = [] } = {}) {
+async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = null, title = null, repaintRects = [], stickers = [], icons = [] } = {}) {
   let base = await fitCanvas(`gen-${n}.png`, topExt);
   if (title === 'keep') {
     // 先に文字を切り出してから（repaint で消える前に）、上を塗り直して置き直す
@@ -224,6 +238,8 @@ async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = 
   const shotFile = join(ROOT, shot);
   const sm = await sharp(shotFile).metadata();
   const g = geom(sm.width, phoneTop);
+  // 小物の線画はスマホの前に描く（縁にかかった分はスマホの後ろに隠れる。前に描くと画面の上に線が乗って変）
+  if (icons.length) base = await lineIcons(base, icons);
   let out = await drawPhone(base, W, H, shotFile, phoneTop);
   const map = (x, y) => ({ x: g.x0 + x * g.k, y: g.y0 + y * g.k });
   if (tap) out = tap.length > 2 && tap[2] === 'ring' ? await tapRing(out, map(tap[0], tap[1])) : await hand(out, map(tap[0], tap[1]));
@@ -266,7 +282,10 @@ const PAGES = {
   4: ['3-free.png', { title: 'keep',
         repaintRects: [[990, 1000, 300, 760]],
         stickers: [{ kind: 'o', x: 30, y: 1180, rot: -8 }, { kind: 'tri', x: 1085, y: 1520, rot: 7 }, { kind: 'x', x: 1070, y: 2060, rot: -6 }] }],
-  6: ['5-report.png', { title: { lines: ['何に時間を', '使ったか、見える。'], accent: ['見える'], sub: 'バイトも、遊びも、用事も' } }],
+  // ChatGPT の小物（カップ 左、チケット 右、ダンベル 右下）はスマホにかかるので消して、余白に描き直す
+  6: ['5-report.png', { title: 'keep',
+        repaintRects: [[40, 640, 240, 280], [990, 740, 300, 270], [980, 1200, 310, 260]],
+        icons: [{ kind: 'cup', x: 8, y: 1180, rot: -8, scale: 1.05 }, { kind: 'ticket', x: 1135, y: 1560, rot: -22, scale: 1.0 }, { kind: 'dumbbell', x: 1130, y: 2150, rot: -32, scale: 1.0 }] }],
 };
 const only = process.argv[2] ? [process.argv[2]] : [...Object.keys(PAGES), '5'];
 const { existsSync } = await import('node:fs');
