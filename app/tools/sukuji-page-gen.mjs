@@ -13,8 +13,8 @@
 // tap があれば、スクショの座標をカードの座標に写してタップの輪を描く。
 import sharp from 'sharp';
 import { join } from 'node:path';
-import { whiteBlob, drawPhone, eraseVertical, PHONE, TEXT, GEN, ROOT } from './sukuji-fill.mjs';
-import { cutTitle, TITLE_LINE } from './sukuji-title.mjs';
+import { whiteBlob, whiteBlobs, pasteBig, widgetCrop, drawPhone, eraseVertical, PHONE, TEXT, GEN, ROOT } from './sukuji-fill.mjs';
+import { cutTitle, eraseBox, TITLE_LINE } from './sukuji-title.mjs';
 
 const OUT = join(ROOT, 'flat');
 const W = 1290, H = 2796;
@@ -233,6 +233,32 @@ async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = 
   console.log(`→ flat/${n}.png`);
 }
 
+// ---- 5 枚目：白い角丸 3 つに、実機から切り出した小・中・大を貼る ----
+// スマホは無い。ChatGPT の角丸を型にせず、傾きと中心だけ借りて、少し大きい（×1.12）カードを影ごと上からかぶせる
+// （sukuji-fill.mjs の pasteBig）。見出しは他と同じく切り出して置き直し。角丸が見出しの下（y≈1000）に来るよう、上に 383px 足す
+async function widgetPage() {
+  let base = await fitCanvas('gen-5.png', 383);
+  const k = await cutTitle(base, { W, H, limitY: 980, targetLine: TITLE_LINE });
+  base = await eraseBox(base, { W, H }, k.bbox, k.bg);
+  base = await sharp(base).composite([{ input: k.block, left: k.left, top: k.top }]).png().toBuffer();
+  const blobs = await whiteBlobs(base, 3, [232, 250]);
+  if (blobs.length < 3) { console.log(`白い角丸が ${blobs.length} つしか無い`); return; }
+  // 中＝いちばん横長。残りは面積で 小・大
+  const byA = blobs.map((b) => ({ b, a: b.rect.h / b.rect.w, area: b.rect.w * b.rect.h })).sort((x, y) => x.a - y.a);
+  const rest = byA.slice(1).sort((x, y) => x.area - y.area);
+  // ×1.12 だと下が 650px 空いた。小・中は 1.25 倍（重なるので左右に 30px ずつ離す）、大は 1.35 倍で 100px 下げる
+  const plan = [['large', rest[1].b, 1.35, 0, 100], ['medium', byA[0].b, 1.25, 30, 0], ['small', rest[0].b, 1.25, -30, 0]];
+  let out = base;
+  for (const [kind, b, scale, dx, dy] of plan) {
+    const src = await widgetCrop(kind);
+    if (!src) { console.log(`  ${kind} のスクショが無い`); continue; }
+    out = await pasteBig(out, b, src, W, H, scale, dx, dy);
+    console.log(`  ${kind}: ${Math.round(b.rect.w)}×${Math.round(b.rect.h)} 傾き ${b.tilt.toFixed(1)}° 中心 (${Math.round(b.rect.cx)},${Math.round(b.rect.cy)})`);
+  }
+  await sharp(out).png().toFile(join(OUT, '5.png'));
+  console.log('→ flat/5.png');
+}
+
 const PAGES = {
   // title: 'keep' = ChatGPT の文字を切り出して置き直す（書体そのまま）。文字を描き直すなら { lines, accent, sub }
   3: ["2-dialog.png", { tap: [880, 1530], chips: { y: 2350, text: 'バイト' }, title: 'keep' }],   // 「確定した」に印、下に 点線 → 塗り
@@ -242,9 +268,10 @@ const PAGES = {
         stickers: [{ kind: 'o', x: 30, y: 1180, rot: -8 }, { kind: 'tri', x: 1085, y: 1520, rot: 7 }, { kind: 'x', x: 1070, y: 2060, rot: -6 }] }],
   6: ['5-report.png', { title: { lines: ['何に時間を', '使ったか、見える。'], accent: ['見える'], sub: 'バイトも、遊びも、用事も' } }],
 };
-const only = process.argv[2] ? [process.argv[2]] : Object.keys(PAGES);
+const only = process.argv[2] ? [process.argv[2]] : [...Object.keys(PAGES), '5'];
 const { existsSync } = await import('node:fs');
 for (const n of only) {
+  if (n === '5') { if (existsSync(join(GEN, 'gen-5.png'))) await widgetPage(); else console.log('gen/gen-5.png が無いので 5 は飛ばした'); continue; }
   if (!PAGES[n]) { console.log(`${n} は無い`); continue; }
   if (!existsSync(join(GEN, `gen-${n}.png`))) { console.log(`gen/gen-${n}.png が無いので ${n} は飛ばした`); continue; }
   await page(n, ...PAGES[n]);

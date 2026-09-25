@@ -515,7 +515,7 @@ async function fillWidgets(genFile, outFile) {
   return true;
 }
 
-export { whiteBlob, drawTitle, drawPhone, phoneLayer, textWidth, widgetCrop, renameBars, eraseVertical, PHONE, TEXT, WIDGET, GEN, ROOT, TARGET_W };
+export { whiteBlob, whiteBlobs, pasteBig, drawTitle, drawPhone, phoneLayer, textWidth, widgetCrop, renameBars, eraseVertical, PHONE, TEXT, WIDGET, GEN, ROOT, TARGET_W };
 // 直接動かしたときだけ 5 枚を組む（sukuji-flat.mjs から部品として読むときは動かさない）
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 // 小見出しと見出し。見出しは 2 行までで、幅に合わせて大きさが決まる
