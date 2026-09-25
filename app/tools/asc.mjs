@@ -13,6 +13,8 @@
 //     node tools/asc.mjs submit     ← 調べるだけ（出さない）
 //     node tools/asc.mjs submit go  ← 審査に出す（書き込み）
 //     node tools/asc.mjs cancel     ← 出してしまった審査を取り下げる（書き込み）
+//     node tools/asc.mjs shots      ← 6.9 インチのスクショの枠を読む（読むだけ）
+//     node tools/asc.mjs shots go   ← store-assets/sukuji/flat の 6 枚に差し替える（書き込み）
 //
 // 鍵はここでしか読まない。表示もしないし、Apple 以外へは送らない。
 import crypto from 'node:crypto';
@@ -643,7 +645,66 @@ async function version() {
   })).data;
   console.log(`${NL}${want} を作りました（${made.attributes.appStoreState}）。次は fill と build。`);
 }
+// ---- スクショ ----
+// 差し替えるのは「いちばん新しい版」の ja の 6.9 インチ（APP_IPHONE_67：1290×2796）の枠だけ。
+// 版が書き換えられる状態でないときは止まる（審査中の版には触らない）。
+// 手順は Apple の決まりどおり：予約（POST appScreenshots）→ 指示された URL へ分割 PUT →
+// 「上げ終えた」と MD5 を PATCH。最後に並び順を PATCH で固定する
+const SHOTS = ['wide-1.png', 'wide-2.png', '3.png', '4.png', '5.png', '6.png'];
+async function shots() {
+  const go = process.argv[3] === 'go';
+  const dir = new URL('../../store-assets/sukuji/flat/', import.meta.url);
+  const files = SHOTS.map((f) => ({ name: f, path: new URL(f, dir) }));
+  for (const f of files) if (!fs.existsSync(f.path)) throw new Error(`無い: store-assets/sukuji/flat/${f.name}`);
+
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
+  console.log(`版 ${v.attributes.versionString}（${v.attributes.appStoreState}）`);
+  if (!EDITABLE.includes(v.attributes.appStoreState)) { console.log(`書き換えられるのは ${EDITABLE.join(' / ')} のときだけなので、ここで止めます。`); return; }
+  const vls = (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations`)).data;
+  const vl = vls.find((x) => x.attributes.locale === 'ja') || vls[0];
+  const sets = (await get(`/v1/appStoreVersionLocalizations/${vl.id}/appScreenshotSets`)).data;
+  for (const st of sets) {
+    const list = (await get(`/v1/appScreenshotSets/${st.id}/appScreenshots`)).data;
+    console.log(`  枠 ${st.attributes.screenshotDisplayType}: ${list.length} 枚  ${list.map((x) => x.attributes.fileName).join(', ')}`);
+  }
+  let set = sets.find((x) => x.attributes.screenshotDisplayType === 'APP_IPHONE_67');
+  if (!go) { console.log(`${NL}差し替えるなら: node tools/asc.mjs shots go（6.9 インチの枠を ${SHOTS.length} 枚に）`); return; }
+
+  if (!set) {
+    set = (await call('/v1/appScreenshotSets', 'POST', { data: { type: 'appScreenshotSets', attributes: { screenshotDisplayType: 'APP_IPHONE_67' },
+      relationships: { appStoreVersionLocalization: { data: { type: 'appStoreVersionLocalizations', id: vl.id } } } } })).data;
+    console.log('6.9 インチの枠を作った');
+  }
+  // 今あるものを消す
+  const old = (await get(`/v1/appScreenshotSets/${set.id}/appScreenshots`)).data;
+  for (const o of old) { await call(`/v1/appScreenshots/${o.id}`, 'DELETE'); console.log(`  消した ${o.attributes.fileName}`); }
+
+  const ids = [];
+  for (const f of files) {
+    const buf = fs.readFileSync(f.path);
+    const made = (await call('/v1/appScreenshots', 'POST', { data: { type: 'appScreenshots', attributes: { fileName: f.name, fileSize: buf.length },
+      relationships: { appScreenshotSet: { data: { type: 'appScreenshotSets', id: set.id } } } } })).data;
+    for (const op of made.attributes.uploadOperations) {
+      const headers = {};
+      for (const h of op.requestHeaders || []) headers[h.name] = h.value;
+      const r = await fetch(op.url, { method: op.method, headers, body: buf.subarray(op.offset, op.offset + op.length) });
+      if (!r.ok) throw new Error(`${f.name} の分割 ${op.offset} を上げられなかった: ${r.status} ${await r.text()}`);
+    }
+    const md5 = crypto.createHash('md5').update(buf).digest('hex');
+    await call(`/v1/appScreenshots/${made.id}`, 'PATCH', { data: { type: 'appScreenshots', id: made.id, attributes: { uploaded: true, sourceFileChecksum: md5 } } });
+    ids.push(made.id);
+    console.log(`  上げた ${f.name}（${Math.round(buf.length / 1024)} KB）`);
+  }
+  // 並び順
+  await call(`/v1/appScreenshotSets/${set.id}/relationships/appScreenshots`, 'PATCH', { data: ids.map((id) => ({ type: 'appScreenshots', id })) });
+  // 受け取りの状態（すぐには COMPLETE にならない。しばらくして status で見る）
+  const after = (await get(`/v1/appScreenshotSets/${set.id}/appScreenshots`)).data;
+  console.log(`${NL}6.9 インチの枠: ${after.map((x) => `${x.attributes.fileName}=${x.attributes.assetDeliveryState?.state}`).join(', ')}`);
+  console.log('App Store Connect で保存は不要（API で入れたものはそのまま残る）。提出は submit で。');
+}
+
 const cmd = process.argv[2] || 'status';
-const jobs = { status, text, iap, memo, version, fill, notes, build, submit, cancel };
+const jobs = { status, text, iap, memo, version, fill, notes, build, submit, cancel, shots };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
