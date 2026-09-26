@@ -8,7 +8,7 @@
 // TikTok も X も、この形式なら変換なしで上がる。音は入れない（アプリ側で音源を付ける）。
 import { chromium } from 'playwright';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, rmSync, existsSync, readdirSync } from 'node:fs';
+import { mkdirSync, rmSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -24,12 +24,19 @@ await page.evaluate(() => document.fonts.ready);
 // 画像（スクショとウィジェット）が読み終わるのを待つ
 await page.waitForFunction(() => [...document.images].every((i) => i.complete && i.naturalWidth > 0));
 const stage = page.locator('#stage');
+// ナレーションに合わせて場面を伸ばす倍率（make-narration.mjs が書く）。無ければ伸ばさない
+const timingFile = join(DIR, 'timing.json');
+if (existsSync(timingFile)) {
+  const { knots, total } = JSON.parse(readFileSync(timingFile, 'utf8'));
+  await page.evaluate((k) => window.setTiming(k), knots);
+  console.log(`timing.json のとおり伸ばす（全体 ${total} 秒）`);
+}
 const duration = await page.evaluate(() => window.DURATION);
 
 if (process.argv[2] === 'stills') {
   const out = join(DIR, 'stills');
   mkdirSync(out, { recursive: true });
-  for (const s of (process.argv[3] || '1.5,5,8.5,9.6,13,16.8,19.5,23').split(',').map(Number)) {
+  for (const s of (process.argv[3] || '1.5,5,9,14,22,33,41,50').split(',').map(Number)) {
     await page.evaluate((t) => window.render(t), s);
     await stage.screenshot({ path: join(out, `t${String(s).replace('.', '_')}.png`) });
     console.log(`静止画 ${s}s`);
