@@ -2,6 +2,8 @@
 //
 //   node app/tools/make-promo.mjs                 ← 動画（store-assets/promo/lukko-promo.mp4）
 //   node app/tools/make-promo.mjs stills 1.5,5,9  ← その秒の静止画だけ（確認用。promo/stills/）
+//   PROMO_TIMING=none PROMO_OUT=lukko-promo-base.mp4 node app/tools/make-promo.mjs
+//                                                 ← ナレーション用の伸ばし（timing.json）を使わず、元の速さで
 //
 // 中身は store-assets/promo/promo.html。時間 t を渡すと、その瞬間の絵になる（window.render）。
 // ブラウザで 1 コマずつ撮って、ffmpeg で 30fps の MP4（H.264、yuv420p）にまとめる。
@@ -26,7 +28,7 @@ await page.waitForFunction(() => [...document.images].every((i) => i.complete &&
 const stage = page.locator('#stage');
 // ナレーションに合わせて場面を伸ばす倍率（make-narration.mjs が書く）。無ければ伸ばさない
 const timingFile = join(DIR, 'timing.json');
-if (existsSync(timingFile)) {
+if (existsSync(timingFile) && process.env.PROMO_TIMING !== 'none') {
   const { knots, total } = JSON.parse(readFileSync(timingFile, 'utf8'));
   await page.evaluate((k) => window.setTiming(k), knots);
   console.log(`timing.json のとおり伸ばす（全体 ${total} 秒）`);
@@ -52,7 +54,7 @@ if (process.argv[2] === 'stills') {
     await stage.screenshot({ path: join(tmp, `f${String(i).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 92 });
     if (i % 60 === 0) console.log(`  ${i}/${n}`);
   }
-  const mp4 = join(DIR, 'lukko-promo.mp4');
+  const mp4 = join(DIR, process.env.PROMO_OUT || 'lukko-promo.mp4');
   const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', join(tmp, 'f%04d.jpg'),
     // JPEG のコマは色の幅が「全域」なので、そのままだと yuvj420p になる。SNS で色がずれないよう、ふつうの幅（tv）に直す
     '-vf', 'scale=out_range=tv,format=yuv420p', '-c:v', 'libx264', '-color_range', 'tv', '-crf', '18', '-preset', 'slow', '-movflags', '+faststart', mp4], { stdio: 'inherit' });

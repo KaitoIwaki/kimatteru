@@ -1,0 +1,83 @@
+{
+  "_": "効果音のきっかけ。scene は promo.html の場面、at はその場面の中の秒（伸ばす前）。promo.html の動きの時刻（pop / rise / cam / ring の秒）から拾ってある。音は make-sfx.mjs がその場で合成する（素材は使わない）。gain は 1 が基準",
+  "sounds": {
+    "whoosh": "場面が入る・スマホが下から入る（ノイズを帯域で絞って、ふわっと）",
+    "swish":  "カメラが寄る・動く（whoosh の短く小さい版）",
+    "pop":    "札・吹き出し・ウィジェットがぽんと出る（高い音から下がる）",
+    "bloop":  "？が浮かぶ（低い音から上がる）",
+    "tick":   "枠が付く・一覧が並ぶ（短い高い音）",
+    "tap":    "指で押す（低いコツと、高いカチ）",
+    "chime":  "点線が塗りに変わる（2 音のキラン）",
+    "finale": "最後にアプリ名が出る（ドミソドの和音）"
+  },
+  "cues": [
+    { "scene": "s1",  "at": 0.15, "s": "whoosh", "gain": 0.6 },
+    { "scene": "s1",  "at": 0.9,  "s": "bloop" },
+    { "scene": "s1",  "at": 1.3,  "s": "bloop", "gain": 0.8 },
+
+    { "scene": "s2",  "at": 0.0,  "s": "whoosh", "gain": 0.7 },
+    { "scene": "s2",  "at": 0.5,  "s": "tick", "gain": 0.6 },
+    { "scene": "s2",  "at": 0.65, "s": "tick", "gain": 0.6 },
+    { "scene": "s2",  "at": 0.8,  "s": "tick", "gain": 0.6 },
+    { "scene": "s2",  "at": 1.3,  "s": "bloop", "gain": 0.8 },
+    { "scene": "s2",  "at": 1.5,  "s": "bloop", "gain": 0.7 },
+    { "scene": "s2",  "at": 1.7,  "s": "bloop", "gain": 0.6 },
+
+    { "scene": "s3",  "at": 0.0,  "s": "whoosh", "gain": 0.7 },
+    { "scene": "s3",  "at": 0.4,  "s": "pop" },
+    { "scene": "s3",  "at": 0.7,  "s": "pop" },
+    { "scene": "s3",  "at": 1.1,  "s": "pop", "gain": 1.1 },
+    { "scene": "s3",  "at": 2.36, "s": "tap" },
+    { "scene": "s3",  "at": 2.4,  "s": "chime" },
+
+    { "scene": "s4",  "at": 0.1,  "s": "whoosh" },
+    { "scene": "s4",  "at": 1.9,  "s": "swish" },
+    { "scene": "s4",  "at": 2.6,  "s": "tick" },
+    { "scene": "s4",  "at": 2.8,  "s": "tick" },
+    { "scene": "s4",  "at": 4.0,  "s": "swish" },
+    { "scene": "s4",  "at": 4.7,  "s": "tick" },
+    { "scene": "s4",  "at": 4.8,  "s": "tick" },
+    { "scene": "s4",  "at": 6.0,  "s": "swish", "gain": 0.8 },
+
+    { "scene": "s5",  "at": 0.1,  "s": "whoosh" },
+    { "scene": "s5",  "at": 1.6,  "s": "swish" },
+    { "scene": "s5",  "at": 2.2,  "s": "tick" },
+    { "scene": "s5",  "at": 2.95, "s": "tap" },
+    { "scene": "s5",  "at": 3.3,  "s": "pop" },
+    { "scene": "s5",  "at": 4.1,  "s": "chime" },
+
+    { "scene": "s6a", "at": 0.15, "s": "whoosh", "gain": 0.8 },
+    { "scene": "s6a", "at": 0.7,  "s": "pop", "gain": 1.1 },
+    { "scene": "s6a", "at": 1.5,  "s": "swish", "gain": 0.6 },
+
+    { "scene": "s6b", "at": 0.1,  "s": "whoosh" },
+    { "scene": "s6b", "at": 2.0,  "s": "swish" },
+    { "scene": "s6b", "at": 2.6,  "s": "tick" },
+    { "scene": "s6b", "at": 4.2,  "s": "swish" },
+    { "scene": "s6b", "at": 4.8,  "s": "tick" },
+    { "scene": "s6b", "at": 6.4,  "s": "swish" },
+    { "scene": "s6b", "at": 7.0,  "s": "tick" },
+    { "scene": "s6b", "at": 8.4,  "s": "swish" },
+    { "scene": "s6b", "at": 9.0,  "s": "tick" },
+
+    { "scene": "s7",  "at": 0.1,  "s": "whoosh" },
+    { "scene": "s7",  "at": 1.8,  "s": "swish" },
+    { "scene": "s7",  "at": 2.3,  "s": "tick" },
+    { "scene": "s7",  "at": 3.9,  "s": "pop", "gain": 1.1 },
+    { "scene": "s7",  "at": 4.0,  "s": "tick" },
+
+    { "scene": "s8",  "at": 0.0,  "s": "whoosh", "gain": 0.7 },
+    { "scene": "s8",  "at": 0.5,  "s": "pop" },
+    { "scene": "s8",  "at": 0.7,  "s": "pop" },
+    { "scene": "s8",  "at": 0.95, "s": "pop", "gain": 1.1 },
+
+    { "scene": "s9",  "at": 0.1,  "s": "whoosh" },
+    { "scene": "s9",  "at": 1.8,  "s": "swish" },
+    { "scene": "s9",  "at": 2.4,  "s": "tick" },
+    { "scene": "s9",  "at": 3.7,  "s": "swish" },
+    { "scene": "s9",  "at": 4.3,  "s": "tick" },
+
+    { "scene": "s10", "at": 0.15, "s": "pop", "gain": 1.2 },
+    { "scene": "s10", "at": 1.3,  "s": "finale" }
+  ]
+}
