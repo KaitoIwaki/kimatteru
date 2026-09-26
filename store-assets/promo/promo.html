@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>LUKKO promo</title>
+<!--
+  TikTok / X 用の縦長プロモーション動画（1080×1920、24 秒）。
+  フラットデザイン・モーショングラフィックス・顔なしの人物（Corporate Memphis 系）。
+  時間 t（秒）を渡すと、その瞬間の絵になる（render(t)）。app/tools/make-promo.mjs が
+  1 コマずつ撮って ffmpeg で MP4 にする。ブラウザで開くと、そのまま再生もされる。
+  アプリの画面は描き直さず、本物のスクショ（assets/）を使う。
+  TikTok・X は下と右端に操作ボタンが重なるので、文字は上寄り・中寄りに置く。
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=block" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F3F7F1; --band: #D3E4CF; --green: #3E7A4D; --sage: #A9C5A6; --lav: #B4A6D6;
+    --orange: #E0A87E; --cream: #FFF6EA; --ink: #1C1F1B; --soft: #4A5A4E;
+  }
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  #stage { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: var(--bg);
+    font-family: 'Zen Maru Gothic', 'Yu Gothic UI', 'Yu Gothic', sans-serif; color: var(--ink); }
+  .abs { position: absolute; }
+  .scene { position: absolute; inset: 0; opacity: 0; }
+  .line { position: absolute; left: 0; right: 0; text-align: center; font-weight: 900; letter-spacing: -2px; }
+  .h1 { font-size: 116px; line-height: 1.15; }
+  .h2 { font-size: 64px; font-weight: 700; color: var(--soft); letter-spacing: 0; }
+  .g { color: var(--green); }
+  .chip { position: absolute; height: 130px; border-radius: 30px; display: flex; align-items: center; justify-content: center;
+    font-size: 64px; font-weight: 700; box-sizing: border-box; white-space: nowrap; }
+  .chip.dash { background: var(--cream); border: 9px dashed var(--orange); color: #9A6A45; }
+  .chip.fill { background: var(--sage); color: #1F2A22; }
+  .shadow { filter: drop-shadow(0 18px 24px rgba(40, 50, 40, .18)); }
+  .phone { position: absolute; background: #FAFAFA; border: 4px solid #D6D6D6; border-radius: 110px; padding: 24px; box-sizing: border-box;
+    filter: drop-shadow(0 30px 40px rgba(40, 50, 40, .22)); }
+  .phone img { display: block; width: 100%; border-radius: 86px; }
+  .phone .island { position: absolute; left: 50%; top: 46px; width: 230px; height: 66px; margin-left: -115px; border-radius: 33px; background: #0B0B0C; }
+  .tile { position: absolute; width: 230px; height: 230px; border-radius: 44px; background: #FBF8F1; }
+  .bubble { position: absolute; background: #fff; border-radius: 50px; padding: 34px 50px; font-size: 68px; font-weight: 900; white-space: nowrap; }
+  .bubble::after { content: ''; position: absolute; bottom: -36px; left: 90px; border: 22px solid transparent; border-top: 30px solid #fff; border-left-width: 6px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- 地：斜めの帯と、ゆっくり漂う図形（Memphis の飾り） -->
+  <svg class="abs" id="bg" width="1080" height="1920" viewBox="0 0 1080 1920" style="left:0;top:0">
+    <polygon id="band" points="0,1320 1080,860 1080,1480 0,1940" fill="#D3E4CF"/>
+    <g id="deco" fill="none" stroke-linecap="round" stroke-width="10">
+      <circle id="d1" cx="140" cy="250" r="26" fill="#B4A6D6" stroke="none"/>
+      <path id="d2" d="M880 300 q30 -30 60 0 t60 0" stroke="#A9C5A6"/>
+      <polygon id="d3" points="930,1560 980,1640 880,1640" fill="#E0A87E" stroke="none" opacity=".8"/>
+      <circle id="d4" cx="120" cy="1650" r="18" stroke="#3E7A4D"/>
+      <path id="d5" d="M90 820 l40 0 m-20 -20 l0 40" stroke="#E0A87E"/>
+      <circle id="d6" cx="990" cy="760" r="12" fill="#3E7A4D" stroke="none" opacity=".6"/>
+    </g>
+  </svg>
+
+  <!-- 人物の型（顔なし）。use で使い回す。腕は #armL / #armR を回す -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <g id="personBase">
+        <!-- 脚と靴 -->
+        <rect x="88" y="330" width="40" height="200" rx="20" fill="var(--pants)"/>
+        <rect x="134" y="330" width="40" height="200" rx="20" fill="var(--pants)"/>
+        <ellipse cx="100" cy="532" rx="34" ry="14" fill="#2B2B2B"/>
+        <ellipse cx="164" cy="532" rx="34" ry="14" fill="#2B2B2B"/>
+        <!-- 胴 -->
+        <rect x="66" y="172" width="132" height="190" rx="58" fill="var(--shirt)"/>
+        <!-- 首と頭（顔は描かない）、髪 -->
+        <rect x="116" y="138" width="30" height="44" rx="12" fill="var(--skin)"/>
+        <circle cx="131" cy="104" r="48" fill="var(--skin)"/>
+        <path d="M82 108 C80 58 124 44 146 50 C176 56 190 84 182 112 C170 90 142 82 114 88 C98 92 88 100 82 108Z" fill="var(--hair)"/>
+      </g>
+    </defs>
+  </svg>
+
+  <!-- 1. 問いかけ -->
+  <div class="scene" id="s1">
+    <div class="line h1" id="s1a" style="top:300px">この予定、</div>
+    <div class="line h1" id="s1b" style="top:440px"><span class="g">決まって</span>たっけ？</div>
+    <svg class="abs" id="p1" width="520" height="1120" viewBox="0 0 260 560" style="left:280px;top:760px;--shirt:#B4A6D6;--pants:#2F5A3C;--skin:#F2C9A5;--hair:#2B2B2B">
+      <use href="#personBase"/>
+      <g id="p1armL"><path d="M74 196 L48 300 L110 300" stroke="var(--skin)" stroke-width="26" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M74 196 L60 250" stroke="var(--shirt)" stroke-width="34" stroke-linecap="round"/></g>
+      <g id="p1armR"><path d="M188 196 L214 290 L160 262" stroke="var(--skin)" stroke-width="26" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M188 196 L200 244" stroke="var(--shirt)" stroke-width="34" stroke-linecap="round"/>
+        <rect x="128" y="226" width="44" height="78" rx="10" fill="#1C1F1B" transform="rotate(-18 150 265)"/></g>
+    </svg>
+    <div class="abs" id="q1" style="left:620px;top:700px;font-size:190px;font-weight:900;color:var(--green)">？</div>
+    <div class="abs" id="q2" style="left:760px;top:840px;font-size:120px;font-weight:900;color:var(--orange)">？</div>
+  </div>
+
+  <!-- 2. 困りごと：ぜんぶ同じ見た目 -->
+  <div class="scene" id="s2">
+    <div class="line h1" id="s2a" style="top:260px;font-size:92px">ふつうのカレンダーは</div>
+    <div class="line h1" id="s2b" style="top:390px"><span class="g">ぜんぶ</span>同じ見た目。</div>
+    <div class="abs shadow" id="cal" style="left:150px;top:640px;width:780px;height:720px;border-radius:56px;background:#fff">
+      <div style="position:absolute;left:0;right:0;top:44px;text-align:center;font-size:56px;font-weight:900">9月</div>
+      <div class="chip" id="c21" style="left:70px;top:170px;width:640px;background:#C9CFCA;color:#2E3A31">BBQ</div>
+      <div class="chip" id="c22" style="left:70px;top:340px;width:640px;background:#C9CFCA;color:#2E3A31">バイト</div>
+      <div class="chip" id="c23" style="left:70px;top:510px;width:640px;background:#C9CFCA;color:#2E3A31">ライブ</div>
+    </div>
+    <div class="abs" id="q21" style="left:830px;top:760px;font-size:120px;font-weight:900;color:var(--orange)">？</div>
+    <div class="abs" id="q22" style="left:90px;top:930px;font-size:100px;font-weight:900;color:var(--green)">？</div>
+    <div class="abs" id="q23" style="left:850px;top:1120px;font-size:90px;font-weight:900;color:#8A7FC0">？</div>
+    <div class="line h2" id="s2c" style="top:1440px">どれが決まってるか、分からない</div>
+  </div>
+
+  <!-- 3. 答え：点線と塗り -->
+  <div class="scene" id="s3">
+    <div class="abs" id="s3logo" style="left:0;right:0;top:250px;text-align:center;font-size:84px;font-weight:900;letter-spacing:2px">LUKKO なら</div>
+    <div class="chip dash shadow" id="k1" style="left:120px;top:420px;width:300px;height:110px;font-size:52px">まだ</div>
+    <div class="abs" id="k1t" style="left:460px;top:430px;font-size:72px;font-weight:900">＝ 点線</div>
+    <div class="chip fill shadow" id="k2" style="left:120px;top:580px;width:300px;height:110px;font-size:52px">決まった</div>
+    <div class="abs" id="k2t" style="left:460px;top:590px;font-size:72px;font-weight:900">＝ 塗り</div>
+    <div class="chip dash shadow" id="big" style="left:190px;top:900px;width:700px;height:200px;font-size:96px;border-radius:44px;border-width:12px">BBQ</div>
+    <svg class="abs" id="spark" width="1080" height="1920" viewBox="0 0 1080 1920" style="left:0;top:0">
+      <g stroke="#3E7A4D" stroke-width="12" stroke-linecap="round">
+        <path d="M540 850 L540 790"/><path d="M880 880 L930 840"/><path d="M200 880 L150 840"/>
+        <path d="M920 1000 L990 1000"/><path d="M160 1000 L90 1000"/>
+      </g>
+    </svg>
+    <svg class="abs" id="hand" width="360" height="560" viewBox="0 0 180 280" style="left:0;top:0">
+      <rect x="62" y="0" width="34" height="140" rx="17" fill="#F2C9A5"/>
+      <rect x="92" y="78" width="30" height="60" rx="15" fill="#F2C9A5"/>
+      <rect x="118" y="88" width="28" height="60" rx="14" fill="#F2C9A5"/>
+      <rect x="142" y="100" width="26" height="58" rx="13" fill="#F2C9A5"/>
+      <rect x="56" y="112" width="116" height="110" rx="34" fill="#F2C9A5"/>
+      <rect x="30" y="128" width="40" height="80" rx="20" fill="#F2C9A5" transform="rotate(-24 50 168)"/>
+      <rect x="62" y="210" width="108" height="80" rx="14" fill="#B4A6D6"/>
+    </svg>
+    <div class="line h1" id="s3c" style="top:1260px;font-size:100px">決まったら、</div>
+    <div class="line h1" id="s3d" style="top:1390px;font-size:100px"><span class="g">押すだけ。</span></div>
+  </div>
+
+  <!-- 4. 本物の画面 -->
+  <div class="scene" id="s4">
+    <div class="line h1" id="s4a" style="top:240px"><span class="g">未定</span>のまま、</div>
+    <div class="line h1" id="s4b" style="top:380px">置ける。</div>
+    <div class="phone" id="ph4" style="left:150px;top:620px;width:780px">
+      <img src="assets/1-calendar.png"><div class="island"></div>
+    </div>
+  </div>
+
+  <!-- 5. ○△×：いつ空いてる？ -->
+  <div class="scene" id="s5">
+    <svg class="abs" id="p5a" width="420" height="900" viewBox="0 0 260 560" style="left:60px;top:900px;--shirt:#E0A87E;--pants:#34405A;--skin:#E8B690;--hair:#5A3A28">
+      <use href="#personBase"/>
+      <g id="p5aArm"><path d="M188 196 L230 250 L262 200" stroke="var(--skin)" stroke-width="26" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M188 196 L206 222" stroke="var(--shirt)" stroke-width="34" stroke-linecap="round"/></g>
+      <path d="M74 196 L56 300 L72 350" stroke="var(--skin)" stroke-width="26" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <svg class="abs" id="p5b" width="420" height="900" viewBox="0 0 260 560" style="left:600px;top:900px;--shirt:#B4A6D6;--pants:#2F5A3C;--skin:#F2C9A5;--hair:#2B2B2B">
+      <g transform="translate(260 0) scale(-1 1)"><use href="#personBase"/></g>
+      <g id="p5bArm"><path d="M72 196 L40 270 L96 250" stroke="var(--skin)" stroke-width="26" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M72 196 L58 236" stroke="var(--shirt)" stroke-width="34" stroke-linecap="round"/>
+        <rect x="70" y="200" width="44" height="78" rx="10" fill="#1C1F1B" transform="rotate(14 92 240)"/></g>
+      <path d="M186 196 L204 300 L188 350" stroke="var(--skin)" stroke-width="26" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="bubble shadow" id="bub" style="left:90px;top:800px">いつ空いてる？</div>
+    <div class="tile shadow" id="t1" style="left:120px;top:520px"><svg viewBox="0 0 230 230" width="230" height="230"><circle cx="115" cy="115" r="64" fill="none" stroke="#5E9068" stroke-width="16"/></svg></div>
+    <div class="tile shadow" id="t2" style="left:425px;top:520px"><svg viewBox="0 0 230 230" width="230" height="230"><polygon points="115,50 180,170 50,170" fill="none" stroke="#E0A87E" stroke-width="16" stroke-linejoin="round"/></svg></div>
+    <div class="tile shadow" id="t3" style="left:730px;top:520px"><svg viewBox="0 0 230 230" width="230" height="230"><path d="M60 60 L170 170 M170 60 L60 170" stroke="#8A8A86" stroke-width="16" stroke-linecap="round"/></svg></div>
+    <div class="line h1" id="s5a" style="top:240px;font-size:104px">空きも、</div>
+    <div class="line h1" id="s5b" style="top:370px;font-size:104px"><span class="g">すぐ答えられる。</span></div>
+  </div>
+
+  <!-- 6. ウィジェット -->
+  <div class="scene" id="s6">
+    <div class="line h1" id="s6a" style="top:240px">ホーム画面にも。</div>
+    <div class="line h2" id="s6b" style="top:400px">ウィジェット 小・中・大</div>
+    <img class="abs shadow" id="w3" src="assets/widget-large.png" style="left:200px;top:980px;width:680px">
+    <img class="abs shadow" id="w1" src="assets/widget-small.png" style="left:80px;top:560px;width:330px">
+    <img class="abs shadow" id="w2" src="assets/widget-medium.png" style="left:440px;top:600px;width:570px">
+  </div>
+
+  <!-- 7. 締め -->
+  <div class="scene" id="s7">
+    <img class="abs" id="icon" src="assets/icon.png" style="left:390px;top:420px;width:300px;height:300px;border-radius:68px;filter:drop-shadow(0 24px 30px rgba(40,50,40,.22))">
+    <div class="line" id="s7a" style="top:790px;font-size:120px;font-weight:900;letter-spacing:4px">LUKKO</div>
+    <div class="line h2" id="s7b" style="top:940px;color:var(--ink);font-weight:900">ルッコ</div>
+    <div class="line h1" id="s7c" style="top:1080px;font-size:80px"><span class="g">未定のまま</span>置けるカレンダー</div>
+    <div class="abs" id="cta" style="left:240px;top:1290px;width:600px;height:150px;border-radius:75px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:62px;font-weight:900">App Store で無料</div>
+    <div class="line h2" id="s7d" style="top:1480px;font-size:46px">広告なし・アカウント不要</div>
+  </div>
+</div>
+
+<script>
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 3);                        // 減速
+const back = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const $ = (id) => document.getElementById(id);
+const set = (id, o) => { const el = $(id); if (!el) return; for (const k in o) el.style[k] = o[k]; };
+
+// 場面：[id, 始まり, 終わり]
+const SC = [['s1', 0, 3.4], ['s2', 3.4, 6.6], ['s3', 6.6, 10.6], ['s4', 10.6, 14.2], ['s5', 14.2, 17.6], ['s6', 17.6, 20.2], ['s7', 20.2, 24]];
+window.DURATION = 24;
+
+// 文字が下から浮き上がって出る
+function rise(id, t, at, dur = 0.45, dist = 60) {
+  const k = eo(seg(t, at, at + dur));
+  set(id, { opacity: k, transform: `translateY(${(1 - k) * dist}px)` });
+}
+// ぽんと出る（少し行き過ぎて戻る）
+function pop(id, t, at, dur = 0.45, rot = 0, extra = '') {
+  const x = seg(t, at, at + dur), k = x <= 0 ? 0 : back(x);
+  set(id, { opacity: clamp(x * 3), transform: `${extra} scale(${k}) rotate(${rot}deg)` });
+}
+
+window.render = function (t) {
+  // 地の帯と飾りは、ずっとゆっくり動く（場面をまたいでつながって見える）
+  const b = Math.sin(t * 0.35) * 30;
+  $('band').setAttribute('points', `0,${1320 + b} 1080,${860 - b} 1080,${1480 - b} 0,${1940 + b}`);
+  [['d1', 18, 0.9], ['d2', 14, 1.1], ['d3', 20, 0.7], ['d4', 16, 1.3], ['d5', 12, 1.0], ['d6', 22, 0.8]].forEach(([id, a, f], i) => {
+    $(id).setAttribute('transform', `translate(${Math.sin(t * f + i) * a} ${Math.cos(t * f * 0.8 + i) * a}) rotate(${Math.sin(t * 0.6 + i) * 12} 540 960)`);
+  });
+
+  // 場面の出入り：入るとき 0.35 秒でふわっと、出るとき 0.3 秒で消える
+  for (const [id, a, z] of SC) {
+    const inK = eo(seg(t, a, a + 0.35)), outK = 1 - seg(t, z - 0.3, z);
+    const v = Math.min(inK, outK);
+    set(id, { opacity: v, transform: `translateY(${(1 - inK) * 40}px)`, display: v <= 0 ? 'none' : 'block' });
+  }
+
+  // 1. 問いかけ：人がスマホを見て首をかしげる。「？」がはずむ
+  if (t < 3.6) {
+    rise('s1a', t, 0.15); rise('s1b', t, 0.45);
+    const tilt = Math.sin(t * 2.2) * 4;
+    $('p1armR').setAttribute('transform', `rotate(${-6 + Math.sin(t * 3) * 3} 188 196)`);
+    $('p1armL').setAttribute('transform', `rotate(${Math.sin(t * 2.4) * 5} 74 196)`);
+    set('p1', { transform: `rotate(${tilt * 0.3}deg)`, transformOrigin: '50% 90%' });
+    pop('q1', t, 0.9, 0.5, -10, `translateY(${Math.sin(t * 4) * 12}px)`);
+    pop('q2', t, 1.3, 0.5, 12, `translateY(${Math.cos(t * 4) * 10}px)`);
+  }
+
+  // 2. ぜんぶ同じ見た目
+  if (t > 3.2 && t < 6.8) {
+    rise('s2a', t, 3.55); rise('s2b', t, 3.8);
+    ['c21', 'c22', 'c23'].forEach((id, i) => { const k = eo(seg(t, 3.9 + i * 0.15, 4.35 + i * 0.15)); set(id, { opacity: k, transform: `translateX(${(1 - k) * -80}px)` }); });
+    pop('q21', t, 4.7, 0.4, 10, `translateY(${Math.sin(t * 5) * 10}px)`);
+    pop('q22', t, 4.9, 0.4, -12, `translateY(${Math.cos(t * 5) * 10}px)`);
+    pop('q23', t, 5.1, 0.4, 8, `translateY(${Math.sin(t * 5 + 1) * 10}px)`);
+    rise('s2c', t, 5.2);
+  }
+
+  // 3. 点線と塗り。指が押すと、点線の BBQ が塗りになる
+  if (t > 6.4 && t < 10.8) {
+    rise('s3logo', t, 6.75);
+    pop('k1', t, 7.0); rise('k1t', t, 7.1, 0.4, 30);
+    pop('k2', t, 7.3); rise('k2t', t, 7.4, 0.4, 30);
+    pop('big', t, 7.7, 0.5);
+    // 指：右下から入ってきて、8.9 秒で押す
+    const inK = eo(seg(t, 7.9, 8.7)), press = seg(t, 8.7, 8.9) - seg(t, 8.9, 9.1), outK = eo(seg(t, 9.6, 10.2));
+    const hx = 600 + (1 - inK) * 380 + outK * 420, hy = 1000 + (1 - inK) * 700 + press * 18 + outK * 600;
+    set('hand', { left: (hx - 150) + 'px', top: (hy - 8) + 'px', transform: `rotate(-24deg) scale(${1 - press * 0.05})`, transformOrigin: '42% 2%', opacity: t < 7.9 ? 0 : 1 });
+    const done = t >= 8.9;
+    const el = $('big');
+    el.className = 'chip shadow ' + (done ? 'fill' : 'dash');
+    el.style.borderWidth = done ? '0' : '12px';
+    el.textContent = done ? '✓ BBQ' : 'BBQ';
+    if (done) el.style.transform = `scale(${1 + Math.sin(seg(t, 8.9, 9.25) * Math.PI) * 0.08})`;
+    const sp = seg(t, 8.95, 9.4);
+    set('spark', { opacity: sp > 0 && sp < 1 ? 1 - sp : 0, transform: `scale(${0.9 + sp * 0.2})`, transformOrigin: '540px 1000px' });
+    rise('s3c', t, 9.1); rise('s3d', t, 9.3);
+  }
+
+  // 4. 本物の画面：下から入ってきて、ゆっくり寄る
+  if (t > 10.4 && t < 14.4) {
+    rise('s4a', t, 10.8); rise('s4b', t, 11.05);
+    const k = eo(seg(t, 10.8, 11.5)), zoom = 1 + seg(t, 11.5, 14.2) * 0.06;
+    set('ph4', { transform: `translateY(${(1 - k) * 500}px) rotate(${(1 - k) * 6}deg) scale(${zoom})`, transformOrigin: '50% 20%', opacity: k });
+  }
+
+  // 5. いつ空いてる？ → ○△×
+  if (t > 14.0 && t < 17.8) {
+    const k1 = eo(seg(t, 14.35, 14.8)), k2 = eo(seg(t, 14.5, 14.95));
+    set('p5a', { transform: `translateX(${(1 - k1) * -300}px)`, opacity: k1 });
+    set('p5b', { transform: `translateX(${(1 - k2) * 300}px)`, opacity: k2 });
+    $('p5aArm').setAttribute('transform', `rotate(${Math.sin(t * 6) * 8} 188 196)`);
+    pop('bub', t, 14.9, 0.45);
+    pop('t1', t, 15.6, 0.45, -6); pop('t2', t, 15.8, 0.45, 5); pop('t3', t, 16.0, 0.45, -4);
+    rise('s5a', t, 16.2); rise('s5b', t, 16.4);   // 問いかけ（吹き出し）と ○△× のあとに答えを出す
+  }
+
+  // 6. ウィジェット
+  if (t > 17.4 && t < 20.4) {
+    rise('s6a', t, 17.75); rise('s6b', t, 17.95);
+    pop('w1', t, 18.1, 0.45, -5); pop('w2', t, 18.3, 0.45, 3); pop('w3', t, 18.55, 0.5, -2);
+  }
+
+  // 7. 締め
+  if (t > 20.0) {
+    pop('icon', t, 20.35, 0.55);
+    rise('s7a', t, 20.7); rise('s7b', t, 20.85); rise('s7c', t, 21.1);
+    const c = seg(t, 21.5, 22.0), pulse = t > 22 ? 1 + Math.sin((t - 22) * 5) * 0.03 : back(c);
+    set('cta', { opacity: clamp(c * 3), transform: `scale(${c <= 0 ? 0 : pulse})` });
+    rise('s7d', t, 21.9);
+  }
+};
+
+// 撮影するときは make-promo.mjs が ?frame を付けて開く（自動再生しない）
+if (!new URLSearchParams(location.search).has('frame')) {
+  const t0 = performance.now();
+  const loop = () => { const t = ((performance.now() - t0) / 1000) % window.DURATION; window.render(t); requestAnimationFrame(loop); };
+  document.fonts.ready.then(loop);
+} else {
+  window.render(0);
+}
+</script>
+</body>
+</html>
