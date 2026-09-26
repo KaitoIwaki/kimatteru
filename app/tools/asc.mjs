@@ -13,6 +13,8 @@
 //     node tools/asc.mjs submit     ← 調べるだけ（出さない）
 //     node tools/asc.mjs submit go  ← 審査に出す（書き込み）
 //     node tools/asc.mjs cancel     ← 出してしまった審査を取り下げる（書き込み）
+//     node tools/asc.mjs release    ← 審査を通って「リリース待ち」の版を確かめる（読むだけ）
+//     node tools/asc.mjs release go ← その版を App Store に公開する（書き込み。取り消せない）
 //     node tools/asc.mjs shots      ← 6.9 インチのスクショの枠を読む（読むだけ）
 //     node tools/asc.mjs shots go   ← store-assets/sukuji/flat の 6 枚に差し替える（書き込み）
 //
@@ -704,7 +706,23 @@ async function shots() {
   console.log('App Store Connect で保存は不要（API で入れたものはそのまま残る）。提出は submit で。');
 }
 
+// 審査を通った版は、手動リリースにしてあると PENDING_DEVELOPER_RELEASE で止まる。
+// 公開は取り消せない（出したあとは次の版を出すしかない）ので、go を付けたときだけ押す
+async function release() {
+  const go = process.argv[3] === 'go';
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
+  const st = v.attributes.appStoreState;
+  console.log(`版 ${v.attributes.versionString}（${st}）`);
+  if (st !== 'PENDING_DEVELOPER_RELEASE') { console.log('リリース待ちではないので、何もしません。'); return; }
+  if (!go) { console.log(`${NL}公開するなら: node tools/asc.mjs release go（取り消せない）`); return; }
+  await call('/v1/appStoreVersionReleaseRequests', 'POST', { data: { type: 'appStoreVersionReleaseRequests',
+    relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id: v.id } } } } });
+  const after = (await get(`/v1/appStoreVersions/${v.id}`)).data.attributes.appStoreState;
+  console.log(`公開を頼みました。いまの状態: ${after}（ストアに出るまで数時間かかることがある）`);
+}
+
 const cmd = process.argv[2] || 'status';
-const jobs = { status, text, iap, memo, version, fill, notes, build, submit, cancel, shots };
+const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
