@@ -25,12 +25,14 @@ const GREEN = '#3E7A4D';
 PHONE.w = 960; PHONE.body = "#FAFAFA"; PHONE.rimColor = "#D6D6D6";   // 960 なら下端が絵の外（2829）に出て、ChatGPT のスマホが下からのぞかない
 function geom(shotW, top) { const left = Math.round((W - PHONE.w) / 2), sw = PHONE.w - PHONE.bezel * 2; return { x0: left + PHONE.bezel, y0: top + PHONE.bezel, k: sw / shotW }; }
 
-// 「点線 → ✓ 塗り」の帯（flat の 2 枚目と同じ）。y はスクショの座標
+// 「点線 → ✓ 塗り」の帯（flat の 2 枚目と同じ）。y はスクショの座標。
+// バイトなので点線も塗りも緑（アプリと同じ。色は種類、点線か塗りかが「決まったか」）。
+// 前は点線がオレンジで、決まると緑になり「決まった＝緑」と誤解させた
 async function chipsCard(canvas, g, y, text) {
   const cw = 980, ch = 210, r = 30;
   const left = Math.round((W - cw) / 2), top = Math.round(g.y0 + y * g.k - ch / 2);
   const chip = (x, dashed) => dashed
-    ? `<rect x="${x}" y="${top + 62}" width="330" height="86" rx="16" fill="#FFF6EA" stroke="#E0A87E" stroke-width="5" stroke-dasharray="14 10"/><text x="${x + 165}" y="${top + 62 + 60}" text-anchor="middle" font-family="${TEXT.font}" font-size="44" fill="#9A6A45">${text}</text>`
+    ? `<rect x="${x}" y="${top + 62}" width="330" height="86" rx="16" fill="#DCE9DE" stroke="#8FB896" stroke-width="5" stroke-dasharray="14 10"/><text x="${x + 165}" y="${top + 62 + 60}" text-anchor="middle" font-family="${TEXT.font}" font-size="44" fill="#2F4A36">${text}</text>`
     : `<rect x="${x}" y="${top + 62}" width="330" height="86" rx="16" fill="#A9C5A6"/><text x="${x + 165}" y="${top + 62 + 60}" text-anchor="middle" font-family="${TEXT.font}" font-size="44" fill="#243126">✓ ${text}</text>`;
   const shadow = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect x="${left}" y="${top + 18}" width="${cw}" height="${ch}" rx="${r}" fill="#000" fill-opacity="0.22"/></svg>`)).blur(22).png().toBuffer();
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">

@@ -38,8 +38,13 @@
   .o { color: #B9770F; }
   .chip { position: absolute; height: 130px; border-radius: 30px; display: flex; align-items: center; justify-content: center;
     font-size: 64px; font-weight: 700; box-sizing: border-box; white-space: nowrap; }
-  .chip.dash { background: var(--cream); border: 9px dashed var(--orange); color: #9A6A45; }
-  .chip.fill { background: var(--sage); color: #1F2A22; }
+  /* 予定の札。色は種類で決まり（アプリと同じ）、決まったかどうかは点線か塗りかだけで表す。
+     前は点線のオレンジが決まると緑の塗りに変わっていて、「決まった＝緑」と誤解させた。
+     dash / fill は遊び（オレンジ）、dashG / fillG はバイト（緑）。色はアプリの画面から拾った値 */
+  .chip.dash { background: #F3E1D6; border: 9px dashed #D9A382; color: #7A5440; }
+  .chip.fill { background: #E0B49A; color: #3F2A1E; }
+  .chip.dashG { background: #DCE9DE; border: 9px dashed #8FB896; color: #2F4A36; }
+  .chip.fillG { background: #AFCCB3; color: #1F2A22; }
   .shadow { filter: drop-shadow(0 18px 24px rgba(40, 50, 40, .18)); }
   /* 本物の画面を入れるスマホ。transform-origin は左上（cam で寄せる計算を簡単にするため） */
   .phone { position: absolute; left: 150px; top: 620px; width: 780px; background: #FAFAFA; border: 4px solid #D6D6D6; border-radius: 110px;
@@ -135,7 +140,8 @@
     <div class="abs" id="k2t" style="left:460px;top:590px;font-size:72px;font-weight:900">＝ 塗り</div>
     <div class="chip dash shadow" id="big" style="left:190px;top:900px;width:700px;height:200px;font-size:96px;border-radius:44px;border-width:12px">BBQ</div>
     <svg class="abs" id="spark" width="1080" height="1920" viewBox="0 0 1080 1920" style="left:0;top:0;opacity:0">
-      <g stroke="#3E7A4D" stroke-width="12" stroke-linecap="round">
+      <!-- 光の線も BBQ（遊び）の色。緑にすると「決まった＝緑」に見える -->
+      <g stroke="#D9A382" stroke-width="12" stroke-linecap="round">
         <path d="M540 850 L540 790"/><path d="M880 880 L930 840"/><path d="M200 880 L150 840"/>
         <path d="M920 1000 L990 1000"/><path d="M160 1000 L90 1000"/>
       </g>
@@ -174,9 +180,9 @@
       <rect x="62" y="210" width="108" height="80" rx="14" fill="#B4A6D6"/>
     </svg>
     <div class="abs shadow" id="flip5" style="left:90px;top:1560px;width:900px;height:210px;border-radius:40px;background:#fff;opacity:0">
-      <div class="chip dash" style="left:60px;top:50px;width:320px;height:110px;font-size:54px;border-width:8px">バイト</div>
+      <div class="chip dashG" style="left:60px;top:50px;width:320px;height:110px;font-size:54px;border-width:8px">バイト</div>
       <div class="abs" style="left:410px;top:52px;font-size:80px;font-weight:900;color:var(--green)">→</div>
-      <div class="chip" id="flip5b" style="left:520px;top:50px;width:320px;height:110px;font-size:54px;background:var(--cream);border:8px dashed var(--orange);color:#9A6A45">バイト</div>
+      <div class="chip dashG" id="flip5b" style="left:520px;top:50px;width:320px;height:110px;font-size:54px;border-width:8px">バイト</div>
     </div>
     <div class="cap" id="c5a"><div class="t1">点線の予定を押すと</div><div class="t2">「どうなりました？」と聞いてくれる</div></div>
     <div class="cap" id="c5b"><div class="t1">「確定した」で<span class="g">塗り</span>に</div><div class="t2">入れ直さなくていい。押すだけ</div></div>
@@ -420,9 +426,9 @@ window.render = function (t) {
     const fk = eo(seg(lt, 3.3, 3.8));
     set('flip5', { opacity: fk, transform: `translateY(${(1 - fk) * 60}px)` });
     const done = lt >= 4.1, fb = $('flip5b');
-    fb.style.background = done ? 'var(--sage)' : 'var(--cream)';
-    fb.style.border = done ? 'none' : '8px dashed var(--orange)';
-    fb.style.color = done ? '#1F2A22' : '#9A6A45';
+    // バイトは緑のまま、点線 → 塗り（色は変えない）
+    fb.className = 'chip ' + (done ? 'fillG' : 'dashG');
+    fb.style.borderWidth = done ? '0' : '8px';
     fb.textContent = done ? '✓ バイト' : 'バイト';
     fb.style.transform = `scale(${done ? 1 + Math.sin(seg(lt, 4.1, 4.45) * Math.PI) * 0.1 : 1})`;
     caps(lt, [['c5a', 0.3, 3.0], ['c5b', 3.1, 6.0]]);
