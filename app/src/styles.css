@@ -32,6 +32,8 @@
   --glass-nav: rgba(248, 249, 251, 0.62);
   --glass-rim: rgba(255, 255, 255, 0.85);
   --glass-top: rgba(255, 255, 255, 0.34);
+  /* 今日のマスの地。色を持つのは予定だけ、の決めを崩さない薄さ */
+  --today-bg: #F7F8FA;
 }
 
 /* 暗い方は、温かい黒（#1A1A17）から冷たい黒へ。
@@ -54,6 +56,7 @@
   --glass-nav: rgba(20, 24, 30, 0.6);
   --glass-rim: rgba(255, 255, 255, 0.1);
   --glass-top: rgba(255, 255, 255, 0.06);
+  --today-bg: #161A20;
 }
 
 html,
@@ -219,6 +222,19 @@ input { font-family: inherit; }
   border: 1px solid var(--line) !important;
   box-shadow: 0 8px 22px rgba(38, 37, 31, 0.1);
 }
+
+/* はじめての案内で画面を押したら、演出を待たずに全部出す */
+.ob-fast *, .ob-fast *::before { animation-delay: 0s !important; animation-duration: .12s !important; }
+
+/* 作成画面の下の保存。ホームバーの分だけ上げる */
+.save-bar {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 10px) !important;
+}
+/* 取り消しの帯。ナビがあるときはナビの上、無いときは画面の下 */
+.undo-nav { bottom: calc(env(safe-area-inset-bottom) + 76px) !important; }
+.undo-solo { bottom: calc(env(safe-area-inset-bottom) + 14px) !important; }
+/* 今日へ戻ったとき、今日のマスを一度だけ光らせる */
+@keyframes todayFlash { 0% { background: rgba(29, 158, 117, .28); } 100% { background: transparent; } }
 
 /* 動きを減らす設定の人には、静かなクロスフェードだけ残す */
 @media (prefers-reduced-motion: reduce) {

@@ -2,7 +2,8 @@
 import { renderApp } from './view.jsx';
 import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo } from './demo';
-import { readLocal, readFile, saveLocal, saveFile, PERSISTED } from './store';
+import { readLocal, readFile, saveLocal, saveFile, PERSISTED, isNative } from './store';
+import { writeBackup, listBackups, readBackup, pruneBackups, hasTodayBackup } from './backup';
 import { pushWidget, widgetAvailable } from './widgetbridge';
 import { endsNextDay, busyEndMin } from './whenlib';
 import { loadTips, buyTip, probeTips, TIPS } from './tipjar';
@@ -27,8 +28,71 @@ const SATURDAY_BLUE = 'var(--sat)';
 const FILL_SOFT = 0.32;
 // 暗いときの、マスの地。ここに色を混ぜて塗りの面を作る（styles.css の --card と同じ）
 const DARK_CELL = '#12151A';
+
+// 色を混ぜる（クラスの _mix と同じ式）。組み込みの種類の paper / dark を作るのに使う
+const hexRgb = (hex) => { const h = String(hex).replace('#', ''); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)); };
+const mixHex = (a, b, t) => { const A = hexRgb(a), B = hexRgb(b); return A.map((v, i) => Math.round(v + (B[i] - v) * t)); };
+const paperOf = (hex) => { const l = mixHex(hex, '#ffffff', 0.62); return `rgba(${l[0]},${l[1]},${l[2]},.72)`; };
+const darkOf = (hex) => { const d = mixHex(hex, '#000000', 0.5); return `rgb(${d[0]},${d[1]},${d[2]})`; };
+
+/**
+ * 種類。最初から入っている4つ（用事・バイト・遊び・その他）に加えて、
+ * 社会人向けの3つを持っておく。使い方の1問（はじめての案内）で選んだ答えに合わせて、
+ * どれを出すか・何と呼ぶかを決める。
+ *
+ * uWord / cWord … 詳細や一覧で出す状態の名前（まだ／決まった）
+ * uLabel / cLabel … 作成画面の切り替えの言葉。無ければ「まだ不確定／決まってる」
+ * ask … 点線を押したときの問い。gone … 「無くなった」の言い方
+ * free … 空き状況で「空いている」と数える（休み）
+ * celeb … 確定したときに出る一言
+ *
+ * 仕事の点線は「仮押さえ」。会社員が毎日している仮押さえと、このアプリの点線は同じもの。
+ */
+const EXTRA_TYPES = {
+  work: { key: 'work', name: '仕事', color: '#6E85BE', uWord: '仮押さえ', cWord: '確定', uLabel: '仮押さえ', cLabel: '確定',
+    ask: 'この仮押さえ、どうなった？', gone: '流れた', celeb: '確定しました' },
+  off: { key: 'off', name: '休み', color: '#5FA8A2', uWord: '希望休', cWord: '休み', uLabel: '希望休', cLabel: '休み',
+    ask: 'この休み、通りましたか？', gone: '通らなかった', celeb: '休み、通りました', free: true, allDayDefault: true },
+  family: { key: 'family', name: '家族', color: '#D0A0BC', uWord: 'まだの家族の予定', cWord: '家族の予定',
+    ask: 'この予定、どうなりました？' },
+};
+const extraType = (key) => { const t = EXTRA_TYPES[key]; return t ? { ...t, paper: paperOf(t.color), dark: darkOf(t.color) } : null; };
+
+/**
+ * 使い方の1問の答え。答えで、種類の並びと呼び名・給料の出し方・空き状況で見る時間帯・
+ * 週のはじまりを決める。あとから設定の「使い方」で変えられる。
+ *
+ * 学生を置いていかない：学校とバイトを選んだ人は、これまでとまったく同じ画面になる。
+ *
+ * types … [key, 名前（無ければそのまま）] の並び。ここに無い種類は隠す（消さない）
+ * free … 空き状況で見る時間（平日・休日）。work … いつもの勤務時間（ふさがっている扱い）
+ */
+const PROFILES = {
+  student: { label: '学校とバイト', note: '授業・サークル・バイト',
+    types: [['yoji'], ['baito'], ['asobi'], ['other']], weekStart: 0,
+    free: { wd: [540, 1320], hd: [540, 1320] }, work: null },
+  work: { label: '会社の仕事', note: '会議・打ち合わせ・出張',
+    types: [['work'], ['yoji'], ['asobi', 'プライベート'], ['family'], ['other']], weekStart: 1,
+    free: { wd: [1140, 1380], hd: [600, 1320] }, work: { days: [1, 2, 3, 4, 5], from: 540, to: 1080 } },
+  shift: { label: 'シフト勤務', note: '看護・介護・販売・飲食など',
+    types: [['baito', '勤務'], ['off'], ['yoji'], ['asobi', 'プライベート'], ['other']], weekStart: 0,
+    free: { wd: [540, 1320], hd: [540, 1320] }, work: null },
+  free: { label: 'フリーランス・副業', note: '案件・打ち合わせ・納期',
+    types: [['work'], ['baito', '副業']
+      , ['yoji'], ['asobi', 'プライベート'], ['other']], weekStart: 1,
+    free: { wd: [600, 1320], hd: [600, 1320] }, work: null },
+  family: { label: '子育て・家族', note: '保育園・学校行事・通院',
+    types: [['family', '子ども・家族'], ['work'], ['yoji'], ['asobi', '自分'], ['other']], weekStart: 0,
+    free: { wd: [540, 1260], hd: [540, 1260] }, work: null },
+};
+const PROFILE_KEYS = ['student', 'work', 'shift', 'free', 'family'];
+
+// スイッチの見た目（設定のものと同じ）
+const tgTrackOb = (on) => ({ width: 44, height: 26, borderRadius: 13, background: on ? 'var(--ink)' : 'var(--line)', padding: 2, transition: 'background .28s cubic-bezier(.2,.9,.2,1)', cursor: 'pointer', display: 'flex', flexShrink: 0 });
+const tgKnobOb = (on) => ({ width: 22, height: 22, borderRadius: 11, background: 'var(--card)', boxShadow: '0 1px 2px rgba(0,0,0,.25)', transition: 'transform .28s cubic-bezier(.2,.9,.2,1)', transform: on ? 'translateX(18px)' : 'translateX(0)' });
 import { shareCanvas, shareText } from './shareimg';
 import { toIcs, parseIcs } from './ics';
+import { segmentsForDay, layoutColumns, allDayFor, weekStartNo } from './timegrid';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
 // 保存は store.js に閉じている（localStorage とファイルの二重書き）
@@ -68,20 +132,31 @@ const MIN_STEP = 5;
 // くり返しは「規則」ではなく、その場で予定の実体を並べて作る。
 // 1回ごとに確定／未確定が違うのがこのアプリの要なので、
 // あとから1件だけ直せない形（規則で持つ形）にはできない。
+// 平日・2週ごと・毎月の第◯曜日・月末 を足した（定例会議・ゴミの日・家賃の引き落とし）
 const REPEAT_UNITS = [
   { key: 'day', label: '毎日' },
+  { key: 'weekday', label: '平日' },
   { key: 'week', label: '毎週' },
-  { key: 'month', label: '毎月' },
+  { key: 'biweek', label: '2週ごと' },
+  { key: 'month', label: '毎月◯日' },
+  { key: 'nth', label: '毎月 第◯曜日' },
+  { key: 'monthEnd', label: '月末' },
   { key: 'year', label: '毎年' },
 ];
 // いつまで続けるかは「月数」で持つ。単位ごとに現実的な長さだけ出す——
 // 毎日で2年を選べてしまうと 730 件になり、上限で黙って切られる。
 const REPEAT_SPANS = {
   day: [{ m: 1, label: '1か月' }, { m: 3, label: '3か月' }, { m: 6, label: '半年' }],
+  weekday: [{ m: 1, label: '1か月' }, { m: 3, label: '3か月' }, { m: 6, label: '半年' }],
   week: [{ m: 1, label: '1か月' }, { m: 3, label: '3か月' }, { m: 6, label: '半年' }, { m: 12, label: '1年' }],
+  biweek: [{ m: 3, label: '3か月' }, { m: 6, label: '半年' }, { m: 12, label: '1年' }],
   month: [{ m: 6, label: '半年' }, { m: 12, label: '1年' }, { m: 24, label: '2年' }],
-  year: [{ m: 36, label: '3年' }, { m: 60, label: '5年' }],
+  nth: [{ m: 6, label: '半年' }, { m: 12, label: '1年' }, { m: 24, label: '2年' }],
+  monthEnd: [{ m: 6, label: '半年' }, { m: 12, label: '1年' }, { m: 24, label: '2年' }],
+  // 誕生日や記念日は長く続く。10年まで選べるようにした
+  year: [{ m: 36, label: '3年' }, { m: 60, label: '5年' }, { m: 120, label: '10年' }],
 };
+const NTH_LABEL = { 1: '第1', 2: '第2', 3: '第3', 4: '第4', 5: '最終' };
 const spansFor = (every) => REPEAT_SPANS[every] || REPEAT_SPANS.week;
 const MAX_REPEAT = 200;
 
@@ -89,25 +164,55 @@ const MAX_REPEAT = 200;
 // 月と年は日数で刻めないので、暦の上で進める。
 // 「毎月31日」の2月のように、その月に無い日は飛ばす。
 // 近い日に寄せると、頼んでいない日付に予定が置かれることになる。
-const repeatAfter = (y, m, d, every, spanMonths, dows) => {
+const repeatAfter = (y, m, d, every, spanMonths, dows, nth) => {
   if (!REPEAT_UNITS.some((u) => u.key === every)) return [];
   const fromN = dayNo(y, m, d);
   const limitN = dayNo(y, m + (spanMonths | 0), d);
   const out = [];
   const push = (n) => { if (n > fromN && n <= limitN && out.length < MAX_REPEAT) out.push(n); };
+  const dowOf = (n) => { const o = fromDayNo(n); return new Date(o.y, o.m, o.d).getDay(); };
+  const myDow = new Date(y, m, d).getDay();
+  const want = (dows && dows.length) ? dows : [myDow];
 
   if (every === 'day') {
     for (let n = fromN + 1; n <= limitN && out.length < MAX_REPEAT; n++) out.push(n);
     return out;
   }
-  if (every === 'week') {
+  if (every === 'weekday') {
+    for (let n = fromN + 1; n <= limitN && out.length < MAX_REPEAT; n++) { const w = dowOf(n); if (w >= 1 && w <= 5) out.push(n); }
+    return out;
+  }
+  if (every === 'week' || every === 'biweek') {
     // 曜日を選んでいれば、その曜日を毎週。選んでいなければ本体と同じ曜日。
-    const want = (dows && dows.length) ? dows : [new Date(y, m, d).getDay()];
+    // 2週ごとは、本体の週を0として偶数の週だけ
+    const week0 = fromN - myDow;
     for (let n = fromN + 1; n <= limitN && out.length < MAX_REPEAT; n++) {
-      const o = fromDayNo(n);
-      if (want.includes(new Date(o.y, o.m, o.d).getDay())) out.push(n);
+      if (!want.includes(dowOf(n))) continue;
+      if (every === 'biweek' && Math.floor((n - week0) / 7) % 2 !== 0) continue;
+      out.push(n);
     }
     return out;
+  }
+  if (every === 'nth' || every === 'monthEnd') {
+    // 毎月の第◯曜日（第2・第4 火曜 のように複数えらべる。5 は最終）と、月末
+    const ks = (nth && nth.length) ? nth : [Math.min(5, Math.floor((d - 1) / 7) + 1)];
+    for (let i = 0; out.length < MAX_REPEAT && i < 1 + (spanMonths | 0) + 1; i++) {
+      const Y = new Date(y, m + i, 1).getFullYear(), M = new Date(y, m + i, 1).getMonth();
+      const dim = new Date(Y, M + 1, 0).getDate();
+      const days = [];
+      if (every === 'monthEnd') days.push(dim);
+      else {
+        for (const w of want) {
+          const first = 1 + ((w - new Date(Y, M, 1).getDay() + 7) % 7);
+          for (const k of ks) {
+            let dd = k === 5 ? first + 7 * Math.floor((dim - first) / 7) : first + 7 * (k - 1);
+            if (dd <= dim) days.push(dd);
+          }
+        }
+      }
+      for (const dd of [...new Set(days)].sort((a, b) => a - b)) push(dayNo(Y, M, dd));
+    }
+    return out.sort((a, b) => a - b);
   }
   const step = every === 'month' ? 1 : 12;
   for (let i = step; out.length < MAX_REPEAT; i += step) {
@@ -226,6 +331,19 @@ const sanitizeJobs = (list) => (Array.isArray(list) ? list.filter(
   (j) => j && typeof j.id === 'string' && isNum(j.hourly)
 ) : []);
 
+// 最近消した予定。30日たったものは捨てる。中身の予定は、戻すときにもう一度ふるいにかける
+const TRASH_DAYS = 30;
+const sanitizeTrash = (list, now = Date.now()) => (Array.isArray(list) ? list.filter(
+  (x) => x && typeof x === 'object' && x.ev && typeof x.ev === 'object' && isNum(x.at) && now - x.at < TRASH_DAYS * 86400000
+).slice(0, 400) : []);
+
+// 日にちをまだ決めていない予定。「今週のどこか」「今月のどこか」「来月あたり」「いつか」
+const SOMEDAY_WHEN = ['week', 'month', 'next', 'someday'];
+const SOMEDAY_LABEL = { week: '今週のどこか', month: '今月のどこか', next: '来月あたり', someday: 'いつか' };
+const sanitizeSomeday = (list) => (Array.isArray(list) ? list.filter(
+  (x) => x && typeof x.id === 'string' && typeof x.title === 'string' && SOMEDAY_WHEN.includes(x.when)
+) : []);
+
 // 保存済みの種類に、組み込みの種類の項目を埋め戻す。
 // 種類に新しい項目（既定の時間帯など）を足しても、すでに使っている人の
 // 保存データには入っていない。合成しないと、新しい項目が誰にも届かない。
@@ -283,6 +401,8 @@ export default class App extends React.Component {
       const saved = readLocal();
       if (saved) {
         this._hadLocal = true;
+        // 起動したとき、ファイルのほうが新しくないかを確かめるのに使う（_checkFile）
+        this._localSaved = saved;
         this.state = {
           ...this.state,
           events: sanitizeEvents(saved.events),
@@ -294,6 +414,8 @@ export default class App extends React.Component {
           lastSeenVersion: saved.lastSeenVersion || null,
           jobs: sanitizeJobs(saved.jobs),
           supports: sanitizeSupports(saved.supports),
+          trash: sanitizeTrash(saved.trash),
+          someday: sanitizeSomeday(saved.someday),
         };
       }
     } catch (e) {
@@ -309,14 +431,19 @@ export default class App extends React.Component {
   scStartH=(e)=>this._onWheel(e,'start','h'); scStartM=(e)=>this._onWheel(e,'start','m');
   scEndH=(e)=>this._onWheel(e,'end','h');     scEndM=(e)=>this._onWheel(e,'end','m');
   _attach(node,field,unit){ if(!node || node.dataset.pos==='1') return; const [h,m]=this.state.draft[field].split(':').map(Number); const step=MIN_STEP; node.scrollTop=(unit==='h'?h:Math.round(m/step))*this.ITEM; node.dataset.pos='1'; }
-  _onWheel(e,field,unit){ if(this['_t'+field+unit]) return; this['_t'+field+unit]=requestAnimationFrame(()=>{ this['_t'+field+unit]=0; const step=MIN_STEP; const idx=Math.round(e.target.scrollTop/this.ITEM); let [h,m]=this.state.draft[field].split(':').map(Number); if(unit==='h') h=Math.min(23,Math.max(0,idx)); else m=Math.min(60-step,Math.max(0,idx*step)); const nv=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); if(nv!==this.state.draft[field]) this.setState(s=>({draft:{...s.draft,[field]:nv}})); }); }
+  // 開始を動かしたら、終わりも同じだけ動かす（長さを保つ）。
+  // 前は終わりが残り、10:00–11:00 の開始を 14:00 にすると「14:00〜翌11:00」の 21 時間の予定ができていた。
+  // 日をまたぐのは、終わりの側をわざと開始より前にしたときだけ
+  _onWheel(e,field,unit){ if(this['_t'+field+unit]) return; this['_t'+field+unit]=requestAnimationFrame(()=>{ this['_t'+field+unit]=0; const step=MIN_STEP; const idx=Math.round(e.target.scrollTop/this.ITEM); let [h,m]=this.state.draft[field].split(':').map(Number); if(unit==='h') h=Math.min(23,Math.max(0,idx)); else m=Math.min(60-step,Math.max(0,idx*step)); const nv=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); if(nv!==this.state.draft[field]) this.setState(s=>{ const dr=s.draft; if(field!=='start') return {draft:{...dr,[field]:nv}}; const d=this.mins(nv)-this.mins(dr.start); return {draft:{...dr,start:nv,end:this.addMin(dr.end,d)}}; }); }); }
   // dialog wheels (operate on state.dialog)
   dRefStartH=(n)=>this._dAttach(n,'start','h'); dRefStartM=(n)=>this._dAttach(n,'start','m');
   dRefEndH=(n)=>this._dAttach(n,'end','h');     dRefEndM=(n)=>this._dAttach(n,'end','m');
   dScStartH=(e)=>this._dWheel(e,'start','h'); dScStartM=(e)=>this._dWheel(e,'start','m');
   dScEndH=(e)=>this._dWheel(e,'end','h');     dScEndM=(e)=>this._dWheel(e,'end','m');
   _dAttach(node,field,unit){ if(!node || node.dataset.pos==='1' || !this.state.dialog) return; const step=MIN_STEP; const set=()=>{ if(!this.state.dialog) return; const [h,m]=this.state.dialog[field].split(':').map(Number); node.scrollTop=(unit==='h'?h:Math.round(m/step))*this.ITEM; }; node.dataset.pos='1'; set(); requestAnimationFrame(set); }
-  _dWheel(e,field,unit){ if(this['_d'+field+unit]) return; this['_d'+field+unit]=requestAnimationFrame(()=>{ this['_d'+field+unit]=0; if(!this.state.dialog) return; const step=MIN_STEP; const idx=Math.round(e.target.scrollTop/this.ITEM); let [h,m]=this.state.dialog[field].split(':').map(Number); if(unit==='h') h=Math.min(23,Math.max(0,idx)); else m=Math.min(60-step,Math.max(0,idx*step)); const nv=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); if(nv!==this.state.dialog[field]) this.setState(s=>({dialog:{...s.dialog,[field]:nv}})); }); }
+  // 「確定した」の小窓でも、開始を動かしたら終わりを付いてこさせる。
+  // 働いた記録（worked）は別——始まりは同じで終わりだけ延びる、が普通なので、終わりは動かさない
+  _dWheel(e,field,unit){ if(this['_d'+field+unit]) return; this['_d'+field+unit]=requestAnimationFrame(()=>{ this['_d'+field+unit]=0; if(!this.state.dialog) return; const step=MIN_STEP; const idx=Math.round(e.target.scrollTop/this.ITEM); let [h,m]=this.state.dialog[field].split(':').map(Number); if(unit==='h') h=Math.min(23,Math.max(0,idx)); else m=Math.min(60-step,Math.max(0,idx*step)); const nv=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'); if(nv!==this.state.dialog[field]) this.setState(s=>{ const dl=s.dialog; if(field!=='start'||dl.mode==='worked') return {dialog:{...dl,[field]:nv}}; const d=this.mins(nv)-this.mins(dl.start); return {dialog:{...dl,start:nv,end:this.addMin(dl.end,d)}}; }); }); }
 
   state = {
     screen:'month', wageOn:false, dialog:null, detailId:null, dayNum:null, returnTo:'month',
@@ -325,6 +452,7 @@ export default class App extends React.Component {
     swipe:{ dx:0, animating:false },
     swipeRow:null, // 一覧で左へ開いている行 {id,dx,animating}
     notices:[], lastSeenVersion:null, noticeOpen:null,
+    trash:[], someday:[],
     // バイト先。名前と時給を持つ。予定に紐づけると、その時給で計算する。
     jobs:[], editJobId:null, newJob:null, supports:[],
     ym: thisMonth(),      // カレンダーで表示している月
@@ -351,7 +479,63 @@ export default class App extends React.Component {
   };
 
   // ---- lookups & color ----
-  T(key){ return this.state.types.find(t=>t.key===key) || this.state.types[0]; }
+  T(key){ return this.state.types.find(t=>t.key===key) || extraType(key) || this.state.types[0]; }
+  /** 選ぶ所に出す種類。隠した種類は出さない（予定は残っていて、カレンダーには出る） */
+  visibleTypes(){ const v=(this.state.types||[]).filter(t=>!t.hidden); return v.length ? v : this.state.types; }
+  profile(){ const p=this.state.settings && this.state.settings.profile; return PROFILES[p] ? p : 'student'; }
+  /**
+   * 使い方で変わる言葉。学校とバイトを選んだ人（と、選ぶ前から使っている人）には、これまでと同じ言葉。
+   * 社会人には「バイト先」ではなく「勤務先」と言う。
+   */
+  words(){
+    const p=this.profile(), stu=p==='student';
+    const wt=this.state.types.find(t=>t.key==='baito');
+    const wname = wt && wt.name && wt.name!=='バイト' ? wt.name : (stu ? 'バイト' : '勤務');
+    return {
+      job: stu ? 'バイト先' : '勤務先',
+      jobNone: stu ? 'バイト先なし' : '勤務先なし',
+      jobAdd: stu ? 'バイト先を追加' : '勤務先を追加',
+      jobThis: stu ? 'このバイト先を追加' : 'この勤務先を追加',
+      jobEg: stu ? 'バイト先の名前（例：マクド、塾）' : '勤務先の名前（例：〇〇病院、駅前店）',
+      wageHead: stu ? 'バイトと給料' : '働いた時間と給料',
+      shift: wname,
+      titleEg: p==='work' ? 'タイトル（例：定例、〇〇社 打ち合わせ）'
+        : p==='family' ? 'タイトル（例：保育園の面談、通院）'
+        : p==='shift' ? 'タイトル（例：日勤、通院）'
+        : p==='free' ? 'タイトル（例：〇〇社 納品、打ち合わせ）' : 'タイトル',
+      placeEg: stu ? '店名や住所（例：渋谷駅、○○カフェ）' : '住所や会議室（例：本社 5F 会議室A、〇〇クリニック）',
+      typeEg: stu ? '種類の名前（例：ジム、勉強）' : '種類の名前（例：通院、習い事）',
+      remindTitle: stu ? 'おつかれさま' : 'お疲れさまでした',
+    };
+  }
+  /**
+   * 使い方の答えを反映する。種類の並びと名前、空き状況の時間帯、週のはじまり。
+   * 名前は、その人が自分で変えていなければだけ付け替える（変えたことのほうが重い）。
+   * 並びに無い種類は隠す。消しはしない——予定はそのまま残る。
+   */
+  applyProfile(key, s0){
+    const p=PROFILES[key]; if(!p) return null;
+    const s=s0||this.state;
+    const DEFAULT_NAMES={yoji:'用事',baito:'バイト',asobi:'遊び',other:'その他',work:'仕事',off:'休み',family:'家族'};
+    const cur=s.types.map(t=>({...t}));
+    const listed=[];
+    // 名前がこちらの付けたもの（既定の名前か、どれかの使い方で付けた名前）なら、付け替えてよい
+    const untouched=(t,k)=>!t.name || t.name===DEFAULT_NAMES[k] || Object.values(PROFILES).some(pp=>pp.types.some(([kk,nn])=>kk===k && nn===t.name));
+    for(const [k,name] of p.types){
+      let t=cur.find(x=>x.key===k);
+      if(!t){ t=extraType(k); if(!t) continue; cur.push(t); }
+      t.name = untouched(t,k) ? (name || DEFAULT_NAMES[k] || t.name) : t.name;
+      if(t.hidden) delete t.hidden;
+      listed.push(t);
+    }
+    const rest=cur.filter(t=>!listed.includes(t)).map(t=>String(t.key).startsWith('c') ? t
+      : {...t, hidden:true, name: untouched(t,t.key) ? (DEFAULT_NAMES[t.key]||t.name) : t.name});
+    const types=[...listed, ...rest];
+    const settings={...s.settings, profile:key, weekStart:p.weekStart,
+      freeWd:p.free.wd, freeHd:p.free.hd, workHours:p.work || null,
+      kariMark: key==='work' || key==='free'};
+    return { types, settings };
+  }
   _h(hex){ hex=hex.replace('#',''); return [0,2,4].map(i=>parseInt(hex.slice(i,i+2),16)); }
   _mix(a,b,t){ const A=this._h(a),B=this._h(b); return A.map((v,i)=>Math.round(v+(B[i]-v)*t)); }
   // 点線ピルの地。色を白に寄せたうえで、さらに .72 の透けで白い紙に載る。
@@ -454,7 +638,7 @@ export default class App extends React.Component {
       let hours=0, days=0;
       for(const e of evs){
         const job = t.key==='baito' && e.jobId ? jobs.find(j=>j.id===e.jobId) : null;
-        const name = job ? (job.name||'（名前なし）') : ((e.title||'').trim() || '（名前なし）');
+        const name = job ? (job.name||'（名前なし）') : (t.key==='baito' && e.jobName) ? e.jobName : ((e.title||'').trim() || '（名前なし）');
         const cur = by.get(name) || { name, hours:0, days:0, times:0 };
         const h = this.spentHours(e), d = e.allDay ? evSpan(e) : 0;
         cur.hours += h; cur.days += d; cur.times += 1;
@@ -503,7 +687,8 @@ export default class App extends React.Component {
     const by = new Map();
     for(const e of list){
       const key = e.jobId || '__none__';
-      const cur = by.get(key) || { key, hours:0, wage:0, times:0 };
+      // 消したバイト先の記録は、書き込んである名前で出す
+      const cur = by.get(key) || { key, hours:0, wage:0, times:0, jobName:e.jobName };
       cur.hours += this.paidHours(e);
       cur.wage += this.wage(e);
       cur.times += 1;
@@ -517,7 +702,7 @@ export default class App extends React.Component {
         const job = jobs.find(j=>j.id===r.key);
         const l = this._mix(base, '#ffffff', i===0 ? 0 : Math.min(0.62, 0.22+(i-1)*0.2));
         return {
-          name: job ? (job.name || '（名前なし）') : 'バイト先なし',
+          name: job ? (job.name || '（名前なし）') : (r.jobName || this.words().jobNone),
           hourly: job ? (job.hourly|0) : null,
           times: r.times,
           hours: this.fmtHours(r.hours),
@@ -526,8 +711,12 @@ export default class App extends React.Component {
         };
       });
   }
-  // その予定に使う時給。バイト先が決まっていればその時給、なければ設定の時給。
+  // その予定に使う時給。
+  // 働いた記録には、記録した時点の時給を書き込んでおく（ev.hourly）。あればそれを使う。
+  // 前は表示するたびに「今の時給」を掛けていたので、時給を上げると過去の給料まで上がって出た。
+  // 書き込みの無い予定（これからの予定・古い記録）は、バイト先の今の時給か、設定の時給。
   hourlyFor(ev){
+    if(ev && typeof ev.hourly==='number' && isFinite(ev.hourly)) return ev.hourly;
     const j = ev && ev.jobId ? (this.state.jobs||[]).find(x=>x.id===ev.jobId) : null;
     return j ? j.hourly : this.state.settings.hourly;
   }
@@ -680,22 +869,65 @@ export default class App extends React.Component {
     const textStyle={position:'relative',zIndex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',color:this.inkOn(t.color),transition:'color .16s .12s linear'};
     return { text: ev.title, mark: dash?'?':'', markStyle:this.markStyleFor(ev), style:this.trimBorder(style,sh), textStyle, morphing:true, fillStyle };
   }
+  // ---- 時刻の目盛りの上の箱（週表示と、日の「時間」表示） ----
+  HOUR_H = 44;
+  _timeGridBoxes(pool, over, o){
+    const H=this.HOUR_H;
+    const segs=[...segmentsForDay(pool, o.y, o.m, o.d), ...segmentsForDay(over||[], o.y, o.m, o.d)];
+    return layoutColumns(segs).map((sg,i)=>{
+      const e=sg.ev, ov=!!e.overlay, t=ov ? null : this.T(e.type);
+      const h=Math.max(16,(sg.b-sg.a)/60*H-2);
+      const base={position:'absolute', top:sg.a/60*H+1, height:h,
+        left:`calc(${(sg.col/sg.cols*100).toFixed(3)}% + 1px)`, width:`calc(${(100/sg.cols).toFixed(3)}% - 2px)`,
+        borderRadius:5, padding:'2px 4px', boxSizing:'border-box', overflow:'hidden', fontSize:10.5, lineHeight:'13px',
+        cursor:'pointer', zIndex:1};
+      let st;
+      if(ov) st={...base, background:'var(--bg2)', color:'var(--ink-mut)', borderLeft:'2.5px solid var(--ink-faint)'};
+      else if(e.status==='mikakutei') st={...base, background:this.paperShow(t.paper), color:this.inkDash(t.color), border:'1.5px dashed '+this.softLine(t.color)};
+      else if(e.status==='nakunatta') st={...base, background:'transparent', color:'var(--ink-faint)', textDecoration:'line-through', border:'1px solid var(--line)'};
+      else st={...base, background:this.softFill(t.color), color:this.inkOn(t.color)};
+      const end = e.status==='jisseki' ? (e.actualEnd||e.end) : e.end;
+      return { key:(e.id||'o'+i)+(sg.cont?'-c':''), a:sg.a, b:sg.b, style:st,
+        title:(sg.cont?'↳ ':'')+(e.title||''), time: h>=28 ? (e.start+'–'+end) : '',
+        onClick:(ev)=>{ if(ev) ev.stopPropagation(); if(ov) return; this.openFor(e, this.state.screen==='day' ? 'day' : 'month'); } };
+    });
+  }
+  _timeGridAllDay(pool, o){
+    const list=allDayFor(pool, o.y, o.m, o.d);
+    return { more: Math.max(0, list.length-2), pills: list.slice(0,2).map(e=>{ const t=this.T(e.type);
+      const st={fontSize:10,lineHeight:'15px',height:17,borderRadius:4,padding:'0 4px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',boxSizing:'border-box',marginBottom:2,cursor:'pointer'};
+      return { key:e.id, title:e.title, onClick:()=>this.openFor(e, this.state.screen==='day' ? 'day' : 'month'),
+        style: e.status==='mikakutei' ? {...st, background:this.paperShow(t.paper), color:this.inkDash(t.color), border:'1.3px dashed '+this.softLine(t.color), lineHeight:'13px'}
+          : {...st, background:this.softFill(t.color), color:this.inkOn(t.color)} }; }) };
+  }
   statusWord(ev){
     const t=this.T(ev.type);
     if(ev.status==='mikakutei') return t.uWord;
     if(ev.status==='jisseki') return '実績';
-    if(ev.status==='nakunatta') return '無くなった';
+    if(ev.status==='nakunatta') return t.gone || '無くなった';
     return t.cWord;
   }
 
   // ---- nav / actions ----
   openFor(ev, from){
     const ret = from || this.state.returnTo;
-    if(ev.status==='mikakutei'){ this.openDialog(ev,'confirm',ret); return; }
+    // まだの予定を押したとき、前はいつも中身より先に「どうなりました？」が出た。
+    // 場所もメモも見られず、見るには編集画面まで行くしかなかった。
+    // 先の日付の予定は、まず中身（詳細）を開く。「どうなった？」は詳細の主ボタンから聞く。
+    // 今日と過ぎた日の予定は、決まったかどうかを聞く時期なので、これまでどおり小窓を出す
+    const t=this.state.today;
+    const future = dayNo(ev.y,ev.m,ev.day) > dayNo(t.y,t.m,t.d);
+    if(ev.status==='mikakutei' && !future){ this.openDialog(ev,'confirm',ret); return; }
     // 無くなった予定も開ける。直したり、戻したり、消したりできるように
     this.setState({screen:'detail',detailId:ev.id,returnTo:ret});
   }
   openDay(d){ this.setState({screen:'day',dayNum:d,returnTo:'month',swipeRow:null}); }
+  // 今日の月へ戻って、今日のマスを一瞬光らせる
+  goToday(){
+    tapLight();
+    const t=this.state.today;
+    this.setState({ym:{y:t.y,m:t.m}, dayNum:null, weekAnchor:null, flashToday:Date.now()});
+  }
 
   // 空き状況の月送り。送った向きを持っておき、一覧をその向きから滑り込ませる。
   shiftFree(dir){
@@ -726,8 +958,33 @@ export default class App extends React.Component {
   // 時間もその種類のものから始める（用事が 17:00–22:00 で始まると面食らう）。
   defTimes(key){ const t=(this.state.types||[]).find(x=>x.key===key)||{};
     return { start: t.defStart || '10:00', end: t.defEnd || '11:00' }; }
-  openNew(day,ret){ const ym=this.state.ym; const dt=this.defTimes('yoji');
-    this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type:'yoji',status:'kakutei',start:dt.start,end:dt.end,y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(this.state.jobs[0]||{}).id,allDay:false,days:1,remindMin:null,place:'',memo:'',repEvery:null,repSpan:3,repDows:[],added:[],picking:null}}); }
+  /**
+   * 新しい予定の画面を開く。
+   * 最初の値は、いつも「用事・10:00–11:00」だった。今の時刻にも、前回使った種類にも関係なく。
+   *  ・種類は前回使ったもの（隠した種類なら、出している先頭の種類）
+   *  ・今日の予定なら、次の区切り（30分刻み）の時刻から始める
+   *  ・週表示や日の「時間」表示で空いた所を押したときは、その時刻から
+   *  ・お知らせは設定の「いつものお知らせ」
+   */
+  openNew(day,ret,opts){ const o=opts||{}; const ym={y:o.y!=null?o.y:this.state.ym.y, m:o.m!=null?o.m:this.state.ym.m};
+    const vis=this.visibleTypes();
+    const last=this.state.settings.lastType;
+    const type = vis.some(t=>t.key===last) ? last : (vis[0]||{key:'yoji'}).key;
+    const tt=this.T(type);
+    let dt=this.defTimes(type);
+    const t=this.state.today, now=new Date();
+    if(typeof o.start==='number'){ const a=Math.max(0,Math.min(1410,o.start)); dt={start:this.fmtMin(a), end:this.fmtMin(Math.min(1439,a+60))}; }
+    else if(ym.y===t.y && ym.m===t.m && day===t.d && !tt.defStart){
+      const next=Math.ceil((now.getHours()*60+now.getMinutes()+1)/30)*30;
+      if(next<=22*60) dt={start:this.fmtMin(next), end:this.fmtMin(next+60)};
+    }
+    const cfg=this.state.settings;
+    const allDay = !!tt.allDayDefault && typeof o.start!=='number';
+    const remindMin = allDay ? (typeof cfg.remindAllDay==='number' ? cfg.remindAllDay : null) : (typeof cfg.remindTimed==='number' ? cfg.remindTimed : null);
+    const job=(this.state.jobs||[]).find(j=>!j.retired);
+    this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type,status:'kakutei',start:dt.start,end:dt.end,y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(job||{}).id,allDay,days:1,remindMin,place:'',memo:'',link:'',repEvery:null,repSpan:3,repDows:[],added:[],picking:null,someday:null,cand:false,secret:false}});
+    this._draft0=null;
+  }
   // 既存の予定を同じ画面で直す。実績は「実際に働いた終わり」を編集対象にする。
   openEdit(ev,ret){
     this.setState({screen:'new',returnTo:ret||'month',newType:null,detailId:null,draft:{
@@ -735,9 +992,9 @@ export default class App extends React.Component {
       start:ev.start, end: ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end,
       y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev),
       remindMin: typeof ev.remindMin==='number' ? ev.remindMin : null,
-      place:ev.place||'', memo:ev.memo||'', repEvery:null, repSpan:3, repDows:[],
+      place:ev.place||'', memo:ev.memo||'', link:ev.link||'', secret:!!ev.secret, repEvery:null, repSpan:3, repDows:[],
       // 入っている項目だけ行を出す。空のものまで並べない
-      added:[...(ev.place?['place']:[]), ...(ev.memo?['memo']:[])], picking:null }});
+      added:[...(ev.place?['place']:[]), ...(ev.link?['link']:[]), ...(ev.memo?['memo']:[])], picking:null }});
   }
   /**
    * この予定をもとに、新しい予定を作る。編集と同じ画面を、中身入りで開く。
@@ -762,10 +1019,21 @@ export default class App extends React.Component {
       y:ev.y, m:ev.m, day:ev.day, pickY:ev.y, pickM:ev.m, pickedOnce:false, pickYM:false,
       extraDays:[], jobId:ev.jobId, allDay:!!ev.allDay, days:evSpan(ev),
       remindMin: typeof ev.remindMin==='number' ? ev.remindMin : null,
-      place:ev.place||'', memo:ev.memo||'', repEvery:null, repSpan:3, repDows:[],
-      added:[...(ev.place?['place']:[]), ...(ev.memo?['memo']:[])], picking:'date' }});
+      place:ev.place||'', memo:ev.memo||'', link:ev.link||'', secret:!!ev.secret, repEvery:null, repSpan:3, repDows:[],
+      added:[...(ev.place?['place']:[]), ...(ev.link?['link']:[]), ...(ev.memo?['memo']:[])], picking:'date' }});
   }
   askDelete(id){ this.setState({confirmDelete:id, deleteRest:false}); }
+  // 書きかけの予定があるか。キャンセルを押したとき、確かめずに捨てていた
+  draftDirty(){
+    const dr=this.state.draft; if(this.state.screen!=='new') return false;
+    const t=(x)=>(x||'').trim();
+    if(!dr.editingId) return !!(t(dr.title) || t(dr.place) || t(dr.memo) || t(dr.link));
+    const e=this.state.events.find(x=>x.id===dr.editingId); if(!e) return false;
+    const end = e.status==='jisseki' ? (e.actualEnd||e.end) : e.end;
+    return t(dr.title)!==t(e.title) || dr.type!==e.type || dr.start!==e.start || dr.end!==end
+      || dr.y!==e.y || dr.m!==e.m || dr.day!==e.day || dr.status!==e.status || !!dr.allDay!==!!e.allDay
+      || t(dr.place)!==t(e.place) || t(dr.memo)!==t(e.memo) || t(dr.link)!==t(e.link);
+  }
 
   // ---- 開発応援 ----
   // 値段は起動時ではなく、設定画面を開いたときに取りにいく。
@@ -824,6 +1092,12 @@ export default class App extends React.Component {
    */
   setPressed(key){
     if(this.state.pressed !== key) this.setState({pressed:key});
+  }
+  /** 画面の下に一言だけ出す。同じ間合いで消す（呼ぶたびに消える時刻を延ばす） */
+  toast(msg, ms=2400){
+    this.setState({shareToast:true, shareMsg:msg});
+    clearTimeout(this._toastT);
+    this._toastT=setTimeout(()=>this.setState({shareToast:false}), ms);
   }
 
   async buyTip(id){
@@ -964,11 +1238,23 @@ export default class App extends React.Component {
     setTimeout(()=>{ settleSuccess(); this.setState(s=>({onboard:{...s.onboard, demo:'done'}})); }, 430);
   }
   onboardResetDemo(){ this.setState(s=>({onboard:{...s.onboard, demo:'dash'}})); }
-  onboardNext(){ tapLight(); this.setState(s=>({onboard:{...s.onboard, step:s.onboard.step+1}})); }
-  onboardBack(){ this.setState(s=>({onboard:{...s.onboard, step:Math.max(0,s.onboard.step-1)}})); }
+  onboardNext(){ tapLight(); this.setState(s=>({onboard:{...s.onboard, step:s.onboard.step+1, fast:false}})); }
+  onboardBack(){ this.setState(s=>({onboard:{...s.onboard, step:Math.max(0,s.onboard.step-1), fast:false}})); }
+  /**
+   * 最初に1問だけ聞く：ふだんの予定に近いのは？
+   * 開いてすぐ「用事・バイト・遊び」と「カフェバイト」が並ぶと、社会人はそこで閉じてしまう。
+   * 答えで、種類・呼び名・見本・給料の出し方・空き状況の時間帯・週のはじまりを決める。
+   */
+  onboardPick(key){
+    tapLight();
+    this.setState(s=>{ const r=this.applyProfile(key, s); if(!r) return null;
+      return { ...r, onboard:{...s.onboard, step:1, picked:key, demo:'dash', fast:false} }; });
+  }
   finishOnboard(goImport){
     stampHeavy();
-    this.setState(s=>({ settings:{...s.settings, onboarded:true}, screen: goImport ? 'import' : 'month' }));
+    const morning = !!this.state.onboard.morning;
+    this.setState(s=>({ settings:{...s.settings, onboarded:true, ...(morning ? {morning:true, morningAt:s.settings.morningAt||450} : {})},
+      screen: goImport ? 'import' : 'month' }));
     if(goImport) this.setState({imp:{phase:'idle', found:[], type:'yoji', error:''}});
   }
 
@@ -978,11 +1264,40 @@ export default class App extends React.Component {
     const id=uid('j');
     this.setState(s=>({ jobs:[...s.jobs,{id,name:'',hourly:s.settings.hourly}], editJobId:id }));
   }
-  patchJob(id,patch){ this.setState(s=>({ jobs:s.jobs.map(j=>j.id===id?{...j,...patch}:j) })); }
+  // 時給を変えるときは、それまでの働いた記録に「前の時給」を書き込んでから変える。
+  // こうしておけば、時給を上げても過去の給料は変わらない。書き込むのは最初の1回だけ
+  // （すでに時給を持っている記録は触らない）ので、打ちかけの数字で上書きされることもない。
+  patchJob(id,patch){ this.setState(s=>{
+    const old=s.jobs.find(j=>j.id===id);
+    const rateChanged = old && typeof patch.hourly==='number' && patch.hourly!==old.hourly;
+    const events = rateChanged
+      ? s.events.map(e=>(e.jobId===id && e.status==='jisseki' && typeof e.hourly!=='number') ? {...e, hourly:old.hourly} : e)
+      : s.events;
+    return { jobs:s.jobs.map(j=>j.id===id?{...j,...patch}:j), events, rateNote: rateChanged ? id : s.rateNote };
+  }); }
+  // これまでの記録も、いまの時給で数え直す（書き込んだ時給を外す）。本人が選んだときだけ
+  recountJob(id){
+    tapLight();
+    this.setState(s=>({ events:s.events.map(e=>(e.jobId===id && e.status==='jisseki' && typeof e.hourly==='number') ? {...e, hourly:undefined, updatedAt:Date.now()} : e), rateNote:null }));
+    this.toast('これまでの記録を、いまの時給で数え直しました');
+  }
+  // 辞めたバイト先。一覧と選ぶ所からは消えるが、過去の記録と時給はそのまま残る
+  retireJob(id, on){
+    tapLight();
+    this.setState(s=>({ jobs:s.jobs.map(j=>j.id===id?{...j, retired: on ? true : undefined}:j), editJobId:null }));
+  }
   removeJob(id){
-    // 消したバイト先を使っていた予定は、設定の時給に戻す
-    this.setState(s=>({ jobs:s.jobs.filter(j=>j.id!==id), editJobId:null,
-      events:s.events.map(e=>e.jobId===id?{...e,jobId:undefined,updatedAt:Date.now()}:e) }));
+    // 消したバイト先の記録は、名前と時給を予定に書き込んで残す。
+    // 前は設定の時給（1,120円）で数え直されて、過去の給料が変わっていた
+    const job=this.state.jobs.find(j=>j.id===id);
+    this.setState(s=>({ jobs:s.jobs.filter(j=>j.id!==id), editJobId:null, confirmJob:null,
+      events:s.events.map(e=>{
+        if(e.jobId!==id) return e;
+        const keep = e.status==='jisseki'
+          ? { hourly: typeof e.hourly==='number' ? e.hourly : (job ? job.hourly : undefined), jobName: job ? job.name : undefined }
+          : {};
+        return {...e, ...keep, jobId: e.status==='jisseki' ? e.jobId : undefined, updatedAt:Date.now()};
+      }) }));
   }
   // バイト先を選ぶと、名前もそのまま予定の名前に使う（テンプレのように）
   pickJob(id){
@@ -1081,8 +1396,43 @@ export default class App extends React.Component {
       if(!all || !ev || !ev.repId) return false;
       return e.repId===ev.repId && evFrom(e)>=evFrom(ev);
     };
+    // 消した予定は30日だけ「最近消した予定」に置く。直後なら画面の下の「元に戻す」でも戻せる
+    const now=Date.now();
+    const removed=this.state.events.filter(gone);
     this.setState(s=>({ events:s.events.filter(e=>!gone(e)), confirmDelete:null, deleteRest:false, dialog:null, swipeRow:null,
-      screen: s.detailId===id ? 'month' : s.screen, detailId: s.detailId===id ? null : s.detailId }));
+      trash:[...removed.map(ev=>({ev, at:now})), ...(s.trash||[])].slice(0,400),
+      screen: s.detailId===id ? (s.returnTo==='detail' ? 'month' : (s.returnTo||'month')) : s.screen, detailId: s.detailId===id ? null : s.detailId }));
+    if(removed.length) this.showUndo(removed.length>1 ? `${removed.length}件を削除しました` : `「${removed[0].title}」を削除しました`,
+      {kind:'del', ids:removed.map(e=>e.id)});
+  }
+  /**
+   * 取り消しの帯。5秒だけ画面の下に出す。
+   * 削除・「無くなった」・「確定した」は、どれも押し間違えると取り返しがつかなかった。
+   * 確かめの小窓を増やすより、やったあとに戻せるほうが手が止まらない。
+   */
+  showUndo(text, data){
+    clearTimeout(this._undoT);
+    this.setState({undo:{text, data, key:Date.now()}});
+    this._undoT=setTimeout(()=>this.setState({undo:null}), 5000);
+  }
+  undoLast(){
+    const u=this.state.undo; if(!u) return;
+    tapLight();
+    clearTimeout(this._undoT);
+    const d=u.data;
+    if(d.kind==='del') this.restoreTrash(d.ids, true);
+    else if(d.kind==='status') this.setState(s=>({ events:s.events.map(e=>e.id===d.id?{...e,...d.prev,updatedAt:Date.now()}:e), morph:null }));
+    else if(d.kind==='many') this.setState(s=>({ events:s.events.map(e=>d.prev[e.id]?{...e,...d.prev[e.id],updatedAt:Date.now()}:e) }));
+    this.setState({undo:null});
+  }
+  // 最近消した予定から戻す
+  restoreTrash(ids, quiet){
+    const want=new Set(ids);
+    const back=(this.state.trash||[]).filter(x=>want.has(x.ev.id)).map(x=>x.ev);
+    const evs=sanitizeEvents(back);
+    this.setState(s=>({ events:[...s.events.filter(e=>!want.has(e.id)), ...evs],
+      trash:(s.trash||[]).filter(x=>!want.has(x.ev.id)) }));
+    if(!quiet) this.toast(`${evs.length}件を戻しました`);
   }
   openDialog(ev,mode,ret){
     // 実績を記録し直すときは、記録済みの終了時刻から始める
@@ -1114,17 +1464,90 @@ export default class App extends React.Component {
     tapLight();
     // 実績の確定は「✓を判子で押す」— 重めのひと突き（§6）
     if(d.mode==='worked'){ stampHeavy();
+      const ev0=this.state.events.find(e=>e.id===d.id);
+      // 記録した時点の時給を書き込む。あとで時給を変えても、この記録の金額は変わらない。
+      // 記録し直すときは、前に書き込んだ時給をそのまま使う（hourlyFor が ev.hourly を先に見る）
+      const hourly = ev0 && ev0.type==='baito' ? this.hourlyFor(ev0) : undefined;
       this.updateEvent(d.id,{status:'jisseki',start:d.start,actualEnd:d.end,
-        breakMin: d.breakMin>0 ? d.breakMin : undefined});
+        breakMin: d.breakMin>0 ? d.breakMin : undefined, hourly});
       this.setState({dialog:null}); return; }
     // 依頼A: ダイアログを閉じ→カレンダー上のピルが点線から左→右へ塗り満ちる (§6)
+    const ev0=this.state.events.find(e=>e.id===d.id);
+    const prev = ev0 ? {status:ev0.status, start:ev0.start, end:ev0.end, want:ev0.want} : null;
     this.updateEvent(d.id,{start:d.start,end:d.end,want:[d.origS,d.origE]});
-    this.setState({dialog:null, screen:'month', dayNum:null, detailId:null, morph:{id:d.id, phase:'dash'}});
+    // 確定した日の月を開く。前はいつも「いま見ている月」に戻っていて、別の月の予定だと塗りが見えなかった
+    this.setState(s=>({dialog:null, screen:'month', dayNum:null, detailId:null, morph:{id:d.id, phase:'dash'},
+      ym: ev0 ? {y:ev0.y, m:ev0.m} : s.ym}));
     setTimeout(()=>{ if(this.state.morph&&this.state.morph.id===d.id){ this.setState({morph:{id:d.id, phase:'fill'}}); penTick(); } }, 150);
     setTimeout(()=>{ if(this.state.morph&&this.state.morph.id===d.id){ this.setState({morph:{id:d.id, phase:'settle'}}); settleSuccess(); } }, 470);
-    setTimeout(()=>{ if(!this.state.morph||this.state.morph.id!==d.id) return; this.updateEvent(d.id,{status:'kakutei'}); this.setState({morph:null}); }, 760);
+    setTimeout(()=>{
+      if(!this.state.morph||this.state.morph.id!==d.id) return;
+      this.updateEvent(d.id,{status:'kakutei'}); this.setState({morph:null});
+      // 候補日の1つだった：ほかの候補を片づけるか聞く（勝手には消さない）
+      const others = ev0 && ev0.candId
+        ? this.state.events.filter(e=>e.candId===ev0.candId && e.id!==d.id && e.status==='mikakutei') : [];
+      if(others.length) this.setState({candAsk:{id:d.id, title:ev0.title, ids:others.map(e=>e.id)}});
+      else if(prev) this.showUndo(`「${ev0.title}」を確定しました`, {kind:'status', id:d.id, prev});
+    }, 760);
   }
-  dlgNakunatta(){ const d=this.state.dialog; this.updateEvent(d.id,{status:'nakunatta'}); this.setState(s=>({dialog:null, screen: s.detailId===d.id ? s.returnTo : s.screen, detailId: s.detailId===d.id?null:s.detailId})); }
+  /**
+   * 予定を別の日へ動かす（延期）。元の日は「◯月◯日から延期」として詳細に残す。
+   * 決まった日として置くか、まだ仮のまま置くかは、押したボタンで決める
+   */
+  moveEvent(id, to, status){
+    if(!to) return;
+    const ev0=this.state.events.find(e=>e.id===id); if(!ev0) return;
+    tapLight();
+    const prev={y:ev0.y, m:ev0.m, day:ev0.day, status:ev0.status, movedFrom:ev0.movedFrom};
+    const movedFrom = ev0.movedFrom || {y:ev0.y, m:ev0.m, day:ev0.day};
+    this.updateEvent(id,{y:to.y, m:to.m, day:to.d, status, movedFrom, candId: status==='kakutei' ? ev0.candId : ev0.candId});
+    this.setState({dialog:null, screen: this.state.screen==='detail' ? 'detail' : this.state.screen, ym:{y:to.y,m:to.m}});
+    this.showUndo(`「${ev0.title}」を${to.m+1}月${to.d}日に動かしました`, {kind:'status', id, prev});
+  }
+  /**
+   * 日にちをまだ決めない。予定をカレンダーから外して「棚」に置く（今月のどこか、など）。
+   * 月表示の上に「今月のどこか ◯件」と出て、日が決まったらそこからマスへ移す
+   */
+  toSomeday(id, when){
+    const ev0=this.state.events.find(e=>e.id===id); if(!ev0) return;
+    tapLight();
+    const t=this.state.today;
+    const item={ id:uid('s'), when, title:ev0.title, type:ev0.type, y:t.y, m:t.m, day:t.d, at:Date.now(),
+      ev:{...ev0, status:'mikakutei'} };
+    this.setState(s=>({ events:s.events.filter(e=>e.id!==id), someday:[item, ...(s.someday||[])],
+      dialog:null, detailId: s.detailId===id ? null : s.detailId, screen: s.detailId===id ? 'month' : s.screen }));
+    this.toast(`「${ev0.title}」を「${SOMEDAY_LABEL[when]}」に置きました`);
+  }
+  // 棚の予定に日を決めて、カレンダーへ移す。まだ決まったわけではないので点線で置く
+  placeSomeday(sid, y, m, d){
+    const it=(this.state.someday||[]).find(x=>x.id===sid); if(!it) return;
+    tapLight();
+    const base = it.ev || { id:uid('n'), type:it.type, title:it.title, start:this.defTimes(it.type).start, end:this.defTimes(it.type).end, allDay:false };
+    const ev={...base, y, m, day:d, status:'mikakutei', updatedAt:Date.now()};
+    if(!ev.id) ev.id=uid('n');
+    this.setState(s=>({ someday:(s.someday||[]).filter(x=>x.id!==sid), events:[...s.events, ev], somedayPick:null, ym:{y,m} }));
+    this.toast(`${m+1}月${d}日に置きました`);
+  }
+  dropSomeday(sid){
+    const it=(this.state.someday||[]).find(x=>x.id===sid); if(!it) return;
+    tapLight();
+    this.setState(s=>({ someday:(s.someday||[]).filter(x=>x.id!==sid),
+      trash: it.ev ? [{ev:it.ev, at:Date.now()}, ...(s.trash||[])].slice(0,400) : s.trash }));
+  }
+  // 候補日のうち1つが決まったとき、残りの候補を「無くなった」にする
+  settleCandidates(yes){
+    const a=this.state.candAsk; if(!a) return;
+    tapLight();
+    if(!yes){ this.setState({candAsk:null}); return; }
+    const prev={}; for(const id of a.ids) prev[id]={status:'mikakutei'};
+    const ids=new Set(a.ids);
+    this.setState(s=>({ candAsk:null, events:s.events.map(e=>ids.has(e.id)?{...e,status:'nakunatta',updatedAt:Date.now()}:e) }));
+    this.showUndo(`ほかの候補${a.ids.length}件を片づけました`, {kind:'many', prev});
+  }
+  dlgNakunatta(){ const d=this.state.dialog; const ev0=this.state.events.find(e=>e.id===d.id);
+    this.updateEvent(d.id,{status:'nakunatta'});
+    this.setState(s=>({dialog:null, screen: s.detailId===d.id ? s.returnTo : s.screen, detailId: s.detailId===d.id?null:s.detailId}));
+    if(ev0) this.showUndo(`「${ev0.title}」を${this.T(ev0.type).gone||'無くなった'}にしました`, {kind:'status', id:d.id, prev:{status:ev0.status}}); }
 
   // ---- type editor ----
   // 種類を変えたら、時間もその種類の既定に合わせる。
@@ -1145,7 +1568,7 @@ export default class App extends React.Component {
     this.setState(s=>({ types:[...s.types,t], draft:{...s.draft,type:key}, newType:null }));
   }
 
-  save(){
+  save(scope){
     const dr=this.state.draft;
     tapLight();
     // 日またぎは終日の予定だけ。時間指定に戻したら1日に畳む。
@@ -1155,36 +1578,89 @@ export default class App extends React.Component {
     // 空文字は持たせない（あとで「入っているか」を見るだけで済む）
     const placeField = (dr.place||'').trim() || undefined;
     const memoField = (dr.memo||'').trim() || undefined;
+    const linkField = (dr.link||'').trim() || undefined;
+    const secretField = dr.secret ? true : undefined;
+    // 次に新しい予定を作るとき、同じ種類から始める
+    const rememberType = (s)=>({ settings:{...s.settings, lastType:dr.type} });
+    // 戻り先。前はどこから開いても保存したら月表示に戻っていた。開く前の画面に戻す
+    const back = (s)=> (['day','list','detail','free','month'].includes(s.returnTo) ? (s.returnTo==='detail' ? 'month' : s.returnTo) : 'month');
     if(dr.editingId){
-      this.setState(s=>({ screen:'month', detailId:null, dayNum:null, ym:{y:dr.y,m:dr.m},
+      const orig=this.state.events.find(e=>e.id===dr.editingId);
+      // くり返しの1件を直したときは「この予定だけ／これ以降すべて」を聞く
+      if(!scope && orig && orig.repId){
+        const rest=this.state.events.filter(e=>e.repId===orig.repId && evFrom(e)>evFrom(orig)).length;
+        if(rest>0){ this.setState({repEditAsk:{rest}}); return; }
+      }
+      const patchOf=(e)=>{
+        const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay,days:spanField,
+          remindMin:remindField, place:placeField, memo:memoField, link:linkField, secret:secretField,
+          jobId: dr.type==='baito' ? dr.jobId : undefined, updatedAt:Date.now()};
+        // 実績のときに直しているのは「実際に働いた終わりの時刻」
+        return dr.status==='jisseki' ? {...base, actualEnd:dr.end} : {...base, end:dr.end, actualEnd:undefined};
+      };
+      // これ以降すべて：変えた項目だけを、同じくり返しの後ろの予定にも当てる。日付を動かしたら同じ日数だけずらす
+      const restPatch=(e)=>{
+        if(!orig) return e;
+        const out={...e, updatedAt:Date.now()};
+        const shift = dayNo(dr.y,dr.m,dr.day) - evFrom(orig);
+        if(shift){ const o=fromDayNo(evFrom(e)+shift); out.y=o.y; out.m=o.m; out.day=o.d; }
+        const same=(k,v)=>JSON.stringify(orig[k]??null)===JSON.stringify(v??null);
+        const fields={type:dr.type, title:dr.title||'無題', start:dr.start, end:dr.end, allDay:dr.allDay, days:spanField,
+          remindMin:remindField, place:placeField, memo:memoField, link:linkField, secret:secretField, status:dr.status};
+        for(const [k,v] of Object.entries(fields)) if(!same(k,v) && !(k==='end' && dr.status==='jisseki')) out[k]=v;
+        return out;
+      };
+      this.setState(s=>({ screen:back(s), detailId:null, dayNum: back(s)==='day' ? dr.day : null, ym:{y:dr.y,m:dr.m}, repEditAsk:null, ...rememberType(s),
         events:s.events.map(e=>{
-          if(e.id!==dr.editingId) return e;
-          const base={...e,type:dr.type,title:dr.title||'無題',y:dr.y,m:dr.m,day:dr.day,start:dr.start,status:dr.status,allDay:dr.allDay,days:spanField,
-            remindMin:remindField, place:placeField, memo:memoField,
-            jobId: dr.type==='baito' ? dr.jobId : undefined, updatedAt:Date.now()};
-          // 実績のときに直しているのは「実際に働いた終わりの時刻」
-          return dr.status==='jisseki' ? {...base, actualEnd:dr.end} : {...base, end:dr.end, actualEnd:undefined};
+          if(e.id===dr.editingId) return patchOf(e);
+          if(scope==='rest' && orig && orig.repId && e.repId===orig.repId && evFrom(e)>evFrom(orig)) return restPatch(e);
+          return e;
         }) }));
       return;
     }
+    // 日にちをまだ決めない予定は、カレンダーではなく棚に置く
+    if(dr.someday){
+      const t=this.state.today;
+      const item={ id:uid('s'), when:dr.someday, title:dr.title||'無題', type:dr.type, y:t.y, m:t.m, day:t.d, at:Date.now(),
+        ev:{ id:uid('n'), type:dr.type, title:dr.title||'無題', start:dr.start, end:dr.end, allDay:dr.allDay, days:spanField,
+          remindMin:remindField, place:placeField, memo:memoField, link:linkField, secret:secretField,
+          jobId: dr.type==='baito' ? dr.jobId : undefined, status:'mikakutei' } };
+      this.setState(s=>({ screen:back(s), someday:[item, ...(s.someday||[])], ...rememberType(s) }));
+      this.toast(`「${item.title}」を「${SOMEDAY_LABEL[dr.someday]}」に置きました`);
+      return;
+    }
     // 本体の日＋えらんだ他の日＋くり返しの日、まとめて置く
-    const rep = repeatAfter(dr.y, dr.m, dr.day, dr.repEvery, dr.repSpan|0, dr.repDows)
+    const rep = repeatAfter(dr.y, dr.m, dr.day, dr.repEvery, dr.repSpan|0, dr.repDows, dr.repNth)
       .map(n=>{ const o=fromDayNo(n); return [o.y,o.m,o.d]; });
     const placeOn=[[dr.y,dr.m,dr.day], ...(dr.extraDays||[]).map(k=>k.split('-').map(Number)), ...rep];
     const base=Date.now();
     const tag=uid('n');
     // くり返しで作ったものには同じ印をつけておく。あとでまとめて消せる。
     const repId = rep.length ? uid('r') : undefined;
+    // 候補日：まだの予定を何日かに置いて「どれか1日に決まる」を選んだとき。1つ確定したら残りを片づけられる
+    const candId = (dr.cand && dr.status==='mikakutei' && (dr.extraDays||[]).length) ? uid('k') : undefined;
     const made=placeOn.map(([y,m,d],i)=>({ id:tag+'-'+i, type:dr.type, title:dr.title||'無題',
       y, m, day:d, start:dr.start, end:dr.end, status:dr.status, allDay:dr.allDay, days:spanField, remindMin:remindField,
-      place:placeField, memo:memoField, repId,
+      place:placeField, memo:memoField, link:linkField, secret:secretField, repId, candId,
       jobId: dr.type==='baito' ? dr.jobId : undefined,
       want: dr.status==='mikakutei' ? [dr.start,dr.end] : undefined, updatedAt:base }));
-    this.setState(s=>({ screen:s.returnTo, ym:{y:dr.y,m:dr.m}, events:[...s.events,...made] }));
+    this.setState(s=>({ screen:back(s), ym:{y:dr.y,m:dr.m}, events:[...s.events,...made], ...rememberType(s) }));
   }
 
+  /**
+   * 月表示の「給料」スイッチを出すか。
+   * 毎日開く画面のいちばん目立つ所に、バイト先も記録も無い人にまで出ていた——
+   * 「バイト用のアプリ」と言ってしまっていた。バイト先か働いた記録があるときだけ出す。
+   * 設定の「給料の機能」で、いつも出す／いつも隠す も選べる。
+   */
+  wageFeatureOn(){
+    const st=this.state, f=st.settings.wageFeature;
+    if(f==='off') return false;
+    if(f==='on') return true;
+    return (st.jobs||[]).some(j=>!j.retired) || st.events.some(e=>e.type==='baito' && e.status==='jisseki');
+  }
   renderVals(){
-    const st=this.state, wageOn=st.wageOn;
+    const st=this.state, wageOn=st.wageOn && this.wageFeatureOn();
     const stepBtn={width:30,height:30,borderRadius:15,background:'var(--bg2)',color:'var(--ink)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:500,cursor:'pointer',userSelect:'none'};
     // たたんだ行の「›」と値。開くと右に倒れて、値が色づく。
     const chevron=(open)=>({fontSize:16,color:'var(--ink-faint)',flexShrink:0,display:'inline-block',
@@ -1217,7 +1693,8 @@ export default class App extends React.Component {
         || (st.screen==='settings' && !st.pasteOpen)) && !st.kbOpen,
       onBell:()=>this.openNotices(),
       navCur: st.screen,
-      onNavCal:()=>this.setState({screen:'month', dayNum:null, detailId:null}),
+      // カレンダーを見ているときにもう一度押すと、今日の月へ戻る（iPhone のカレンダーと同じ）
+      onNavCal:()=>{ if(st.screen==='month') { this.goToday(); return; } this.setState({screen:'month', dayNum:null, detailId:null}); },
       onNavFree:()=>this.setState({screen:'free'}),
       onNavReport:()=>this.setState({screen:'report'}),
       onNavSettings:()=>{ this.setState({screen:'settings', editTypeKey:null}); this._loadTips(); },
@@ -1324,11 +1801,33 @@ export default class App extends React.Component {
     if(v.onboardShown){
       const ob=st.onboard, teal='#1D9E75';
       v.obStep = ob.step;
-      v.obDots = [0,1,2,3].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
+      v.obDots = [0,1,2,3,4].map(i=>({ style:{width:i===ob.step?18:6,height:6,borderRadius:3,
         background:i===ob.step?'var(--ink)':'var(--line)',transition:'all .3s cubic-bezier(.2,.9,.2,1)'} }));
-      v.onObNext = ()=>{ if(this.state.onboard.step===0 && this.state.onboard.demo!=='done') return; this.onboardNext(); };
+      // 1枚目のしくみは、押さなくても「つぎへ」で進める（押すまで進めないのは、忙しい人には重かった）
+      v.onObNext = ()=>this.onboardNext();
       v.onObBack = ()=>this.onboardBack();
       v.onObSkip = ()=>this.finishOnboard(false);
+      // 画面を押したら、演出を飛ばして全部出す
+      v.obFast = !!ob.fast;
+      v.onObFast = ()=>{ if(!this.state.onboard.fast) this.setState(s=>({onboard:{...s.onboard, fast:true}})); };
+      // 0枚目：使い方の1問
+      v.obQLine1 = ((t)=>t.split('').map((ch,i)=>({ch, style:{display:'inline-block', animation:`inkRise .5s cubic-bezier(.2,.7,.25,1) ${(0.15+i*0.05).toFixed(2)}s both`}})))('ふだんの予定に');
+      v.obQLine2 = ((t)=>t.split('').map((ch,i)=>({ch, style:{display:'inline-block', animation:`inkRise .5s cubic-bezier(.2,.7,.25,1) ${(0.55+i*0.05).toFixed(2)}s both`}})))('近いのは？');
+      v.obProfiles = PROFILE_KEYS.map((k,i)=>({ key:k, label:PROFILES[k].label, note:PROFILES[k].note,
+        onClick:()=>this.onboardPick(k),
+        style:{ display:'flex', flexDirection:'column', gap:3, padding:'15px 16px', borderRadius:15, cursor:'pointer',
+          background:'var(--card)', border:'1px solid '+(ob.picked===k?'var(--ink)':'var(--line)'),
+          animation:`obLift .45s cubic-bezier(.2,.7,.25,1) ${(1.0+i*0.07).toFixed(2)}s both` } }));
+      // 見本は答えた使い方に合わせる。学生はこれまでと同じ「カフェバイト」と「映画」
+      const DEMO={ student:['カフェバイト','映画','このシフト、どうなりました？'], work:['打ち合わせ','定例','この仮押さえ、どうなった？'],
+        shift:['希望休','日勤','この休み、通りましたか？'], free:['〇〇社 打ち合わせ','納品','この仮押さえ、どうなった？'],
+        family:['保育園の面談','歯医者','この予定、どうなりました？'] };
+      const demo=DEMO[ob.picked||this.profile()]||DEMO.student;
+      { const n=new Date(); v.obDateText=`${n.getMonth()+1}月${n.getDate()}日（${['日','月','火','水','木','金','土'][n.getDay()]}）`; }
+      // 最後の1枚：毎朝のお知らせを使うか
+      v.obMorningOn = !!ob.morning;
+      v.onObMorning = ()=>{ tapLight(); this.setState(s=>({onboard:{...s.onboard, morning:!s.onboard.morning}})); };
+      v.obMorningTrack = tgTrackOb(!!ob.morning); v.obMorningKnob = tgKnobOb(!!ob.morning);
 
       // 1枚目：しくみを、さわって知ってもらう。
       //
@@ -1369,7 +1868,7 @@ export default class App extends React.Component {
       // 押したあとに出る「確定した」。本物のダイアログと同じ言葉にしてある。
       v.obAsking = asking;
       v.onObDemoConfirm = ()=>this.onboardDemoConfirm();
-      v.obAskHeading = 'この用事、どうなりました？';
+      v.obAskHeading = demo[2];
       v.obConfirmStyle = { marginTop:11, padding:'11px 14px', borderRadius:12, textAlign:'center',
         fontSize:14, fontWeight:700, color:'#fff', background:teal, cursor:'pointer',
         animation:`capRise .3s ${EASE} both` };
@@ -1391,7 +1890,7 @@ export default class App extends React.Component {
         transformOrigin:'left center', transform: filled?'scaleX(1)':'scaleX(0)',
         animation: ob.demo==='fill' ? 'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none', zIndex:0 };
       v.obDemoTextStyle = { position:'relative', zIndex:1 };
-      v.obDemoLabel = filled ? 'カフェバイト' : '？カフェバイト';
+      v.obDemoLabel = filled ? demo[0] : '？'+demo[0];
       v.obDemoCaption = filled ? '決まった、が形になりました。'
         : asking ? '押すと、この予定が塗りに変わります。'
         : '↑ 点線の予定をタップしてみてください';
@@ -1399,13 +1898,14 @@ export default class App extends React.Component {
       v.obDemoDone = ob.demo==='done';
       // 押すまで進ませない。ここを飛ばされると、このアプリの一番の要が
       // 伝わらないまま日常に入る。押してあれば普通の黒いボタン。
-      v.obNextLocked = ob.demo!=='done';
+      // 押さなくても進める。押してあれば黒、まだなら控えめな地で「つぎへ」
+      v.obNextLocked = false;
       v.obNextStyle = { padding:16, borderRadius:17, textAlign:'center', fontSize:16, fontWeight:400,
-        transition:'all .3s cubic-bezier(.2,.9,.2,1)',
+        transition:'all .3s cubic-bezier(.2,.9,.2,1)', cursor:'pointer',
         ...(ob.demo==='done'
-          ? { background:'var(--ink)', color:'var(--card)', cursor:'pointer' }
-          : { background:'var(--bg2)', color:'var(--ink-faint)', cursor:'default' }) };
-      v.obNextLabel = ob.demo==='done' ? 'つぎへ' : '点線をタップすると進めます';
+          ? { background:'var(--ink)', color:'var(--card)' }
+          : { background:'var(--bg2)', color:'var(--ink-soft)' }) };
+      v.obNextLabel = 'つぎへ';
       // 上に確定した予定を1本置く。違いは、並べて初めて見える。
       // 点線だけを出しても「点線が普通の形」と思われてしまう。
       {
@@ -1414,7 +1914,7 @@ export default class App extends React.Component {
           height:34, lineHeight:'30px', borderRadius:9, padding:'0 12px', fontSize:15, fontWeight:400,
           background:this.softFill(at.color), border:'1.6px solid '+this.softLine(at.color),
           color:this.inkOn(at.color) };
-        v.obSolidLabel = '映画';
+        v.obSolidLabel = demo[1];
       }
 
       // 時給の画面はやめた。バイトをしない人には無関係な入力で、
@@ -2085,6 +2585,112 @@ export default class App extends React.Component {
       v.onOpenYearCard = ()=>{ tapLight(); this.setState({screen:'summary', shareToast:false, cardKind:'year', cardFrom:'report'}); };
     }
 
+    // ---------- これから・まだ・探す ----------
+    // 月表示は「その日に何があるか」には答えるが、「この先に何があるか」を並べて見る所が無かった。
+    // 先の予定を見るには1日ずつ開くしかなかった。ここで並べる
+    v.listShown = st.screen==='list';
+    {
+      const todayN = dayNo(st.today.y, st.today.m, st.today.d);
+      const alive = st.events.filter(e=>e.status!=='nakunatta');
+      const und = alive.filter(e=>e.status==='mikakutei');
+      v.undecidedCount = und.filter(e=>evTo(e)>=todayN).length + (st.someday||[]).length;
+      v.onOpenAgenda = ()=>{ tapLight(); this.setState({screen:'list', listTab:'upcoming', returnTo:'month'}); };
+      v.onOpenUndecided = ()=>{ tapLight(); this.setState({screen:'list', listTab:'undecided', returnTo:'month'}); };
+      v.onOpenSearch = ()=>{ tapLight(); this.setState({screen:'list', listTab:'search', returnTo:'month'}); };
+      if(v.listShown){
+        const tab = st.listTab || 'upcoming';
+        v.listTab = tab;
+        const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:11,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+        v.listSeg = [['upcoming','これから'],['undecided','まだ'],['search','探す']].map(([k,label])=>({ label: k==='undecided' && v.undecidedCount ? `まだ ${v.undecidedCount}` : label,
+          style:segCell(tab===k), onClick:()=>{ tapLight(); this.setState({listTab:k}); } }));
+        v.onListBack = ()=>this.setState({screen:'month'});
+        const DW=['日','月','火','水','木','金','土'];
+        const rowOf=(e)=>{
+          const t=this.T(e.type);
+          const pill = e.status==='mikakutei'
+            ? {background:this.paperShow(t.paper), color:this.inkDash(t.color), border:'1.5px dashed '+this.softLine(t.color)}
+            : {background:this.softFill(t.color), color:this.inkOn(t.color), border:'1.5px solid transparent'};
+          const end = e.status==='jisseki' ? (e.actualEnd||e.end) : e.end;
+          return { key:e.id, title:e.title, place:e.place||'',
+            date:`${e.m+1}/${e.day}`, dow:DW[new Date(e.y,e.m,e.day).getDay()],
+            time: e.allDay ? (evSpan(e)>1 ? this.spanLabel(e) : '終日') : e.start+'–'+end,
+            dashed: e.status==='mikakutei', word:this.statusWord(e),
+            pillStyle:{...pill, borderRadius:6, padding:'2px 8px', fontSize:14, lineHeight:'20px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:'100%', display:'inline-block'},
+            onClick:()=>this.openFor(e,'list'),
+            onYes: e.status==='mikakutei' ? ()=>this.openDialog(e,'confirm','list') : null,
+            onGone: e.status==='mikakutei' ? ()=>{ tapLight(); const prev={status:e.status}; this.updateEvent(e.id,{status:'nakunatta'}); this.showUndo(`「${e.title}」を${t.gone||'無くなった'}にしました`, {kind:'status', id:e.id, prev}); } : null,
+            goneLabel: t.gone || '無くなった' };
+        };
+        const sortD=(a,b)=>(evFrom(a)-evFrom(b)) || ((a.allDay?0:1)-(b.allDay?0:1)) || (this.mins(a.start)-this.mins(b.start));
+        // 見出し：今日・明日・今週・来週・それより先は月ごと
+        const ws=st.settings.weekStart;
+        const wk0 = todayN - ((new Date(st.today.y,st.today.m,st.today.d).getDay()-ws+7)%7);
+        const headOf=(n)=>{ if(n<todayN) return '過ぎた日'; if(n===todayN) return '今日'; if(n===todayN+1) return '明日';
+          if(n<wk0+7) return '今週'; if(n<wk0+14) return '来週'; const o=fromDayNo(n); return (o.y!==st.today.y?o.y+'年':'')+(o.m+1)+'月'; };
+        const group=(list)=>{ const out=[]; for(const e of list){ const h=headOf(Math.max(evFrom(e), evFrom(e)<todayN && evTo(e)>=todayN ? todayN : evFrom(e)));
+            const last=out[out.length-1]; if(last && last.head===h) last.rows.push(rowOf(e)); else out.push({head:h, rows:[rowOf(e)]}); } return out; };
+        if(tab==='upcoming'){
+          const onlyDash=!!st.listDashOnly;
+          const list=alive.filter(e=>evTo(e)>=todayN && (!onlyDash || e.status==='mikakutei')).sort(sortD).slice(0,150);
+          v.listGroups = group(list);
+          v.listEmpty = list.length===0 ? 'この先の予定はまだありません' : '';
+          v.listDashOnly = onlyDash;
+          v.onToggleDashOnly = ()=>{ tapLight(); this.setState(s=>({listDashOnly:!s.listDashOnly})); };
+        } else if(tab==='undecided'){
+          // 過ぎた日で点線のままのもの（どうなったか分からないまま）も、上にまとめて出す
+          const past=und.filter(e=>evTo(e)<todayN).sort(sortD).reverse().slice(0,30);
+          const next=und.filter(e=>evTo(e)>=todayN).sort(sortD);
+          v.listGroups = [...(past.length?[{head:'日が過ぎて、まだ点線のまま', rows:past.map(rowOf)}]:[]), ...group(next)];
+          v.listEmpty = (past.length+next.length+(st.someday||[]).length)===0 ? 'まだ決まっていない予定はありません' : '';
+          v.listShelf = (st.someday||[]).map(it=>({ key:it.id, title:it.title, when:SOMEDAY_LABEL[it.when],
+            onPick:()=>{ tapLight(); this.setState({somedayPick:{id:it.id, y:st.today.y, m:st.today.m}}); },
+            onDrop:()=>this.dropSomeday(it.id), dot:this.T(it.type).color }));
+        } else {
+          const q=(st.searchQ||'').trim().toLowerCase();
+          v.searchQ = st.searchQ||'';
+          v.onSearchQ = (e)=>this.setState({searchQ:e.target.value});
+          if(q){
+            const hit=st.events.filter(e=>[e.title,e.place,e.memo].some(x=>String(x||'').toLowerCase().includes(q)));
+            const fut=hit.filter(e=>evTo(e)>=todayN).sort(sortD);
+            const past=hit.filter(e=>evTo(e)<todayN).sort(sortD).reverse();
+            v.listGroups=[...(fut.length?[{head:`これから ${fut.length}件`, rows:fut.slice(0,100).map(rowOf)}]:[]),
+              ...(past.length?[{head:`過去 ${past.length}件`, rows:past.slice(0,100).map(rowOf)}]:[])];
+            v.listEmpty = hit.length ? '' : '見つかりませんでした';
+          } else { v.listGroups=[]; v.listEmpty='題名・場所・メモから探せます'; }
+        }
+      }
+      // 日にち未定の棚：日を決める小さなカレンダー
+      const sp=st.somedayPick;
+      v.somedayPickShown = !!sp;
+      if(sp){
+        const it=(st.someday||[]).find(x=>x.id===sp.id);
+        v.somedayPickTitle = it ? `「${it.title}」の日を決める` : '';
+        v.onSomedayPickClose = ()=>this.setState({somedayPick:null});
+        v.onSomedayPickPrev = ()=>this.setState(s=>{ const n=shiftMonth({y:sp.y,m:sp.m},-1); return {somedayPick:{...s.somedayPick,...n}}; });
+        v.onSomedayPickNext = ()=>this.setState(s=>{ const n=shiftMonth({y:sp.y,m:sp.m},1); return {somedayPick:{...s.somedayPick,...n}}; });
+        v.somedayPickLabel = `${sp.y}年${sp.m+1}月`;
+        const mws=st.settings.weekStart, DW=['日','月','火','水','木','金','土'];
+        v.somedayPickWeekdays = Array.from({length:7},(_,i)=>{ const dw=(i+mws)%7; return {label:DW[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,padding:'4px 0',color:dw===0?HOLIDAY_RED:dw===6?SATURDAY_BLUE:'var(--ink-faint)'}}; });
+        const first=(new Date(sp.y,sp.m,1).getDay()-mws+7)%7, dim=new Date(sp.y,sp.m+1,0).getDate();
+        const cells=[]; for(let i=0;i<first;i++) cells.push({label:'',style:{height:34}});
+        for(let d2=1;d2<=dim;d2++){ const dw2=new Date(sp.y,sp.m,d2).getDay(); const busy=st.events.some(e=>e.status!=='nakunatta' && evCovers(e,dayNo(sp.y,sp.m,d2)));
+          cells.push({label:d2, onClick:()=>this.placeSomeday(sp.id, sp.y, sp.m, d2),
+            style:{height:34,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',borderRadius:11,cursor:'pointer',fontSize:14,fontVariantNumeric:'tabular-nums',
+              color:(holidayName(sp.y,sp.m,d2)||dw2===0)?HOLIDAY_RED:dw2===6?SATURDAY_BLUE:'var(--ink-soft)', background: busy?'var(--bg2)':'transparent'}}); }
+        v.somedayPickCells = cells;
+      }
+      // 月表示の上の棚：いま見ている月にかかる「日にち未定」の予定
+      const ym=st.ym;
+      const shelf=(st.someday||[]).filter(it=>{
+        if(it.when==='someday') return ym.y===st.today.y && ym.m===st.today.m;
+        const base = it.when==='next' ? shiftMonth({y:it.y,m:it.m},1) : {y:it.y,m:it.m};
+        return base.y===ym.y && base.m===ym.m;
+      });
+      v.shelfCount = shelf.length;
+      v.shelfLabel = shelf.length ? (shelf.length===1 ? `${SOMEDAY_LABEL[shelf[0].when]}：${shelf[0].title}` : `日にち未定 ${shelf.length}件`) : '';
+      v.onOpenShelf = ()=>{ tapLight(); this.setState({screen:'list', listTab:'undecided', returnTo:'month'}); };
+    }
+
     // ---------- 空いてる日シェア (C) ----------
     v.shareShown = st.screen==='share';
 
@@ -2096,6 +2702,19 @@ export default class App extends React.Component {
     v.toastMsg = st.shareMsg || '';
     // ナビの島に隠れない高さに置く
     v.toastBottom = v.navShown ? 96 : 30;
+    // 取り消しの帯
+    v.undoShown = !!st.undo;
+    if(st.undo){ v.undoText=st.undo.text; v.undoKey=st.undo.key; v.onUndo=()=>this.undoLast(); v.undoBottom = v.navShown ? 96 : 24; }
+    // 候補日の片づけ
+    v.candAskShown = !!st.candAsk;
+    if(st.candAsk){
+      const n=st.candAsk.ids.length;
+      v.candAskTitle = `「${st.candAsk.title}」が決まりました`;
+      v.candAskBody = `同じ予定の、ほかの候補が${n}件あります。片づけると「無くなった」になります（あとから戻せます）。`;
+      v.candAskYes = `ほかの候補${n}件を片づける`;
+      v.onCandYes = ()=>this.settleCandidates(true);
+      v.onCandNo = ()=>this.settleCandidates(false);
+    }
     const swl=['日','月','火','水','木','金','土'];
     const sws=cfg.weekStart;
     v.shareWeekdays = Array.from({length:7},(_,i)=>{ const dw=(i+sws)%7; return { label:swl[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,color:dw===0?'var(--ink-mut)':dw===6?'var(--ink-mut)':'#B0B4BB'} }; });
@@ -2113,6 +2732,10 @@ export default class App extends React.Component {
     }
     v.shareCells = sCells;
 
+    v.wageToggleShown = this.wageFeatureOn();
+    // 今月以外を見ているときだけ出す「今日」
+    v.todayBtnShown = !(st.ym.y===st.today.y && st.ym.m===st.today.m);
+    v.onGoToday = ()=>this.goToday();
     v.wageTrackStyle = { width:44,height:26,borderRadius:13,background:wageOn?'var(--ink)':'var(--line)',padding:2,transition:'background .28s cubic-bezier(.2,.9,.2,1)',cursor:'pointer',display:'flex' };
     v.wageKnobStyle = { width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s cubic-bezier(.2,.9,.2,1)',transform:wageOn?'translateX(18px)':'translateX(0)' };
 
@@ -2203,10 +2826,17 @@ export default class App extends React.Component {
             // 1px、今日は墨の2px なので、濃さでも太さでも違う。
             // 下辺にも引く案（上下ではさむ）は採らなかった——下の線は翌週の日の
             // 上辺でもあるので、翌週にも印が付いて見える。
-            bgStyle:{background:'var(--card)', cursor:'pointer',
-              ...(isToday ? {borderTop:'2px solid var(--ink)'} : {}), ...colLine(i)},
-            numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:3, alignSelf:'center'},
-            numStyle: {fontSize:11, fontWeight: isToday ? 700 : ((hol||dow===0||dow===6)?600:500), color:dayColor},
+            // 今日は、数字をその日の色（日曜・祝日は赤、土曜は青、ふだんは墨）の丸で抜く。
+            // 前は上辺の細い線1本だけで、見つけにくかった（とくに30代以上）。
+            // 丸を曜日の色にすれば、墨の丸で赤や青を塗りつぶしていた昔の問題も起きない。
+            // マスの地もごく薄く色を付ける。今日へ戻ったときは一度だけ光る（flashToday）
+            bgStyle:{background: isToday ? 'var(--today-bg)' : 'var(--card)', cursor:'pointer', ...colLine(i),
+              ...(isToday && st.flashToday && Date.now()-st.flashToday<1500 ? {animation:'todayFlash 1.2s ease-out'} : {})},
+            numWrap:{gridColumn:i+1, gridRow:1, lineHeight:'20px', paddingLeft:2, alignSelf:'center'},
+            numStyle: isToday
+              ? {display:'inline-flex',alignItems:'center',justifyContent:'center',minWidth:18,height:18,padding:'0 3px',borderRadius:9,
+                 fontSize:11,fontWeight:700,background:dayColor,color:'var(--card)',fontVariantNumeric:'tabular-nums',lineHeight:'18px'}
+              : {fontSize:11, fontWeight: ((hol||dow===0||dow===6)?600:500), color:dayColor},
             onDay:()=>this.openDay(d),
           };
         });
@@ -2235,6 +2865,60 @@ export default class App extends React.Component {
       { key:st.ym.y+'-'+st.ym.m,   weeks:buildWeeks(st.ym.y,st.ym.m) },
       { key:nextYM.y+'-'+nextYM.m, weeks:buildWeeks(nextYM.y,nextYM.m) },
     ];
+    // ---------- 月｜週 ----------
+    const calView = st.settings.calView==='week' ? 'week' : 'month';
+    v.calView = calView;
+    {
+      const seg=(sel)=>({padding:'4px 12px',borderRadius:7,fontSize:12,whiteSpace:'nowrap',fontWeight:sel?700:500,cursor:'pointer',
+        background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+      v.viewSeg=[['month','月'],['week','週']].map(([k,label])=>({label, style:seg(calView===k),
+        onClick:()=>{ tapLight(); this.setState(s=>({settings:{...s.settings, calView:k}, weekAnchor:null})); }}));
+    }
+    if(calView==='week'){
+      const t=st.today;
+      const inThis = st.ym.y===t.y && st.ym.m===t.m;
+      const anchor = st.weekAnchor!=null ? st.weekAnchor
+        : (inThis ? weekStartNo(t.y,t.m,t.d,ws) : weekStartNo(st.ym.y,st.ym.m,1,ws));
+      const days=Array.from({length:7},(_,i)=>fromDayNo(anchor+i));
+      const mid=days[3];
+      v.monthLabel=String(mid.m+1); v.year=String(mid.y);
+      v.todayBtnShown = !(anchor<=dayNo(t.y,t.m,t.d) && dayNo(t.y,t.m,t.d)<anchor+7);
+      v.onGoToday = ()=>{ tapLight(); this.setState({weekAnchor:weekStartNo(t.y,t.m,t.d,ws), ym:{y:t.y,m:t.m}, flashToday:Date.now()}); };
+      const shiftW=(d)=>{ tapLight(); const n=anchor+d*7; const o=fromDayNo(n+3); this.setState({weekAnchor:n, ym:{y:o.y,m:o.m}, weekDir:d}); };
+      v.onPrevMonth = ()=>shiftW(-1);
+      v.onNextMonth = ()=>shiftW(1);
+      v.onWeekTouchStart=(e)=>{ const p=e.touches&&e.touches[0]; if(!p) return; this._wsx=p.clientX; this._wsy=p.clientY; };
+      v.onWeekTouchEnd=(e)=>{ const p=e.changedTouches&&e.changedTouches[0]; const sx=this._wsx, sy=this._wsy; this._wsx=null;
+        if(!p||sx==null) return; const dx=p.clientX-sx, dy=p.clientY-sy; if(Math.abs(dx)>70 && Math.abs(dx)>Math.abs(dy)*1.5) shiftW(dx<0?1:-1); };
+      const pool=st.events.filter(e=>!(st.settings.hideCanceled && e.status==='nakunatta'));
+      const over=this._overlayFor ? this._overlayFor(anchor, anchor+7) : [];
+      v.weekKey = String(anchor);
+      v.weekAnim = st.weekDir ? (st.weekDir>0?'slideFromRight':'slideFromLeft')+' .24s cubic-bezier(.2,.9,.2,1)' : 'none';
+      const H=this.HOUR_H;
+      v.weekHourH = H;
+      v.weekHours = Array.from({length:24},(_,h)=>({ label: h ? String(h) : '', top: h*H }));
+      v.weekCols = days.map((o)=>{
+        const n=dayNo(o.y,o.m,o.d), dw=new Date(o.y,o.m,o.d).getDay(), hol=holidayName(o.y,o.m,o.d);
+        const isToday = n===dayNo(t.y,t.m,t.d);
+        const color=(hol||dw===0)?HOLIDAY_RED:dw===6?SATURDAY_BLUE:'var(--ink)';
+        return { key:String(n), dow:wl[dw], date:o.d, isToday, hol:hol||'',
+          headStyle:{textAlign:'center',padding:'4px 0 6px',cursor:'pointer'},
+          dowStyle:{fontSize:10,fontWeight:600,color: dw===0?HOLIDAY_RED:dw===6?SATURDAY_BLUE:'var(--ink-faint)'},
+          numStyle: isToday ? {display:'inline-flex',alignItems:'center',justifyContent:'center',minWidth:24,height:24,borderRadius:12,background:color,color:'var(--card)',fontSize:13,fontWeight:700}
+            : {fontSize:14,color,fontVariantNumeric:'tabular-nums'},
+          onHead:()=>{ this.setState({ym:{y:o.y,m:o.m}}); this.openDay(o.d); },
+          allDay: this._timeGridAllDay(pool, o),
+          boxes: this._timeGridBoxes(pool, over, o),
+          nowTop: isToday ? (()=>{ const nw=new Date(); return (nw.getHours()*60+nw.getMinutes())/60*H; })() : null,
+          onSlot:(e)=>{ const box=e.currentTarget.getBoundingClientRect(); const y=e.clientY-box.top; const min=Math.floor(y/H*2)*30;
+            this.openNew(o.d,'month',{y:o.y,m:o.m,start:min}); },
+        };
+      });
+      v.weekScrollRef=(el)=>{ if(!el || el.dataset.pos===v.weekKey) return; el.dataset.pos=v.weekKey;
+        // 最初は朝7時あたりから見せる。その週に早い予定があれば、そこから
+        let first=7*60; for(const c of v.weekCols) for(const b of c.boxes) first=Math.min(first, b.a);
+        el.scrollTop=Math.max(0, first/60*H - 12); };
+    }
     // 指の動きぶんだけ横にずらす。離したときだけ滑らせる。
     // 絶対配置にして、flex の縮みで幅が崩れないようにする
     const sw0=st.swipe||{dx:0,animating:false};
@@ -2266,19 +2950,33 @@ export default class App extends React.Component {
       // 日をまたぐ予定も、覆っている日すべてに出す。
       // 月表示で隠している「無くなった」予定は、ここでも隠す（画面ごとに違うと混乱する）
       const dn=dayNo(Y,M,d);
-      const evs=st.events.filter(e=>evCovers(e,dn) && !(st.settings.hideCanceled && e.status==='nakunatta'))
-        .sort((a,b)=> (evSpan(b)-evSpan(a)) || (this.mins(a.start)-this.mins(b.start)));
+      // 前の日から続く夜勤（22:00–翌6:00）も、明けの日の一覧に「〜6:00」として出す
+      const evs=st.events.filter(e=>(evCovers(e,dn) || (!e.allDay && evFrom(e)===dn-1 && endsNextDay(e))) && !(st.settings.hideCanceled && e.status==='nakunatta'))
+        .sort((a,b)=> ((b.allDay?1:0)-(a.allDay?1:0)) || (evSpan(b)-evSpan(a)) || ((evFrom(a)===dn?1:0)-(evFrom(b)===dn?1:0)) || (this.mins(a.start)-this.mins(b.start)));
       v.dayEmpty = evs.length===0;
       const sr=st.swipeRow;
       v.dayEvents = evs.map(ev=>{
         const endShown = ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end;
         const dx = (sr && sr.id===ev.id) ? sr.dx : 0;
         const open = dx < -2;
+        const t=this.T(ev.type);
+        // 左に開始と終了を縦に2段、その右に種類の色の細い縦棒（まだなら点線の棒）、
+        // 題名の下に場所。前は色の札の中に題名、時刻は右端で、場所もメモも出ていなかった
+        const cont = !ev.allDay && evFrom(ev)!==dn;
         return {
           key: ev.id,
           chipStyle: {...this.pillStyle(ev), height:26, lineHeight:'26px', fontSize:13, padding:'0 12px', marginBottom:0, borderRadius:6, display:'inline-block', flexShrink:0, overflow:'visible', textOverflow:'clip', width:'max-content', maxWidth:220},
           chipText: this.pillText(ev,false),
           timeText: ev.allDay ? (evSpan(ev)>1 ? this.spanLabel(ev)+'（終日）' : '終日') : ev.start+'–'+endShown,
+          startText: ev.allDay ? '終日' : (cont ? '〜' : ev.start),
+          endText: ev.allDay ? (evSpan(ev)>1 ? this.spanLabel(ev) : '') : endShown,
+          barStyle: ev.status==='mikakutei'
+            ? {width:0,alignSelf:'stretch',borderLeft:'3px dashed '+t.color,flexShrink:0,borderRadius:2}
+            : {width:4,alignSelf:'stretch',background: ev.status==='nakunatta' ? 'var(--line)' : t.color,flexShrink:0,borderRadius:2},
+          titleText: (ev.status==='mikakutei' ? '？' : ev.status==='jisseki' ? '✓' : '') + ev.title,
+          titleStyle: {fontSize:15,color: ev.status==='nakunatta' ? 'var(--ink-faint)' : 'var(--ink)', textDecoration: ev.status==='nakunatta' ? 'line-through' : 'none',
+            overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'},
+          place: ev.place || (ev.link ? 'Web会議' : ''),
           statusWord: this.statusWord(ev),
           // 開いているときは、本文をタップしても予定を開かず、まず閉じる
           onClick: ()=>{ if(open){ this.closeSwipeRow(); return; } this.setState({swipeRow:null}); this.openFor(ev,'day'); },
@@ -2300,6 +2998,39 @@ export default class App extends React.Component {
         };
       });
       v.onDayAdd = ()=>this.openNew(d,'day');
+      // 前の日・次の日。見出しの ‹ › で送る（行の左払い＝削除とぶつからないよう、払いでは送らない）
+      const stepDay=(k)=>{ tapLight(); const o=fromDayNo(dn+k); this.setState({ym:{y:o.y,m:o.m}, dayNum:o.d, swipeRow:null, dayDir:k}); };
+      v.onDayPrev = ()=>stepDay(-1);
+      v.onDayNext = ()=>stepDay(1);
+      v.dayAnim = st.dayDir ? (st.dayDir>0?'slideFromRight':'slideFromLeft')+' .22s cubic-bezier(.2,.9,.2,1)' : 'slideIn .28s cubic-bezier(.2,.9,.2,1)';
+      v.dayKey = String(dn);
+      // 一覧｜時間。時間は目盛りの上に箱で置く。何もない時間を押すと、その時刻から予定を作る
+      const dview = st.settings.dayView==='time' ? 'time' : 'list';
+      v.dayView = dview;
+      const seg=(sel)=>({padding:'4px 12px',borderRadius:7,fontSize:12,whiteSpace:'nowrap',fontWeight:sel?700:500,cursor:'pointer',
+        background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+      v.daySeg=[['list','一覧'],['time','時間']].map(([k,label])=>({label, style:seg(dview===k),
+        onClick:()=>{ tapLight(); this.setState(s=>({settings:{...s.settings, dayView:k}})); }}));
+      if(dview==='time'){
+        const H=this.HOUR_H, isToday = dn===dayNo(st.today.y,st.today.m,st.today.d);
+        const pool=st.events.filter(e=>!(st.settings.hideCanceled && e.status==='nakunatta'));
+        const over=this._overlayFor ? this._overlayFor(dn, dn+1) : [];
+        const o={y:Y,m:M,d};
+        v.dayHours = Array.from({length:24},(_,h)=>({ label: h ? String(h) : '', top: h*H }));
+        v.dayHourH = H;
+        v.dayCols=[{ key:'d'+dn, isToday, allDay:this._timeGridAllDay(pool,o), boxes:this._timeGridBoxes(pool, over, o),
+          nowTop: isToday ? (()=>{ const nw=new Date(); return (nw.getHours()*60+nw.getMinutes())/60*H; })() : null,
+          onSlot:(e)=>{ const box=e.currentTarget.getBoundingClientRect(); const min=Math.floor((e.clientY-box.top)/H*2)*30; this.openNew(d,'day',{y:Y,m:M,start:min}); } }];
+        v.dayScrollRef=(el)=>{ if(!el || el.dataset.pos===v.dayKey) return; el.dataset.pos=v.dayKey;
+          let first=8*60; for(const b of v.dayCols[0].boxes) first=Math.min(first,b.a); el.scrollTop=Math.max(0, first/60*H-12); };
+      }
+      // 予定と予定のあいだの空き時間（一覧のとき）。「14:00〜16:00 空き」
+      if(dview==='list'){
+        const timed=evs.filter(e=>!e.allDay && e.status!=='nakunatta' && evFrom(e)===dn).map(e=>[this.mins(e.start), busyEndMin(e)]).sort((a,b)=>a[0]-b[0]);
+        const gaps={}; let cur=null;
+        for(const [a,b] of timed){ if(cur!=null && a-cur>=60) gaps[a]=`${this.fmtMin(cur)}〜${this.fmtMin(a)} 空き`; cur=cur==null?b:Math.max(cur,b); }
+        v.dayEvents.forEach(r=>{ const e=evs.find(x=>x.id===r.key); if(e && !e.allDay && gaps[this.mins(e.start)] && evFrom(e)===dn) r.gapBefore=gaps[this.mins(e.start)]; });
+      }
     }
 
     // ---------- NEW ----------
@@ -2307,6 +3038,91 @@ export default class App extends React.Component {
     v.draftTitle=dr.title; v.draftColor=dt.color; v.draftStart=dr.start; v.draftEnd=dr.end;
     v.onTitle=(e)=>{ const val=e.target.value; this.setState(s=>({draft:{...s.draft,title:val}})); };
     v.onSave=()=>this.save();
+    v.titlePlaceholder = this.words().titleEg;
+    // 下の保存ボタンの地。白い字が読める濃さまで、種類の色を暗くする（字と地の差 4.5 以上）
+    { const d0=this._mix(dt.color,'#000000',0.35); v.draftColorDeep=`rgb(${d0[0]},${d0[1]},${d0[2]})`; }
+    // 新しく作るときは、題名欄にすぐ打てるようにする。改行キーで保存（変換中の改行は無視）
+    v.titleAutoFocus = st.screen==='new' && !dr.editingId && !dr.title;
+    v.onTitleKey = (e)=>{ if(e.key==='Enter' && !(e.nativeEvent && e.nativeEvent.isComposing) && e.keyCode!==229){ e.preventDefault(); if(e.target && e.target.blur) e.target.blur(); this.save(); } };
+    // ---- よく入れる予定 ----
+    // 題名欄の下に、ここ3か月で多い題名を並べる。押すと種類・時刻・場所・お知らせも前回と同じで入る。
+    // 打ち始めたら、その字を含むものに絞る
+    if(st.screen==='new' && !dr.editingId){
+      const since = dayNo(st.today.y, st.today.m, st.today.d) - 92;
+      const q=(dr.title||'').trim();
+      const by=new Map();
+      for(const e of st.events){
+        if(e.status==='nakunatta' || evFrom(e)<since) continue;
+        const k=e.type+'|'+(e.title||'').trim();
+        if(!(e.title||'').trim() || e.title==='無題') continue;
+        const cur=by.get(k)||{n:0,last:null};
+        cur.n++; if(!cur.last || evFrom(e)>evFrom(cur.last)) cur.last=e;
+        by.set(k,cur);
+      }
+      let list=[...by.values()].filter(x=>x.n>=2 || q);
+      if(q) list=list.filter(x=>x.last.title.includes(q) && x.last.title!==q);
+      list.sort((a,b)=>b.n-a.n);
+      v.suggests = list.slice(0,6).map(x=>{ const e=x.last, t=this.T(e.type);
+        return { label:e.title, onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, title:e.title, type:e.type,
+            ...(e.allDay ? {allDay:true} : {allDay:false, start:e.start, end:e.end}),
+            place:e.place||'', memo:'', link:e.link||'', jobId:e.jobId||s.draft.jobId,
+            remindMin: typeof e.remindMin==='number' ? e.remindMin : s.draft.remindMin,
+            added:[...new Set([...(s.draft.added||[]), ...(e.place?['place']:[]), ...(e.link?['link']:[])])] }})); },
+          dotStyle:{width:7,height:7,borderRadius:4,background:t.color,flexShrink:0} }; });
+    } else v.suggests=[];
+    // ---- 長さのボタン ----
+    // 開始を決めたら、長さを押すだけで終わりが決まる（ドラムを回さずに済む）
+    if(!dr.allDay){
+      const len=((this.mins(dr.end)-this.mins(dr.start))+1440)%1440;
+      v.durChips=[[30,'30分'],[60,'1時間'],[90,'1時間半'],[120,'2時間'],[180,'3時間']].map(([m,label])=>({ label,
+        onClick:()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, end:this.addMin(s.draft.start,m), picking:null}})); },
+        style:{padding:'6px 11px',borderRadius:999,fontSize:12,cursor:'pointer',whiteSpace:'nowrap',
+          background: len===m?'var(--ink)':'var(--card)', color: len===m?'var(--card)':'var(--ink-mut)', border:'1px solid '+(len===m?'var(--ink)':'var(--line)')} }));
+    } else v.durChips=[];
+    // ---- 時間の重なり ----
+    // 止めはしない。知らせるだけ（確定と、まだの予定を分けて書く）
+    if(st.screen==='new' && !dr.allDay && !dr.someday){
+      const a=this.mins(dr.start), b0=this.mins(dr.end), b=b0<=a ? 1440 : b0;
+      const n=dayNo(dr.y,dr.m,dr.day);
+      const hit=st.events.filter(e=>e.id!==dr.editingId && e.status!=='nakunatta' && !e.allDay && evFrom(e)===n)
+        .filter(e=>{ const x=this.mins(e.start), y0=busyEndMin(e); return x<b && y0>a; });
+      v.overlapNote = hit.length
+        ? `この時間は「${hit[0].title}」${hit[0].status==='mikakutei'?'（まだの予定）':''}と重なっています` + (hit.length>1 ? `（ほか${hit.length-1}件）` : '')
+        : '';
+    } else v.overlapNote='';
+    // ---- 候補日 ----
+    // まだの予定を何日かに置くとき「どれか1日に決まる」を選べる。1つ確定したら残りを片づけられる
+    v.candShown = dr.status==='mikakutei' && (dr.extraDays||[]).length>0 && !dr.editingId;
+    v.candOn = !!dr.cand;
+    v.onToggleCand = ()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, cand:!s.draft.cand}})); };
+    v.candTrack = { width:44,height:26,borderRadius:13,background:dr.cand?'var(--ink)':'var(--line)',padding:2,transition:'background .28s',cursor:'pointer',display:'flex',flexShrink:0 };
+    v.candKnob = { width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s',transform:dr.cand?'translateX(18px)':'none' };
+    // ---- 日にちをまだ決めない ----
+    v.somedayChips = !dr.editingId ? SOMEDAY_WHEN.map(w=>({ label:SOMEDAY_LABEL[w], onClick:()=>{ tapLight();
+        this.setState(s=>({draft:{...s.draft, someday: s.draft.someday===w ? null : w, status:'mikakutei', picking:null, extraDays:[]}})); },
+      style:{padding:'7px 11px',borderRadius:999,fontSize:12,cursor:'pointer',whiteSpace:'nowrap',
+        background: dr.someday===w?'var(--ink)':'var(--card)', color: dr.someday===w?'var(--card)':'var(--ink-mut)',
+        border:'1px '+(dr.someday===w?'solid var(--ink)':'dashed var(--line)')} })) : [];
+    v.somedayOn = !!dr.someday;
+    v.somedayText = dr.someday ? SOMEDAY_LABEL[dr.someday]+'（日が決まったら、棚からカレンダーへ移せます）' : '';
+    // ---- 名前を隠す ----
+    v.secretOn = !!dr.secret;
+    v.onToggleSecret = ()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, secret:!s.draft.secret}})); };
+    v.secretTrack = { width:44,height:26,borderRadius:13,background:dr.secret?'var(--ink)':'var(--line)',padding:2,transition:'background .28s',cursor:'pointer',display:'flex',flexShrink:0 };
+    v.secretKnob = { width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s',transform:dr.secret?'translateX(18px)':'none' };
+    // ---- 書きかけを捨てるか ----
+    v.onCancel = ()=>{ if(this.draftDirty()){ tapLight(); this.setState({discardAsk:true}); return; } this.setState({screen:st.returnTo}); };
+    v.discardShown = !!st.discardAsk;
+    v.onDiscardYes = ()=>this.setState({discardAsk:false, screen:st.returnTo});
+    v.onDiscardNo = ()=>this.setState({discardAsk:false});
+    // くり返しを直したとき
+    v.repEditShown = !!st.repEditAsk;
+    if(st.repEditAsk){
+      v.repEditRest = `これ以降すべて（ほか${st.repEditAsk.rest}件）`;
+      v.onRepEditOne = ()=>this.save('one');
+      v.onRepEditRest = ()=>this.save('rest');
+      v.onRepEditCancel = ()=>this.setState({repEditAsk:null});
+    }
 
     // 終日 / 時間指定
     // ---------- 日付えらび（小さなカレンダーを開く） ----------
@@ -2477,6 +3293,8 @@ export default class App extends React.Component {
         // 直している1件を触っているのに、別の日に予定が生えるのはおかしい。
         { key:'multi', label:'複数日', hide:!!dr.editingId },
         { key:'place', label:'場所' },
+        // Web 会議のリンク。詳細に大きく「参加する」が出る
+        { key:'link', label:'Web会議・リンク' },
         { key:'memo', label:'メモ' },
       ];
       v.addChips = addable.filter(o=>!o.hide && !added.includes(o.key)).map(o=>({
@@ -2496,11 +3314,19 @@ export default class App extends React.Component {
       v.onRemoveMulti = drop('multi',{extraDays:[]});
       v.onRemovePlace = drop('place',{place:''});
       v.onRemoveMemo = drop('memo',{memo:''});
+      v.onRemoveLink = drop('link',{link:''});
       v.repRowShown = added.includes('rep') && !dr.editingId;
       v.multiRowShown = added.includes('multi') && !dr.editingId;
       v.placeRowShown = added.includes('place');
       v.memoRowShown = added.includes('memo');
-      v.addedAny = v.repRowShown || v.multiRowShown || v.placeRowShown || v.memoRowShown;
+      v.linkRowShown = added.includes('link');
+      v.addedAny = v.repRowShown || v.multiRowShown || v.placeRowShown || v.memoRowShown || v.linkRowShown;
+      v.rowLinkOpen = dr.picking==='link';
+      v.onTapLinkRow = openRow('link');
+      v.linkValue = (dr.link||'').trim() ? (dr.link||'').trim().replace(/^https?:\/\//,'').slice(0,22)+((dr.link||'').trim().length>30?'…':'') : 'なし';
+      v.linkText = dr.link||'';
+      v.onLinkText = (e)=>{ const val=e.target.value; this.setState(s=>({draft:{...s.draft, link:val}})); };
+      v.valLink = rowVal(v.rowLinkOpen);
       v.removeStyle = {width:26,height:26,borderRadius:13,flexShrink:0,display:'flex',
         alignItems:'center',justifyContent:'center',fontSize:13,color:'var(--ink-faint)',
         background:'var(--bg2)',cursor:'pointer'};
@@ -2512,6 +3338,7 @@ export default class App extends React.Component {
     v.onTapPlaceRow = openRow('place');
     v.placeValue = (dr.place||'').trim() || 'なし';
     v.placeText = dr.place||'';
+    v.placePlaceholder = this.words().placeEg;
     v.onPlaceText = (e)=>{ const val=e.target.value; this.setState(s=>({draft:{...s.draft, place:val}})); };
     v.chevPlace = chevron(v.rowPlaceOpen); v.valPlace = rowVal(v.rowPlaceOpen);
 
@@ -2580,13 +3407,29 @@ export default class App extends React.Component {
       const myDow = new Date(dr.y,dr.m,dr.day).getDay();
       const dows = dr.repDows||[];
       const span = dr.repSpan|0 || 3;
-      const made = repeatAfter(dr.y, dr.m, dr.day, dr.repEvery, span, dows);
+      const nth = dr.repNth||[];
+      const made = repeatAfter(dr.y, dr.m, dr.day, dr.repEvery, span, dows, nth);
+      const dowText = dows.length ? dows.slice().sort().map(i=>DOWJ[i]).join('・') : DOWJ[myDow];
+      const myNth = Math.min(5, Math.floor((dr.day-1)/7)+1);
       // 行にたたんだときの言い方。何がくり返されるのか、開かなくても分かるように。
       v.repValue = !dr.repEvery ? 'なし'
         : dr.repEvery==='day' ? '毎日'
-        : dr.repEvery==='week' ? ('毎週' + (dows.length ? dows.slice().sort().map(i=>DOWJ[i]).join('・') : DOWJ[myDow]))
+        : dr.repEvery==='weekday' ? '平日（月〜金）'
+        : dr.repEvery==='week' ? ('毎週' + dowText)
+        : dr.repEvery==='biweek' ? ('2週ごと ' + dowText)
         : dr.repEvery==='month' ? `毎月${dr.day}日`
+        : dr.repEvery==='nth' ? `毎月 ${(nth.length?nth:[myNth]).slice().sort().map(k=>NTH_LABEL[k]).join('・')} ${dowText}曜`
+        : dr.repEvery==='monthEnd' ? '毎月 月末'
         : `毎年${dr.m+1}月${dr.day}日`;
+      v.repNthShown = dr.repEvery==='nth';
+      v.repNthChips = [1,2,3,4,5].map(k=>{ const sel = nth.length ? nth.includes(k) : k===myNth;
+        return { label:NTH_LABEL[k], onClick:()=>{ tapLight(); this.setState(s=>{
+            const cur=s.draft.repNth||[]; const b=cur.length?cur:[myNth];
+            const next=b.includes(k)?b.filter(x=>x!==k):[...b,k];
+            return {draft:{...s.draft, repNth: next.length?next:b}};
+          }); },
+          style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:11,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',
+            background:sel?'#1D9E75':'var(--card)', color:sel?'#fff':'var(--ink-mut)', border:'1px solid '+(sel?'#1D9E75':'var(--line)')} }; });
       const chip=(sel,dark)=>({padding:'9px 15px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,
         cursor:'pointer',whiteSpace:'nowrap',
         background: sel ? (dark?'var(--ink)':'#1D9E75') : 'var(--card)',
@@ -2604,8 +3447,8 @@ export default class App extends React.Component {
           }); } };
       });
       v.repUntilShown = !!dr.repEvery;
-      // 曜日えらびは「毎週」のときだけ。何も選ばなければ本体と同じ曜日。
-      v.repDowShown = dr.repEvery==='week';
+      // 曜日えらびは「毎週」「2週ごと」「第◯曜日」のとき。何も選ばなければ本体と同じ曜日。
+      v.repDowShown = ['week','biweek','nth'].includes(dr.repEvery);
       v.repDowChips = DOWJ.map((label,i)=>{ const sel = dows.length ? dows.includes(i) : i===myDow;
         return { label, onClick:()=>{ tapLight(); this.setState(s=>{
             const cur=(s.draft.repDows||[]);
@@ -2714,7 +3557,8 @@ export default class App extends React.Component {
       v.onCancelNewType=()=>this.setState({newType:null});
     } else { v.newTypeName=''; }
 
-    v.seg=[['kakutei','決まってる'],['mikakutei','まだ不確定']].map(([k,label])=>{ const sel=dr.status===k;
+    // 切り替えの言葉は種類ごと。仕事なら「確定／仮押さえ」、休みなら「休み／希望休」
+    v.seg=[['kakutei',dt.cLabel||'決まってる'],['mikakutei',dt.uLabel||'まだ不確定']].map(([k,label])=>{ const sel=dr.status===k;
       return { label, onClick:()=>this.setState(s=>({draft:{...s.draft,status:k}})),
         style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:11,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
           background:sel?'var(--card)':'transparent', color:sel?'var(--ink)':'var(--ink-mut)', border:sel?'1px solid var(--line)':'1px solid transparent'} }; });
@@ -2728,6 +3572,17 @@ export default class App extends React.Component {
     if(ev){
       const t=this.T(ev.type);
       v.dTitle=ev.title; v.dDay=ev.day; v.dTypeDark=this.typeInk(t);
+      // 日付は予定そのものの年・月・日から作る。
+      // 前は「いま見ている月」と予定の「日」を組み合わせていたので、8/30〜9/2 の予定を
+      // 9月1日から開くと「9月30日」と出た。曜日と、今年でなければ年も添える
+      {
+        const DW=['日','月','火','水','木','金','土'];
+        const one=(y,m,d)=>`${y!==st.today.y?y+'年':''}${m+1}月${d}日（${DW[new Date(y,m,d).getDay()]}）`;
+        const b=fromDayNo(evTo(ev));
+        v.dDateText = evSpan(ev)>1 ? one(ev.y,ev.m,ev.day)+'〜'+one(b.y,b.m,b.d) : one(ev.y,ev.m,ev.day);
+        v.dHolText = holidayName(ev.y,ev.m,ev.day) || '';
+        v.dMovedText = ev.movedFrom ? `${ev.movedFrom.m+1}月${ev.movedFrom.day}日から延期` : '';
+      }
       v.dStatusLabel = this.statusWord(ev);
       v.badgeChar = (ev.status==='jisseki'||ev.status==='kakutei')?'✓':'？';
       v.badgeStyle = { width:26,height:26,borderRadius:13,display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:700,transition:'all .3s cubic-bezier(.2,.9,.2,1)',
@@ -2752,7 +3607,7 @@ export default class App extends React.Component {
         v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:400,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; };
       if(ev.status==='nakunatta') primary('予定として戻す',()=>{ tapLight(); this.updateEvent(ev.id,{status:'kakutei'}); });
       else if(ev.status==='kakutei' && ev.type==='baito') primary('働いた記録をつける',()=>this.openDialog(ev,'worked',st.returnTo));
-      else if(ev.status==='mikakutei') primary('この予定、どうなった？',()=>this.openFor(ev,st.returnTo));
+      else if(ev.status==='mikakutei') primary(t.ask || 'この予定、どうなった？',()=>this.openDialog(ev,'confirm',st.returnTo));
       else v.dPrimaryLabel=null;
       // 編集・コピー・削除は「…」の中にしまう。並びはタイムツリーに合わせた。
       //
@@ -2852,19 +3707,32 @@ export default class App extends React.Component {
       const r=st.confirmRestore;
       const at = r.at ? new Date(r.at) : null;
       v.confirmTitle = '控えから戻しますか？';
-      v.confirmBody = `いま入っている${st.events.length}件は、控えの${r.count}件に置き換わります。`
+      v.confirmBody = (r.merge
+          ? `控えの${r.count}件のうち、いま入っていない予定だけを足します。同じ予定は新しいほうを残します。`
+          : `いま入っている${st.events.length}件は、控えの${r.count}件に置き換わります。`)
         + (at ? `（控えは ${at.getFullYear()}年${at.getMonth()+1}月${at.getDate()}日 のもの）` : '')
         + (r.dropped ? ` 読めない予定が${r.dropped}件あり、それは戻せません。` : '')
-        + ' 元に戻せません。';
-      v.confirmOkLabel = '戻す';
+        + (st.events.length ? ' 戻す前のいまの状態は、控えとして端末に残します。' : '');
+      v.confirmOkLabel = r.merge ? '足す' : '戻す';
       v.onConfirmDelete = ()=>this.doRestore();
       v.onCancelDelete = ()=>this.setState({confirmRestore:null});
+      // 置き換えずに、足りない予定だけ足す（2台で使っていた人向け）
+      if(st.events.length){
+        v.repDeleteShown = true;
+        v.repDeleteOn = !!r.merge;
+        v.repDeleteLabel = '置き換えずに、足りない予定だけ足す';
+        v.onToggleRepDelete = ()=>{ tapLight(); this.setState(s=>({confirmRestore:{...s.confirmRestore, merge:!s.confirmRestore.merge}})); };
+        v.repDeleteBox = {width:20,height:20,borderRadius:6,flexShrink:0,
+          border:'1.5px solid '+(r.merge?'var(--ink)':'var(--line)'), background:r.merge?'var(--ink)':'transparent',
+          color:'var(--card)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700};
+      }
     } else if(v.confirmShown){
       const target = st.events.find(e=>e.id===st.confirmDelete);
       v.confirmTitle = target ? `「${target.title}」を削除しますか？` : '削除しますか？';
+      // 消しても30日は戻せる（設定の「最近消した予定」）。「元に戻せません」と脅さない
       v.confirmBody = target && target.status==='jisseki'
-        ? '働いた記録も一緒に消えます。元に戻せません。'
-        : '元に戻せません。';
+        ? '働いた記録も一緒に消えます。30日間は、設定の「最近消した予定」から戻せます。'
+        : '30日間は、設定の「最近消した予定」から戻せます。';
       v.confirmOkLabel = '削除する';
       v.onConfirmDelete = ()=>this.doDelete();
       v.onCancelDelete = ()=>this.setState({confirmDelete:null, deleteRest:false});
@@ -2903,21 +3771,25 @@ export default class App extends React.Component {
         v.heroCheckStyle={ position:'absolute',fontSize:16,fontWeight:800,color:'#fff', opacity:on?1:0, animation:on?'checkPop .5s .18s cubic-bezier(.2,.9,.2,1) both':'none' };
         v.heroTitle=d.title;
         v.haloStyle={ position:'absolute',left:'50%',top:'50%',width:120,height:52,borderRadius:16,border:'2px solid '+t.color,animation:'haloOut .85s .1s cubic-bezier(.2,.9,.2,1) forwards',pointerEvents:'none' };
-        v.celebCaption = d.type==='asobi' ? '約束、決まった' : d.type==='baito' ? 'シフト確定' : '決まった';
+        v.celebCaption = t.celeb || (d.type==='asobi' ? '約束、決まった' : d.type==='baito' ? 'シフト確定' : '決まった');
         v.celebSub = (d.m+1)+'月'+d.day+'日 ・ '+d.start+'–'+d.end;
         return { v };
       }
+      // 問いは種類ごと（仕事なら「この仮押さえ、どうなった？」）。組み込みの4つは前と同じ言葉
+      const ASK={asobi:'約束、決まった？', yoji:'この用事、どうなりました？', baito:'このシフト、どうなりました？'};
       v.dlgHeading = d.mode==='worked' ? '何時まで働いた？'
-        : d.type==='asobi' ? '約束、決まった？'
-        : d.type==='yoji' ? 'この用事、どうなりました？'
-        : d.type==='baito' ? 'このシフト、どうなりました？'
-        : 'この予定、どうなりました？';
+        : (t.ask || ASK[d.type] || 'この予定、どうなりました？');
+      v.dlgGoneLabel = t.gone || '無くなった';
+      v.dlgMaybeLabel = t.key==='work' ? 'まだ仮のまま' : 'まだ分からない';
       v.dlgSub = (d.m+1)+'月'+d.day+'日 ・ '+d.title;
       v.dlgStart=d.start; v.dlgEnd=d.end;
       v.dlgChanged = d.start!==d.origS || d.end!==d.origE;
       v.dlgOrigText = (d.mode==='worked'?'確定 ':'希望 ')+d.origS+'–'+d.origE;
       v.dlgPrimaryLabel = d.mode==='worked'?'記録する':'確定した';
-      v.dlgPrimaryStyle = {padding:15,borderRadius:12,textAlign:'center',fontSize:16,fontWeight:700,color:'#fff',background:t.color,cursor:'pointer',boxShadow:'0 3px 10px '+t.paper};
+      // 白い字を載せるので、地は種類の色を35%暗くした色にする。
+      // そのままの色だと、バイトの緑や遊びの橙で字と地の差が 4.5 に届かず、読みにくかった
+      { const d0=this._mix(t.color,'#000000',0.35);
+        v.dlgPrimaryStyle = {padding:15,borderRadius:12,textAlign:'center',fontSize:16,fontWeight:700,color:'#fff',background:`rgb(${d0[0]},${d0[1]},${d0[2]})`,cursor:'pointer',boxShadow:'0 3px 10px '+t.paper}; }
       v.dlgWheelColStyle = {width:60,height:150,overflowY:'scroll',scrollSnapType:'y mandatory',padding:'58px 0',textAlign:'center',WebkitMaskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)',maskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)'};
       const dHours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
       const dMinutes=Array.from({length:60/MIN_STEP},(_,i)=>String(i*MIN_STEP).padStart(2,'0'));
@@ -2944,6 +3816,43 @@ export default class App extends React.Component {
                 border:'1px solid '+(sel?t.color:'var(--line)')} }; });
         const paid=Math.max(0, this.hoursBetween(d.start,d.end) - cur/60);
         v.dlgPaidText = cur ? `実働 ${this.fmtHours(paid)}（休憩 ${cur}分を引いた）` : `実働 ${this.fmtHours(paid)}`;
+      }
+      // ---- 別の日になった（延期） ----
+      // 「どうなった？」の答えに、確定・無くなった・まだ のほかに「別の日になった」を足した。
+      // 前は延期を入れるのに、編集画面まで行って日付を直すしかなかった
+      v.dlgMoveShown = d.mode==='confirm' && !d.moving;
+      v.onDlgMove = ()=>{ tapLight(); this.setState(s=>({dialog:{...s.dialog, moving:true, pickY:s.dialog.y, pickM:s.dialog.m, moveTo:null}})); };
+      v.dlgMoving = !!d.moving || d.mode==='move';
+      if(v.dlgMoving){
+        const pY=d.pickY==null?d.y:d.pickY, pM=d.pickM==null?d.m:d.pickM;
+        v.dlgMoveLabel = `${pY}年${pM+1}月`;
+        v.onDlgMovePrev = ()=>this.setState(s=>{ const n=shiftMonth({y:pY,m:pM},-1); return {dialog:{...s.dialog,pickY:n.y,pickM:n.m}}; });
+        v.onDlgMoveNext = ()=>this.setState(s=>{ const n=shiftMonth({y:pY,m:pM},1); return {dialog:{...s.dialog,pickY:n.y,pickM:n.m}}; });
+        const mws=st.settings.weekStart, DW=['日','月','火','水','木','金','土'];
+        v.dlgMoveWeekdays = Array.from({length:7},(_,i)=>{ const dw=(i+mws)%7;
+          return { label:DW[dw], style:{textAlign:'center',fontSize:10,fontWeight:600,padding:'4px 0',
+            color: dw===0 ? HOLIDAY_RED : dw===6 ? SATURDAY_BLUE : 'var(--ink-faint)'} }; });
+        const first=(new Date(pY,pM,1).getDay()-mws+7)%7, dim=new Date(pY,pM+1,0).getDate();
+        const cells=[]; for(let i=0;i<first;i++) cells.push({label:'',style:{height:34}});
+        const to=d.moveTo;
+        for(let d2=1;d2<=dim;d2++){
+          const orig = pY===d.y && pM===d.m && d2===d.day;
+          const sel = to && to.y===pY && to.m===pM && to.d===d2;
+          const dw2=new Date(pY,pM,d2).getDay(), hol2=holidayName(pY,pM,d2);
+          cells.push({ label:d2, onClick: orig ? ()=>{} : ()=>{ tapLight(); this.setState(s=>({dialog:{...s.dialog, moveTo:{y:pY,m:pM,d:d2}}})); },
+            style:{height:34,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:11,cursor:orig?'default':'pointer',
+              fontSize:14,fontVariantNumeric:'tabular-nums',fontWeight:sel?700:500,
+              background: sel?'var(--ink)':'transparent', color: sel?'var(--card)': orig?'var(--ink-faint)':((hol2||dw2===0)?HOLIDAY_RED:dw2===6?SATURDAY_BLUE:'var(--ink-soft)'),
+              textDecoration: orig?'line-through':'none'} });
+        }
+        v.dlgMoveCells = cells;
+        v.dlgMoveChosen = !!to;
+        v.dlgMoveChosenText = to ? `${to.m+1}月${to.d}日（${DW[new Date(to.y,to.m,to.d).getDay()]}）へ` : '新しい日をえらんでください';
+        v.onDlgMoveFix = ()=>this.moveEvent(d.id, to, 'kakutei');
+        v.onDlgMoveKeep = ()=>this.moveEvent(d.id, to, 'mikakutei');
+        v.onDlgMoveSomeday = ()=>this.toSomeday(d.id, 'month');
+        v.onDlgMoveBack = ()=>this.setState(s=>(s.dialog.mode==='move' ? {dialog:null} : {dialog:{...s.dialog, moving:false}}));
+        v.dlgMoveTitle = d.mode==='move' ? '日にちを変える' : '別の日になった';
       }
       v.onDlgPrimary=()=>this.dlgPrimary();
       v.onDlgNakunatta=()=>this.dlgNakunatta();
@@ -3041,15 +3950,16 @@ export default class App extends React.Component {
       if (perm === 'granted') this.runScan();
     };
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) { this._onResume(); return; }
+      if (!document.hidden) { this._onResume(); this._onReturn(); return; }
       // 背景に回った。このまま終了されることがあるので、待たずに書く
+      this._hiddenAt = Date.now();
       this._flushFile();
     });
 
-    // localStorage は OS の判断で消されることがある。消えていたら、
-    // ファイルに残っている最後の内容から戻す。
-    // localStorage が生きているときは触らない（いま編集中の内容を消さないため）。
-    if (!this._hadLocal) this._recoverFromFile();
+    // 保存は2か所（localStorage とファイル）。起動したら、どちらが新しいかを確かめる（_checkFile）。
+    // localStorage が消えていたら、ファイルの最後の内容から戻す。
+    this._checkFile();
+    this._pruneTrash();
 
     // 日付が変わったら「今日」の位置と記録の催促を更新する
     this._tick = setInterval(() => {
@@ -3058,6 +3968,31 @@ export default class App extends React.Component {
       if (t.y !== cur.y || t.m !== cur.m || t.d !== cur.d) this.setState({ today: t });
       this._refreshNotif();
     }, 60000);
+  }
+
+  /**
+   * アプリに戻ってきたとき。
+   * 前は取り込みの続きと保存しかしておらず、日付が変わったかは1分ごとにしか見ていなかった。
+   * 朝ひらくと「今日」が昨日のままのことがあった。戻った瞬間に確かめ直す。
+   * 30分以上ほかのアプリにいたら、見ている画面を今月のカレンダーに戻す
+   * （書きかけの予定があるときは戻さない）。
+   */
+  _onReturn() {
+    const t = todayParts();
+    const cur = this.state.today;
+    const away = this._hiddenAt ? Date.now() - this._hiddenAt : 0;
+    const patch = {};
+    if (t.y !== cur.y || t.m !== cur.m || t.d !== cur.d) patch.today = t;
+    if (away > 30 * 60000 && ['month', 'day', 'detail', 'free', 'report'].includes(this.state.screen)) {
+      Object.assign(patch, { screen: 'month', ym: { y: t.y, m: t.m }, dayNum: null, detailId: null, detailMenu: false });
+    }
+    if (Object.keys(patch).length) this.setState(patch);
+    this._refreshNotif();
+    this._syncReminders();
+    this._autoBackup();
+    this._widgetStamp = null;
+    this._pushWidget();
+    if (this._loadOverlay) this._loadOverlay();
   }
 
   componentWillUnmount() {
@@ -3125,20 +4060,14 @@ export default class App extends React.Component {
 
   async exportBackup() {
     tapLight();
-    const { events, types, overrides, settings, notices, lastSeenVersion, jobs, supports } = this.state;
-    const ver = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
     const now = new Date();
     const stamp = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
-    const text = JSON.stringify(
-      { app: this.BACKUP_MARK, format: this.BACKUP_FORMAT, appVersion: ver, exportedAt: now.toISOString(),
-        data: { events, types, overrides, settings, notices, lastSeenVersion, jobs, supports } },
-      null, 2
-    );
-    const msg = await shareText(text, `kimatteru-backup-${stamp}.json`);
-    if (msg) {
-      this.setState({ shareToast: true, shareMsg: msg });
-      setTimeout(() => this.setState({ shareToast: false }), 2400);
-    }
+    // 中身はそのまま読める。自分だけが見られる場所に置いてもらう（書き出す前に一言出す）
+    const text = JSON.stringify(JSON.parse(this._backupText()), null, 2);
+    // 名前は LUKKO に。古い名前（kimatteru-backup-…）の控えも、これまでどおり戻せる（中の印で見分ける）
+    const msg = await shareText(text, `LUKKO-控え-${stamp}.json`);
+    this.setState((s) => ({ settings: { ...s.settings, lastExportAt: Date.now() } }));
+    if (msg) this.toast(msg);
   }
 
   // 控えのファイルをじかにえらんで戻す。
@@ -3282,20 +4211,51 @@ export default class App extends React.Component {
     const r = this.state.confirmRestore;
     if (!r) return;
     stampHeavy();
+    // 戻すと中身が丸ごと入れ替わる。戻す直前の状態を、控えとして1つ残しておく
+    if (this.state.events.length) writeBackup('before', this._backupText());
     const d = r.data;
+    // 「足りない予定だけ足す」を選んだときは、置き換えずに混ぜる。同じ予定なら新しいほうを残す
+    if (r.merge) {
+      const incoming = sanitizeEvents(d.events);
+      const byId = new Map(this.state.events.map((e) => [e.id, e]));
+      let added = 0;
+      for (const e of incoming) {
+        const cur = byId.get(e.id);
+        if (!cur) { byId.set(e.id, e); added++; }
+        else if ((e.updatedAt || 0) > (cur.updatedAt || 0)) byId.set(e.id, e);
+      }
+      this.setState({ events: [...byId.values()], confirmRestore: null, pasteOpen: false, backupText: '', backupError: '', screen: 'month' });
+      this.toast(`${added}件の予定を足しました`);
+      return;
+    }
     this.setState((s) => ({
       events: sanitizeEvents(d.events),
       types: typesOk(d.types) ? mergeTypes(d.types, s.types) : s.types,
       jobs: sanitizeJobs(d.jobs),
       supports: sanitizeSupports(d.supports),
+      trash: sanitizeTrash(d.trash),
+      someday: sanitizeSomeday(d.someday),
       overrides: d.overrides || {},
       notices: d.notices || [],
       settings: { ...s.settings, ...(d.settings || {}) },
       lastSeenVersion: d.lastSeenVersion || s.lastSeenVersion,
       confirmRestore: null, pasteOpen: false, backupText: '', backupError: '',
-      screen: 'month', shareToast: true, shareMsg: `${(d.events || []).length}件の予定を戻しました`,
+      screen: 'month',
     }));
-    setTimeout(() => this.setState({ shareToast: false }), 2400);
+    this.toast(`${(d.events || []).length}件の予定を戻しました`);
+  }
+  // 端末の中の控え（自動の控え・戻す前の控え）の一覧を開く
+  async openBackups() {
+    tapLight();
+    const list = await listBackups();
+    this.setState({ backupList: list, backupListOpen: true });
+  }
+  async pickLocalBackup(name) {
+    const text = await readBackup(name);
+    const r = text ? this.parseBackup(text) : { error: '控えを読めませんでした。' };
+    if (r.error) { this.setState({ backupError: r.error, backupListOpen: false }); return; }
+    tapLight();
+    this.setState({ backupListOpen: false, confirmRestore: r });
   }
 
   // 一覧では中身を出しきらず、押したら中央に開いて全文を見せる。
@@ -3423,13 +4383,41 @@ export default class App extends React.Component {
     }
   }
 
-  // localStorage が空だったときに、ファイルから戻す。
-  // 初めて使う人はファイルも無いので、そのまま何も起きない。
-  async _recoverFromFile() {
-    const saved = await readFile();
-    if (!saved || !Array.isArray(saved.events) || !saved.events.length) return;
-    // 起動してから何か作っていたら、上書きしない
-    if (this.state.events.length) return;
+  /**
+   * 起動したとき、2か所の保存のどちらから始めるかを決める。
+   *
+   * 前は localStorage に中身があれば、それだけを使っていた。空き容量が足りずに
+   * localStorage へ書けない日が続くと、古い中身で始まり、次の保存でファイルの新しいほうまで
+   * 古い中身で上書きしてしまう。いちばん悪い形で予定が消える。
+   *
+   * 決め方：中身が違っていて、ファイルのほうが後に書かれていたら、ファイルから始める。
+   * そのとき古いほう（localStorage の中身）は、上書きする前に控えに残す。
+   * ファイルを確かめ終わるまでは、ファイルへの保存を止めておく（確かめる前に上書きしないため）。
+   */
+  async _checkFile() {
+    if (!isNative()) { this._fileOk = true; return; }
+    let saved = null;
+    try { saved = await readFile(); } catch (e) { saved = null; }
+    try {
+      const ok = saved && Array.isArray(saved.events) && saved.events.length;
+      if (ok && !this._hadLocal) {
+        // localStorage が消えていた。起動してから何か作っていたら、上書きしない
+        if (!this.state.events.length) this._adoptSaved(saved, { recovered: true });
+      } else if (ok && this._localSaved) {
+        const pick = (o) => JSON.stringify([o.events || [], o.jobs || [], o.types || []]);
+        const L = this._localSaved;
+        if ((saved.savedAt || 0) > (L.savedAt || 0) && pick(saved) !== pick(L)) {
+          await writeBackup('before', this._backupText(L));
+          this._adoptSaved(saved, { newer: true });
+        }
+      }
+    } catch (e) { /* 確かめられなくても起動は止めない */ }
+    this._fileOk = true;
+    this._scheduleFileSave();
+    this._autoBackup();
+  }
+  // 保存されていた中身で、いまの状態を置き換える
+  _adoptSaved(saved, why) {
     const events = sanitizeEvents(saved.events);
     if (!events.length) return;
     this.setState((s) => ({
@@ -3440,8 +4428,44 @@ export default class App extends React.Component {
       notices: saved.notices || s.notices,
       jobs: sanitizeJobs(saved.jobs),
       supports: sanitizeSupports(saved.supports),
-      recovered: events.length,
+      trash: sanitizeTrash(saved.trash),
+      someday: sanitizeSomeday(saved.someday),
+      recovered: why.recovered ? events.length : s.recovered,
     }));
+    if (why.newer) this.toast('新しいほうの保存から開きました（古いほうは控えに残しました）', 4200);
+  }
+  /** 控えの中身（書き出す控えと同じ形） */
+  _backupText(src) {
+    const s = src || this.state;
+    const ver = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
+    const data = {};
+    for (const k of PERSISTED) data[k] = s[k];
+    return JSON.stringify({ app: this.BACKUP_MARK, format: this.BACKUP_FORMAT, appVersion: ver,
+      exportedAt: new Date().toISOString(), data });
+  }
+  /**
+   * 1日に1回、端末の中に控えを書く（backup.js）。予定が1件も無いうちは書かない。
+   * 起動したときと、アプリに戻ってきたときに呼ぶ。今日のぶんがあれば何もしない
+   */
+  async _autoBackup() {
+    if (this._backingUp || !this.state.events.length) return;
+    this._backingUp = true;
+    try {
+      if (!(await hasTodayBackup())) {
+        const name = await writeBackup('auto', this._backupText());
+        if (name) {
+          this.setState((s) => ({ settings: { ...s.settings, lastAutoBackup: Date.now() } }));
+          await pruneBackups();
+        }
+      }
+    } catch (e) { /* 控えが書けなくても、使うのは止めない */ }
+    this._backingUp = false;
+  }
+  // 30日たった「最近消した予定」を捨てる
+  _pruneTrash() {
+    const t = this.state.trash || [];
+    const kept = sanitizeTrash(t);
+    if (kept.length !== t.length) this.setState({ trash: kept });
   }
 
   // 予定が消えることは、機能がひとつ動かないのとは重さが違う。
@@ -3462,7 +4486,9 @@ export default class App extends React.Component {
   }
   _flushFile() {
     clearTimeout(this._fileTimer);
-    saveFile(this.state);
+    // 起動時の確かめ（_checkFile）が済むまでは、ファイルに書かない。
+    // 先に書くと、新しいほうのファイルを古い中身で上書きしてしまう
+    if (this._fileOk) saveFile(this.state);
     this._pushWidget();
   }
 

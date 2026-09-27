@@ -29,10 +29,12 @@ const native = () => {
     return false;
   }
 };
+export const isNative = native;
 
 // 保存する中身。App.jsx は「このどれかが入れ替わったときだけ保存する」のにも使う。
 // 足すときはここに足せば、保存にも、保存するかどうかの判断にも入る
-export const PERSISTED = ['events', 'types', 'overrides', 'settings', 'notices', 'lastSeenVersion', 'jobs', 'supports'];
+// trash … 消した予定（30日だけ残す）。someday … 日にちをまだ決めていない予定
+export const PERSISTED = ['events', 'types', 'overrides', 'settings', 'notices', 'lastSeenVersion', 'jobs', 'supports', 'trash', 'someday'];
 const pack = (state) => {
   const out = { savedAt: Date.now() };
   for (const k of PERSISTED) out[k] = state[k];
