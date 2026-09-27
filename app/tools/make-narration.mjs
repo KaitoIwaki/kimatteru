@@ -2,7 +2,7 @@
 //
 //   node app/tools/make-narration.mjs          ← 声を作る → 場面を伸ばす → 動画を書き出す → 声を重ねる
 //   node app/tools/make-narration.mjs voice    ← 声を作って、伸ばし方（timing.json）を決めるところまで
-//   node app/tools/make-narration.mjs split    ← 声は作らず、1 本で録った WAV（Google AI Studio など）を使う。
+//   node app/tools/make-narration.mjs split [mixonly]  ← 声は作らず（mixonly：動画は書き出し直さない）、1 本で録った WAV（Google AI Studio など）を使う。
 //                                                切れ目は split-narration.mjs が narration-split.json に書いたもの。
 //                                                出力は lukko-promo-narration.mp4
 //
@@ -53,12 +53,18 @@ if (SPLIT) {
     const L = lines[i], s = sp.segments[i];
     L.file = join(tmp, `l${i}.wav`);
     const d = s.end - s.start;
-    // -ss は -i の後ろに置く（頭から読んで捨てる）。AI Studio の WAV は、前に置いて飛ばすと 43 秒より先が空になった
-    const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', src, '-ss', String(s.start), '-t', String(d),
-      '-af', `aresample=48000,afade=t=in:d=0.015,afade=t=out:st=${Math.max(0, d - 0.015).toFixed(3)}:d=0.015`, '-ac', '1', L.file]);
+    // 切り出しは atrim で、フェードと同じ流れの中でやる。
+    // -ss を -i の前に置くと、AI Studio の WAV は 43 秒より先が空になった。-i の後ろに置くと、今度は
+    // フェードが「切る前の元の時刻」でかかり、2 行目から後ろが全部無音になった（声が 3 秒で消えた）。
+    // atrim で切って asetpts で 0 秒からに直せば、フェードは切れ端の時刻でかかる
+    const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', src,
+      '-af', `atrim=start=${s.start}:end=${s.end},asetpts=PTS-STARTPTS,aresample=48000,afade=t=in:d=0.015,afade=t=out:st=${Math.max(0, d - 0.015).toFixed(3)}:d=0.015`, '-ac', '1', L.file]);
     if (r.status !== 0) throw new Error(`${i + 1} 行目を切り出せなかった`);
     L.dur = dur(L.file);
     if (!(L.dur > 0.2)) throw new Error(`${i + 1} 行目の切り出しが空（${s.start}〜${s.end} 秒）`);
+    // 長さがあっても無音のことがある（上の失敗がそうだった）。音の平均が -50dB より小さければ止める
+    const vol = Number((spawnSync('ffmpeg', ['-hide_banner', '-i', L.file, '-af', 'volumedetect', '-f', 'null', '-'], { encoding: 'utf8' }).stderr.match(/mean_volume: ([-0-9.]+)/) || [])[1]);
+    if (!(vol > -50)) throw new Error(`${i + 1} 行目が無音（平均 ${vol}dB）`);
   }
   VOICE_NAME = 'Google AI Studio（Gemini TTS）';
 }
@@ -112,9 +118,11 @@ for (const l of lines) console.log(`  ${l.at.toFixed(1).padStart(5)}s  ${l.dur.t
 console.log(`全体 ${total.toFixed(1)} 秒`);
 if (ONLY_TIMING) process.exit(0);
 
-// 3. 伸ばした動画を書き出す（make-promo.mjs が timing.json を読む）
-const r1 = spawnSync('node', [join(here, 'make-promo.mjs')], { stdio: 'inherit' });
-if (r1.status !== 0) throw new Error('make-promo.mjs が失敗した');
+// 3. 伸ばした動画を書き出す（make-promo.mjs が timing.json を読む）。mixonly なら、書き出し済みの動画を使う
+if (!process.argv.includes('mixonly') || !existsSync(join(DIR, 'lukko-promo.mp4'))) {
+  const r1 = spawnSync('node', [join(here, 'make-promo.mjs')], { stdio: 'inherit' });
+  if (r1.status !== 0) throw new Error('make-promo.mjs が失敗した');
+}
 
 // 4. 声を重ねる。行ごとに遅らせて足し合わせる。声は少し持ち上げ、ピークを抑える
 const video = join(DIR, 'lukko-promo.mp4');
