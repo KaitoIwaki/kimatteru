@@ -84,26 +84,29 @@ for (let i = 0; i < lines.length && !SPLIT; i++) {
   L.dur = dur(L.file);
 }
 
-// 2. 場面ごとの伸ばし方（折れ線）。行は、ふつうは cue（その説明が画面に出る時刻）に置く。
-//    前の行がまだ終わっていなければ、その後ろへずらし、ずれたぶんだけ画面の時間もそこで止めて待つ。
-//    こうすると、声と画面の動き（「丸は」と言った瞬間に ○ の行に枠）が合ったまま、伸びるのは声が収まらない所だけ。
-//    一律に倍率をかけると、後ろの説明ほど遅れが積み上がって伸びすぎた（70 秒になった）
+// 2. 場面ごとの伸ばし方（折れ線）。画面の動きは元の速さのまま、ナレーションに「合わせに行く」。
+//    cue はその説明の最初の動き（カメラが寄り始める・札が変わる）の直前。画面は元の速さで cue まで進み、
+//    声がまだ前の行を話していれば、そこで声を待つ（折れ線が平らになる）。声が話し始めた瞬間に次の動きが始まる。
+//    待っている間も画面は止めない。promo.html の側で、指さしの手・枠の脈・スマホの呼吸が、実時間で動き続ける。
+//    （前は、待つ代わりに区間をゆっくり進めていたが、動きが 2.7 倍まで遅くなった。本人の希望で、こちらにした）
 const knots = {};
 let at = 0;
 for (const id of ORDER) {
   const mine = lines.filter((l) => l.scene === id).sort((a, b) => a.cue - b.cue);
   const k = [[0, 0]];
-  let end = 0, delay = 0;
+  const last = () => k[k.length - 1];
+  let end = 0;
   for (const l of mine) {
-    const real = Math.max(l.cue + delay, end + (end ? GAP : 0));
-    if (real > l.cue + delay) k.push([l.cue, l.cue + delay]);   // ここまでは今までの遅れのまま進み、
-    delay = real - l.cue;                                         // この行の前で時間を止めて待つ
-    k.push([l.cue, real]);
-    l.local = real; end = real + l.dur; l.at = at + real;
+    const natural = last()[1] + (l.cue - last()[0]);          // 元の速さで進んだら、cue に着く時刻
+    const want = Math.max(natural, end + (end ? GAP : 0));    // 前の行が終わっていなければ、そこまで待つ
+    if (l.cue > last()[0]) k.push([l.cue, natural]);          // cue までは元の速さ
+    if (want > natural + 1e-6) k.push([l.cue, want]);          // cue で声を待つ（平ら）
+    l.local = want; end = want + l.dur; l.at = at + want;
   }
-  const len = Math.max(BASE[id] + delay, mine.length ? end + (TAIL[id] ?? TAIL.default) : 0);
-  // 最後の行のあとも足りなければ、場面の終わりまでをなだらかに伸ばす
-  k.push([BASE[id], len]);
+  const endNatural = last()[1] + (BASE[id] - last()[0]);
+  const len = Math.max(endNatural, mine.length ? end + (TAIL[id] ?? TAIL.default) : 0);
+  k.push([BASE[id], endNatural]);
+  if (len > endNatural + 1e-6) k.push([BASE[id], len]);        // 最後の行が長ければ、終わりで待つ
   knots[id] = k.map(([b, r]) => [+b.toFixed(3), +r.toFixed(3)]);
   console.log(`${id.padEnd(4)} ${BASE[id].toFixed(1)}s → ${len.toFixed(1)}s`);
   at += len;

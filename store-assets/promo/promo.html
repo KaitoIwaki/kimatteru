@@ -257,6 +257,17 @@
     <div class="cap" id="c9c"><div class="t1">バイトの<span class="g">給料</span>の目安も</div><div class="t2">時給から、働いたぶんを</div></div>
   </div>
 
+  <!-- 指さしの手。ナレーションを待っている間も、枠の付いた所をトントン指して、画面を止めない -->
+  <svg class="abs" id="ptr" width="200" height="311" viewBox="0 0 180 280" style="left:0;top:0;opacity:0;z-index:5;transform-origin:44% 0%">
+    <rect x="62" y="0" width="34" height="140" rx="17" fill="#F2C9A5"/>
+    <rect x="92" y="78" width="30" height="60" rx="15" fill="#F2C9A5"/>
+    <rect x="118" y="88" width="28" height="60" rx="14" fill="#F2C9A5"/>
+    <rect x="142" y="100" width="26" height="58" rx="13" fill="#F2C9A5"/>
+    <rect x="56" y="112" width="116" height="110" rx="34" fill="#F2C9A5"/>
+    <rect x="30" y="128" width="40" height="80" rx="20" fill="#F2C9A5" transform="rotate(-24 50 168)"/>
+    <rect x="62" y="210" width="108" height="80" rx="14" fill="#B4A6D6"/>
+  </svg>
+
   <!-- 10. 締め -->
   <div class="scene" id="s10">
     <img class="abs" id="icon" src="assets/icon.png" style="left:390px;top:420px;width:300px;height:300px;border-radius:68px;filter:drop-shadow(0 24px 30px rgba(40,50,40,.22))">
@@ -315,6 +326,21 @@ function pop(id, t, at, dur = 0.45, rot = 0, extra = '') {
   const x = seg(t, at, at + dur), k = x <= 0 ? 0 : back(x);
   set(id, { opacity: clamp(x * 3), transform: `${extra} scale(${k}) rotate(${rot}deg)` });
 }
+// 実時間。ナレーションを待っている間は場面の中の時計（lt）が止まるので、止まって見えないための動き
+// （手のトントン・枠の脈・スマホの呼吸）は、こちらの実時間で動かす
+let T = 0, P = null;
+const win = (lt, a, z) => Math.min(eo(seg(lt, a, a + 0.3)), 1 - seg(lt, z - 0.25, z));
+// 指さしの手：指先を p（画面の座標）に。k は見え方（0〜1）。press は押し込み（0〜1）
+function point(p, k, press = 0) { if (k > 0.01 && (!P || k > P.k)) P = { p, k, press }; }
+function drawPointer() {
+  if (!P) { set('ptr', { opacity: 0 }); return; }
+  const hover = 10 * Math.abs(Math.sin(T * 3.2)) * (1 - P.press);
+  // 画面の右寄り（空き状況の ○△ の列など）を指すときは、手を左右反転して左下から指す（右下からだと画面の外に出る）
+  const flip = P.p.x > 760, dx = (1 - P.k) * 160 * (flip ? -1 : 1);
+  set('ptr', { opacity: P.k, left: (P.p.x - 88 + dx) + 'px', top: (P.p.y + hover + P.press * 16 + (1 - P.k) * 220) + 'px',
+    transform: flip ? 'scaleX(-1) rotate(-22deg)' : 'rotate(-22deg)' });
+}
+
 // 入れ替わる説明：[id, 出る, 消える]（場面の中の秒）
 function caps(lt, list) {
   for (const [id, a, z] of list) {
@@ -325,7 +351,12 @@ function caps(lt, list) {
 // 画面の中の枠
 function ring(id, lt, a, z) {
   const k = Math.min(seg(lt, a, a + 0.3), 1 - seg(lt, z - 0.25, z));
-  $(id).setAttribute('opacity', k);
+  const el = $(id);
+  el.setAttribute('opacity', k);
+  // 付いている間は、ゆっくり太くなったり細くなったりする（待っている間も動く）
+  if (!el.dataset.w) el.dataset.w = el.getAttribute('stroke-width');
+  el.setAttribute('stroke-width', (Number(el.dataset.w) * (1 + 0.35 * Math.max(0, Math.sin(T * 4.5)))).toFixed(1));
+  return k;
 }
 // カメラ：スマホを寄せる。kf = [{at, s, fx, fy, cy}]。fx, fy はスクショの座標（1290×2796）。
 // その点が画面の (540, cy) に来るように、スマホを拡大・移動する。次の kf へは 0.9 秒で動く
@@ -340,6 +371,8 @@ function cam(id, lt, kfs) {
     cur = { s: cur.s + (nx.s - cur.s) * k, fx: cur.fx + (nx.fx - cur.fx) * k, fy: cur.fy + (nx.fy - cur.fy) * k, cy: cur.cy + (nx.cy - cur.cy) * k };
   }
   const px = PAD + cur.fx * K, py = PAD + cur.fy * K;
+  // ごくわずかに呼吸する（待っている間も止まって見えない）
+  cur.s *= 1 + 0.012 * Math.sin(T * 0.8);
   const tx = 540 - PL - cur.s * px, ty = cur.cy - PT - cur.s * py;
   $(id).style.transform = `translate(${tx}px, ${ty}px) scale(${cur.s})`;
   // 画面の上の方に寄ると、アイランドが大きな黒い塊として真ん中に出て邪魔。寄っている間は消す
@@ -353,6 +386,7 @@ function phoneIn(id, lt, at = 0.1) {
 }
 
 window.render = function (t) {
+  T = t; P = null;
   const b = Math.sin(t * 0.35) * 30;
   $('band').setAttribute('points', `0,${1320 + b} 1080,${860 - b} 1080,${1480 - b} 0,${1940 + b}`);
   [['d1', 18, 0.9], ['d2', 14, 1.1], ['d3', 20, 0.7], ['d4', 16, 1.3], ['d5', 12, 1.0], ['d6', 22, 0.8]].forEach(([id, a, f], i) => {
@@ -379,7 +413,8 @@ window.render = function (t) {
   if (on('s2')) {
     lt = L('s2', t);
     rise('s2a', lt, 0.15); rise('s2b', lt, 0.4);
-    ['c21', 'c22', 'c23'].forEach((id, i) => { const k = eo(seg(lt, 0.5 + i * 0.15, 0.95 + i * 0.15)); set(id, { opacity: k, transform: `translateX(${(1 - k) * -80}px)` }); });
+    // 並んだあとは、少し揺れて「どれ？」という感じを出す（待っている間も動く）
+    ['c21', 'c22', 'c23'].forEach((id, i) => { const k = eo(seg(lt, 0.5 + i * 0.15, 0.95 + i * 0.15)); set(id, { opacity: k, transform: `translateX(${(1 - k) * -80}px) rotate(${lt > 1.2 ? Math.sin(T * 6 + i * 2) * 1.6 : 0}deg)` }); });
     pop('q21', lt, 1.3, 0.4, 10, `translateY(${Math.sin(t * 5) * 10}px)`);
     pop('q22', lt, 1.5, 0.4, -12, `translateY(${Math.cos(t * 5) * 10}px)`);
     pop('q23', lt, 1.7, 0.4, 8, `translateY(${Math.sin(t * 5 + 1) * 10}px)`);
@@ -392,6 +427,8 @@ window.render = function (t) {
     pop('k1', lt, 0.4); rise('k1t', lt, 0.5, 0.4, 30);
     pop('k2', lt, 0.7); rise('k2t', lt, 0.8, 0.4, 30);
     pop('big', lt, 1.1, 0.5);
+    // 手が BBQ の上で待ち、ナレーションが「決まったら、押すだけ」と言い始めたら押す
+    point({ x: 560, y: 1010 }, win(lt, 1.5, 3.0), seg(lt, 2.35, 2.45) - seg(lt, 2.5, 2.7));
     const done = lt >= 2.4;
     const el = $('big');
     el.className = 'chip shadow ' + (done ? 'fill' : 'dash');
@@ -407,7 +444,8 @@ window.render = function (t) {
   if (on('s4')) {
     lt = L('s4', t);
     phoneIn('ph4', lt);
-    cam('ph4', lt, [{ at: 0 }, { at: 1.9, s: 2.1, fx: 1012, fy: 1140, cy: 1180 }, { at: 4.0, s: 2.1, fx: 735, fy: 567, cy: 1060 }, { at: 6.0, s: 1 }]);
+    const map4 = cam('ph4', lt, [{ at: 0 }, { at: 1.9, s: 2.1, fx: 1012, fy: 1140, cy: 1180 }, { at: 4.0, s: 2.1, fx: 735, fy: 567, cy: 1060 }, { at: 6.0, s: 1 }]);
+    point(map4(1012, 952), win(lt, 2.6, 4.1)); point(map4(460, 569), win(lt, 4.7, 6.1));
     ring('r4a', lt, 2.6, 4.2); ring('r4b', lt, 2.8, 4.2);
     ring('r4c', lt, 4.7, 6.2); ring('r4d', lt, 4.8, 6.2);
     caps(lt, [['c4a', 0.3, 2.0], ['c4b', 2.2, 4.2], ['c4c', 4.3, 6.1], ['c4d', 6.2, 8.0]]);
@@ -449,8 +487,10 @@ window.render = function (t) {
   if (on('s6b')) {
     lt = L('s6b', t);
     phoneIn('ph6', lt);
-    cam('ph6', lt, [{ at: 0 }, { at: 2.0, s: 1.55, fx: 645, fy: 712, cy: 1250 }, { at: 4.2, s: 1.55, fx: 645, fy: 537, cy: 1250 },
+    const map6 = cam('ph6', lt, [{ at: 0 }, { at: 2.0, s: 1.55, fx: 645, fy: 712, cy: 1250 }, { at: 4.2, s: 1.55, fx: 645, fy: 537, cy: 1250 },
       { at: 6.4, s: 1.55, fx: 645, fy: 2314, cy: 1250 }, { at: 8.4, s: 1.35, fx: 700, fy: 900, cy: 1300 }]);
+    point(map6(1187, 722), win(lt, 2.6, 4.2)); point(map6(1187, 540), win(lt, 4.8, 6.4));
+    point(map6(1187, 2318), win(lt, 7.0, 8.4)); point(map6(1150, 390), win(lt, 9.0, 10.3));
     ring('r6o', lt, 2.6, 4.3); ring('r6a', lt, 4.8, 6.5); ring('r6d', lt, 7.0, 8.5); ring('r6h', lt, 9.0, 10.4);
     caps(lt, [['c6a', 0.3, 2.1], ['c6b', 2.3, 4.3], ['c6c', 4.5, 6.5], ['c6d', 6.7, 8.5], ['c6e', 8.7, 10.4]]);
   }
@@ -459,7 +499,8 @@ window.render = function (t) {
   if (on('s7')) {
     lt = L('s7', t);
     phoneIn('ph7', lt);
-    cam('ph7', lt, [{ at: 0 }, { at: 1.8, s: 1.3, fx: 645, fy: 800, cy: 1150 }]);
+    const map7 = cam('ph7', lt, [{ at: 0 }, { at: 1.8, s: 1.3, fx: 645, fy: 800, cy: 1150 }]);
+    point(map7(645, 730), win(lt, 4.0, 5.3));
     ring('r7a', lt, 2.3, 3.9); ring('r7b', lt, 4.0, 5.4);
     caps(lt, [['c7a', 0.3, 2.0], ['c7b', 2.2, 5.4]]);
     pop('bub7', lt, 3.9, 0.45);
@@ -468,14 +509,18 @@ window.render = function (t) {
   if (on('s8')) {
     lt = L('s8', t);
     rise('s8a', lt, 0.15); rise('s8b', lt, 0.35);
-    pop('w1', lt, 0.5, 0.45, -5); pop('w2', lt, 0.7, 0.45, 3); pop('w3', lt, 0.95, 0.5, -2);
+    // 出たあとは、ふわっと浮くように揺れ続ける（出そろったあと画面が止まって見えた）
+    pop('w1', lt, 0.5, 0.45, -5, `translateY(${Math.sin(T * 2.2) * 10}px)`);
+    pop('w2', lt, 0.7, 0.45, 3, `translateY(${Math.sin(T * 2.2 + 2) * 10}px)`);
+    pop('w3', lt, 0.95, 0.5, -2, `translateY(${Math.sin(T * 2.2 + 4) * 8}px)`);
   }
 
   // 9. まとめ
   if (on('s9')) {
     lt = L('s9', t);
     phoneIn('ph9', lt);
-    cam('ph9', lt, [{ at: 0 }, { at: 1.8, s: 1.3, fx: 645, fy: 1120, cy: 1250 }, { at: 3.7, s: 1.3, fx: 645, fy: 1845, cy: 1250 }]);
+    const map9 = cam('ph9', lt, [{ at: 0 }, { at: 1.8, s: 1.3, fx: 645, fy: 1120, cy: 1250 }, { at: 3.7, s: 1.3, fx: 645, fy: 1845, cy: 1250 }]);
+    point(map9(330, 845), win(lt, 2.4, 3.7)); point(map9(330, 1830), win(lt, 4.3, 5.3));
     ring('r9a', lt, 2.4, 3.8); ring('r9b', lt, 4.3, 5.4);
     caps(lt, [['c9a', 0.3, 1.9], ['c9b', 2.1, 3.8], ['c9c', 4.0, 5.4]]);
   }
@@ -488,6 +533,7 @@ window.render = function (t) {
     set('cta', { opacity: clamp(c * 3), transform: `scale(${c <= 0 ? 0 : pulse})` });
     rise('s10d', lt, 1.7);
   }
+  drawPointer();
 };
 
 // 撮影するときは make-promo.mjs が ?frame を付けて開く（自動再生しない）

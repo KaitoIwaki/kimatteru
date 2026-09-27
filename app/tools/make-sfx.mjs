@@ -32,13 +32,14 @@ if (OVER) {
   const { knots } = JSON.parse(readFileSync(join(DIR, 'timing.json'), 'utf8'));
   const rs = {};
   { let a = 0; for (const [id, d] of BASE) { rs[id] = a; const k = knots[id] || [[0, 0], [d, d]]; a += k[k.length - 1][1]; } }
+  // 折れ線は「元の速さで進む区間」と「声を待つ平らな区間」でできている。
+  // きっかけの時刻 t は、t 以下でいちばん後ろの点から元の速さで進めた時刻にする。
+  // 待つ点ちょうどの動き（声が話し始めた瞬間に始まる動き）は、待ったあとに鳴る
   at = (scene, t) => {
-    const k = knots[scene] || [[0, 0], [99, 99]];
-    for (let i = 1; i < k.length; i++) {
-      const [b0, r0] = k[i - 1], [b1, r1] = k[i];
-      if (t <= b1 || i === k.length - 1) return rs[scene] + r0 + (t - b0) * (r1 - r0) / Math.max(1e-6, b1 - b0);
-    }
-    return rs[scene] + t;
+    const k = knots[scene] || [[0, 0]];
+    let p = k[0];
+    for (const q of k) if (q[0] <= t + 1e-6) p = q;
+    return rs[scene] + p[1] + (t - p[0]);
   };
 }
 
