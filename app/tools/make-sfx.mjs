@@ -6,6 +6,11 @@
 // きっかけは store-assets/promo/sfx.json（どの場面の何秒で、どの音を鳴らすか）。
 // 音はフリー素材を使わず、ffmpeg でその場で合成する（権利やクレジットの心配が無い）。
 // 出力：lukko-promo-base.mp4（元の速さ、音なし）、lukko-promo-sfx.mp4（効果音つき。これを投稿する）
+//
+//   node app/tools/make-sfx.mjs over <声つきの動画> <出力>
+//                                        ← ナレーションつきの動画に、効果音を控えめに重ねる。
+//                                          場面の伸ばし方は timing.json（折れ線）に合わせる。声が主役なので、
+//                                          細かい音（シュッ・ピッ）はうんと小さく、ポン・タップ・キランを中心に
 import { spawnSync } from 'node:child_process';
 import { readFileSync, mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -18,9 +23,27 @@ const { cues } = JSON.parse(readFileSync(join(DIR, 'sfx.json'), 'utf8'));
 const BASE = [['s1', 3.4], ['s2', 3.4], ['s3', 4.4], ['s4', 8.0], ['s5', 6.0], ['s6a', 3.0], ['s6b', 10.4], ['s7', 5.4], ['s8', 3.2], ['s9', 5.4], ['s10', 4.0]];
 const start = {};
 { let a = 0; for (const [id, d] of BASE) { start[id] = a; a += d; } }
+// 場面の中の秒（伸ばす前）→ 動画の秒。over のときは timing.json の折れ線で伸ばす
+const OVER = process.argv[2] === 'over';
+let at = (scene, t) => start[scene] + t;
+// 声の下に敷くときの、音ごとの大きさ（声を邪魔しない）
+const UNDER = { whoosh: 0.3, swish: 0.2, tick: 0.35, pop: 0.6, bloop: 0.5, tap: 0.8, chime: 0.6, finale: 0.75 };
+if (OVER) {
+  const { knots } = JSON.parse(readFileSync(join(DIR, 'timing.json'), 'utf8'));
+  const rs = {};
+  { let a = 0; for (const [id, d] of BASE) { rs[id] = a; const k = knots[id] || [[0, 0], [d, d]]; a += k[k.length - 1][1]; } }
+  at = (scene, t) => {
+    const k = knots[scene] || [[0, 0], [99, 99]];
+    for (let i = 1; i < k.length; i++) {
+      const [b0, r0] = k[i - 1], [b1, r1] = k[i];
+      if (t <= b1 || i === k.length - 1) return rs[scene] + r0 + (t - b0) * (r1 - r0) / Math.max(1e-6, b1 - b0);
+    }
+    return rs[scene] + t;
+  };
+}
 
-const video = join(DIR, 'lukko-promo-base.mp4');
-if (process.argv[2] !== 'quick' || !existsSync(video)) {
+const video = OVER ? process.argv[3] : join(DIR, 'lukko-promo-base.mp4');
+if (!OVER && (process.argv[2] !== 'quick' || !existsSync(video))) {
   const r = spawnSync('node', [join(here, 'make-promo.mjs')], { stdio: 'inherit', env: { ...process.env, PROMO_TIMING: 'none', PROMO_OUT: 'lukko-promo-base.mp4' } });
   if (r.status !== 0) throw new Error('make-promo.mjs が失敗した');
 }
@@ -68,11 +91,15 @@ names.forEach((n, i) => { if (uses[n]) graph.push(`[${i + 1}:a]asplit=${uses[n]}
 const seen = {};
 cues.forEach((c, j) => {
   const k = (seen[c.s] = (seen[c.s] ?? -1) + 1);
-  const at = start[c.scene] + c.at;
-  graph.push(`[${c.s}${k}]volume=${c.gain ?? 1},adelay=${Math.round(at * 1000)}:all=1[c${j}]`);
+  const t = at(c.scene, c.at);
+  const g = (c.gain ?? 1) * (OVER ? UNDER[c.s] ?? 0.5 : 1);
+  graph.push(`[${c.s}${k}]volume=${g.toFixed(3)},adelay=${Math.round(t * 1000)}:all=1[c${j}]`);
 });
-graph.push(`${cues.map((_, j) => `[c${j}]`).join('')}amix=inputs=${cues.length}:normalize=0,volume=0.9,alimiter=limit=0.9,apad,atrim=0:${vdur.toFixed(3)}[sfx]`);
-const out = join(DIR, 'lukko-promo-sfx.mp4');
+graph.push(`${cues.map((_, j) => `[c${j}]`).join('')}amix=inputs=${cues.length}:normalize=0,volume=0.9,apad,atrim=0:${vdur.toFixed(3)}[fx]`);
+// over のときは、動画にもともと入っている声と足し合わせる
+// 声つきは、最後に SNS 向けの大きさ（-15 LUFS）にそろえる。AI Studio の WAV は小さめで、そのままだと平均 -33dB だった
+graph.push(OVER ? `[0:a]aresample=48000[vo];[vo][fx]amix=inputs=2:normalize=0,loudnorm=I=-15:TP=-1.5:LRA=11,aresample=48000[sfx]` : `[fx]alimiter=limit=0.9[sfx]`);
+const out = OVER ? process.argv[4] : join(DIR, 'lukko-promo-sfx.mp4');
 args.push('-filter_complex', graph.join(';'), '-map', '0:v', '-map', '[sfx]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', out);
 const r = spawnSync('ffmpeg', args, { stdio: 'inherit' });
 if (r.status !== 0) throw new Error('ffmpeg が失敗した');

@@ -2,6 +2,9 @@
 //
 //   node app/tools/make-narration.mjs          ← 声を作る → 場面を伸ばす → 動画を書き出す → 声を重ねる
 //   node app/tools/make-narration.mjs voice    ← 声を作って、伸ばし方（timing.json）を決めるところまで
+//   node app/tools/make-narration.mjs split    ← 声は作らず、1 本で録った WAV（Google AI Studio など）を使う。
+//                                                切れ目は split-narration.mjs が narration-split.json に書いたもの。
+//                                                出力は lukko-promo-narration.mp4
 //
 // 原稿は store-assets/promo/narration.json。行ごとに、どの場面（scene）の何秒目（cue、伸ばす前）に話し始めるか。
 // 声は字幕を読むより時間がかかるので、場面ごとに「声が収まる長さ」を出して、足りない場面だけ伸ばす。
@@ -31,13 +34,37 @@ if (existsSync(tmp)) for (const f of readdirSync(tmp)) rmSync(join(tmp, f));
 mkdirSync(tmp, { recursive: true });
 const dur = (f) => Number(spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }).stdout.trim());
 
-try { await fetch(`${API}/version`); } catch {
-  console.log('VOICEVOX のエンジンが動いていない。VOICEVOX を開くか、vv-engine/run.exe を起動してから、もう一度。');
-  process.exit(1);
+const SPLIT = process.argv.includes('split');
+const ONLY_TIMING = process.argv.includes('voice');
+if (!SPLIT) {
+  try { await fetch(`${API}/version`); } catch {
+    console.log('VOICEVOX のエンジンが動いていない。VOICEVOX を開くか、vv-engine/run.exe を起動してから、もう一度。');
+    process.exit(1);
+  }
+}
+
+// 1'. 1 本で録った WAV から、行ごとに切り出す（頭と尻に 15ms のフェードを付けて、ぷつっと鳴らないように）
+let VOICE_NAME = `VOICEVOX:${voice.name}`;
+if (SPLIT) {
+  const sp = JSON.parse(readFileSync(join(DIR, 'narration-split.json'), 'utf8'));
+  if (sp.segments.length !== lines.length) throw new Error(`切れ目が ${sp.segments.length} 行、台本は ${lines.length} 行。split-narration.mjs をやり直す`);
+  const src = join(DIR, sp.source);
+  for (let i = 0; i < lines.length; i++) {
+    const L = lines[i], s = sp.segments[i];
+    L.file = join(tmp, `l${i}.wav`);
+    const d = s.end - s.start;
+    // -ss は -i の後ろに置く（頭から読んで捨てる）。AI Studio の WAV は、前に置いて飛ばすと 43 秒より先が空になった
+    const r = spawnSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', src, '-ss', String(s.start), '-t', String(d),
+      '-af', `aresample=48000,afade=t=in:d=0.015,afade=t=out:st=${Math.max(0, d - 0.015).toFixed(3)}:d=0.015`, '-ac', '1', L.file]);
+    if (r.status !== 0) throw new Error(`${i + 1} 行目を切り出せなかった`);
+    L.dur = dur(L.file);
+    if (!(L.dur > 0.2)) throw new Error(`${i + 1} 行目の切り出しが空（${s.start}〜${s.end} 秒）`);
+  }
+  VOICE_NAME = 'Google AI Studio（Gemini TTS）';
 }
 
 // 1. 声を作って、長さを測る
-for (let i = 0; i < lines.length; i++) {
+for (let i = 0; i < lines.length && !SPLIT; i++) {
   const L = lines[i];
   const q = await fetch(`${API}/audio_query?speaker=${voice.speaker}&text=${encodeURIComponent(L.read || L.text)}`, { method: 'POST' });
   if (!q.ok) throw new Error(`audio_query が失敗: ${q.status}`);
@@ -78,12 +105,12 @@ for (const id of ORDER) {
 const total = at;
 writeFileSync(join(DIR, 'timing.json'), JSON.stringify({
   _: 'make-narration.mjs が書く。場面ごとの伸ばし方（折れ線。promo.html の setTiming に渡す）と、各行を話し始める秒',
-  voice: `VOICEVOX:${voice.name}`, total: +total.toFixed(2), knots,
+  voice: VOICE_NAME, total: +total.toFixed(2), knots,
   lines: lines.map((l) => ({ at: +l.at.toFixed(2), dur: +l.dur.toFixed(2), text: l.text })),
 }, null, 2));
 for (const l of lines) console.log(`  ${l.at.toFixed(1).padStart(5)}s  ${l.dur.toFixed(2)}s  ${l.text}`);
 console.log(`全体 ${total.toFixed(1)} 秒`);
-if (process.argv[2] === 'voice') process.exit(0);
+if (ONLY_TIMING) process.exit(0);
 
 // 3. 伸ばした動画を書き出す（make-promo.mjs が timing.json を読む）
 const r1 = spawnSync('node', [join(here, 'make-promo.mjs')], { stdio: 'inherit' });
@@ -95,9 +122,10 @@ const vdur = dur(video);
 const args = ['-y', '-loglevel', 'error', '-i', video];
 for (const l of lines) args.push('-i', l.file);
 const parts = lines.map((l, i) => `[${i + 1}:a]aresample=48000,adelay=${Math.round(l.at * 1000)}:all=1[a${i}]`);
-const mix = `${lines.map((_, i) => `[a${i}]`).join('')}amix=inputs=${lines.length}:normalize=0,volume=1.3,alimiter=limit=0.95,apad,atrim=0:${vdur.toFixed(3)}[voice]`;
-const out = join(DIR, 'lukko-promo-voice.mp4');
+const mix = `${lines.map((_, i) => `[a${i}]`).join('')}amix=inputs=${lines.length}:normalize=0,apad,atrim=0:${vdur.toFixed(3)},loudnorm=I=-15:TP=-1.5:LRA=11,aresample=48000[voice]`;
+// ↑ 最後に SNS 向けの大きさ（-15 LUFS）にそろえる。AI Studio の WAV は小さめで、そのままだと平均 -33dB だった
+const out = join(DIR, SPLIT ? 'lukko-promo-narration.mp4' : 'lukko-promo-voice.mp4');
 args.push('-filter_complex', [...parts, mix].join(';'), '-map', '0:v', '-map', '[voice]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', out);
 const r2 = spawnSync('ffmpeg', args, { stdio: 'inherit' });
 if (r2.status !== 0) throw new Error('ffmpeg が失敗した');
-console.log(`できた ${out}（${vdur.toFixed(1)} 秒、VOICEVOX:${voice.name}）`);
+console.log(`できた ${out}（${vdur.toFixed(1)} 秒、${VOICE_NAME}）`);
