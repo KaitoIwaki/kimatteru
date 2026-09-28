@@ -996,7 +996,7 @@ export default class App extends React.Component {
     return { mark:'', body:hh+ev.title };
   }
   markStyleFor(ev){
-    return { fontSize:9, fontWeight:800, opacity:.75, marginRight:2, flexShrink:0, letterSpacing:'-.02em' };
+    return { fontSize:+(9*this.evScale()).toFixed(1), fontWeight:800, opacity:.75, marginRight:2, flexShrink:0, letterSpacing:'-.02em' };
   }
   // 月表示の帯のかたち。端だけ丸めて、続きがある側は切り落とす。
   // 切り落とした辺は隣の週（や隣の月）へ地続きに見えるので、
@@ -1028,8 +1028,8 @@ export default class App extends React.Component {
     // 段の高さをそろえないと、日をまたぐ帯が隣のマスでずれて見える
     // 月表示の帯は、日一覧などで使うピルより一段細くする。
     // 未確定は上下に 1.5px の点線枠があるぶん、中の行の高さを引く。
-    const H=MONTH_BAR_H;
-    const evenOut=(st)=>({...st, height:H, fontSize:MONTH_BAR_FS,
+    const es=this.evScale(), H=Math.round(MONTH_BAR_H*es), FS=+(MONTH_BAR_FS*es).toFixed(1);
+    const evenOut=(st)=>({...st, height:H, fontSize:FS,
       lineHeight: (ev.status==='mikakutei' ? H-3 : H)+'px'});
     if(!m || m.id!==ev.id){
       const p=this.pillParts(ev,wageOn,true);
@@ -1039,7 +1039,7 @@ export default class App extends React.Component {
     }
     const t=this.T(ev.type);
     const dash=m.phase==='dash', filling=m.phase==='fill'||m.phase==='settle';
-    const style={height:H,boxSizing:'border-box',fontSize:MONTH_BAR_FS,fontWeight:500,letterSpacing:'-.04em',lineHeight:(H-3)+'px',whiteSpace:'nowrap',overflow:'hidden',display:'flex',alignItems:'center',position:'relative',cursor:'pointer',
+    const style={height:H,boxSizing:'border-box',fontSize:FS,fontWeight:500,letterSpacing:'-.04em',lineHeight:(H-3)+'px',whiteSpace:'nowrap',overflow:'hidden',display:'flex',alignItems:'center',position:'relative',cursor:'pointer',
       background:this.paperShow(t.paper), border:'1.5px '+(dash?'dashed':'solid')+' '+this.softLine(t.color), transition:'border-color .14s linear', animation:m.phase==='settle'?'pillSettle .2s ease-out':'none', ...shape};
     const fillStyle={position:'absolute',left:0,top:0,right:0,bottom:0,background:this.softFill(t.color),transformOrigin:'left center',transform:filling?'scaleX(1)':'scaleX(0)',animation:m.phase==='fill'?'sweepFill .3s cubic-bezier(.2,.9,.2,1) forwards':'none',zIndex:0,borderRadius:2};
     const textStyle={position:'relative',zIndex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',color:this.inkOn(t.color),transition:'color .16s .12s linear'};
@@ -1048,14 +1048,14 @@ export default class App extends React.Component {
   // ---- 時刻の目盛りの上の箱（週表示と、日の「時間」表示） ----
   HOUR_H = 44;
   _timeGridBoxes(pool, over, o){
-    const H=this.HOUR_H;
+    const H=this.HOUR_H, es=this.evScale();
     const segs=[...segmentsForDay(pool, o.y, o.m, o.d), ...segmentsForDay(over||[], o.y, o.m, o.d)];
     return layoutColumns(segs).map((sg,i)=>{
       const e=sg.ev, ov=!!e.overlay, t=ov ? null : this.T(e.type);
       const h=Math.max(16,(sg.b-sg.a)/60*H-2);
       const base={position:'absolute', top:sg.a/60*H+1, height:h,
         left:`calc(${(sg.col/sg.cols*100).toFixed(3)}% + 1px)`, width:`calc(${(100/sg.cols).toFixed(3)}% - 2px)`,
-        borderRadius:5, padding:'2px 4px', boxSizing:'border-box', overflow:'hidden', fontSize:10.5, lineHeight:'13px',
+        borderRadius:5, padding:'2px 4px', boxSizing:'border-box', overflow:'hidden', fontSize:+(10.5*es).toFixed(1), lineHeight:Math.round(13*es)+'px',
         cursor:'pointer', zIndex:1};
       let st;
       if(ov) st={...base, background:'var(--bg2)', color:'var(--ink-mut)', borderLeft:'2.5px solid var(--ink-faint)'};
@@ -1064,14 +1064,15 @@ export default class App extends React.Component {
       else st={...base, background:this.softFill(t.color), color:this.inkOn(t.color)};
       const end = e.status==='jisseki' ? (e.actualEnd||e.end) : e.end;
       return { key:(e.id||'o'+i)+(sg.cont?'-c':''), a:sg.a, b:sg.b, style:st,
-        title:(sg.cont?'↳ ':'')+(e.title||''), time: h>=28 ? (e.start+'–'+end) : '',
+        title:(sg.cont?'↳ ':'')+(e.title||''), time: h>=28*es ? (e.start+'–'+end) : '',
         onClick:(ev)=>{ if(ev) ev.stopPropagation(); if(ov) return; this.openFor(e, this.state.screen==='day' ? 'day' : 'month'); } };
     });
   }
   _timeGridAllDay(pool, o){
     const list=allDayFor(pool, o.y, o.m, o.d);
     return { more: Math.max(0, list.length-2), pills: list.slice(0,2).map(e=>{ const t=this.T(e.type);
-      const st={fontSize:10,lineHeight:'15px',height:17,borderRadius:4,padding:'0 4px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',boxSizing:'border-box',marginBottom:2,cursor:'pointer'};
+      const es=this.evScale();
+      const st={fontSize:+(10*es).toFixed(1),lineHeight:Math.round(15*es)+'px',height:Math.round(17*es),borderRadius:4,padding:'0 4px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',boxSizing:'border-box',marginBottom:2,cursor:'pointer'};
       return { key:e.id, title:e.title, onClick:()=>this.openFor(e, this.state.screen==='day' ? 'day' : 'month'),
         style: e.status==='mikakutei' ? {...st, background:this.paperShow(t.paper), color:this.inkDash(t.color), border:'1.3px dashed '+this.softLine(t.color), lineHeight:'13px'}
           : {...st, background:this.softFill(t.color), color:this.inkOn(t.color)} }; }) };
@@ -3593,7 +3594,8 @@ export default class App extends React.Component {
       // 画面の高さから入る段数を計算する（4〜7段）
       const padB = parseInt(this.state.wageOn ? 168 : 104, 10);
       const rowH = this._monthH ? (this._monthH - padB) / weekCount : 0;
-      const lanesN = rowH ? Math.max(MAX_LANES, Math.min(7, Math.floor((rowH - 22 - 14) / MONTH_LANE_H))) : MAX_LANES;
+      const laneH = Math.round(MONTH_BAR_H*this.evScale()) + 2;
+      const lanesN = rowH ? Math.max(MAX_LANES, Math.min(7, Math.floor((rowH - 22 - 14) / laneH))) : MAX_LANES;
       // この月にかかる予定だけを相手にする。日またぎは前の月から始まっていることもある。
       const pool=st.events.filter(e=>
         !(st.settings.hideCanceled && e.status==='nakunatta') &&
@@ -3701,10 +3703,10 @@ export default class App extends React.Component {
           // 週の区切りだけ線を引く。マスを囲む枠は引かない（予定を浮き上がらせるため）
           // 「+N件」の行は auto にする。固定で13px取ると、その日に溢れが無くても
           // 高さを食い、6週の月が実機で下にはみ出す（段を4に増やしたときに起きた）。
-          rowStyle:{position:'relative', flex:'1 1 0', minHeight:22+MONTH_LANE_H*lanesN,
+          rowStyle:{position:'relative', flex:'1 1 0', minHeight:22+laneH*lanesN,
             ...(w>0?{borderTop:'1px solid var(--line)'}:{})},
           gridStyle:{position:'relative', display:'grid', gridTemplateColumns:'repeat(7,1fr)',
-            gridTemplateRows:'22px repeat('+lanesN+','+MONTH_LANE_H+'px) auto', alignContent:'start', pointerEvents:'none', height:'100%'},
+            gridTemplateRows:'22px repeat('+lanesN+','+laneH+'px) auto', alignContent:'start', pointerEvents:'none', height:'100%'},
         });
       }
       return weeks;
@@ -3827,7 +3829,7 @@ export default class App extends React.Component {
             ? {width:0,alignSelf:'stretch',borderLeft:'3px dashed '+t.color,flexShrink:0,borderRadius:2}
             : {width:4,alignSelf:'stretch',background: ev.status==='nakunatta' ? 'var(--line)' : t.color,flexShrink:0,borderRadius:2},
           titleText: (ev.status==='mikakutei' ? '？' : ev.status==='jisseki' ? '✓' : '') + ev.title,
-          titleStyle: {fontSize:15,color: ev.status==='nakunatta' ? 'var(--ink-faint)' : 'var(--ink)', textDecoration: ev.status==='nakunatta' ? 'line-through' : 'none',
+          titleStyle: {fontSize:Math.round(15*this.evScale()),color: ev.status==='nakunatta' ? 'var(--ink-faint)' : 'var(--ink)', textDecoration: ev.status==='nakunatta' ? 'line-through' : 'none',
             overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'},
           place: ev.place || (ev.link ? 'Web会議' : ''),
           statusWord: this.statusWord(ev),
@@ -5261,20 +5263,21 @@ export default class App extends React.Component {
       document.documentElement.dataset.theme = dark ? 'dark' : 'light';
       applyStatusBarTheme(dark);
     }
-    // 文字の大きさ。iPhone の「文字の大きさ」を読むか、設定の3段から。画面ごと拡大する（並びも組み直される）
-    const z = this.zoom();
-    if (this._lastZoom !== z) {
-      this._lastZoom = z;
-      const root = document.getElementById('root');
-      if (root) root.style.zoom = z === 1 ? '' : String(z);
-    }
+    // 文字の大きさは、予定の字（月の帯・週と日の時間の表示・日の一覧）だけに効かせる（TimeTree と同じ）。
+    // 前は画面ごと拡大していて、日付や設定の字まで大きくなり、月の見出しが折れたり窮屈になったりしていた。
+    // 前の版で拡大していた分は、ここで元に戻す
+    const root = document.getElementById('root');
+    if (root && root.style.zoom) root.style.zoom = '';
   }
   /**
    * 文字の大きさ。前は全部 px の決め打ちで、iPhone の文字の大きさの設定に合わなかった
    * （帯10px・日付11px）。WebView は iOS の本文の大きさ（-apple-system-body）を知っているので、
    * それを 17px を基準にした倍率にする。設定で「標準・大きめ・特大」も選べる。
    */
-  zoom() {
+  /** 画面の拡大（もう使わない。並びを計る所のために 1 を返す） */
+  zoom() { return 1; }
+  /** 予定の字の倍率。設定の「予定の文字の大きさ」か、iPhone の文字の大きさ */
+  evScale() {
     const f = (this.state.settings || {}).fontScale;
     if (typeof f === 'number') return Math.max(1, Math.min(1.4, f));
     return this._sysZoom || 1;

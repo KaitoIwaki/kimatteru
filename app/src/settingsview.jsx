@@ -12,13 +12,13 @@ import { Jp } from './jp.jsx';
 //  ・中身の多いもの（種類・勤務先・有給・勤務時間・重ねて表示・控え・ファイル）は、押すと開く画面へ
 //  ・説明は、それが無いと分からない所にだけ、カードの下に小さく1つ
 
-const HEAD = 'font-size:13px;font-weight:500;color:var(--ink-mut);margin:0 6px 8px';
-const CARD = 'background:var(--card);border-radius:14px;overflow:hidden;margin-bottom:26px';
-const NOTE = 'font-size:12px;color:var(--ink-faint);margin:-18px 6px 26px;line-height:1.7;text-wrap:pretty';
-const LABEL = 'font-size:16px;font-weight:500;color:var(--ink);letter-spacing:.01em';
-const VALUE = 'font-size:15px;color:var(--ink-mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0';
-const CHEV = 'font-size:18px;color:var(--ink-faint);flex-shrink:0;line-height:1';
-const ROWPAD = 'padding:0 16px;min-height:52px';
+const HEAD = 'font-size:12.5px;font-weight:400;color:var(--ink-mut);margin:0 6px 7px';
+const CARD = 'background:var(--card);border-radius:12px;overflow:hidden;margin-bottom:22px';
+const NOTE = 'font-size:12px;color:var(--ink-faint);margin:-15px 6px 22px;line-height:1.6;text-wrap:pretty';
+const LABEL = 'font-size:15px;font-weight:500;color:var(--ink)';
+const VALUE = 'font-size:14.5px;color:var(--ink-mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0';
+const CHEV = 'font-size:17px;color:var(--ink-faint);flex-shrink:0;line-height:1';
+const ROWPAD = 'padding:0 16px;min-height:44px';
 
 /** 1行。左に名前、右に値やスイッチ。sub は本当に要る所だけ */
 function Row({ label, sub, right, onClick, last, chevron, value, danger, keep }) {
@@ -26,9 +26,9 @@ function Row({ label, sub, right, onClick, last, chevron, value, danger, keep })
   const hold = keep || (value != null && value !== '');
   return (
     <div style={s(`position:relative;display:flex;align-items:center;gap:12px;${ROWPAD};${onClick ? 'cursor:pointer;' : ''}`)} onClick={onClick}>
-      <span style={s(`display:flex;flex-direction:column;gap:2px;min-width:${hold ? `min(50%, ${String(label).length + 0.5}em)` : '0'};flex:1;padding:14px 0`)}>
+      <span style={s(`display:flex;flex-direction:column;gap:1px;min-width:${hold ? `min(50%, ${String(label).length + 0.5}em)` : '0'};flex:1;padding:11px 0`)}>
         <span style={s(danger ? LABEL + ';color:#A8452B' : LABEL)}>{label}</span>
-        {!!sub && <span style={s('font-size:12px;color:var(--ink-mut);text-wrap:pretty;line-height:1.55')}>{sub}</span>}
+        {!!sub && <span style={s('font-size:11.5px;color:var(--ink-mut);text-wrap:pretty;line-height:1.5')}>{sub}</span>}
       </span>
       {value != null && value !== '' && <span style={s(VALUE + ';flex-shrink:1')}>{value}</span>}
       {right}
@@ -55,7 +55,7 @@ function PickRow({ label, items, open, last }) {
 function TimePick({ value, onChange, opts }) {
   const cur = (opts || []).find((o) => String(o.value) === String(value));
   return (
-    <span style={s('position:relative;display:inline-flex;align-items:center;padding:6px 10px;border-radius:9px;background:var(--bg2);font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;flex-shrink:0')} onClick={(e) => e.stopPropagation()}>
+    <span style={s('position:relative;display:inline-flex;align-items:center;padding:5px 9px;border-radius:8px;background:var(--bg2);font-size:14.5px;color:var(--ink);font-variant-numeric:tabular-nums;flex-shrink:0')} onClick={(e) => e.stopPropagation()}>
       {cur ? String(cur.label).replace(/^0(\d):/, '$1:') : ''}
       <select value={value} onChange={onChange} style={s('position:absolute;inset:0;opacity:0;width:100%;height:100%;font-size:16px')}>
         {(opts || []).map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
@@ -89,7 +89,7 @@ function Sheet({ title, onClose, children }) {
     <div style={s('position:absolute;inset:0;z-index:92;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:flex-end;justify-content:center;animation:scrimIn .2s ease')} onClick={onClose}>
       <div style={s('width:100%;max-height:82%;overflow-y:auto;background:var(--bg);border-radius:20px 20px 0 0;padding:18px 16px 34px;animation:riseUp .26s cubic-bezier(.2,.9,.2,1)')} onClick={(e) => e.stopPropagation()}>
         <div style={s('display:flex;align-items:center;justify-content:space-between;margin:0 4px 14px')}>
-          <span style={s('font-size:17px;font-weight:600;color:var(--ink)')}>{title}</span>
+          <span style={s('font-size:16px;font-weight:600;color:var(--ink)')}>{title}</span>
           <span role="button" style={s('font-size:15px;color:var(--ink-mut);cursor:pointer;padding:4px')} onClick={onClose}>閉じる</span>
         </div>
         {children}
@@ -133,7 +133,7 @@ function Main({ v, open }) {
     <div style={s(HEAD)}>表示</div>
     <div style={s(CARD)}>
       <PickRow label="表示モード" items={v.themeSeg} open={open} />
-      <PickRow label="文字の大きさ" items={v.fontSeg} open={open} last />
+      <PickRow label="予定の文字の大きさ" items={v.fontSeg} open={open} last />
     </div>
 
     <div style={s(HEAD)}>空き状況で見る時間</div>
@@ -271,7 +271,7 @@ function TypesPage({ v }) {
           </div>
           {t.open && (
             <div style={s('padding:2px 16px 16px')}>
-              <input value={t.name} onChange={t.onName} placeholder="種類の名前" style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:16px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
+              <input value={t.name} onChange={t.onName} placeholder="種類の名前" style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
               <div style={s('display:flex;flex-wrap:wrap;gap:12px')}>
                 {(t.swatches || []).map((sw, j) => (<div key={j} style={s(sw.style)} onClick={sw.onClick} />))}
               </div>
@@ -307,7 +307,7 @@ function TypesPage({ v }) {
       <AddRow label="種類を追加" onClick={v.onAddTypeRow} />
       {v.newTypeShown && (
         <div style={s('padding:2px 16px 16px;background:var(--bg2)')}>
-          <input value={v.newTypeName} placeholder={v.typeEg || '種類の名前'} onChange={v.onNewTypeName} style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:16px;color:var(--ink);font-family:inherit;margin:12px 0 14px')} />
+          <input value={v.newTypeName} placeholder={v.typeEg || '種類の名前'} onChange={v.onNewTypeName} style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin:12px 0 14px')} />
           <div style={s('display:flex;flex-wrap:wrap;gap:12px')}>
             {(v.newTypeSwatches || []).map((sw, i) => (<div key={i} style={s(sw.style)} onClick={sw.onClick} />))}
           </div>
@@ -344,7 +344,7 @@ function JobsPage({ v }) {
           </div>
           {j.open && (
             <div style={s('padding:2px 16px 16px')}>
-              <input value={j.name.replace('（辞めた）', '') === '（名前なし）' ? '' : j.name.replace('（辞めた）', '')} onChange={j.onName} placeholder={v.jobEg} style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:16px;color:var(--ink);font-family:inherit;margin-bottom:12px')} />
+              <input value={j.name.replace('（辞めた）', '') === '（名前なし）' ? '' : j.name.replace('（辞めた）', '')} onChange={j.onName} placeholder={v.jobEg} style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:12px')} />
               <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
                 <span style={s('font-size:15px;color:var(--ink)')}>時給</span>
                 <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
@@ -477,7 +477,7 @@ export function Settings({ v }) {
     while (el && el !== root) { top += el.offsetTop; el = el.offsetParent; }
     const sc = root.querySelector('[data-set-scroll]');
     const scrollTop = sc ? sc.scrollTop : 0;
-    const h = (items || []).length * 48 + 8;
+    const h = (items || []).length * 44 + 8;
     let y = top - scrollTop + row.offsetHeight - 4;
     if (y + h > root.clientHeight - 90) y = Math.max(8, top - scrollTop - h + 4);
     setMenu({ items, y });
@@ -488,8 +488,8 @@ export function Settings({ v }) {
     <div ref={rootRef} style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
       {Page ? (
         <div className="scr-head-solo" style={s('padding:0 12px 10px;display:flex;align-items:center;gap:4px')}>
-          <span role="button" aria-label="設定へ戻る" style={s('display:flex;align-items:center;gap:2px;font-size:16px;color:var(--ink-mut);cursor:pointer;padding:6px 4px;flex-shrink:0')} onClick={v.onSetBack}><span style={s('font-size:24px;line-height:1')}>‹</span>設定</span>
-          <span style={s('flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--ink);margin-right:52px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{v.setPageTitle}</span>
+          <span role="button" aria-label="設定へ戻る" style={s('display:flex;align-items:center;gap:2px;font-size:15px;color:var(--ink-mut);cursor:pointer;padding:6px 4px;flex-shrink:0')} onClick={v.onSetBack}><span style={s('font-size:24px;line-height:1')}>‹</span>設定</span>
+          <span style={s('flex:1;text-align:center;font-size:16px;font-weight:600;color:var(--ink);margin-right:52px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{v.setPageTitle}</span>
         </div>
       ) : (
         <div className="scr-head-solo" style={s('padding:0 20px 10px')}>
@@ -504,10 +504,10 @@ export function Settings({ v }) {
         <div style={s('position:absolute;inset:0;z-index:95')} onClick={() => setMenu(null)}>
           <div style={s(`position:absolute;right:16px;top:${menu.y}px;min-width:210px;max-width:78%;background:var(--card);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.18),0 0 0 1px var(--line);overflow:hidden;animation:dlgIn .18s cubic-bezier(.2,.9,.2,1)`)} onClick={(e) => e.stopPropagation()}>
             {menu.items.map((it, i) => (
-              <div key={i} style={s(`display:flex;align-items:center;gap:10px;padding:0 16px;min-height:48px;cursor:pointer;${i ? 'border-top:1px solid var(--line)' : ''}`)}
+              <div key={i} style={s(`display:flex;align-items:center;gap:10px;padding:0 16px;min-height:44px;cursor:pointer;${i ? 'border-top:1px solid var(--line)' : ''}`)}
                 onClick={() => { it.onClick(); setMenu(null); }}>
                 <span style={s('width:16px;font-size:15px;font-weight:700;color:var(--ink);flex-shrink:0')}>{it.sel ? '✓' : ''}</span>
-                <span style={s('font-size:16px;color:var(--ink);white-space:nowrap')}>{it.label}</span>
+                <span style={s('font-size:15px;color:var(--ink);white-space:nowrap')}>{it.label}</span>
               </div>
             ))}
           </div>
@@ -521,7 +521,7 @@ export function Settings({ v }) {
             {(v.profileOpts || []).map((p) => (
               <div key={p.key} style={s(`display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:15px;background:var(--card);cursor:pointer;border:1px solid ${p.sel ? 'var(--ink)' : 'var(--line)'}`)} onClick={p.onClick}>
                 <span style={s('flex:1;display:flex;flex-direction:column;gap:2px')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>{p.label}</span>
+                  <span style={s('font-size:15px;font-weight:500;color:var(--ink)')}>{p.label}</span>
                   <span style={s('font-size:12px;color:var(--ink-mut)')}>{p.note}</span>
                 </span>
                 {p.sel && <span style={s('font-size:13px;color:var(--ink-mut)')}>いま</span>}
