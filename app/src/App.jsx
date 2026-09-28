@@ -2189,7 +2189,7 @@ export default class App extends React.Component {
     v.setPage = st.setPage || null;
     v.onSetPage = (p)=>()=>{ tapLight(); this.setState({setPage:p, editTypeKey:null, editJobId:null, typeDelete:null}); };
     v.onSetBack = ()=>{ tapLight(); this.setState({setPage:null, editTypeKey:null, editJobId:null, typeDelete:null, newType:null}); };
-    v.setPageTitle = ({support:'開発を応援する', types:'予定の種類', work:'勤務時間', jobs:W.job, leave:'有給', overlay:'重ねて表示', backup:'控えと機種変更', files:'ファイルで出し入れ'})[st.setPage] || '';
+    v.setPageTitle = ({support:'応援する', types:'予定の種類', work:'勤務時間', jobs:W.job, leave:'有給', overlay:'重ねて表示', backup:'控えと機種変更', files:'ファイルで出し入れ'})[st.setPage] || '';
     const hm=(m)=>this.fmtMin(m===1440?1440:m).replace(/^0(\d):/,'$1:');
     const pickLabel=(items)=>{ const x=(items||[]).find(i=>i.sel); return x ? x.label : ''; };
     // 通知（いちばん上のスイッチで、全部まとめて止められる）
@@ -3058,7 +3058,7 @@ export default class App extends React.Component {
     v.onTipUp = ()=>this.setPressed(null);
     v.onToggleTip = ()=>{ tapLight(); this.setState(s=>({tipOpen:!s.tipOpen})); };
     v.tipRows = (st.tips||[]).map((t,i)=>({
-      label:t.label,
+      id:t.id, label:t.label, pressed: st.pressed==='tip:'+t.id || st.tipBusy===t.id,
       // 返事を待っているあいだは値段のかわりに「…」。押したことが残る
       price: st.tipBusy===t.id ? '…' : t.price,
       rowStyle:{display:'flex',alignItems:'center',gap:12,padding:'14px 16px',cursor:'pointer',
