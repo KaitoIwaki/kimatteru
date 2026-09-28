@@ -233,29 +233,8 @@ function Main({ v, open }) {
             <span style={s(CHEV)}>›</span>
           </div>
         )}
-        {v.tipShown && (<>
-          <div style={s(v.tipHeadStyle)} onClick={v.onToggleTip}
-            onPointerDown={v.onTipHeadDown} onPointerUp={v.onTipUp}
-            onPointerCancel={v.onTipUp} onPointerLeave={v.onTipUp}>
-            <span style={s(LABEL + ';flex:1')}>開発を応援する</span>
-            <span style={s(`font-size:12px;color:var(--ink-faint);transition:transform .2s ease;transform:rotate(${v.tipOpen ? '90deg' : '0deg'})`)}>▶</span>
-          </div>
-          {v.tipOpen && (
-            <div style={s('background:var(--bg2);animation:riseUp .22s cubic-bezier(.2,.9,.2,1)')}>
-              {(v.tipRows || []).map((t, i) => (
-                <div key={i} style={s(t.rowStyle)} onClick={t.onClick}
-                  onPointerDown={t.onDown} onPointerUp={t.onUp}
-                  onPointerCancel={t.onUp} onPointerLeave={t.onUp}>
-                  <span style={s(LABEL + ';flex:1;min-width:0')}>{t.label}</span>
-                  <span style={s('font-size:14px;color:var(--ink-soft);font-variant-numeric:tabular-nums')}>{t.price}</span>
-                </div>
-              ))}
-              <div style={s('font-size:12px;color:var(--ink-faint);padding:12px 16px 14px;line-height:1.8;text-wrap:pretty')}>
-                応援で増える機能はありません。広告なし・通信なしで続けます
-              </div>
-            </div>
-          )}
-        </>)}
+        {/* 押すと応援の画面が開く（感謝と、これから作りたいもの、金額） */}
+        {v.tipShown && <Row label="開発を応援する" chevron onClick={v.onSetPage('support')} last />}
       </div>
     </>)}
   </>);
@@ -476,6 +455,34 @@ const SAVED = { main: 0 };
 /** 下のタブから設定を開き直したときは、いちばん上から */
 export function resetSettingsScroll() { SAVED.main = 0; }
 
+function SupportPage({ v }) {
+  return (<>
+    <div style={s(CARD + ';padding:18px 18px 16px')}>
+      <div style={s('font-size:15px;font-weight:600;color:var(--ink);margin-bottom:8px')}>{v.supportThanksTitle}</div>
+      <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.8;white-space:pre-line;text-wrap:pretty')}>{v.supportThanks}</div>
+    </div>
+
+    <div style={s(HEAD)}>約束</div>
+    <div style={s(CARD + ';padding:12px 16px;font-size:13px;color:var(--ink-soft);line-height:1.8')}>{bullets(v.supportPromises || [])}</div>
+
+    <div style={s(HEAD)}>これから作りたいもの</div>
+    <div style={s(CARD + ';padding:12px 16px;font-size:13px;color:var(--ink-soft);line-height:1.8')}>{bullets(v.supportPlans || [])}</div>
+
+    <div style={s(HEAD)}>応援する</div>
+    <div style={s(CARD)}>
+      {(v.tipRows || []).map((t, i) => (
+        <div key={i} style={s(t.rowStyle)} onClick={t.onClick}
+          onPointerDown={t.onDown} onPointerUp={t.onUp}
+          onPointerCancel={t.onUp} onPointerLeave={t.onUp}>
+          <span style={s(LABEL + ';flex:1;min-width:0')}>{t.label}</span>
+          <span style={s('font-size:14px;color:var(--ink-soft);font-variant-numeric:tabular-nums')}>{t.price}</span>
+        </div>
+      ))}
+    </div>
+    <div style={s(NOTE)}>応援で増える機能はありません</div>
+  </>);
+}
+
 export function Settings({ v }) {
   // 押すと出るメニュー（TimeTree と同じ、行の下に小さく出る）
   const [menu, setMenu] = React.useState(null);
@@ -498,7 +505,7 @@ export function Settings({ v }) {
   React.useLayoutEffect(() => {
     if (!page && scRef.current) scRef.current.scrollTop = SAVED.main || 0;
   }, [page]);
-  const Page = { types: TypesPage, work: WorkPage, jobs: JobsPage, leave: LeavePage, overlay: OverlayPage, backup: BackupPage, files: FilesPage }[page];
+  const Page = { support: SupportPage, types: TypesPage, work: WorkPage, jobs: JobsPage, leave: LeavePage, overlay: OverlayPage, backup: BackupPage, files: FilesPage }[page];
   return (
     <div ref={rootRef} style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
       {Page ? (

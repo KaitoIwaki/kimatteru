@@ -221,28 +221,73 @@ const TIP_NOTE = [
   'by any purchase; every feature of this app is free and unrestricted.',
   '',
   'How to reach them: Settings tab (設定) -> scroll to the bottom -> the "応援" section',
-  '-> tap "開発を応援する" to expand the three amounts.',
+  '-> tap "開発を応援する". A screen opens with the three amounts under "応援する".',
   'The "サポーターカード" (supporter card) shown after a purchase is a display of the',
   'user own payment history (amount and count), not a feature.',
   '',
   '課金は「開発の応援（投げ銭）」のみです。購入しても機能は一切解放されません。',
   'すべての機能は無料で制限なく使えます。',
   '到達手順：設定タブ → いちばん下までスクロール →「応援」の群 →「開発を応援する」を',
-  'タップすると3つの金額が開きます。',
+  'タップすると画面が開き、「応援する」の下に3つの金額があります。',
   '購入後に出る「サポーターカード」は、ご自身の支払い履歴（金額と回数）の表示であり、',
   '機能ではありません。',
 ].join(NL);
 
+// 審査メモの本文（1.3 から）。1.2 の文は「カレンダーに書き込まない」「通信しない」と書いていて、
+// 書き出し（任意）と iCloud 同期（任意）を入れた 1.3 とは合わなくなった。
+//   node tools/asc.mjs notes all  ← 課金の説明 ＋ この本文 で、いちばん新しい版のメモを入れ直す（書き込み）
+const REVIEW_BODY = [
+  'No account or sign-in is required. All features are available immediately.',
+  '',
+  '- On first launch the app asks one question (how you use your calendar). Any answer works; it only changes default event types and labels.',
+  '- Tap "+" at the bottom center to add a plan. Choose the dotted option (for example "仮押さえ" or "まだ") to draw it as a dotted bar; solid means confirmed. This distinction is the core of the app.',
+  '- Tapping a dotted plan asks how it turned out: confirmed / cancelled / moved to another day / still unknown.',
+  '- Calendar access is requested only when the user turns on one of these in Settings (設定 > iPhone のカレンダー): import events (read), show other calendars (read), or write confirmed plans into a separate calendar named "LUKKO" (write). All are off by default, and every other feature works without permission.',
+  '- Face ID is used only if the user turns on the lock in Settings (設定 > 安全).',
+  '- iCloud sync is optional and off by default. It uses the user\'s own iCloud key-value storage. There is no developer server: the app sends nothing to the developer and contains no analytics or advertising SDKs.',
+  '- All notifications are local (reminders, morning summary) and can be turned off in Settings (設定 > 通知).',
+  '',
+  '---',
+  '',
+  'アカウント登録は不要で、すべての機能をそのままお試しいただけます。',
+  '',
+  '・初回に1問だけ（ふだんの予定に近いもの）を聞きます。どれを選んでも使えます。予定の種類と呼び名の初期値が変わるだけです。',
+  '・画面下中央の「＋」から予定を追加します。「仮押さえ」や「まだ」を選ぶと点線、決まった予定は塗りで表示します。この区別が本アプリの中心です。',
+  '・点線の予定を押すと、確定した／無くなった／別の日になった／まだ分からない から選べます。',
+  '・カレンダーへのアクセスは、設定の「iPhone のカレンダー」で、取り込み（読み取り）・重ねて表示（読み取り）・決まった予定を「LUKKO」という別のカレンダーに書き出す（書き込み）のどれかをオンにしたときだけ求めます。どれもはじめはオフで、許可しなくても他の機能はすべて使えます。',
+  '・Face ID は、設定の「安全」でロックをオンにしたときだけ使います。',
+  '・iCloud 同期は任意で、はじめはオフです。ご本人の iCloud（キーと値の保存）だけを使います。開発者のサーバーは無く、開発者へは何も送らず、解析・広告SDKもありません。',
+  '・通知はすべて端末内の通知（予定のお知らせ・朝のまとめ）で、設定の「通知」でオフにできます。',
+].join(NL);
+
 async function notes() {
+  if (process.argv[3] === 'all') {
+    const app0 = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+    const v0 = (await get(`/v1/apps/${app0.id}/appStoreVersions?limit=1`)).data[0];
+    if (!EDITABLE.includes(v0.attributes.appStoreState)) { console.log(`${v0.attributes.versionString} は ${v0.attributes.appStoreState}。書き換えられないので止めます。`); return; }
+    const rd0 = (await get(`/v1/appStoreVersions/${v0.id}/appStoreReviewDetail`)).data;
+    const text = `${TIP_NOTE}${NL}${NL}---${NL}${NL}${REVIEW_BODY}`;
+    console.log(`${v0.attributes.versionString} の審査メモ：${(rd0.attributes.notes || '').length} → ${text.length}字（上限 4000）`);
+    if (text.length > 4000) { console.log('★ 上限を超えるので入れません'); return; }
+    await call(`/v1/appStoreReviewDetails/${rd0.id}`, 'PATCH',
+      { data: { type: 'appStoreReviewDetails', id: rd0.id, attributes: { notes: text } } });
+    const back0 = (await get(`/v1/appStoreVersions/${v0.id}/appStoreReviewDetail`)).data.attributes.notes;
+    console.log(back0 === text ? '  ✓ 入れ直した' : '  ✗ 読み返しが合わない');
+    return;
+  }
   const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
   const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
   const rd = (await get(`/v1/appStoreVersions/${v.id}/appStoreReviewDetail`)).data;
-  const before = rd.attributes.notes || '';
-  if (before.includes('In-app purchases are optional tips')) {
+  let before = rd.attributes.notes || '';
+  if (before.includes(TIP_NOTE)) {
     console.log('すでに入っています。触りません。');
     return;
   }
-  const after = `${TIP_NOTE}${NL}${NL}---${NL}${NL}${before}`;
+  // 前の版の文（行き方が古い）が先頭にあれば、それを外して付け直す
+  const SEP = `${NL}${NL}---${NL}${NL}`;
+  if (before.startsWith('【In-app purchases') && before.includes(SEP)) before = before.slice(before.indexOf(SEP) + SEP.length);
+  else if (before.startsWith('【In-app purchases')) before = '';
+  const after = before ? `${TIP_NOTE}${SEP}${before}` : TIP_NOTE;
   console.log(`文字数 ${before.length} → ${after.length}（上限 4000）`);
   if (after.length > 4000) { console.log('★ 上限を超えるので入れません'); return; }
   await call(`/v1/appStoreReviewDetails/${rd.id}`, 'PATCH',

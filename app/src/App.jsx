@@ -2189,7 +2189,7 @@ export default class App extends React.Component {
     v.setPage = st.setPage || null;
     v.onSetPage = (p)=>()=>{ tapLight(); this.setState({setPage:p, editTypeKey:null, editJobId:null, typeDelete:null}); };
     v.onSetBack = ()=>{ tapLight(); this.setState({setPage:null, editTypeKey:null, editJobId:null, typeDelete:null, newType:null}); };
-    v.setPageTitle = ({types:'予定の種類', work:'勤務時間', jobs:W.job, leave:'有給', overlay:'重ねて表示', backup:'控えと機種変更', files:'ファイルで出し入れ'})[st.setPage] || '';
+    v.setPageTitle = ({support:'開発を応援する', types:'予定の種類', work:'勤務時間', jobs:W.job, leave:'有給', overlay:'重ねて表示', backup:'控えと機種変更', files:'ファイルで出し入れ'})[st.setPage] || '';
     const hm=(m)=>this.fmtMin(m===1440?1440:m).replace(/^0(\d):/,'$1:');
     const pickLabel=(items)=>{ const x=(items||[]).find(i=>i.sel); return x ? x.label : ''; };
     // 通知（いちばん上のスイッチで、全部まとめて止められる）
@@ -3068,6 +3068,12 @@ export default class App extends React.Component {
       onUp:()=>this.setPressed(null),
       onClick:()=>this.buyTip(t.id),
     }));
+    // 応援の画面の文。短く、項目は箇条書き（アプリの文章のきまり）。
+    // 「これから作りたいもの」は、NEXT.md に載っている考えだけ。まだ決まっていない値段や時期は書かない
+    v.supportThanksTitle = 'いつも使ってくださって、ありがとうございます';
+    v.supportThanks = 'LUKKO は、ひとりで作っています。\n応援は、作りつづける力になります。';
+    v.supportPromises = ['広告は出しません', '予定を外に送りません', 'アカウント登録はいりません'];
+    v.supportPlans = ['パソコンのブラウザでも見られる版', '予定をまとめて、友だちに渡せるように', '日本の外でも使えるように'];
     // 困ったときの連絡先。アプリ内に無いと、メールではなくレビュー欄に書かれる。
     // 版を件名に入れておくと、どの版の話か聞き返さずに済む。
     v.contactEmail = CONTACT;
