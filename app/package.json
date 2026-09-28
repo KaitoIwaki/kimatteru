@@ -1,7 +1,8 @@
 {
   "name": "kimatteru",
   "private": true,
-  "version": "0.30.0",
+  "version": "0.31.0",
+  "marketing": "1.3",
   "type": "module",
   "scripts": {
     "dev": "vite",

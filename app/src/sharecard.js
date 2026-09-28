@@ -283,10 +283,18 @@ const fmtBarHours = (h) => (h >= 10 ? Math.round(h) : Math.round(h * 10) / 10) +
 
 /**
  * 空いてる日（予定の中身は出さない）
+ *
+ * マスは3段。空き状況の画面と同じ判定（手で直した ○△× も入る）をそのまま使う。
+ *   free … ○ 空いている（地を塗る）      part … △ 一部空いている（時刻を小さく添える）
+ *   busy … ふさがっている（灰色）         past … 過ぎた日（薄く）
+ * 前は「確定の予定が1件でもあれば灰色」だけで、画面の ○△× と食い違っていた。
+ *
+ * title / lead / legend … 言い回し。ふつう版と、仕事の相手に送る ていねい版がある
+ * signSub … 右下の一言（何のアプリで作ったか）。空なら出さない
  */
-export function drawFreeCard({ monthLabel, weekdays, cells }) {
+export function drawFreeCard({ monthLabel, weekdays, cells, title, lead, legend, signSub }) {
   const W = 1080;
-  const cellH = 88;
+  const cellH = 96;
   const rowGap = 10;
   const rows = Math.ceil(cells.length / 7);
   // マスの行数に合わせて高さを決める。余白が間延びしないようにするため。
@@ -305,15 +313,12 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
   badge(ctx, PAD, y - 40, 54, CORAL, '○', '#fff', 28);
   ctx.font = f(34, 600);
   ctx.fillStyle = CORAL;
-  ctx.fillText('わたしの空いてる日', PAD + 74, y);
+  ctx.fillText(lead || 'わたしの空いてる日', PAD + 74, y);
 
   y += 92;
-  ctx.font = f(70, 800);
+  ctx.font = f(64, 800);
   ctx.fillStyle = INK;
-  ctx.fillText(`${monthLabel}月のあいてる日`, PAD, y);
-
-  // 「予定の中身は出していません」は送る前の画面にだけ置く。
-  // 受け取る側には、予定名が無いことも凡例も見れば伝わるので、画像には入れない。
+  ctx.fillText(title || `${monthLabel}月のあいてる日`, PAD, y);
 
   // 曜日
   y += 92;
@@ -336,12 +341,25 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
     const x = PAD + cw * col + inset;
     const yy = y + row * (cellH + rowGap);
     const w = cw - inset * 2;
+    const lv = cell.level || (cell.busy ? 'busy' : 'free');
     rr(ctx, x, yy, w, cellH, 18);
-    if (cell.busy) {
-      ctx.fillStyle = GRAY_FILL;
+    let numY = yy + cellH / 2 + 11;
+    if (lv === 'busy' || lv === 'past') {
+      ctx.fillStyle = lv === 'past' ? '#F6F6F4' : GRAY_FILL;
       ctx.fill();
-      ctx.fillStyle = '#C1C5CC';
+      ctx.fillStyle = lv === 'past' ? '#D9DBDF' : '#C1C5CC';
       ctx.font = f(30, 600);
+    } else if (lv === 'part') {
+      ctx.fillStyle = '#FFFDF8';
+      ctx.fill();
+      ctx.setLineDash([10, 7]);
+      ctx.strokeStyle = CORAL;
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = CORAL_DARK;
+      ctx.font = f(30, 700);
+      numY = yy + cellH / 2 - 4;
     } else {
       ctx.fillStyle = '#FAECE7';
       ctx.fill();
@@ -351,7 +369,12 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
       ctx.fillStyle = CORAL_DARK;
       ctx.font = f(32, 700);
     }
-    ctx.fillText(String(cell.label), x + w / 2, yy + cellH / 2 + 11);
+    ctx.fillText(String(cell.label), x + w / 2, numY);
+    if (lv === 'part' && cell.note) {
+      ctx.font = f(19, 600);
+      ctx.fillStyle = CORAL;
+      ctx.fillText(cell.note, x + w / 2, yy + cellH - 16);
+    }
   });
   ctx.textAlign = 'left';
 
@@ -361,7 +384,8 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
   ctx.fillRect(PAD, y, W - PAD * 2, 2);
   y += 62;
 
-  // 凡例
+  // 凡例（3つ）
+  const L = legend || ['空いてる', '時間による', '予定あり'];
   rr(ctx, PAD, y - 30, 40, 40, 12);
   ctx.fillStyle = '#FAECE7';
   ctx.fill();
@@ -370,16 +394,28 @@ export function drawFreeCard({ monthLabel, weekdays, cells }) {
   ctx.stroke();
   ctx.font = f(28, 400);
   ctx.fillStyle = '#55524A';
-  ctx.fillText('空いてる', PAD + 56, y);
+  ctx.fillText(L[0], PAD + 56, y);
 
-  rr(ctx, PAD + 240, y - 30, 40, 40, 12);
+  const x2 = PAD + 250;
+  rr(ctx, x2, y - 30, 40, 40, 12);
+  ctx.fillStyle = '#FFFDF8';
+  ctx.fill();
+  ctx.setLineDash([8, 6]);
+  ctx.strokeStyle = CORAL;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#55524A';
+  ctx.fillText(L[1], x2 + 56, y);
+
+  const x3 = PAD + 530;
+  rr(ctx, x3, y - 30, 40, 40, 12);
   ctx.fillStyle = GRAY_FILL;
   ctx.fill();
   ctx.fillStyle = '#55524A';
-  ctx.fillText('予定あり', PAD + 296, y);
+  ctx.fillText(L[2], x3 + 56, y);
 
-  signature(ctx, PAD, H - 96, 40, 'LUKKO');
-
+  signature(ctx, PAD, H - 96, 40, 'LUKKO', signSub || undefined);
   return c;
 }
 

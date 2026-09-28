@@ -11,6 +11,8 @@
 //     iOS 18 のホーム画面には色を1色に染める表示があり、ロック画面は
 //     もともと単色なので、色＝種類はウィジェットでは成立しない。
 //   ・空の日を空白にしない。「今週 まだ○件」や、この先の予定で埋める。
+//   ・終わった予定は後ろへ回して薄くする。朝の会議が夕方まで先頭に居座ると、
+//     「次は何？」に答えられない。そのために、予定が終わる時刻ごとに描き直す。
 //
 //  中身はアプリが App Group に書いた JSON を読むだけ。どれが今日かは
 //  こちら側で決める（アプリが数日開かれなくても、正しい日を指すため）。
@@ -32,14 +34,24 @@ let STORE_KEY = "widget"
 
 struct Item: Decodable, Hashable {
     let t: String?      // 時刻。終日なら nil
-    let n: String       // 名前
+    let e: String?      // その日の終わりの時刻。終日なら nil。夜中の0時をまたぐ日は "24:00"
+    let n: String       // 名前（伏せる設定のときは、アプリが「予定あり」に置き換えてある）
     let c: String       // 種類の色
     let s: Int          // 1 = 決まっている（塗り）／0 = まだ（点線）
     let m: [String]?    // 持ち物
     let k: String?      // 予定の id。大のカレンダーで日をまたぐ帯をつなぐ
     let p: Int?         // その日が何日目か。0=1日だけ 1=初日 2=途中 3=最終日
+    let x: Int?         // 1 = 名前を伏せてある。置き換えはアプリ側で済んでいるので、ここでは読むだけ
+    /// もう終わった予定。JSON には無く、組み立てるときにこちらで付ける
+    var past = false
+
+    // past は JSON から読まない。ここに挙げると、無いキーを読もうとして全体の読み込みが失敗する
+    enum CodingKeys: String, CodingKey { case t, e, n, c, s, m, k, p, x }
+
     var solid: Bool { s == 1 }
     var time: String { t ?? "終日" }
+    /// 終わる時刻（その日の0時からの分）。終日と、終わりを持たない古い中身は nil
+    var endMin: Int? { t == nil ? nil : clockMinutes(e) }
 }
 
 struct Payload: Decodable {
@@ -79,21 +91,24 @@ let LINE = Color(red: 0.902, green: 0.886, blue: 0.839)
 let BG = Color(red: 0.984, green: 0.984, blue: 0.992)
 let UNDECIDED = Color(red: 0.545, green: 0.478, blue: 0.722)   // 用事の藤色
 let SUMI = Color(red: 0.353, green: 0.341, blue: 0.314)        // 月の点を色なしにするとき用
-// 当日のマス。数字の後ろに丸を敷くと縦を食って、予定の点が下へ押し出される。
-// マスごと塗れば場所を取らず、点は数字と次の週の数字のあいだに収まる。
-//
-// アプリの月表示では塗りをやめた（1回のタップでその日へ飛ぶので、
-// 塗ってあると「押したマス」と見分けがつかなくなる）。
-// ウィジェットは押して選ぶものではないので、ここは塗りのままでいい。
-let TODAY_BG = Color(red: 0.906, green: 0.914, blue: 0.933)
+// 当日の印は、アプリと同じく「数字を丸で囲う」。丸はその日の色（日曜・祝日は赤、
+// 土曜は青、ほかは墨）で塗り、数字は白。アプリとウィジェットで今日の見え方が
+// 違うと、同じカレンダーに見えない。
+// 丸は数字の後ろに敷くだけ（background）にして、マスの高さは取らない。
+// 高さを取ると、予定の点や帯が下へ押し出される。
+
 // 祝日と日曜は赤、土曜は青。アプリの月表示と同じ色。
 let HOLIDAY_RED = Color(red: 0.706, green: 0.271, blue: 0.227)
 let SATURDAY_BLUE = Color(red: 0.239, green: 0.431, blue: 0.612)
 
 // MARK: - 日付
 
+// 暦は西暦に固定する。iPhone の設定で和暦にしていると、"yyyy" が「0008」
+// （令和8年）になり、アプリが書いた "2026-..." と合わずに毎日「予定なし」になる。
 private let keyFormatter: DateFormatter = {
     let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.calendar = Calendar(identifier: .gregorian)
     f.dateFormat = "yyyy-MM-dd"
     return f
 }()
@@ -106,6 +121,16 @@ private func addDays(_ d: Date, _ n: Int) -> Date {
 private func weekday(_ d: Date) -> String {
     WD[Calendar.current.component(.weekday, from: d) - 1]
 }
+/// "HH:MM" を、その日の0時からの分にする。"24:00" は 1440（その日の終わり）。
+/// 読めない形は nil（その予定は「終わらない」扱いになり、先頭から外れないだけで済む）
+private func clockMinutes(_ s: String?) -> Int? {
+    guard let s = s else { return nil }
+    let parts = s.split(separator: ":")
+    guard parts.count >= 2,
+          let h = Int(parts[0]), let m = Int(parts[1]),
+          h >= 0, h <= 24, m >= 0, m < 60 else { return nil }
+    return h * 60 + m
+}
 
 // MARK: - 画面に出すかたち
 
@@ -113,18 +138,26 @@ struct Ahead {
     let w: String      // 曜日
     let d: Int         // 日
     let item: Item
+    var inDays: Int = 0   // 今日から何日後か。1 なら「明日」と書ける
     var short: String { w }
     var long: String { "\(w) \(d)日" }
+    /// 「明日」か「水 12日」。今日が終わったあとに次の1件を出すときに使う
+    var dayLabel: String { inDays == 1 ? "明日" : long }
 }
 struct MonthCell {
     let day: Int?          // その月の日。前後の空きは nil
     let isToday: Bool
     let dots: [Item]       // その日の予定（3つまで出す）
 }
+/// ロック画面の「次の1件」。今日の残りがあればそれ、無ければこの先の1件
+struct NextUp {
+    let item: Item
+    let text: String       // 「14:00 定例」／「明日 9:30 朝会」
+}
 
 struct Entry: TimelineEntry {
     let date: Date
-    let today: [Item]
+    let today: [Item]             // 終わっていないもの → 終わったもの（past）の順
     let ahead: [Ahead]            // この先の予定（決まっているかは問わない）
     let undecidedAhead: [Ahead]   // この先の、まだ決まっていないもの
     let weekUndecided: Int        // 「今週 まだ○件」に使う
@@ -138,9 +171,20 @@ struct Entry: TimelineEntry {
     var holDays: Set<Int> = []  // 今月の祝日の日。大のカレンダーで赤くする
     var weekStart: Int = 0      // 週のはじまり（0=日曜）。大のカレンダーの曜日の色に使う
 
-    var undecided: Int { today.filter { !$0.solid }.count }
-    var head: Item? { today.first }
-    var rest: [Item] { today.count > 1 ? Array(today.dropFirst()) : [] }
+    // 終わった予定は「まだ」に数えない。夜になっても朝の未定が残って見えるのは困る
+    var undecided: Int { today.filter { !$0.solid && !$0.past }.count }
+    /// 先頭の1件は、まだ終わっていないもの。終わったものは後ろに回してある
+    var head: Item? { today.first(where: { !$0.past }) }
+    var rest: [Item] { head != nil && today.count > 1 ? Array(today.dropFirst()) : [] }
+    /// 今日の予定が全部終わった
+    var allDone: Bool { !today.isEmpty && today.allSatisfy { $0.past } }
+    var next: NextUp? {
+        if let h = head { return NextUp(item: h, text: "\(h.time) \(h.n)") }
+        if let a = ahead.first {
+            return NextUp(item: a.item, text: "\(a.dayLabel) \(a.item.time) \(a.item.n)")
+        }
+        return nil
+    }
 }
 
 struct Provider: TimelineProvider {
@@ -149,9 +193,30 @@ struct Provider: TimelineProvider {
         completion(build(Date()))
     }
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
+        // 今日の予定が終わる時刻ごとに、描き直しを先に並べておく。
+        // 並べておくだけなので、描き直しの回数の枠（リロードの予算）は食わない。
         // 日付が変わったら描き直す。中身が変わったときはアプリ側から起こす。
-        let tomorrow = Calendar.current.startOfDay(for: addDays(Date(), 1))
-        completion(Timeline(entries: [build(Date())], policy: .after(tomorrow)))
+        let cal = Calendar.current
+        let now = Date()
+        let payload = load()
+        let startOfToday = cal.startOfDay(for: now)
+        let tomorrow = cal.startOfDay(for: addDays(now, 1))
+
+        var ends: [Date] = []
+        if let p = payload, let items = p.days[dayKey(now)] {
+            for it in items {
+                guard let end = it.endMin,
+                      let at = cal.date(byAdding: .minute, value: end, to: startOfToday),
+                      at > now, at < tomorrow else { continue }
+                if !ends.contains(at) { ends.append(at) }
+            }
+        }
+        ends.sort()
+
+        var entries: [Entry] = [build(now, payload)]
+        for at in ends { entries.append(build(at, payload)) }
+        entries.append(build(tomorrow, payload))
+        completion(Timeline(entries: entries, policy: .after(tomorrow)))
     }
 
     private func load() -> Payload? {
@@ -162,16 +227,34 @@ struct Provider: TimelineProvider {
         return p
     }
 
-    private func build(_ now: Date) -> Entry {
+    private func build(_ now: Date) -> Entry { build(now, load()) }
+
+    private func build(_ now: Date, _ loaded: Payload?) -> Entry {
         let cal = Calendar.current
-        guard let p = load() else {
+        guard let p = loaded else {
             return Entry(date: now, today: [], ahead: [], undecidedAhead: [],
                          weekUndecided: 0, monthWeekdays: WD, month: [],
                          dayNum: cal.component(.day, from: now), dayWeek: weekday(now),
                          dayColor: 0, monthLabel: "\(cal.component(.month, from: now))月",
                          loaded: false)
         }
-        let today = p.days[dayKey(now)] ?? []
+
+        // 今日。終わった予定は後ろへ回して、past を付ける（薄く出す）。
+        // 並びそのものはアプリの順（終日→時刻順）のまま。終わったかどうかで2つに分けるだけ
+        let nowMin = cal.component(.hour, from: now) * 60 + cal.component(.minute, from: now)
+        var upcoming: [Item] = []
+        var done: [Item] = []
+        let todays: [Item] = p.days[dayKey(now)] ?? []
+        for it in todays {
+            if let end = it.endMin, end <= nowMin {
+                var d = it
+                d.past = true
+                done.append(d)
+            } else {
+                upcoming.append(it)
+            }
+        }
+        let today = upcoming + done
 
         // この先の予定。「このあと」と「まだ決まっていない」の2本を作る
         var ahead: [Ahead] = []
@@ -182,9 +265,9 @@ struct Provider: TimelineProvider {
             if let items = p.days[dayKey(d)] {
                 let w = weekday(d), dd = cal.component(.day, from: d)
                 for it in items {
-                    if ahead.count < 3 { ahead.append(Ahead(w: w, d: dd, item: it)) }
+                    if ahead.count < 3 { ahead.append(Ahead(w: w, d: dd, item: it, inDays: i)) }
                     if !it.solid && undecidedAhead.count < 3 {
-                        undecidedAhead.append(Ahead(w: w, d: dd, item: it))
+                        undecidedAhead.append(Ahead(w: w, d: dd, item: it, inDays: i))
                     }
                 }
             }
@@ -244,6 +327,7 @@ struct Provider: TimelineProvider {
 // MARK: - 部品
 
 /// 予定ひとつ。塗り＝決まっている、点線＝まだ。
+/// 終わった予定（past）は薄くする。消さないのは「今日は何があったか」も一目で分かるように
 struct Pill: View {
     let item: Item
     var height: CGFloat = 22
@@ -275,6 +359,7 @@ struct Pill: View {
                 }
             }
         )
+        .opacity(item.past ? 0.45 : 1)
     }
 }
 
@@ -406,35 +491,35 @@ struct MonthGrid: View {
 
     @ViewBuilder
     private func cell(_ m: MonthCell) -> some View {
-        ZStack {
-            if m.isToday {
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(TODAY_BG)
-                    .padding(.horizontal, 1.5)
-                    .padding(.vertical, 0.5)
-            }
-            VStack(spacing: 2) {
-                if let d = m.day {
-                    Text("\(d)")
-                        .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
-                        .foregroundColor(m.dots.isEmpty && !m.isToday ? INK_FAINT : INK)
-                    HStack(spacing: 1.6) {
-                        ForEach(Array(m.dots.prefix(3).enumerated()), id: \.offset) { _, it in
-                            if it.solid {
-                                Circle()
-                                    .fill(colored ? plain(it.c) : SUMI)
-                                    .frame(width: dotR * 2, height: dotR * 2)
-                            } else {
-                                Circle()
-                                    .strokeBorder(colored ? plain(it.c) : SUMI, lineWidth: 1)
-                                    .frame(width: dotR * 2, height: dotR * 2)
-                            }
+        VStack(spacing: 2) {
+            if let d = m.day {
+                // 今日は数字を丸で囲う（アプリと同じ）。ここは土日・祝日を知らないので、丸は墨で塗る。
+                // 丸は background なので行の高さは変わらず、下の点の位置もほかの日とそろう
+                Text("\(d)")
+                    .font(.system(size: numSize, weight: m.isToday ? .semibold : .regular))
+                    .tracking(m.isToday ? -0.3 : 0)
+                    .foregroundColor(m.isToday ? Color.white : (m.dots.isEmpty ? INK_FAINT : INK))
+                    .background(Group {
+                        if m.isToday {
+                            Circle().fill(INK).frame(width: numSize + 4, height: numSize + 4)
+                        }
+                    })
+                HStack(spacing: 1.6) {
+                    ForEach(Array(m.dots.prefix(3).enumerated()), id: \.offset) { _, it in
+                        if it.solid {
+                            Circle()
+                                .fill(colored ? plain(it.c) : SUMI)
+                                .frame(width: dotR * 2, height: dotR * 2)
+                        } else {
+                            Circle()
+                                .strokeBorder(colored ? plain(it.c) : SUMI, lineWidth: 1)
+                                .frame(width: dotR * 2, height: dotR * 2)
                         }
                     }
-                    .frame(height: dotR * 2)
-                } else {
-                    Color.clear
                 }
+                .frame(height: dotR * 2)
+            } else {
+                Color.clear
             }
         }
     }
@@ -444,6 +529,8 @@ struct MonthGrid: View {
 //
 // 日付を主役にする。小に出すのは今日のことだけ——この先の予定は入れない。
 // 「今日、何時から？」に答えるのが小の役目で、先のことは中と大が持つ。
+// ただし今日の予定が全部終わったら「今日はおしまい」と、次の1件だけを文字で出す。
+// 夜に見たとき、終わった予定が並んでいても何の答えにもならないので。
 //
 // 積み上げ（158pt）：余白28 ＋ 日付のかたまり50 ＋ あき12 ＋ 予定2件×28
 // 予定が3件以上ある日は、2件出して数を右上に添える（下に「ほか○件」を
@@ -513,6 +600,17 @@ struct SmallView: View {
                     }
                 }
                 .padding(.top, 12)
+            } else if entry.allDone {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("今日はおしまい")
+                        .font(.system(size: 14)).foregroundColor(INK_MUT)
+                    if let a = entry.ahead.first {
+                        Text("\(a.dayLabel) \(a.item.time) \(a.item.n)")
+                            .font(.system(size: 10.5)).foregroundColor(INK)
+                            .lineLimit(1).truncationMode(.tail)
+                    }
+                }
+                .padding(.top, 16)
             } else {
                 Text(entry.loaded ? "今日の予定なし" : "アプリを開いてください")
                     .font(.system(size: 14)).foregroundColor(INK_MUT)
@@ -556,6 +654,18 @@ struct MediumView: View {
                             Text("このあと").font(.system(size: 9))
                                 .foregroundColor(INK_FAINT).tracking(0.6)
                             Text("\(a.long)　\(a.item.time) \(a.item.n)")
+                                .font(.system(size: 10.5)).foregroundColor(INK_MUT).lineLimit(1)
+                        }
+                    }
+                } else if entry.allDone {
+                    // 今日の予定は全部終わった。終わったものを並べるより、次の1件を出す
+                    Text("今日はおしまい")
+                        .font(.system(size: 17, weight: .light)).foregroundColor(INK)
+                    if let a = entry.ahead.first {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("このあと").font(.system(size: 9))
+                                .foregroundColor(INK_FAINT).tracking(0.6)
+                            Text("\(a.dayLabel)　\(a.item.time) \(a.item.n)")
                                 .font(.system(size: 10.5)).foregroundColor(INK_MUT).lineLimit(1)
                         }
                     }
@@ -691,17 +801,23 @@ struct WeekRow: View {
     @ViewBuilder
     private func cellBase(_ m: MonthCell, dow: Int, over: Int) -> some View {
         // 数字は左上。帯がマスの左端から始まるので、数字も左に揃えないと「ずれて」見える。
-        // 今日の印はマスいっぱいの板にしない（数字だけ左上に寄って、他のマスと違って見えた）。
-        // 数字の後ろに小さな丸い地を敷くだけにする
+        // 今日の印はアプリと同じく、数字をその日の色の丸で囲って数字を白にする。
+        // 丸は数字の後ろに敷くだけ（高さは numH のまま）。今日だけ上の余白を詰めて、
+        // 丸の下端が1段目の帯に食い込まないようにする
         ZStack(alignment: .topLeading) {
             if let d = m.day {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("\(d)")
-                        .font(.system(size: 9, weight: m.isToday ? .semibold : .regular))
-                        .foregroundColor(numColor(d, dow: dow))
+                        .font(.system(size: m.isToday ? 8.5 : 9, weight: m.isToday ? .semibold : .regular))
+                        .tracking(m.isToday ? -0.3 : 0)
+                        .foregroundColor(m.isToday ? Color.white : numColor(d, dow: dow))
                         .padding(.horizontal, 3).padding(.vertical, 1)
-                        .background(Group { if m.isToday { RoundedRectangle(cornerRadius: 3).fill(TODAY_BG) } })
-                        .padding(.leading, 1).padding(.top, 1)
+                        .background(Group {
+                            if m.isToday {
+                                Circle().fill(numColor(d, dow: dow)).frame(width: 12, height: 12)
+                            }
+                        })
+                        .padding(.leading, 1).padding(.top, m.isToday ? 0 : 1)
                         .frame(height: WeekRow.numH, alignment: .topLeading)
                     Spacer(minLength: 0)
                     if over > 0 {
@@ -767,7 +883,7 @@ struct LargeView: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 上の1行：月と、まだの数だけ。今日はマスの色で分かるので、日付は繰り返さない
+            // 上の1行：月と、まだの数だけ。今日は数字の丸で分かるので、日付は繰り返さない
             HStack(alignment: .firstTextBaseline) {
                 Text(entry.monthLabel).font(.system(size: 14, weight: .semibold)).foregroundColor(INK)
                 Spacer(minLength: 4)
@@ -787,12 +903,119 @@ struct LargeView: View {
     }
 }
 
+// MARK: - ロック画面
+//
+// ロック画面は単色（色は明るさにしか残らない）。だから決まった／まだの見分けは
+// 形だけで言う：塗りの角丸＝決まった、点線の角丸＝まだ。ホーム画面の予定の形と同じ。
+// 色は .primary / .secondary だけを使い、どの壁紙の上でもシステムに染めてもらう。
+
+/// ロック画面用の、塗り／点線の小さな印。Mark と同じ考えで、色だけ .primary にしたもの
+struct LockMark: View {
+    let solid: Bool
+    var body: some View {
+        Group {
+            if solid {
+                RoundedRectangle(cornerRadius: 2.5).fill(Color.primary)
+            } else {
+                RoundedRectangle(cornerRadius: 2.5)
+                    .strokeBorder(Color.primary, style: StrokeStyle(lineWidth: 1.3, dash: [2.4, 1.8]))
+            }
+        }
+        .frame(width: 12, height: 8)
+    }
+}
+
+/// 長方形：1行目に次の1件、2行目に今日の数
+struct LockRectView: View {
+    let entry: Entry
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if let n = entry.next {
+                HStack(spacing: 5) {
+                    LockMark(solid: n.item.solid)
+                    Text(n.text)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1).truncationMode(.tail)
+                }
+                Text(summary)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            } else {
+                Text(entry.loaded ? "予定なし" : "アプリを開いてください")
+                    .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+    // 「まだ」があればそれを先に言う。無ければ今日の数。
+    // 0件や全部終わった日に「今日 0件」「今日 3件」と出しても答えにならないので、言い方を変える
+    private var summary: String {
+        if entry.undecided > 0 { return "まだ \(entry.undecided)件" }
+        if entry.today.isEmpty { return "今日は予定なし" }
+        if entry.allDone { return "今日はおしまい" }
+        return "今日 \(entry.today.count)件"
+    }
+}
+
+/// 丸：数だけ。「まだ」があればその数、無ければ今日の数
+struct LockCircleView: View {
+    let entry: Entry
+    var body: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            VStack(spacing: -1) {
+                Text(entry.undecided > 0 ? "まだ" : "今日")
+                    .font(.system(size: 10))
+                Text("\(entry.undecided > 0 ? entry.undecided : entry.today.count)")
+                    .font(.system(size: 20, weight: .semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+        }
+    }
+}
+
+/// 時計の上の1行：文字だけ（ここは1行の文字しか出せない）
+struct LockInlineView: View {
+    let entry: Entry
+    var body: some View {
+        Text(line)
+    }
+    private var line: String {
+        if let n = entry.next { return n.text }
+        return entry.loaded ? "今日の予定なし" : "アプリを開いてください"
+    }
+}
+
 // MARK: - 入り口
 
 struct RootView: View {
     @Environment(\.widgetFamily) var family
     var entry: Entry
     var body: some View {
+        // ホーム画面は地の色と余白をこちらで持つ。ロック画面は地も余白も付けない
+        // （システムが壁紙の上に置く。地を塗ると、単色の表示で四角い板が浮く）
+        Group {
+            switch family {
+            case .accessoryRectangular:
+                LockRectView(entry: entry)
+                    .containerBackground(for: .widget) { Color.clear }
+            case .accessoryCircular:
+                LockCircleView(entry: entry)
+                    .containerBackground(for: .widget) { Color.clear }
+            case .accessoryInline:
+                LockInlineView(entry: entry)
+                    .containerBackground(for: .widget) { Color.clear }
+            default:
+                home
+                    .containerBackground(BG, for: .widget)
+            }
+        }
+    }
+
+    private var home: some View {
         Group {
             switch family {
             case .systemSmall:  SmallView(entry: entry)
@@ -811,12 +1034,13 @@ struct KimatteruWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
+            // 地の色は RootView で大きさごとに付ける（ロック画面には付けない）
             RootView(entry: entry)
-                .containerBackground(BG, for: .widget)
         }
         .configurationDisplayName("LUKKO")
-        .description("今日の予定と、まだ決まっていないものが出ます。")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .description("今日の予定と、まだ決まっていないものが出ます。ロック画面にも置けます。")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge,
+                            .accessoryRectangular, .accessoryCircular, .accessoryInline])
         // iOS 17 から中身に自動で余白が付く。こちらで持っているので二重になる
         .contentMarginsDisabled()
     }

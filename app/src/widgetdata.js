@@ -85,20 +85,27 @@ export function buildWidgetPayload(state, today) {
   const to = Math.max(dayNo(y, mo, d) + AHEAD_DAYS, dayNo(y, mo + 1, 0));
 
   const days = {};
+  const toM = (t) => { const [h, mm] = String(t || '0:0').split(':').map(Number); return (h || 0) * 60 + (mm || 0); };
   for (const e of events) {
     // 「無くなった」予定は出さない。ホーム画面に流れた予定を残す意味がない
     if (!e || e.status === 'nakunatta') continue;
     const a = Math.max(from, evFrom(e));
     const b = Math.min(to, evTo(e));
-    if (a > b) continue;
+    // 人に見せない予定は、名前も持ち物も渡さない（ウィジェットはロック画面にも出る）
+    const hide = !!e.secret || !!settings.hideTitles;
+    const endT = e.status === 'jisseki' ? (e.actualEnd || e.end) : e.end;
+    const wraps = !e.allDay && toM(endT) <= toM(e.start);
     const item = {
       t: e.allDay ? null : e.start || null,
-      n: cut(e.title, TITLE_LEN) || '予定',
+      // 終わりの時刻。ウィジェットは、終わった予定を下に回して次の予定へ進む
+      e: e.allDay ? null : (wraps ? '24:00' : endT || null),
+      n: hide ? '予定あり' : (cut(e.title, TITLE_LEN) || '予定'),
       c: colorOf(e.type),
       s: isSolid(e) ? 1 : 0,
       k: String(e.id || ''),   // 同じ予定かどうか。大のカレンダーで日をまたぐ帯をつなぐのに使う
     };
-    const m = memoLines(e.memo);
+    if (hide) item.x = 1;
+    const m = hide ? [] : memoLines(e.memo);
     if (m.length) item.m = m;
     const f = evFrom(e), l = evTo(e);
     for (let n = a; n <= b; n++) {
@@ -106,6 +113,11 @@ export function buildWidgetPayload(state, today) {
       // その日が、この予定の何日目か。0=1日だけ 1=初日 2=途中 3=最終日。帯の端を丸めるかに使う
       const pos = f === l ? 0 : n === f ? 1 : n === l ? 3 : 2;
       (days[k] || (days[k] = [])).push(pos ? { ...item, p: pos } : item);
+    }
+    // 日をまたぐ勤務（22:00–翌6:00）は、明けの日にも「0:00–6:00」として出す
+    if (wraps && f + 1 >= from && f + 1 <= to && toM(endT) > 0) {
+      const k = key(f + 1);
+      (days[k] || (days[k] = [])).push({ ...item, t: '00:00', e: endT });
     }
   }
 

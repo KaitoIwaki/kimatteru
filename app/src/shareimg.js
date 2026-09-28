@@ -57,6 +57,47 @@ export async function shareText(text, filename, mime = 'application/json') {
 }
 
 /**
+ * 文字をそのまま渡す（ファイルにしない）。まずクリップボードにコピーし、できなければ共有シートへ。
+ * 社会人の日程調整は文字でやりとりするのが普通なので、「空いてる日」を文でも送れるようにした。
+ * 戻り値は利用者に見せるひとこと。
+ */
+export async function copyText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return 'コピーしました。LINE やメールに貼り付けてください';
+    }
+  } catch (e) { /* 共有シートへ */ }
+  if (native()) {
+    try { await Share.share({ text }); return ''; } catch (e) { return ''; }
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    return 'コピーしました';
+  } catch (e) {
+    return 'コピーできませんでした';
+  }
+}
+
+/** 文字を共有シートで送る（1件の予定を送るとき。.ics のファイルも一緒に渡せる） */
+export async function shareTextAndFile(text, filename, fileText, mime = 'text/calendar') {
+  if (!native()) return copyText(text);
+  try {
+    const files = [];
+    if (fileText) {
+      const written = await Filesystem.writeFile({ path: filename, data: textToBase64(fileText), directory: Directory.Cache });
+      files.push(written.uri);
+    }
+    await Share.share({ text, ...(files.length ? { files } : {}) });
+    return '';
+  } catch (e) {
+    return '';
+  }
+}
+
+/**
  * 画像を共有シートに渡す。ネイティブ以外ではダウンロードにフォールバックする。
  * 戻り値は利用者に見せるひとこと。
  */

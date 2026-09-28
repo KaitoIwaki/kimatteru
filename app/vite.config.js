@@ -36,7 +36,7 @@ export default defineConfig({
     { name: 'empty-outdir-safe', apply: 'build', buildStart() { emptyDirSafe(fileURLToPath(new URL(OUT, import.meta.url))); } },
   ],
   // 設定画面のバージョン表記は package.json を唯一の出どころにする
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: { __APP_VERSION__: JSON.stringify(pkg.version), __APP_MARKETING__: JSON.stringify(pkg.marketing || '') },
   // 相対パスにしておくと、どんなホスティング先のサブパスでもそのまま動く
   base: './',
   build: { emptyOutDir: false, outDir: OUT },

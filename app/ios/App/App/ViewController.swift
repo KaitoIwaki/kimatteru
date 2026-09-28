@@ -22,5 +22,7 @@ import Capacitor
 class ViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         bridge?.registerPluginInstance(WidgetBridgePlugin())
+        // Face ID のロック・切り替え画面のぼかし・評価の小窓（LukkoNative.swift）
+        bridge?.registerPluginInstance(LukkoNativePlugin())
     }
 }

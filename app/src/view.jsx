@@ -1,17 +1,7 @@
 import React from 'react';
 import { s } from './style';
-
-// 日本語は語の途中でも改行されてしまう。意味のかたまりごとに
-// inline-block で包んで、変なところで折れないようにする。
-function Jp({ parts, style }) {
-  return (
-    <span style={s(style)}>
-      {parts.map((t, i) => (
-        <span key={i} style={s('display:inline-block')}>{t}</span>
-      ))}
-    </span>
-  );
-}
+import { Settings } from './settingsview.jsx';
+import { Jp } from './jp.jsx';
 
 // 取り込みの画面の絵。「iPhone のカレンダー → LUKKO、読むだけ」を1枚で言う。
 // 文で3段落書いていたものを、これと2行に置き換えた。説明が一気に出ると
@@ -179,6 +169,30 @@ function ReportMonth({ v }) {
         )}
       </div>
 
+      {/* 働いた時間の話（残業・有給）。記録や設定があるときだけ */}
+      {(!!v.repOverMonth || !!v.repLeave) && (
+        <div style={s('background:var(--card);border-radius:17px;padding:14px 18px;margin-bottom:22px;border:1px solid var(--line);display:flex;flex-direction:column;gap:8px')}>
+          {!!v.repOverMonth && <span style={s('font-size:14px;color:var(--ink)')}>{v.repOverMonth}</span>}
+          {!!v.repLeave && <span style={s('font-size:14px;color:var(--ink)')}>{v.repLeave}</span>}
+        </div>
+      )}
+      {/* 締め日のある勤務先：給料日ごとの金額 */}
+      {(v.repPayRows || []).length > 0 && (
+        <>
+          <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>給料日ごと</div>
+          <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px;border:1px solid var(--line)')}>
+            {v.repPayRows.map((r, i) => (
+              <div key={i} style={s(`display:flex;align-items:center;gap:10px;padding:13px 16px;${i ? 'border-top:1px solid var(--line)' : ''}`)}>
+                <span style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                  <span style={s('font-size:14px;color:var(--ink)')}>{r.head}</span>
+                  <span style={s('font-size:11px;color:var(--ink-mut)')}>{r.name}・{r.range}・{r.times}回</span>
+                </span>
+                <span style={s('font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums')}>{r.wage}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       {/* 給料。バイトの実績がその年にあるときだけ。無い人には金の話はいらない */}
       {v.repWageShown && (
         <>
@@ -412,6 +426,8 @@ export function renderApp(v) {
     <div
       data-theme={v.theme}
       style={s('position:relative;height:100%;width:100%;background:var(--bg);overflow:hidden;transition:background .3s ease')}
+      onTouchStart={v.onEdgeStart}
+      onTouchEnd={v.onEdgeEnd}
     >
       {/* ===================== MONTH ===================== */}
       {v.monthShown && (
@@ -472,6 +488,9 @@ export function renderApp(v) {
               </span>
             )}
             <span style={s('flex:1')} />
+            {v.stampChipShown && (
+              <span role="button" style={s(`display:inline-flex;align-items:center;padding:5px 10px;border-radius:999px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0;${v.stampOn ? 'background:var(--ink);color:var(--card)' : 'border:1px solid var(--line);color:var(--ink-soft)'}`)} onClick={v.onToggleStamp}>シフト入力</span>
+            )}
             {v.wageToggleShown && (
               <div style={s('display:flex;align-items:center;gap:7px;cursor:pointer;flex-shrink:0')} onClick={v.onToggleWage}>
                 <span style={s(`font-size:12px;font-weight:400;color:${v.wageLabelColor}`)}>給料</span>
@@ -500,6 +519,7 @@ export function renderApp(v) {
 
           <div
             className="month-scroll"
+            ref={v.monthAreaRef}
             style={s(`flex:1;overflow-y:auto;overflow-x:hidden;padding:0 0 ${v.monthPadBottom} 0;display:flex;flex-direction:column`)}
             onTouchStart={v.onMonthTouchStart}
             onTouchMove={v.onMonthTouchMove}
@@ -564,7 +584,28 @@ export function renderApp(v) {
             </div>
           )}
 
-          {v.wageOn && (
+          {/* シフト入力のパレット。型を選んで、マスを押すだけで置く。同じマスをもう一度押すと外れる */}
+          {v.stampOn && (
+            <div className="wagebar" style={s('position:absolute;left:0;right:0;bottom:82px;padding:10px 12px 12px;background:var(--glass);backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:6;animation:riseUp .26s cubic-bezier(.2,.9,.2,1)')}>
+              <div style={s('display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none')}>
+                {(v.stampTpls || []).map((t) => (
+                  <div key={t.key} style={s(t.style)} onClick={t.onClick}>
+                    <span style={s('font-size:14px;font-weight:700;white-space:nowrap')}>{t.label}</span>
+                    <span style={s('font-size:10px;opacity:.7;white-space:nowrap;font-variant-numeric:tabular-nums')}>{t.sub}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={s('display:flex;align-items:center;gap:8px')}>
+                <div style={s('display:flex;background:var(--bg2);border-radius:10px;padding:2px;flex:1')}>
+                  {(v.stampSeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
+                </div>
+                <span role="button" style={s('padding:7px 12px;border-radius:10px;background:var(--ink);color:var(--card);font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap')} onClick={v.onToggleStamp}>おわる</span>
+              </div>
+              <div style={s('font-size:11.5px;color:var(--ink-mut);margin-top:8px;cursor:pointer;text-decoration:underline;text-align:center')} onClick={v.onConfirmMonthShifts}>{v.stampMonthLabel}</div>
+            </div>
+          )}
+
+          {v.wageOn && !v.stampOn && (
             <div className="wagebar" style={s('position:absolute;left:0;right:0;bottom:82px;padding:14px 22px;background:var(--glass);backdrop-filter:blur(14px);border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;animation:riseUp .3s cubic-bezier(.2,.9,.2,1);cursor:pointer')} onClick={v.onOpenSummary}>
               {/* ラベルは格下げ（小さく・薄く・字間を開けて）、数字は大きく細く、
                   記号は数字より一段小さく。ラベルと数字が同じ強さで喋らないようにする。 */}
@@ -638,6 +679,17 @@ export function renderApp(v) {
                 </div>
               </div>
               </React.Fragment>
+            ))}
+            {(v.dayOverlay || []).map((r) => (
+              <div key={r.key} style={s('display:flex;align-items:center;gap:12px;background:var(--card);border-radius:15px;padding:12px 14px;border:1px solid var(--line);margin-bottom:9px;cursor:pointer;opacity:.85')} onClick={r.onClick}>
+                <span style={s('width:44px;flex-shrink:0;font-size:13px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>{r.time}</span>
+                <span style={s('width:4px;align-self:stretch;background:var(--ink-faint);border-radius:2px;flex-shrink:0')} />
+                <span style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
+                  <span style={s('font-size:14px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.title}</span>
+                  {!!r.place && <span style={s('font-size:11.5px;color:var(--ink-mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.place}</span>}
+                </span>
+                <span style={s('font-size:10.5px;color:var(--ink-faint);flex-shrink:0')}>iPhone</span>
+              </div>
             ))}
             <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding:15px;border-radius:15px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:15px;font-weight:400;cursor:pointer')} onClick={v.onDayAdd}>＋ 予定を追加</div>
           </div>
@@ -787,9 +839,10 @@ export function renderApp(v) {
             )}
             {(v.freeRows || []).map((r, i) => (
               <div key={i} style={s(r.rowStyle)}>
-                <div style={s(r.dateWrap)}>
+                <div style={s({ ...r.dateWrap, cursor: 'pointer' })} onClick={r.onOpenDay}>
                   <span style={s(r.dowStyle)}>{r.dow}</span>
                   <span style={s(r.dayStyle)}>{r.day}</span>
+                  {!!r.hol && <span style={s('font-size:8.5px;color:var(--sun);white-space:nowrap;max-width:44px;overflow:hidden;text-overflow:ellipsis')}>{r.hol}</span>}
                 </div>
                 <div style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;padding:0 12px')}>
                   <div style={s('display:flex;gap:4px;flex-wrap:wrap')}>
@@ -1292,6 +1345,7 @@ export function renderApp(v) {
                 <div style={s('display:flex;align-items:center;gap:10px;margin-bottom:4px')}>
                   <span style={s(v.badgeStyle)}>{v.badgeChar}</span>
                   <span style={s(`font-size:13px;font-weight:400;color:${v.dTypeDark}`)}>{v.dStatusLabel}</span>
+                  {!!v.dCandText && <span style={s('font-size:11px;padding:2px 8px;border-radius:999px;border:1px dashed var(--ink-faint);color:var(--ink-mut)')}>{v.dCandText}</span>}
                 </div>
                 <div style={s('font-size:24px;font-weight:300;color:var(--ink);margin:6px 0 2px 0;letter-spacing:-.3px')}>{v.dTitle}</div>
                 <div style={s('font-size:14px;color:var(--ink-mut);margin-bottom:20px')}>
@@ -1329,8 +1383,19 @@ export function renderApp(v) {
                     <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0')}>地図</span>
                   </a>
                 )}
+                {/* Web 会議のリンク。いちばん押すものなので大きく */}
+                {!!v.dLink && (
+                  <a href={v.dLink} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;padding:13px 14px;border-radius:13px;background:var(--ink);color:var(--card);text-decoration:none;font-size:15px;font-weight:700;-webkit-tap-highlight-color:transparent')}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="13" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.8" /><path d="M16 10.5 21 8v8l-5-2.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
+                    {v.dLinkLabel}
+                  </a>
+                )}
                 {!!v.dMemo && (
-                  <div style={s('margin-top:10px;padding:12px 14px;border-radius:13px;background:var(--bg2);font-size:14px;color:var(--ink-soft);line-height:1.9;white-space:pre-wrap;text-align:justify')}>{v.dMemo}</div>
+                  <div style={s('margin-top:10px;padding:12px 14px;border-radius:13px;background:var(--bg2);font-size:14px;color:var(--ink-soft);line-height:1.9;white-space:pre-wrap;text-align:justify;word-break:break-word')}>
+                    {(v.dMemoParts || []).map((p, i) => (p.href
+                      ? <a key={i} href={p.href} target="_blank" rel="noreferrer" style={s('color:#3D6E9C;text-decoration:underline')}>{p.t}</a>
+                      : <span key={i}>{p.t}</span>))}
+                  </div>
                 )}
 
                 {v.dWageShown && (
@@ -1562,6 +1627,16 @@ export function renderApp(v) {
         </div>
       )}
 
+      {/* ===================== 開くときのロック =====================
+          確かめ終わるまで、中身の上に紙を1枚かぶせておく */}
+      {v.lockedShown && (
+        <div style={s('position:absolute;inset:0;z-index:99;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px')}>
+          <span style={s('font-size:30px;letter-spacing:-3px')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:var(--ink-faint)')}>？</span></span>
+          <span style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:.1em')}>LUKKO</span>
+          <div role="button" style={s('margin-top:10px;padding:13px 26px;border-radius:15px;background:var(--ink);color:var(--card);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onUnlock}>{v.lockLabel}で開く</div>
+        </div>
+      )}
+
       {/* ===================== 取り消しの帯 =====================
           削除・無くなった・確定した のあと5秒だけ出る。押すと元に戻る */}
       {v.undoShown && (
@@ -1648,35 +1723,55 @@ export function renderApp(v) {
             <div style={s('width:100%;max-width:340px;background:#FFFDF8;border-radius:22px;box-shadow:0 18px 48px rgba(0,0,0,.5);padding:24px 22px 22px;overflow:hidden')}>
               <div style={s('display:flex;align-items:center;gap:8px;margin-bottom:3px')}>
                 <span style={s('width:22px;height:22px;border-radius:7px;background:#D85A30;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800')}>○</span>
-                <span style={s('font-size:13px;font-weight:400;color:#D85A30')}>わたしの空いてる日</span>
+                <span style={s('font-size:13px;font-weight:400;color:#D85A30')}>{v.shareLead}</span>
               </div>
-              <div style={s('font-size:22px;font-weight:300;color:#26251F;letter-spacing:-.5px')}>{v.shareMonthLabel}月のあいてる日</div>
+              <div style={s('font-size:22px;font-weight:300;color:#26251F;letter-spacing:-.5px')}>{v.shareTitle}</div>
               <div style={s('font-size:13px;color:#8C887C;margin:2px 0 18px')}>予定の中身は出していません</div>
 
               <div style={s('display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:4px')}>
                 {(v.shareWeekdays || []).map((w, i) => (<div key={i} style={s(w.style)}>{w.label}</div>))}
               </div>
               <div style={s('display:grid;grid-template-columns:repeat(7,1fr);gap:5px')}>
-                {(v.shareCells || []).map((c, i) => (<div key={i} style={s(c.style)}>{c.label}</div>))}
+                {(v.shareCells || []).map((c, i) => (<div key={i} style={s(c.style)}>{c.label}{!!c.note && <span style={s('font-size:8px;font-weight:600;color:#D85A30')}>{c.note}</span>}</div>))}
               </div>
 
-              <div style={s('display:flex;align-items:center;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid #E6E2D6')}>
+              <div style={s('display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid #E6E2D6;flex-wrap:wrap')}>
                 <div style={s('display:flex;align-items:center;gap:6px')}>
                   <span style={s('width:16px;height:16px;border-radius:5px;background:#FAECE7;border:1.5px solid #D85A30')} />
-                  <span style={s('font-size:12px;color:#55524A')}>空いてる</span>
+                  <span style={s('font-size:12px;color:#55524A')}>{(v.shareLegend || [])[0]}</span>
+                </div>
+                <div style={s('display:flex;align-items:center;gap:6px')}>
+                  <span style={s('width:16px;height:16px;border-radius:5px;background:#FFFDF8;border:1.5px dashed #D85A30')} />
+                  <span style={s('font-size:12px;color:#55524A')}>{(v.shareLegend || [])[1]}</span>
                 </div>
                 <div style={s('display:flex;align-items:center;gap:6px')}>
                   <span style={s('width:16px;height:16px;border-radius:5px;background:#EDEEF0')} />
-                  <span style={s('font-size:12px;color:#55524A')}>予定あり</span>
+                  <span style={s('font-size:12px;color:#55524A')}>{(v.shareLegend || [])[2]}</span>
                 </div>
-                <div style={s('flex:1')} />
-                <span style={s('font-size:12px;letter-spacing:-2px')}><span style={s('color:#1D9E75')}>✓</span><span style={s('color:#C1C5CC')}>？</span></span>
               </div>
             </div>
 
             <div style={s('width:100%;max-width:340px;margin-top:14px;font-size:12px;color:rgba(255,255,255,.5);text-align:center;text-wrap:pretty')}>埋まっている日は灰色のマスだけ。何の予定かは相手に伝わりません。</div>
 
+            {/* 送り方。範囲・平日休日・言い回し。社会人の日程調整は文字でやりとりするのが普通なので、文字でもコピーできる */}
+            <div style={s('width:100%;max-width:340px;margin-top:18px;display:flex;flex-direction:column;gap:10px')}>
+              <div style={s('display:flex;gap:6px;flex-wrap:wrap')}>{(v.shareRangeChips || []).map((c, i) => (<span key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</span>))}</div>
+              <div style={s('display:flex;gap:6px;flex-wrap:wrap')}>
+                {(v.shareOnlyChips || []).map((c, i) => (<span key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</span>))}
+                <span style={s('width:8px')} />
+                {(v.shareToneChips || []).map((c, i) => (<span key={'t' + i} style={s(c.style)} onClick={c.onClick}>{c.label}</span>))}
+              </div>
+              <input value={v.shareName} onChange={v.onShareName} placeholder="名前を入れる（例：山田）" maxLength={16}
+                style={s('width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.18);outline:none;background:rgba(255,255,255,.06);border-radius:12px;padding:10px 12px;font-size:14px;color:#fff;font-family:inherit')} />
+              <div style={s('white-space:pre-wrap;font-size:12.5px;line-height:1.75;color:rgba(255,255,255,.85);background:rgba(255,255,255,.06);border-radius:12px;padding:12px 14px;max-height:160px;overflow-y:auto')}>{v.shareText}</div>
+              <div style={s('display:flex;align-items:center;gap:10px;cursor:pointer')} onClick={v.onToggleShareSign}>
+                <span style={s(`width:18px;height:18px;border-radius:5px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;${v.shareSign ? 'background:#fff;color:#1A1A1A' : 'border:1.5px solid rgba(255,255,255,.35)'}`)}>{v.shareSign ? '✓' : ''}</span>
+                <span style={s('font-size:12px;color:rgba(255,255,255,.6)')}>画像の下に「LUKKO で作成」の一言を入れる</span>
+              </div>
+            </div>
+
             <div style={s('display:flex;gap:10px;width:100%;max-width:340px;margin-top:16px')}>
+              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:rgba(255,255,255,.1);color:#fff;font-size:15px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,.2)')} onClick={v.onCopyFreeText}>文字でコピー</div>
               <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
                   <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -1692,306 +1787,7 @@ export function renderApp(v) {
         </div>
       )}
 
-      {v.settingsShown && (
-        <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
-          <div className="scr-head-solo" style={s('padding:0 20px 10px')}>
-            <span style={s('font-size:30px;font-weight:300;color:var(--ink);letter-spacing:-.5px')}>設定</span>
-          </div>
-          <div style={s('flex:1;overflow-y:auto;padding:8px 16px 110px')}>
-
-            {/* 設定は4つの群に分ける。並びは「よく触るもの → たまに触るもの → 見るだけ」。
-                前は見出しが7つ、説明の地の文が6か所に散っていて、開いた瞬間に
-                どこから見ればいいのか決められなかった（2画面ぶんあった）。
-                説明は群ごとに1つだけにする。 */}
-
-            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>カレンダー</div>
-<div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:10px')}>
-              {/* 群の見出しが「カレンダー」になったので、この行が何なのかは行の側で言う。
-                  たたんでいるあいだも、色の点だけは出しておく */}
-              <div style={s(`display:flex;align-items:center;gap:10px;padding:14px 16px;cursor:pointer;${v.typeListOpen ? 'border-bottom:1px solid var(--line)' : ''}`)} onClick={v.onToggleTypeList}>
-                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>予定の種類</span>
-                <span style={s('display:flex;align-items:center;gap:5px;flex:1;min-width:0;flex-wrap:wrap;justify-content:flex-end')}>
-                  {(v.typeDots || []).map((d, i) => (<span key={i} style={s(d.style)} />))}
-                  {!!v.typeMoreLabel && <span style={s('font-size:11px;color:var(--ink-faint);font-variant-numeric:tabular-nums')}>{v.typeMoreLabel}</span>}
-                </span>
-                <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums;flex-shrink:0')}>{v.typeCountLabel}</span>
-                <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>{v.typeListOpen ? '⌄' : '›'}</span>
-              </div>
-              {v.typeListOpen && (<>
-              {(v.typeRows || []).map((t, i) => (
-                <div key={i} style={s(t.rowStyle)}>
-                  <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={t.onTap}>
-                    <span style={s(t.dotStyle)} />
-                    <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{t.name}</span>
-                    <span style={s('font-size:12px;color:var(--ink-faint)')}>{t.hint}</span>
-                  </div>
-                  {t.open && (
-                    <div style={s('padding:2px 16px 16px')}>
-                      <input value={t.name} onChange={t.onName} placeholder="種類の名前" style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
-                      <div style={s('display:flex;flex-wrap:wrap;gap:12px')}>
-                        {(t.swatches || []).map((sw, j) => (<div key={j} style={s(sw.style)} onClick={sw.onClick} />))}
-                      </div>
-                      <div style={s('font-size:11px;color:var(--ink-faint);margin-top:14px')}>{t.usedCount > 0 ? `${t.usedCount}件の予定で使っています` : 'まだ使っていません'}</div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onAddTypeRow}>
-                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:400')}>＋</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>種類を追加</span>
-              </div>
-              {v.newTypeShown && (
-                <div style={s('padding:2px 16px 16px;background:var(--bg2)')}>
-                  <input value={v.newTypeName} placeholder="種類の名前（例：ジム、勉強）" onChange={v.onNewTypeName} style={s('width:100%;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin:12px 0 14px')} />
-                  <div style={s('display:flex;flex-wrap:wrap;gap:12px')}>
-                    {(v.newTypeSwatches || []).map((sw, i) => (<div key={i} style={s(sw.style)} onClick={sw.onClick} />))}
-                  </div>
-                  <div style={s('display:flex;gap:8px;margin-top:16px')}>
-                    <div style={s('flex:1;text-align:center;padding:11px;border-radius:13px;background:var(--card);color:var(--ink-soft);font-size:14px;font-weight:600;cursor:pointer')} onClick={v.onCancelNewType}>やめる</div>
-                    <div style={s(v.addTypeBtnStyle)} onClick={v.onAddType}>この種類を追加</div>
-                  </div>
-                </div>
-              )}
-              </>)}
-            </div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:24px')}>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)')}>
-                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>週のはじまり</span>
-                <div style={s('display:flex;background:var(--bg2);border-radius:13px;padding:2px;width:150px')}>
-                  {(v.weekSeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
-                </div>
-              </div>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
-                <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>「無くなった」予定を隠す</span>
-                  <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty')}>オフなら取り消し線で薄く残します</span>
-                </div>
-                <div style={s(v.hideTrack)} onClick={v.onToggleHide}><div style={s(v.hideKnob)} /></div>
-              </div>
-              <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
-                <span style={s('font-size:15px;color:var(--ink)')}>ダークモード</span>
-                <div style={s(v.darkTrack)} onClick={v.onToggleDark}><div style={s(v.darkKnob)} /></div>
-              </div>
-            </div>
-
-            {/* バイトを使っていない人には、ここは「追加」の1行だけになる。
-                リマインドの設定も、バイト先が1つも無いあいだは出さない
-                （何のことか分からない設定を見せない）。 */}
-            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>バイトと給料</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:10px')}>
-              {(v.jobRows || []).map((j, i) => (
-                <div key={i} style={s(j.rowStyle)}>
-                  <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={j.onTap}>
-                    <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{j.name}</span>
-                    <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>¥{j.hourly}</span>
-                    <span style={s('font-size:16px;color:var(--ink-faint)')}>{j.open ? '⌄' : '›'}</span>
-                  </div>
-                  {j.open && (
-                    <div style={s('padding:2px 16px 16px')}>
-                      <input value={j.name === '（名前なし）' ? '' : j.name} onChange={j.onName} placeholder="バイト先の名前（例：マクド、塾）" style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:12px')} />
-                      <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
-                        <span style={s('font-size:14px;color:var(--ink-mut)')}>時給</span>
-                        <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
-                          <div style={s(v.stepBtn)} onClick={j.onMinus}>−</div>
-                          <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
-                            <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft)')}>¥</span>
-                            <input value={j.hourly} onChange={j.onHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
-                          </div>
-                          <div style={s(v.stepBtn)} onClick={j.onPlus}>＋</div>
-                        </div>
-                      </div>
-                      <div style={s('display:flex;align-items:center;justify-content:space-between;margin-top:14px')}>
-                        <span style={s('font-size:11px;color:var(--ink-faint)')}>{j.usedCount > 0 ? `${j.usedCount}件の予定で使っています` : 'まだ使っていません'}</span>
-                        <span style={s('font-size:13px;color:#A8452B;cursor:pointer')} onClick={j.onRemove}>削除</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-              <div style={s(`display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;${v.jobsEmpty ? '' : 'border-top:1px solid var(--line)'}`)} onClick={v.onAddJob}>
-                <span style={s('width:26px;height:26px;border-radius:11px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:15px;font-weight:400')}>＋</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バイト先を追加</span>
-              </div>
-            </div>
-            {v.remindRowShown && (
-              <div style={s('background:var(--card);border-radius:17px;overflow:hidden')}>
-                <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px')}>
-                <div style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>シフト後に記録をリマインド</span>
-                  <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty')}>終わった時間に「実働どうだった？」を通知</span>
-                </div>
-                <div style={s(v.remindTrack)} onClick={v.onToggleRemind}><div style={s(v.remindKnob)} /></div>
-              </div>
-              </div>
-            )}
-            {v.jobsEmpty && (
-              <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px;line-height:1.8')}>
-                {''}<Jp parts={['時給は', 'バイト先ごとに', '決めます。']} />
-              </div>
-            )}
-            <div style={s('margin-bottom:24px')} />
-
-            {/* 取り込みと控えは、どちらも「予定の出し入れ」。別の見出しにする理由がない。
-                規約に「大切な予定は控えを取ってください」と書いてある以上、
-                取る手段と戻す手段はアプリ側が持っていないと筋が通らない。 */}
-            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>予定の出し入れ</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:8px')}>
-              {v.importAvailable && (
-                <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenImport}>
-                  <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
-                  <span style={s('flex:1;font-size:15px;color:var(--ink)')}>ほかのカレンダーから取り込む</span>
-                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-                </div>
-              )}
-              {/* .ics はほかのカレンダーや PC との橋。Google カレンダーや TimeTree から
-                  書き出したファイル、メールで届いたファイルを、ここから入れる */}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onPickIcs}>
-                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>ファイルから取り込む（.ics）</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onExportIcs}>
-                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↑</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>予定をファイルに書き出す（.ics）</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-              {/* 誕生日や祝日が取り込みで入ってしまった人のため。対象が無ければ出さない */}
-              {v.tidyCount > 0 && (
-                <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenTidy}>
-                  <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>…</span>
-                  <span style={s('flex:1;font-size:15px;color:var(--ink)')}>取り込んだ予定を整理する</span>
-                  <span style={s('font-size:13px;color:var(--ink-mut)')}>{v.tidyCount}件</span>
-                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-                </div>
-              )}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onExportBackup}>
-                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↑</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えを書き出す</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-              {/* 押したらそのままファイルをえらべる。中身をコピーして貼る手順は挟まない */}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onPickBackup}>
-                <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800')}>↓</span>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>控えから戻す</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-            </div>
-            {/* 見えない入力。行から click() で開く */}
-            <input id="ics-file" type="file" accept=".ics,text/calendar" onChange={v.onIcsFile} style={s('display:none')} />
-            <input id="backup-file" type="file" accept=".json,application/json" onChange={v.onBackupFile}
-              style={s('display:none')} />
-            {!!v.backupError && (
-              <div style={s('font-size:11px;color:#A8452B;margin:0 8px 8px;line-height:1.6;text-wrap:pretty')}>{v.backupError}</div>
-            )}
-            {v.pasteOpen && (
-              <div style={s('background:var(--card);border-radius:17px;padding:14px;margin-bottom:8px')}>
-                <div style={s('font-size:11px;color:var(--ink-mut);line-height:1.7;margin:0 2px 8px;text-wrap:pretty')}>
-                  書き出した控えのファイルを開いて、中身を全部コピーしてここに貼ってください。
-                </div>
-                <textarea value={v.backupText} onChange={v.onBackupText} placeholder="控えの中身を貼り付け" rows={4}
-                  style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:12px;color:var(--ink);font-family:inherit;resize:none;line-height:1.6')} />
-                <div style={s(`margin-top:12px;padding:12px;border-radius:13px;text-align:center;font-size:14px;font-weight:700;cursor:pointer;background:var(--bg2);color:var(--ink);border:1px solid var(--line);${v.restoreDisabled ? 'opacity:.4' : ''}`)} onClick={v.restoreDisabled ? undefined : v.onAskRestore}>
-                  この控えから戻す
-                </div>
-              </div>
-            )}
-            {/* ここが唯一の「どこに保存されているか」の説明。
-                前は同じ趣旨のことを3か所に書いていた。 */}
-            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 8px;line-height:1.8;text-wrap:pretty')}>
-              {''}<Jp parts={['取り込みは読むだけで、', 'あなたのカレンダーには', '書き込みません。', '予定はこの端末の中だけに', 'あり、外部に', '送られることは', 'ありません。', '機種変更や紛失にそなえて、', 'ときどき控えを', '取っておいてください。']} />
-            </div>
-            {/* えらべなかった人が行き止まりにならないように、逃げ道は残しておく */}
-            <div style={s('font-size:11px;color:var(--ink-faint);margin:0 6px 24px;line-height:1.8;cursor:pointer;text-decoration:underline')} onClick={v.onTogglePaste}>
-              ファイルをえらべないときは、貼り付けでも戻せます
-            </div>
-
-            <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>このアプリについて</div>
-            <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
-              <a href={v.reviewHref} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>App Store でレビューする</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </a>
-              {/* 連絡先はリンクにしつつ、住所そのものも出す。
-                  リンクが開かない環境でも、長押しでコピーできるように。 */}
-              <a href={v.contactHref} style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);text-decoration:none;-webkit-tap-highlight-color:transparent')}>
-                <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>お問い合わせ</span>
-                  <span style={s('font-size:11px;color:var(--ink-mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{v.contactEmail}</span>
-                </span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </a>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenTerms}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>利用規約</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer')} onClick={v.onOpenPrivacy}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>プライバシーポリシー</span>
-                <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-              </div>
-
-
-              {/* 5回叩くと診断が出る。ふつうに使う人には何も起きない */}
-              <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:default')} onClick={v.onTapVersion}>
-                <span style={s('flex:1;font-size:15px;color:var(--ink)')}>バージョン</span>
-                <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums')}>{v.appVersion}</span>
-              </div>
-            </div>
-
-            {/* 応援。設定のいちばん下、規約よりさらに下に置く。
-                「このアプリについて」の中に混ぜていたときは、持っているもの
-                （サポーターカード）が群の先頭、これからすること（開発を応援する）が
-                群の最後で、間に4行はさまっていた。同じ話なのに離れていた。
-                群にすれば、過去 → これから の順で並ぶ。
-                手前に出したいわけではないので、場所はいちばん下のまま。 */}
-            {v.supportGroupShown && (<>
-              <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>応援</div>
-              <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:14px')}>
-              {/* 持っているもの。応援したことがある人にだけ出る。
-                  機能ではなく「自分がやったことの記録」なので、消耗型のままでいい。 */}
-              {v.supporterShown && (
-                <div style={s(v.supporterRowStyle)} onClick={v.onOpenCard}
-                     onPointerDown={v.onSupDown} onPointerUp={v.onSupUp}
-                     onPointerCancel={v.onSupUp} onPointerLeave={v.onSupUp}>
-                  <span style={s('width:22px;height:22px;border-radius:11px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0')}>✓</span>
-                  <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
-                    <span style={s('font-size:15px;color:var(--ink)')}>サポーターカード</span>
-                    <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.supporterTotal}・{v.supporterCount}・{v.supporterSince}</span>
-                  </span>
-                  <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
-                </div>
-              )}
-              {/* 商品が取れないときは、行ごと出さない */}
-              {v.tipShown && (<>
-                <div style={s(v.tipHeadStyle)} onClick={v.onToggleTip}
-                     onPointerDown={v.onTipHeadDown} onPointerUp={v.onTipUp}
-                     onPointerCancel={v.onTipUp} onPointerLeave={v.onTipUp}>
-                  <span style={s('flex:1;font-size:15px;color:var(--ink)')}>開発を応援する</span>
-                  <span style={s(`font-size:12px;color:var(--ink-faint);transition:transform .2s ease;transform:rotate(${v.tipOpen ? '90deg' : '0deg'})`)}>▶</span>
-                </div>
-                {v.tipOpen && (
-                  <div style={s('background:var(--bg2);animation:riseUp .22s cubic-bezier(.2,.9,.2,1)')}>
-                    {(v.tipRows || []).map((t, i) => (
-                      <div key={i} style={s(t.rowStyle)} onClick={t.onClick}
-                           onPointerDown={t.onDown} onPointerUp={t.onUp}
-                           onPointerCancel={t.onUp} onPointerLeave={t.onUp}>
-                        <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
-                          <span style={s('font-size:15px;color:var(--ink)')}>{t.label}</span>
-                        </span>
-                        <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft);font-variant-numeric:tabular-nums')}>{t.price}</span>
-                      </div>
-                    ))}
-                    <div style={s('font-size:11px;color:var(--ink-faint);padding:12px 16px 14px;line-height:1.8;text-wrap:pretty')}>
-                      {''}<Jp parts={['応援しても、', '増える機能は', 'ありません。', '広告なし・通信なしの', 'ままで', '作りつづけます。']} />
-                    </div>
-                  </div>
-                )}
-              </>)}
-              </div>
-            </>)}
-
-          </div>
-        </div>
-      )}
+      {v.settingsShown && <Settings v={v} />}
 
       {/* ===================== まとめ（働いた時間） ===================== */}
       {v.reportShown && <Report v={v} />}
@@ -2363,8 +2159,11 @@ export function renderApp(v) {
                     ? <Jp parts={['予定はカレンダーに','残っています。','時間には','数えません。']} />
                     : v.impTidied === 'delete'
                       ? <Jp parts={['カレンダーから','消えました。']} />
-                      : <Jp parts={['すべて','「決まってる」として','置きました。','まだ分からない予定は、','タップして','点線に','変えられます。']} />}
+                      : (v.impDoneDashed || <Jp parts={['決まっている予定は','塗りで置きました。','まだ分からない予定は、','タップして','点線に','変えられます。']} />)}
                 </div>
+                {!!v.impDoneDetail && !v.impTidied && (
+                  <div style={s('font-size:12px;color:var(--ink-mut);margin-top:6px;line-height:1.8;text-wrap:pretty')}>{v.impDoneDetail}</div>
+                )}
                 {/* 取り込んだ瞬間に案内が消えるので、ここで新しい予定の入れ方を伝える。
                     前は取り込んだあと、追加のしかたがどこにも出ていなかった。 */}
                 {!v.impTidied && (
@@ -2373,7 +2172,34 @@ export function renderApp(v) {
                   </div>
                 )}
                 <div style={s('margin-top:28px;padding:15px;border-radius:16px;background:var(--ink);color:var(--card);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onImportDone}>カレンダーを見る</div>
+                {v.impUndoShown && (
+                  <div style={s('margin-top:12px;padding:10px;font-size:13px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportUndo}>取り込む前に戻す</div>
+                )}
               </div>
+            ) : v.impPhase === 'cals' ? (
+              <>
+                {/* どのカレンダーを読むか。カレンダーごとに種類も決められる（会社の予定表 → 仕事） */}
+                <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>どのカレンダーを読みますか？</div>
+                <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-bottom:14px;text-wrap:pretty')}>
+                  {''}<Jp parts={['右の札を押すと、', 'そのカレンダーの予定を', '入れる種類を決められます。', '選んだ内容は', '次も使います。']} />
+                </div>
+                <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:14px')}>
+                  {(v.impCals || []).map((c, i) => (
+                    <div key={c.key} style={s(`display:flex;align-items:center;gap:10px;padding:12px 13px;cursor:pointer;${i ? 'border-top:1px solid var(--line)' : ''};opacity:${c.on ? 1 : .5}`)} onClick={c.onToggle}>
+                      <span style={s(`width:20px;height:20px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;background:${c.on ? '#1D9E75' : 'transparent'};border:1.5px solid ${c.on ? '#1D9E75' : 'var(--line)'}`)}>{c.on ? '✓' : ''}</span>
+                      <span style={s({ width: 9, height: 9, borderRadius: 5, background: c.color, flexShrink: 0 })} />
+                      <span style={s('flex:1;min-width:0;font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{c.label}</span>
+                      <span style={s(c.typeStyle)} onClick={c.onCycleType}>{c.typeName}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={s('font-size:12px;color:var(--ink-mut);margin:0 4px 8px')}>いつからの予定を読むか</div>
+                <div style={s('display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px')}>
+                  {(v.impRangeChips || []).map((c, i) => (<span key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</span>))}
+                </div>
+                <div style={s(`padding:16px;border-radius:17px;text-align:center;font-size:16px;cursor:pointer;${v.impCalsOnCount ? 'background:var(--ink);color:var(--card)' : 'background:var(--bg2);color:var(--ink-mut);pointer-events:none'}`)} onClick={v.onReadCals}>読み込む</div>
+                <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
+              </>
             ) : v.impPhase === 'found' ? (
               <>
                 <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>
@@ -2386,7 +2212,7 @@ export function renderApp(v) {
                     ? (v.impNone ? <Jp parts={['このファイルに', '読める予定が', 'ありませんでした。']} /> : <Jp parts={['ファイルの中の予定です。', 'もう入っているものは', '除いてあります。']} />)
                     : v.impNone
                       ? <Jp parts={['iPhone のカレンダーに', '読める予定が', 'ありませんでした。']} />
-                      : <Jp parts={['先月から1年ぶん。', 'もう入っているものは', '除いてあります。']} />}
+                      : <Jp parts={['1年先までの予定です。', 'もう入っているものは', '除いてあります。', '前に取り込んだ予定が', '元で変わっていたら、', '「変わった」と出ます。']} />}
                 </div>
                 {/* 1件も無かったときは、ここで手が止まる。ほかのカレンダーの案内を出す */}
                 {v.impNone && !v.impFromIcs && <OtherCal v={v} s={s} />}
@@ -2404,8 +2230,10 @@ export function renderApp(v) {
                         <div key={r.key} style={s(r.rowStyle)} onClick={r.onToggle}>
                           <span style={s(r.checkStyle)}>{r.on ? '✓' : ''}</span>
                           <div style={s('flex:1;min-width:0')}>
+                            {!!r.kindTag && <div style={s('font-size:10.5px;font-weight:700;color:#B9770F;margin-bottom:2px')}>{r.kindTag}</div>}
                             <div style={s('font-size:11px;color:var(--ink-mut);font-variant-numeric:tabular-nums;white-space:nowrap')}>{r.when}</div>
                             <div style={s('font-size:14px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px')}>{r.title}</div>
+                            {!!r.place && <div style={s('font-size:11px;color:var(--ink-mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.place}</div>}
                           </div>
                           {!v.impTidy && <div style={s(r.typeStyle)} onClick={r.onCycleType}>{r.typeName}</div>}
                         </div>

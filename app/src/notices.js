@@ -158,8 +158,8 @@ export function syncShiftNotices(notices, events, now) {
       id,
       kind: KIND_SHIFT,
       eventId: e.id,
-      title: `${e.title}、おつかれさま`,
-      body: `実働時間はどうでしたか？タップして記録しよう（${e.start}–${e.end}）`,
+      title: `${e.title}、おつかれさまでした`,
+      body: `働いた時間を記録しますか？（予定 ${e.start}–${e.end}）`,
       at: endMoment(e).getTime(),
       read: false,
     });
