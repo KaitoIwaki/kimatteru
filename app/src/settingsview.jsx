@@ -305,6 +305,11 @@ export function Settings({ v }) {
 
         {/* ===== 予定の出し入れ ===== */}
         <div style={s(HEAD)}>予定の出し入れ</div>
+        {v.syncShown && (
+          <div style={s(CARD)}>
+            <Row label="iCloud で同期（2台の iPhone で同じ予定）" sub={v.syncSub} right={<Toggle t={v.sync} onClick={v.onSync} />} last />
+          </div>
+        )}
         <div style={s(CARD)}>
           {v.importAvailable && (
             <Row label="ほかのカレンダーから取り込む" onClick={v.onOpenImport} chevron right={<span style={s(ICON)}>↓</span>} />

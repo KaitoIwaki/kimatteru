@@ -30,7 +30,10 @@ public class LukkoNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "lockInfo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "authenticate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setShield", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "kvsInfo", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "kvsGet", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "kvsSet", returnType: CAPPluginReturnPromise)
     ]
 
     private static let shieldKey = "lukko.shield"
@@ -40,6 +43,59 @@ public class LukkoNativePlugin: CAPPlugin, CAPBridgedPlugin {
         let nc = NotificationCenter.default
         nc.addObserver(self, selector: #selector(willResign), name: UIApplication.willResignActiveNotification, object: nil)
         nc.addObserver(self, selector: #selector(didBecome), name: UIApplication.didBecomeActiveNotification, object: nil)
+        nc.addObserver(self, selector: #selector(kvsChanged(_:)),
+                       name: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+                       object: NSUbiquitousKeyValueStore.default)
+    }
+
+    // MARK: - iCloud の小さな置き場（2台の iPhone で同じ予定にする）
+    //
+    //  本人の iCloud の中の、このアプリ専用の置き場（キーと値）。開発者は中身を見られない。
+    //  アカウント登録も、こちらのサーバーも要らない。全部で 1MB まで。
+    //  アプリに iCloud の許可（entitlement）が無いビルドでは、synchronize() が false を返すだけで何も起きない。
+
+    @objc private func kvsChanged(_ note: Notification) {
+        var keys: [String] = []
+        if let info = note.userInfo, let changed = info[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String] {
+            keys = changed
+        }
+        notifyListeners("kvsChanged", data: ["keys": keys])
+    }
+
+    @objc func kvsInfo(_ call: CAPPluginCall) {
+        let store = NSUbiquitousKeyValueStore.default
+        let synced = store.synchronize()
+        let signedIn = FileManager.default.ubiquityIdentityToken != nil
+        call.resolve(["available": synced && signedIn, "signedIn": signedIn, "entitled": synced])
+    }
+
+    @objc func kvsGet(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else {
+            call.reject("key が要ります")
+            return
+        }
+        let store = NSUbiquitousKeyValueStore.default
+        _ = store.synchronize()
+        if let value = store.string(forKey: key) {
+            call.resolve(["value": value])
+        } else {
+            call.resolve([:])
+        }
+    }
+
+    @objc func kvsSet(_ call: CAPPluginCall) {
+        guard let key = call.getString("key") else {
+            call.reject("key が要ります")
+            return
+        }
+        let store = NSUbiquitousKeyValueStore.default
+        if let value = call.getString("value") {
+            store.set(value, forKey: key)
+        } else {
+            store.removeObject(forKey: key)
+        }
+        let ok = store.synchronize()
+        call.resolve(["ok": ok])
     }
 
     // MARK: - ぼかし

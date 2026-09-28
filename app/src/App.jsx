@@ -14,6 +14,7 @@ import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, diffImport, listImportCalendars, guessTypes, openAppSettings } from './calendarimport';
 import { listPhoneCalendars, readOverlay, ensureExportCalendar, syncExport, clearExport } from './iphonecal';
 import { lockInfo, authenticate, setShield, requestReview } from './native';
+import { syncInfo, readRemote, writeRemote, packForSync, mergeSync, onRemoteChange } from './sync';
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
 import { norm, showsFront, dragToDeg, settle, settleTime, ease, cardShadow, tiltFor } from './cardflip';
@@ -1865,6 +1866,41 @@ export default class App extends React.Component {
     }catch(e){ /* 次の変更でそろえ直す */ }
     this._exporting=false;
   }
+  // ---- iCloud で同期 ----
+  async toggleSync(){
+    tapLight();
+    const on=!this.state.settings.sync;
+    if(on){
+      const info=await syncInfo();
+      if(!info.available){
+        this.toast(info.signedIn ? 'この版では、まだ iCloud の同期を使えません' : 'iPhone の設定で iCloud にサインインすると使えます', 3600);
+        return;
+      }
+    }
+    this.setState(s=>({settings:{...s.settings, sync:on, deviceId: s.settings.deviceId || uid('d')}}));
+    if(on) setTimeout(()=>this._pullSync(true), 0);
+  }
+  async _pullSync(pushAfter){
+    if(!this.state.settings.sync || this._syncing) return;
+    this._syncing=true;
+    try{
+      const remote=await readRemote();
+      const merged=mergeSync(this.state, remote);
+      if(merged){
+        this._fromSync=true;
+        this.setState({ events:sanitizeEvents(merged.events), types: typesOk(merged.types) ? merged.types : this.state.types,
+          jobs:sanitizeJobs(merged.jobs), someday:sanitizeSomeday(merged.someday) });
+      }
+      this.setState(s=>({settings:{...s.settings, lastSyncAt:Date.now()}}));
+    }catch(e){ /* 次に開いたときにもう一度 */ }
+    this._syncing=false;
+    if(pushAfter) this._pushSync();
+  }
+  async _pushSync(){
+    if(!this.state.settings.sync) return;
+    try{ await writeRemote(packForSync(this.state), this.state.settings.deviceId||''); }catch(e){ /* 次の変更で */ }
+  }
+
   // ---- 開くときのロック ----
   async _initLock(){
     const info=await lockInfo();
@@ -2282,6 +2318,10 @@ export default class App extends React.Component {
     v.overlayCals = (st.overlayCals||[]).map(c=>({ key:c.id, label:c.title, on:(cfg.overlayIds||[]).includes(c.id), dot:c.color||'#999',
       onClick:()=>{ tapLight(); const cur=cfg.overlayIds||[]; this.setSetting('overlayIds', cur.includes(c.id) ? cur.filter(x=>x!==c.id) : [...cur, c.id]); this._overlayCache=null; setTimeout(()=>this._loadOverlay&&this._loadOverlay(),0); } }));
     v.exportCal = tg(cfg.exportCal); v.onExportCal = ()=>this.toggleExportCal();
+    // iCloud で同期（2台の iPhone）
+    v.syncShown = isNative();
+    v.sync = tg(cfg.sync); v.onSync = ()=>this.toggleSync();
+    v.syncSub = cfg.sync ? (cfg.lastSyncAt ? `最後に合わせた時刻：${new Date(cfg.lastSyncAt).getHours()}:${String(new Date(cfg.lastSyncAt).getMinutes()).padStart(2,'0')}` : '合わせています…') : '本人の iCloud だけを使います。開発者は中身を見られません。アカウント登録もいりません';
 
     // ---- 安全 ----
     v.lockAvailable = !!this._lockAvailable;
@@ -4771,6 +4811,9 @@ export default class App extends React.Component {
     this._initLock();
     if (!this.state.settings.firstUseAt) this.setState((s) => ({ settings: { ...s.settings, firstUseAt: Date.now() } }));
     if (this.state.settings.overlayOn) setTimeout(() => this._loadOverlay(), 300);
+    // iCloud で同期している人：開いたら向こうの変更を取り込み、こちらの変更を書く
+    if (this.state.settings.sync) setTimeout(() => this._pullSync(true), 800);
+    onRemoteChange(() => this._pullSync(false));
     // 設定アプリで許可してから戻ってきたら、そのまま読み込みを続ける
     this._onResume = async () => {
       if (!this._retryImportOnReturn) return;
@@ -4823,6 +4866,7 @@ export default class App extends React.Component {
     this._refreshNotif();
     this._syncReminders();
     this._autoBackup();
+    if (this.state.settings.sync) this._pullSync(true);
     this._widgetStamp = null;
     this._pushWidget();
     if (this._loadOverlay) this._loadOverlay();
@@ -4848,6 +4892,11 @@ export default class App extends React.Component {
       clearTimeout(this._remT);
       this._remT = setTimeout(() => this._syncReminders(), 400);
       this._refreshNotif();
+    }
+    // iCloud で同期している人：予定が変わったら少し待って書く（向こうから来た変更を、そのまま書き戻さない）
+    if (this.state.settings.sync && ['events','types','jobs','someday','trash'].some((k) => prevState[k] !== this.state[k])) {
+      if (this._fromSync) this._fromSync = false;
+      else { clearTimeout(this._syncT); this._syncT = setTimeout(() => this._pushSync(), 4000); }
     }
     // 決まった予定を iPhone のカレンダーにも入れている人：変わったら少し待ってそろえる
     if (this.state.settings.exportCal && (prevState.events !== this.state.events || prevState.settings.hideTitles !== this.state.settings.hideTitles)) {
