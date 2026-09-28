@@ -1518,7 +1518,7 @@ export default class App extends React.Component {
     const nj=this.state.newJob; if(!nj) return;
     tapLight();
     const id=uid('j');
-    const name=(nj.name||'').trim()||'バイト先';
+    const name=(nj.name||'').trim()||this.words().job;
     this.setState(s=>{
       const prev=s.jobs.find(j=>j.id===s.draft.jobId);
       const keepTitle = s.draft.title && s.draft.title!==(prev&&prev.name);
@@ -4025,12 +4025,13 @@ export default class App extends React.Component {
 
     // ---------- バイト先（新規作成画面） ----------
     v.jobPickerShown = dr.type==='baito';
+    { const W=this.words(); v.jobWordNew=W.job; v.jobThisNew=W.jobThis; }
     v.jobChips = (st.jobs||[]).map(j=>{ const sel=j.id===dr.jobId;
       return { label:(j.name||'名前なし')+'　¥'+j.hourly, onClick:()=>this.pickJob(j.id),
         style:{padding:'8px 14px',borderRadius:999,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',
           background:sel?'#1D9E75':'var(--card)', color:sel?'#fff':'var(--ink-mut)',
           border:'1px solid '+(sel?'#1D9E75':'var(--line)'), fontVariantNumeric:'tabular-nums'} }; });
-    v.jobNoneChip = { label:'バイト先なし', onClick:()=>this.clearJob(),
+    v.jobNoneChip = { label:this.words().jobNone, onClick:()=>this.clearJob(),
       style:{padding:'8px 14px',borderRadius:999,fontSize:13,fontWeight:!dr.jobId?700:500,cursor:'pointer',
         background:!dr.jobId?'#1D9E75':'var(--card)', color:!dr.jobId?'#fff':'var(--ink-mut)',
         border:'1px solid '+(!dr.jobId?'#1D9E75':'var(--line)'), fontVariantNumeric:'tabular-nums'} };
@@ -4038,7 +4039,7 @@ export default class App extends React.Component {
     v.onAddJobFromNew = ()=>this.startNewJob();
     v.newJobShown = !!st.newJob;
     if(st.newJob){
-      v.newJobName = st.newJob.name;
+      v.newJobName = st.newJob.name; v.newJobEg = this.words().jobEg;
       v.newJobHourly = String(st.newJob.hourly);
       v.onNewJobName = (e)=>{ const val=e.target.value; this.setState(s=>({newJob:{...s.newJob,name:val}})); };
       v.onNewJobHourly = (e)=>{ const n=parseInt((e.target.value||'').replace(/[^0-9]/g,''),10);
@@ -4382,7 +4383,7 @@ export default class App extends React.Component {
     const nt=st.newType;
     v.newTypeShown=!!nt;
     if(nt){
-      v.newTypeName=nt.name;
+      v.newTypeName=nt.name; v.newTypeEg=this.words().typeEg;
       v.onNewTypeName=(e)=>{ const val=e.target.value; this.setState(s=>({newType:{...s.newType,name:val}})); };
       v.newTypeSwatches = this.PAL.map(hex=>({ style:{width:26,height:26,borderRadius:13,background:hex,cursor:'pointer',boxShadow: nt.color===hex?'0 0 0 2px #fff, 0 0 0 4px '+hex:'inset 0 0 0 1px rgba(0,0,0,.08)'}, onClick:()=>this.setState(s=>({newType:{...s.newType,color:hex}})) }));
       v.addTypeBtnStyle={flex:1,textAlign:'center',padding:'11px',borderRadius:13,background:nt.color,color:'#fff',fontSize:14,fontWeight:700,cursor:'pointer'};
@@ -4924,6 +4925,13 @@ export default class App extends React.Component {
     // 取り込みで予定が多い人ほど、指についてこなくなっていた。
     // 中身はいつも新しい配列・オブジェクトに置き換えている（直に書き換える所は無い）ので、参照で比べてよい
     if (PERSISTED.some((k) => prevState[k] !== this.state[k])) this._persist();
+    // 今日の控えがまだなら、予定が変わって少したったらとる。起動と戻ってきたときだけだと、
+    // 初めての日（空から入れはじめた日）は次に開くまで控えが1つも無かった
+    if (prevState.events !== this.state.events && this._fileOk) {
+      const la = this.state.settings.lastAutoBackup, t = this.state.today;
+      const done = la && (() => { const d = new Date(la); return d.getFullYear() === t.y && d.getMonth() === t.m && d.getDate() === t.d; })();
+      if (!done) { clearTimeout(this._bkT); this._bkT = setTimeout(() => this._autoBackup(), 5000); }
+    }
     // 予定か通知設定が変わったときだけ予約を貼り直す
     // 予定か通知の設定（記録のリマインド・朝のまとめ・前の晩・日曜の見直し・名前を隠す）が変わったときだけ予約を貼り直す
     const NK = ['remind', 'morning', 'morningAt', 'evening', 'weekly', 'hideTitles'];

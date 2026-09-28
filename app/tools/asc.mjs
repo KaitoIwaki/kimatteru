@@ -24,6 +24,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 
 const BUNDLE_ID = 'com.kimatteru.app';
+const SUPPORT_URL = 'https://kaitoiwaki.github.io/kimatteru/legal/support.html';
 // 文言を書き換えられる版の状態。**1つではない。**
 // 出す前（PREPARE_FOR_SUBMISSION）のほかに、取り下げたあと（DEVELOPER_REJECTED）と
 // Apple に返されたあと（REJECTED / METADATA_REJECTED）も直して出し直せる。
@@ -402,9 +403,11 @@ async function fill() {
     whatsNew: block('## このバージョンの新機能'),
     description: block('## 説明（Description）'),
     keywords: block('## キーワード'),
+    // サポートページ。よくある質問（機種変更・同期・会社の予定・できないこと）とお問い合わせ先
+    supportUrl: SUPPORT_URL,
   };
-  const JA = { name: 'App名', subtitle: 'サブタイトル', promotionalText: 'プロモーション', whatsNew: '新機能', description: '説明', keywords: 'キーワード' };
-  const MAX = { name: 30, subtitle: 30, promotionalText: 170, whatsNew: 4000, description: 4000, keywords: 100 };
+  const JA = { name: 'App名', subtitle: 'サブタイトル', promotionalText: 'プロモーション', whatsNew: '新機能', description: '説明', keywords: 'キーワード', supportUrl: 'サポートURL' };
+  const MAX = { name: 30, subtitle: 30, promotionalText: 170, whatsNew: 4000, description: 4000, keywords: 100, supportUrl: 255 };
   for (const k of Object.keys(want)) {
     if (want[k].length > MAX[k]) throw new Error(`${JA[k]}が ${want[k].length}字。${MAX[k]}字まで`);
   }
@@ -456,7 +459,7 @@ async function fill() {
 
   head(`■ ${v.attributes.versionString}（${vl.attributes.locale}）`);
   const verPatch = {};
-  for (const k of ['promotionalText', 'whatsNew', 'description', 'keywords']) {
+  for (const k of ['promotionalText', 'whatsNew', 'description', 'keywords', 'supportUrl']) {
     if (!show(JA[k], vl.attributes[k], want[k])) verPatch[k] = want[k];
   }
 

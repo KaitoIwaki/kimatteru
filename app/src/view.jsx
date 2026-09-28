@@ -922,7 +922,7 @@ export function renderApp(v) {
               {v.jobPickerShown && (
                 <>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapJobRow}>
-                    <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>バイト先</span>
+                    <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>{v.jobWordNew}</span>
                     <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                       <span style={s(v.valJob)}>{v.jobValue}</span>
                       <span style={s(v.chevJob)}>›</span>
@@ -933,7 +933,7 @@ export function renderApp(v) {
                       <div style={s('display:flex;flex-wrap:wrap;gap:8px')}>
                         {(v.jobChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
                         <div style={s(v.jobNoneChip.style)} onClick={v.jobNoneChip.onClick}>{v.jobNoneChip.label}</div>
-                        <div style={s('padding:8px 14px;border-radius:999px;font-size:13px;color:var(--ink-mut);border:1px dashed var(--line);cursor:pointer')} onClick={v.onAddJobFromNew}>＋ バイト先</div>
+                        <div style={s('padding:8px 14px;border-radius:999px;font-size:13px;color:var(--ink-mut);border:1px dashed var(--line);cursor:pointer')} onClick={v.onAddJobFromNew}>＋ {v.jobWordNew}</div>
                       </div>
                     </div>
                   )}
@@ -943,7 +943,7 @@ export function renderApp(v) {
 
             {v.newTypeShown && (
               <div style={s('background:var(--card);border-radius:15px;padding:14px;margin-bottom:16px;border:1px solid var(--line);animation:riseUp .24s cubic-bezier(.2,.9,.2,1)')}>
-                <input value={v.newTypeName} placeholder="種類の名前（例：ジム、勉強）" onChange={v.onNewTypeName} style={s('width:100%;border:none;outline:none;padding:6px 0 12px;font-size:15px;color:var(--ink);border-bottom:1px solid var(--line)')} />
+                <input value={v.newTypeName} placeholder={v.newTypeEg} onChange={v.onNewTypeName} style={s('width:100%;border:none;outline:none;padding:6px 0 12px;font-size:15px;color:var(--ink);border-bottom:1px solid var(--line)')} />
                 <div style={s('display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 6px')}>
                   {(v.newTypeSwatches || []).map((sw, i) => (
                     <div key={i} style={s(sw.style)} onClick={sw.onClick} />
@@ -960,7 +960,7 @@ export function renderApp(v) {
               <>
                 {v.newJobShown && (
                   <div style={s('background:var(--card);border-radius:17px;padding:16px;margin:-10px 0 22px;border:1px solid var(--line);animation:riseUp .24s cubic-bezier(.2,.9,.2,1)')}>
-                    <input value={v.newJobName} onChange={v.onNewJobName} placeholder="バイト先の名前（例：マクド、塾）" style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
+                    <input value={v.newJobName} onChange={v.onNewJobName} placeholder={v.newJobEg} style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
                     <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
                       <span style={s('font-size:14px;color:var(--ink-mut)')}>時給</span>
                       <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
@@ -974,7 +974,7 @@ export function renderApp(v) {
                     </div>
                     <div style={s('display:flex;gap:8px;margin-top:16px')}>
                       <div style={s('flex:1;text-align:center;padding:11px;border-radius:13px;background:var(--bg2);color:var(--ink-soft);font-size:14px;font-weight:400;cursor:pointer')} onClick={v.onCancelNewJob}>やめる</div>
-                      <div style={s('flex:1;text-align:center;padding:11px;border-radius:13px;background:#1D9E75;color:#fff;font-size:14px;font-weight:700;cursor:pointer')} onClick={v.onCommitNewJob}>このバイト先を追加</div>
+                      <div style={s('flex:1;text-align:center;padding:11px;border-radius:13px;background:#1D9E75;color:#fff;font-size:14px;font-weight:700;cursor:pointer')} onClick={v.onCommitNewJob}>{v.jobThisNew}</div>
                     </div>
                   </div>
                 )}
