@@ -99,6 +99,7 @@ const tgKnobOb = (on) => ({ width: 22, height: 22, borderRadius: 11, background:
 import { shareCanvas, shareText, copyText, shareTextAndFile } from './shareimg';
 import { toIcs, parseIcs } from './ics';
 import { segmentsForDay, layoutColumns, allDayFor, weekStartNo } from './timegrid';
+import { resetSettingsScroll } from './settingsview.jsx';
 
 // v2 から予定に y/m（実日付）を持たせた。旧形式は読み込まない。
 // 保存は store.js に閉じている（localStorage とファイルの二重書き）
@@ -2443,7 +2444,7 @@ export default class App extends React.Component {
       onNavCal:()=>{ if(st.screen==='month') { this.goToday(); return; } this.setState({screen:'month', dayNum:null, detailId:null}); },
       onNavFree:()=>this.setState({screen:'free'}),
       onNavReport:()=>this.setState({screen:'report'}),
-      onNavSettings:()=>{ this.setState({screen:'settings', editTypeKey:null, setPage:null}); this._loadTips(); },
+      onNavSettings:()=>{ resetSettingsScroll(); this.setState({screen:'settings', editTypeKey:null, setPage:null}); this._loadTips(); },
       onOpenSummary:()=>this.setState({screen:'summary', shareToast:false, cardKind:'month', cardFrom:st.screen}),
       onSummaryClose:()=>this.setState(s=>({screen:s.cardFrom||'month'})),
       // カレンダーは指の動きについてくる。離したところで隣の月に収まるか、元に戻る。

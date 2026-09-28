@@ -465,9 +465,17 @@ function FilesPage({ v }) {
   </>);
 }
 
+// 最初の画面をどこまで下げていたか。中の画面（勤務先など）や規約を開いて戻ったとき、同じ所から続けられるように。
+// 前は戻るたびにいちばん上に戻っていて、勤務先を直してから下の項目へ行くのに、また下までなぞる必要があった。
+// Settings 自体が作り直される（取り込みや規約の画面へ行って戻る）ときも残るように、部品の外に置く
+const SAVED = { main: 0 };
+/** 下のタブから設定を開き直したときは、いちばん上から */
+export function resetSettingsScroll() { SAVED.main = 0; }
+
 export function Settings({ v }) {
   // 押すと出るメニュー（TimeTree と同じ、行の下に小さく出る）
   const [menu, setMenu] = React.useState(null);
+  const scRef = React.useRef(null);
   const rootRef = React.useRef(null);
   const open = (e, items) => {
     const row = e.currentTarget, root = rootRef.current;
@@ -483,6 +491,9 @@ export function Settings({ v }) {
     setMenu({ items, y });
   };
   const page = v.setPage;
+  React.useLayoutEffect(() => {
+    if (!page && scRef.current) scRef.current.scrollTop = SAVED.main || 0;
+  }, [page]);
   const Page = { types: TypesPage, work: WorkPage, jobs: JobsPage, leave: LeavePage, overlay: OverlayPage, backup: BackupPage, files: FilesPage }[page];
   return (
     <div ref={rootRef} style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
@@ -496,7 +507,9 @@ export function Settings({ v }) {
           <span style={s('font-size:30px;font-weight:300;color:var(--ink);letter-spacing:-.5px')}>設定</span>
         </div>
       )}
-      <div data-set-scroll="1" key={page || 'main'} style={s(`flex:1;overflow-y:auto;padding:12px 16px 110px;${Page ? 'animation:slideFromRight .24s cubic-bezier(.2,.9,.2,1)' : ''}`)}>
+      <div data-set-scroll="1" key={page || 'main'} ref={scRef}
+        onScroll={(e) => { if (!Page) SAVED.main = e.currentTarget.scrollTop; }}
+        style={s(`flex:1;overflow-y:auto;padding:12px 16px 110px;${Page ? 'animation:slideFromRight .24s cubic-bezier(.2,.9,.2,1)' : ''}`)}>
         {Page ? <Page v={v} /> : <Main v={v} open={open} />}
       </div>
 
