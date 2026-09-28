@@ -3068,12 +3068,9 @@ export default class App extends React.Component {
       onUp:()=>this.setPressed(null),
       onClick:()=>this.buyTip(t.id),
     }));
-    // 応援の画面の文。短く、項目は箇条書き（アプリの文章のきまり）。
-    // 「これから作りたいもの」は、NEXT.md に載っている考えだけ。まだ決まっていない値段や時期は書かない
+    // 応援の画面の文。お礼だけにして、あとは金額を並べる（約束・これからの話は要らないと言われた）
     v.supportThanksTitle = 'いつも使ってくださって、ありがとうございます';
     v.supportThanks = 'LUKKO は、ひとりで作っています。\n応援は、作りつづける力になります。';
-    v.supportPromises = ['広告は出しません', '予定を外に送りません', 'アカウント登録はいりません'];
-    v.supportPlans = ['パソコンのブラウザでも見られる版', '予定をまとめて、友だちに渡せるように', '日本の外でも使えるように'];
     // 困ったときの連絡先。アプリ内に無いと、メールではなくレビュー欄に書かれる。
     // 版を件名に入れておくと、どの版の話か聞き返さずに済む。
     v.contactEmail = CONTACT;

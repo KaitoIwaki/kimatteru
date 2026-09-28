@@ -462,12 +462,6 @@ function SupportPage({ v }) {
       <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.8;white-space:pre-line;text-wrap:pretty')}>{v.supportThanks}</div>
     </div>
 
-    <div style={s(HEAD)}>約束</div>
-    <div style={s(CARD + ';padding:12px 16px;font-size:13px;color:var(--ink-soft);line-height:1.8')}>{bullets(v.supportPromises || [])}</div>
-
-    <div style={s(HEAD)}>これから作りたいもの</div>
-    <div style={s(CARD + ';padding:12px 16px;font-size:13px;color:var(--ink-soft);line-height:1.8')}>{bullets(v.supportPlans || [])}</div>
-
     <div style={s(HEAD)}>応援する</div>
     <div style={s(CARD)}>
       {(v.tipRows || []).map((t, i) => (
@@ -479,7 +473,6 @@ function SupportPage({ v }) {
         </div>
       ))}
     </div>
-    <div style={s(NOTE)}>応援で増える機能はありません</div>
   </>);
 }
 
