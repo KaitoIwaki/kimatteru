@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import { renderApp } from './view.jsx';
 import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
-import { demoEvents, wantsDemo } from './demo';
+import { demoEvents, wantsDemo, demoKind } from './demo';
 import { readLocal, readFile, saveLocal, saveFile, PERSISTED, isNative } from './store';
 import { writeBackup, listBackups, readBackup, pruneBackups, hasTodayBackup } from './backup';
 import { pushWidget, widgetAvailable } from './widgetbridge';
@@ -788,7 +788,8 @@ export default class App extends React.Component {
       return { settings:{...s.settings, priorWage:p} };
     });
   }
-  fmtHours(h){ const H=Math.floor(h); const M=Math.round((h-H)*60); return M? H+'時間'+M+'分' : H+'時間'; }
+  // 「0時間30分」とは言わない。1時間に満たなければ「30分」
+  fmtHours(h){ const H=Math.floor(h); const M=Math.round((h-H)*60); if(!H && M) return M+'分'; return M? H+'時間'+M+'分' : H+'時間'; }
   fmtMin(m){ return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
   // お知らせの「いつ」を短い言葉にする。行にたたんだときの値にも、詳細画面にも使う。
   remindLabel(min, allDay){
@@ -3672,8 +3673,9 @@ export default class App extends React.Component {
       const anchor = st.weekAnchor!=null ? st.weekAnchor
         : (inThis ? weekStartNo(t.y,t.m,t.d,ws) : weekStartNo(st.ym.y,st.ym.m,1,ws));
       const days=Array.from({length:7},(_,i)=>fromDayNo(anchor+i));
-      const mid=days[3];
-      v.monthLabel=String(mid.m+1); v.year=String(mid.y);
+      // 見出しの月：今日を含む週なら今日の月、そうでなければ週の多いほうの月（前は木曜の月で、9/28〜の週が「10月」になった）
+      const tN=dayNo(t.y,t.m,t.d); const lab = (tN>=anchor && tN<anchor+7) ? {y:t.y,m:t.m} : days[3];
+      v.monthLabel=String(lab.m+1); v.year=String(lab.y);
       v.todayBtnShown = !(anchor<=dayNo(t.y,t.m,t.d) && dayNo(t.y,t.m,t.d)<anchor+7);
       v.onGoToday = ()=>{ tapLight(); this.setState({weekAnchor:weekStartNo(t.y,t.m,t.d,ws), ym:{y:t.y,m:t.m}, flashToday:Date.now()}); };
       const shiftW=(d)=>{ tapLight(); const n=anchor+d*7; const o=fromDayNo(n+3); this.setState({weekAnchor:n, ym:{y:o.y,m:o.m}, weekDir:d}); };
@@ -4757,7 +4759,12 @@ export default class App extends React.Component {
     // スクリーンショット撮影用。?demo=1 のときだけサンプルを表示中の月に入れる
     if (wantsDemo() && this.state.events.length === 0) {
       const { y, m } = this.state.ym;
-      this.setState({ events: demoEvents(y, m) });
+      const kind = demoKind();
+      // 社会人の見本は、使い方「会社の仕事」の種類と呼び名・空き状況の時間帯で撮る
+      if (kind === 'work') {
+        const r = this.applyProfile('work', this.state);
+        this.setState({ types: r.types, settings: { ...r.settings, onboarded: true, barTime: true }, events: demoEvents(y, m, 'work') });
+      } else this.setState({ events: demoEvents(y, m) });
     }
     // 版が上がっていたら、アップデートのお知らせを足す
     const ver = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';

@@ -108,9 +108,11 @@ async function whiteBlob(buf, thr = 248, region = null, seed = null, ramp = [200
 const WIDGET = {
   small:  { file: 'widget-small.png',  ratio: 1.0,        seeds: [[0.25, 0.19], [0.3, 0.22], [0.2, 0.25], [0.35, 0.27]],
             // ウィジェットだけを切り抜いた画像（幅 800 未満）のとき。上半分は壁紙の明るい所と地続きなので、下の方で取る
-            cropSeeds: [[0.5, 0.65], [0.5, 0.55], [0.5, 0.75], [0.3, 0.65]] },
+            cropSeeds: [[0.5, 0.65], [0.5, 0.55], [0.5, 0.75], [0.3, 0.65]],
+            patchWork: [{ x: 126, y: 256, w: 72, h: 44, text: '旅行', size: 27, baseline: 288, color: '#2F293F' }] },
   medium: { file: 'widget-medium.png', ratio: 1 / 2.14,   seeds: [[0.5, 0.19], [0.55, 0.22], [0.3, 0.25], [0.8, 0.27], [0.5, 0.26]],
-            redact: { x: 266, y: 244, w: 170, h: 44, text: 'ランチ', size: 31, baseline: 279, color: '#8B887D' } },
+            redact: { x: 266, y: 244, w: 170, h: 44, text: 'ランチ', size: 31, baseline: 279, color: '#8B887D' },
+            patchWork: [{ x: 126, y: 120, w: 72, h: 44, text: '旅行', size: 27, baseline: 152, color: '#2F293F' }] },
   large:  { file: 'widget-large.png',  ratio: 382 / 364,  seeds: [[0.5, 0.3], [0.5, 0.35], [0.3, 0.4], [0.7, 0.45]],
             // 本人の予定の名前（人名・会社名・塾名）を架空の用事に書き換える。座標はスクショ全体での帯の位置。
             // 帯は 134px の格子（x = 125 + 134×列、幅 128、2日なら 262）。色は帯の左端から拾う
@@ -139,8 +141,35 @@ const WIDGET = {
               { x: 929, y: 823, w: 128, text: 'バイト', dashed: true },
               { x: 259, y: 1137, w: 128, text: 'バイト', dashed: true },
               { x: 393, y: 1137, w: 128, text: 'バイト', dashed: true },
+            ],
+            // 社会人の1か月（SUKUJI_SET=work）。帯の色と、塗り／点線はそのまま、名前だけ社会人の暮らしにする。
+            // 列 x = 125 + 134×列（月曜が 0）、段 y = 週ごとに 435/473/511・610/648・786/823・961・1137
+            renameWork: [
+              { x: 259, y: 435, w: 128, text: '歯医者' }, { x: 259, y: 473, w: 128, text: '銀行' },
+              { x: 393, y: 435, w: 396, text: '出張 大阪' },
+              { x: 527, y: 473, w: 128, text: '通院' }, { x: 527, y: 511, w: 128, text: '打ち合わせ', dashed: true },
+              { x: 661, y: 473, w: 128, text: 'ジム' },
+              { x: 795, y: 435, w: 128, text: '美容院' }, { x: 795, y: 473, w: 128, text: '資格の勉強' }, { x: 795, y: 511, w: 128, text: 'ヨガ' },
+              { x: 929, y: 435, w: 128, text: 'ジム' }, { x: 929, y: 473, w: 128, text: 'ヨガ' },
+              { x: 125, y: 610, w: 128, text: '区役所' }, { x: 125, y: 648, w: 128, text: '出社' },
+              { x: 259, y: 610, w: 128, text: '飲み会' },
+              { x: 393, y: 610, w: 128, text: 'フットサル' }, { x: 393, y: 648, w: 128, text: '出社' },
+              { x: 527, y: 610, w: 262, text: '研修' }, { x: 527, y: 648, w: 128, text: '出社' },
+              { x: 661, y: 648, w: 128, text: '商談' },
+              { x: 795, y: 610, w: 128, text: 'ヨガ' }, { x: 929, y: 610, w: 128, text: '家族で食事' },
+              { x: 125, y: 786, w: 128, text: '出社' }, { x: 259, y: 786, w: 128, text: '出社' }, { x: 393, y: 786, w: 128, text: '出社' },
+              { x: 527, y: 786, w: 128, text: '母の誕生日' }, { x: 527, y: 823, w: 128, text: '出社' },
+              { x: 661, y: 786, w: 262, text: '旅行' },
+              { x: 929, y: 786, w: 128, text: 'ランチ' }, { x: 929, y: 823, w: 128, text: '飲み会', dashed: true },
+              { x: 125, y: 961, w: 128, text: '面接', dashed: true }, { x: 259, y: 961, w: 128, text: 'ライブ' }, { x: 393, y: 961, w: 128, text: 'ライブ' },
+              { x: 527, y: 961, w: 128, text: '打ち合わせ', dashed: true }, { x: 661, y: 961, w: 128, text: '出社' },
+              { x: 795, y: 961, w: 128, text: 'ヨガ' }, { x: 929, y: 961, w: 128, text: '結婚式' },
+              { x: 125, y: 1137, w: 128, text: '定例', dashed: true }, { x: 259, y: 1137, w: 128, text: '訪問', dashed: true },
+              { x: 393, y: 1137, w: 128, text: '飲み会', dashed: true },
             ] },
 };
+// どちらの見本で組むか。'work' なら社会人の1か月（帯の名前・貼る画面・出力先が変わる）
+const SET = process.env.SUKUJI_SET || '';
 
 // 帯の文字を書き換える。帯の色で帯ごと塗り直して（角丸 6px）、その上に文字。
 // 文字は元と同じく、帯の左から 11px、大きさ 23px、下端は帯の上から 22px
@@ -209,12 +238,20 @@ async function widgetCrop(kind) {
   console.log(`ウィジェット ${kind}: (${left},${top})–(${right},${bottom})  ${width}×${height}px`);
   const r = Math.round(Math.min(width, height) * 0.13);
   const round = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" rx="${r}" fill="#fff"/></svg>`);
-  const renamed = def.rename ? await renameBars(home, def.rename) : home;
+  const list = SET === 'work' && def.renameWork ? def.renameWork : def.rename;
+  const renamed = list ? await renameBars(home, list) : home;
   let base = await sharp(renamed).extract({ left, top, width, height }).png().toBuffer();
   if (def.redact) {
     const R = def.redact;
     const patch = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect x="${R.x}" y="${R.y}" width="${R.w}" height="${R.h}" fill="#FBFBFD"/><text x="${R.x + 4}" y="${R.baseline}" font-family="'Hiragino Sans','Yu Gothic UI','Yu Gothic',sans-serif" font-size="${R.size}" fill="${R.color}">${R.text}</text></svg>`);
     base = await sharp(base).composite([{ input: patch }]).png().toBuffer();
+  }
+  // 社会人の見本：切り出したウィジェットの中の、予定の名前の所だけ塗り直して書き換える（小・中の「合宿」→「旅行」）
+  if (SET === 'work' && def.patchWork) {
+    const { data: pd, info: pi } = await sharp(base).raw().toBuffer({ resolveWithObject: true });
+    const col = (x, y) => { const o = (y * pi.width + x) * pi.channels; return `rgb(${pd[o]},${pd[o + 1]},${pd[o + 2]})`; };
+    const parts = def.patchWork.map((P) => `<rect x="${P.x}" y="${P.y}" width="${P.w}" height="${P.h}" fill="${col(P.x + P.w + 6, P.y + Math.round(P.h / 2))}"/><text x="${P.x + 2}" y="${P.baseline}" font-family="'Hiragino Sans','Yu Gothic UI','Yu Gothic',sans-serif" font-size="${P.size}" fill="${P.color}">${P.text}</text>`);
+    base = await sharp(base).composite([{ input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">${parts.join('')}</svg>`) }]).png().toBuffer();
   }
   const cut = await sharp(base).ensureAlpha().composite([{ input: round, blend: 'dest-in' }]).png().toBuffer();
   return sharp({ create: { width, height, channels: 3, background: '#FFFFFF' } }).composite([{ input: cut }]).png().toBuffer();

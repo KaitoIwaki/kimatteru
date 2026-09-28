@@ -13,9 +13,11 @@ import { join } from 'node:path';
 import { whiteBlob, GEN, ROOT } from './sukuji-fill.mjs';
 import { cutTitle, eraseBox, TITLE_LINE } from './sukuji-title.mjs';
 
-const OUT = join(ROOT, 'flat');
+// SUKUJI_SET=work なら社会人の1か月（画面は sukuji/work/、出力は sukuji/flat-work/）
+const WORK = process.env.SUKUJI_SET === 'work';
+const OUT = join(ROOT, WORK ? 'flat-work' : 'flat');
 const PW = 1290, H = 2796, W = PW * 2;
-const SHOT = join(ROOT, '1-calendar.png');
+const SHOT = join(ROOT, WORK ? 'work' : '', '1-calendar.png');
 
 const square = await sharp(join(GEN, 'gen-wide.png')).resize({ height: H }).png().toBuffer();
 const sqW = (await sharp(square).metadata()).width;

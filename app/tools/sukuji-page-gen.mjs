@@ -16,7 +16,10 @@ import { join } from 'node:path';
 import { whiteBlob, whiteBlobs, pasteBig, widgetCrop, drawPhone, eraseVertical, PHONE, TEXT, GEN, ROOT } from './sukuji-fill.mjs';
 import { cutTitle, eraseBox, TITLE_LINE } from './sukuji-title.mjs';
 
-const OUT = join(ROOT, 'flat');
+// SUKUJI_SET=work なら社会人の1か月：画面は sukuji/work/、出力は sukuji/flat-work/
+const WORK = process.env.SUKUJI_SET === 'work';
+const OUT = join(ROOT, WORK ? 'flat-work' : 'flat');
+const SHOTS = WORK ? join(ROOT, 'work') : ROOT;
 const W = 1290, H = 2796;
 const GREEN = '#3E7A4D';
 // ChatGPT のスマホは幅の半分しかなく、下も絵の中で終わっていた（貼ると画面の下に白が余る）。
@@ -28,12 +31,16 @@ function geom(shotW, top) { const left = Math.round((W - PHONE.w) / 2), sw = PHO
 // 「点線 → ✓ 塗り」の帯（flat の 2 枚目と同じ）。y はスクショの座標。
 // バイトなので点線も塗りも緑（アプリと同じ。色は種類、点線か塗りかが「決まったか」）。
 // 前は点線がオレンジで、決まると緑になり「決まった＝緑」と誤解させた
+// 社会人の見本は「仕事」の青（アプリの仕事の種類と同じ色）。学生の見本はバイトの緑
+const CHIP = WORK
+  ? { dFill: '#DDE3F1', dLine: '#8FA0CE', dInk: '#26304A', sFill: '#AAB8DC', sInk: '#1F2740' }
+  : { dFill: '#DCE9DE', dLine: '#8FB896', dInk: '#2F4A36', sFill: '#A9C5A6', sInk: '#243126' };
 async function chipsCard(canvas, g, y, text) {
   const cw = 980, ch = 210, r = 30;
   const left = Math.round((W - cw) / 2), top = Math.round(g.y0 + y * g.k - ch / 2);
   const chip = (x, dashed) => dashed
-    ? `<rect x="${x}" y="${top + 62}" width="330" height="86" rx="16" fill="#DCE9DE" stroke="#8FB896" stroke-width="5" stroke-dasharray="14 10"/><text x="${x + 165}" y="${top + 62 + 60}" text-anchor="middle" font-family="${TEXT.font}" font-size="44" fill="#2F4A36">${text}</text>`
-    : `<rect x="${x}" y="${top + 62}" width="330" height="86" rx="16" fill="#A9C5A6"/><text x="${x + 165}" y="${top + 62 + 60}" text-anchor="middle" font-family="${TEXT.font}" font-size="44" fill="#243126">✓ ${text}</text>`;
+    ? `<rect x="${x}" y="${top + 62}" width="330" height="86" rx="16" fill="${CHIP.dFill}" stroke="${CHIP.dLine}" stroke-width="5" stroke-dasharray="14 10"/><text x="${x + 165}" y="${top + 62 + 60}" text-anchor="middle" font-family="${TEXT.font}" font-size="44" fill="${CHIP.dInk}">${text}</text>`
+    : `<rect x="${x}" y="${top + 62}" width="330" height="86" rx="16" fill="${CHIP.sFill}"/><text x="${x + 165}" y="${top + 62 + 60}" text-anchor="middle" font-family="${TEXT.font}" font-size="44" fill="${CHIP.sInk}">✓ ${text}</text>`;
   const shadow = await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><rect x="${left}" y="${top + 18}" width="${cw}" height="${ch}" rx="${r}" fill="#000" fill-opacity="0.22"/></svg>`)).blur(22).png().toBuffer();
   const svg = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
     <rect x="${left}" y="${top}" width="${cw}" height="${ch}" rx="${r}" fill="#fff" stroke="${GREEN}" stroke-width="5"/>
@@ -237,7 +244,7 @@ async function page(n, shot, { tap = null, topExt = 0, phoneTop = 1000, chips = 
     base = await sharp(base).composite([{ input: k.block, left: k.left, top: k.top }]).png().toBuffer();
     phoneTop = Math.max(phoneTop, k.bottom + 90);
   } else if (title) { base = await repaint(base, [[0, 0, W, phoneTop + 40], ...repaintRects]); base = await retitle(base, title, phoneTop - 60); }
-  const shotFile = join(ROOT, shot);
+  const shotFile = join(SHOTS, shot);
   const sm = await sharp(shotFile).metadata();
   const g = geom(sm.width, phoneTop);
   // 小物の線画はスマホの前に描く（縁にかかった分はスマホの後ろに隠れる。前に描くと画面の上に線が乗って変）
@@ -279,7 +286,7 @@ async function widgetPage() {
 
 const PAGES = {
   // title: 'keep' = ChatGPT の文字を切り出して置き直す（書体そのまま）。文字を描き直すなら { lines, accent, sub }
-  3: ["2-dialog.png", { tap: [880, 1530], chips: { y: 2350, text: 'バイト' }, title: 'keep' }],   // 「確定した」に印、下に 点線 → 塗り
+  3: ["2-dialog.png", WORK ? { tap: [880, 1440], chips: { y: 2380, text: '訪問' }, title: 'keep' } : { tap: [880, 1530], chips: { y: 2350, text: 'バイト' }, title: 'keep' }],   // 「確定した」に印、下に 点線 → 塗り
   // ChatGPT の △ と × は右の帯の上（x 1000〜、y 1000〜1750）にあって、スマホに半分隠れるので消して描き直す
   4: ['3-free.png', { title: 'keep',
         repaintRects: [[990, 1000, 300, 760]],
