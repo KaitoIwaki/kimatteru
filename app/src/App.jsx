@@ -16,7 +16,7 @@ import { listPhoneCalendars, readOverlay, ensureExportCalendar, syncExport, clea
 import { lockInfo, authenticate, setShield, requestReview } from './native';
 import { syncInfo, readRemote, writeRemote, packForSync, mergeSync, onRemoteChange } from './sync';
 import { holidayName } from './holidays';
-import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT } from './notices';
+import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT, currentNoteText } from './notices';
 import { norm, showsFront, dragToDeg, settle, settleTime, ease, cardShadow, tiltFor } from './cardflip';
 import { historyFor, othersOnDay, agoText } from './eventctx.js';
 import { textureCss } from './cardtexture.js';
@@ -3110,7 +3110,7 @@ export default class App extends React.Component {
         background: n.kind===KIND_SHIFT ? 'rgba(29,158,117,.13)' : 'var(--bg2)',
         color: n.kind===KIND_SHIFT ? '#0F6E56' : 'var(--ink-mut)' });
       v.noticeRows = sortNotices(st.notices).map(n=>({
-        key:n.id, title:n.title, when:relativeTime(n.at, nowMs), unread:!n.read,
+        key:n.id, title:currentNoteText(n).title, when:relativeTime(n.at, nowMs), unread:!n.read,
         kindWord:kindWord(n), kindTagStyle:kindTagStyle(n),
         onClick:()=>this.openNotice(n),
         dotStyle:{ width:7,height:7,borderRadius:4,flexShrink:0,
@@ -3123,8 +3123,10 @@ export default class App extends React.Component {
         const at=new Date(open.at);
         v.nsKindWord = kindWord(open);
         v.nsKindTagStyle = kindTagStyle(open);
-        v.nsTitle = open.title;
-        v.nsBody = open.body;
+        const cur = currentNoteText(open);
+        v.nsTitle = cur.title;
+        // 本文は行ごとに。「・」で始まる行は箇条書きとして並べる
+        v.nsLines = String(cur.body||'').split('\n').filter(Boolean).map((t,i)=>({ key:i, bullet:t.startsWith('・'), text:t.replace(/^・/,'') }));
         v.nsDate = at.getFullYear()+'年'+(at.getMonth()+1)+'月'+at.getDate()+'日';
         v.nsWhen = relativeTime(open.at, nowMs);
         v.nsIsShift = open.kind===KIND_SHIFT;

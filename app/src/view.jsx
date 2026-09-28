@@ -2389,7 +2389,17 @@ export function renderApp(v) {
                   <span style={s('font-size:11px;color:var(--ink-faint)')}>{v.nsWhen}</span>
                 </div>
                 <div style={s('font-size:16px;font-weight:400;color:var(--ink);line-height:1.55;text-wrap:pretty')}>{v.nsTitle}</div>
-                <div style={s('font-size:14px;color:var(--ink-soft);margin-top:10px;line-height:1.9;text-align:justify')}>{v.nsBody}</div>
+                {/* 「・」で始まる行は箇条書き。点の後ろで字がそろうように、点を左に出す */}
+                <div style={s('margin-top:12px;display:flex;flex-direction:column;gap:7px')}>
+                  {(v.nsLines || []).map((l) => (l.bullet ? (
+                    <div key={l.key} style={s('display:flex;gap:8px;font-size:14px;color:var(--ink-soft);line-height:1.6')}>
+                      <span style={s('flex-shrink:0;color:var(--ink-faint)')}>・</span>
+                      <span style={s('text-wrap:pretty')}>{l.text}</span>
+                    </div>
+                  ) : (
+                    <div key={l.key} style={s('font-size:14px;color:var(--ink-soft);line-height:1.7;text-wrap:pretty')}>{l.text}</div>
+                  )))}
+                </div>
                 <div style={s('display:flex;gap:8px;margin-top:20px')}>
                   <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:var(--bg2);color:var(--ink-soft);font-size:14.5px;font-weight:400;cursor:pointer')} onClick={v.onNoticeSheetClose}>閉じる</div>
                   {!!v.nsActionLabel && (
