@@ -5,7 +5,7 @@ import { demoEvents, wantsDemo, demoKind } from './demo';
 import { readLocal, readFile, saveLocal, saveFile, PERSISTED, isNative } from './store';
 import { writeBackup, listBackups, readBackup, pruneBackups, hasTodayBackup } from './backup';
 import { pushWidget, widgetAvailable } from './widgetbridge';
-import { endsNextDay, busyEndMin } from './whenlib';
+import { endsNextDay, spillsNextDay, busyEndMin } from './whenlib';
 import { loadTips, buyTip, probeTips, TIPS } from './tipjar';
 import { syncReminders, onNotificationTap, canNotify } from './notify';
 import { drawMonthCard, drawYearCard, drawFreeCard, drawSupporterCard } from './sharecard';
@@ -834,7 +834,7 @@ export default class App extends React.Component {
     const win = (offDay ? cfg.freeHd : cfg.freeWd) || [540,1320];
     const [WS,WE]=win;
     const isFreeType=(e)=>{ const t=this.T(e.type); return !!(t && t.free); };
-    const today = st.events.filter(e=>e.status!=='nakunatta' && (evCovers(e,n) || (!e.allDay && evFrom(e)===n-1 && endsNextDay(e))));
+    const today = st.events.filter(e=>e.status!=='nakunatta' && (evCovers(e,n) || (!e.allDay && evFrom(e)===n-1 && spillsNextDay(e))));
     const over = (cfg.overlayFree && this._overlayFor) ? this._overlayFor(n, n+1) : [];
     const offToday = today.some(e=>isFreeType(e) && (e.status==='kakutei'||e.status==='jisseki'));
     const conf=today.filter(e=>(e.status==='kakutei'||e.status==='jisseki') && !isFreeType(e));
@@ -3606,10 +3606,9 @@ export default class App extends React.Component {
         evTo(e)>=monthA && evFrom(e)<=monthB);
       // 夜勤の明け：前の日から続く分を、次の日のマスに薄く出す（明けの朝がまるごと空いて見えないように）
       for(const e of st.events){
-        if(e.allDay || e.status==='nakunatta' || !endsNextDay(e)) continue;
+        if(e.allDay || e.status==='nakunatta' || !spillsNextDay(e)) continue;
         const n=evFrom(e)+1; if(n<monthA || n>monthB) continue;
         const o=fromDayNo(n), end=e.status==='jisseki'?(e.actualEnd||e.end):e.end;
-        if(end==='00:00') continue;
         pool.push({id:e.id+'~ake', ake:true, type:e.type, status:e.status, title:'明け〜'+end.replace(/^0/,''), y:o.y, m:o.m, day:o.d, start:'00:00', end, allDay:false});
       }
       // 重ねて表示している iPhone のカレンダーの予定（保存はしない）
@@ -3810,7 +3809,7 @@ export default class App extends React.Component {
       // 月表示で隠している「無くなった」予定は、ここでも隠す（画面ごとに違うと混乱する）
       const dn=dayNo(Y,M,d);
       // 前の日から続く夜勤（22:00–翌6:00）も、明けの日の一覧に「〜6:00」として出す
-      const evs=st.events.filter(e=>(evCovers(e,dn) || (!e.allDay && evFrom(e)===dn-1 && endsNextDay(e))) && !(st.settings.hideCanceled && e.status==='nakunatta'))
+      const evs=st.events.filter(e=>(evCovers(e,dn) || (!e.allDay && evFrom(e)===dn-1 && spillsNextDay(e))) && !(st.settings.hideCanceled && e.status==='nakunatta'))
         .sort((a,b)=> ((b.allDay?1:0)-(a.allDay?1:0)) || (evSpan(b)-evSpan(a)) || ((evFrom(a)===dn?1:0)-(evFrom(b)===dn?1:0)) || (this.mins(a.start)-this.mins(b.start)));
       v.dayEmpty = evs.length===0;
       const sr=st.swipeRow;

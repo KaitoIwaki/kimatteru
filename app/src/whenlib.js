@@ -17,6 +17,12 @@ export const endsNextDay = (ev) => {
   return toMin(end) <= toMin(ev.start) && toMin(end) !== toMin(ev.start);
 };
 
+/**
+ * 次の日にも「続き」として出すか。0:00 ちょうどに終わる予定（17:00–0:00 のバイト）は、
+ * 翌日に入る分が無いので出さない。前は翌日に「明け〜0:00」や「〜0:00」が出て、予定が2つに見えた
+ */
+export const spillsNextDay = (ev) => endsNextDay(ev) && toMin(ev.actualEnd || ev.end) > 0;
+
 /** その予定が実際に終わる瞬間（Date） */
 export const endMoment = (ev) => {
   const end = ev.actualEnd || ev.end;
