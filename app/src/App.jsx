@@ -2174,16 +2174,29 @@ export default class App extends React.Component {
   _settingsVals(v){
     const st=this.state, cfg=st.settings, W=this.words();
     const tg=(on)=>({track:tgTrackOb(!!on), knob:tgKnobOb(!!on)});
-    const seg=(items, cur, set)=>items.map(([k,label])=>({ label, onClick:()=>{ tapLight(); set(k); },
+    const seg=(items, cur, set)=>items.map(([k,label])=>({ label, sel:cur===k, onClick:()=>{ tapLight(); set(k); },
       style:{flex:1,textAlign:'center',padding:'7px 0',borderRadius:7,fontSize:12.5,whiteSpace:'nowrap',fontWeight:cur===k?700:500,cursor:'pointer',
         background:cur===k?'var(--card)':'transparent',color:cur===k?'var(--ink)':'var(--ink-mut)',border:cur===k?'1px solid var(--line)':'1px solid transparent'} }));
     const setS=(k)=>(val)=>this.setSetting(k,val);
     // 時刻えらび（30分きざみ）。iPhone では <select> がホイールで開くので、それを使う
     v.timeOpts = Array.from({length:49},(_,i)=>({ value:i*30, label: i===48 ? '24:00' : this.fmtMin(i*30) }));
 
+    // ---- 設定の中の画面 ----
+    // 設定は1枚に全部を並べると 40 行を超えて見にくかった。最初の画面は「名前といまの値」だけにして、
+    // 中身の多いもの（種類・勤務先・有給・勤務時間・重ねて表示・控え・ファイル）は押すと開く画面に分けた
+    v.setPage = st.setPage || null;
+    v.onSetPage = (p)=>()=>{ tapLight(); this.setState({setPage:p, editTypeKey:null, editJobId:null, typeDelete:null}); };
+    v.onSetBack = ()=>{ tapLight(); this.setState({setPage:null, editTypeKey:null, editJobId:null, typeDelete:null, newType:null}); };
+    v.setPageTitle = ({types:'予定の種類', work:'勤務時間', jobs:W.job, leave:'有給', overlay:'重ねて表示', backup:'控えと機種変更', files:'ファイルで出し入れ'})[st.setPage] || '';
+    const hm=(m)=>this.fmtMin(m===1440?1440:m).replace(/^0(\d):/,'$1:');
+    const pickLabel=(items)=>{ const x=(items||[]).find(i=>i.sel); return x ? x.label : ''; };
+    // 通知（いちばん上のスイッチで、全部まとめて止められる）
+    v.notifyAll = tg(!cfg.notifyOff); v.notifyOn = !cfg.notifyOff;
+    v.onNotifyAll = ()=>this.setSetting('notifyOff', !cfg.notifyOff);
+
     // ---- 使い方 ----
     const pk=this.profile();
-    v.profileLabel = PROFILES[pk].label + (cfg.profile ? '' : '（はじめのまま）');
+    v.profileLabel = PROFILES[pk].label;
     v.onOpenProfile = ()=>{ tapLight(); this.setState({profileSheet:{retire:false}}); };
     v.profileSheetShown = !!st.profileSheet;
     if(st.profileSheet){
@@ -2219,7 +2232,7 @@ export default class App extends React.Component {
     const theme = cfg.theme || (cfg.dark ? 'dark' : 'light');
     v.themeSeg = seg([['auto','iPhoneに合わせる'],['light','明るい'],['dark','暗い']], theme, (k)=>this.setState(s=>({settings:{...s.settings, theme:k, dark:k==='dark'}})));
     const fs0 = typeof cfg.fontScale==='number' ? cfg.fontScale : 'auto';
-    v.fontSeg = seg([['auto','iPhone'],[1,'標準'],[1.12,'大きめ'],[1.25,'特大']], fs0, (k)=>this.setSetting('fontScale', k==='auto' ? undefined : k));
+    v.fontSeg = seg([['auto','iPhoneに合わせる'],[1,'標準'],[1.12,'大きめ'],[1.25,'特大']], fs0, (k)=>this.setSetting('fontScale', k==='auto' ? undefined : k));
     v.barTime = tg(cfg.barTime); v.onBarTime = ()=>this.setSetting('barTime', !cfg.barTime);
     v.kariMark = tg(cfg.kariMark); v.onKariMark = ()=>this.setSetting('kariMark', !cfg.kariMark);
 
@@ -2252,6 +2265,13 @@ export default class App extends React.Component {
     v.remindTimedSeg = seg([[null,'なし'],[10,'10分前'],[30,'30分前'],[60,'1時間前']], typeof cfg.remindTimed==='number'?cfg.remindTimed:null, setS('remindTimed'));
     v.remindAllDaySeg = seg([[null,'なし'],[0,'当日の朝'],[1440,'前日の朝']], typeof cfg.remindAllDay==='number'?cfg.remindAllDay:null, setS('remindAllDay'));
     v.hideTitles = tg(cfg.hideTitles); v.onHideTitles = ()=>{ this.setSetting('hideTitles', !cfg.hideTitles); this._widgetStamp=null; };
+    v.remindTimedLabel = pickLabel(v.remindTimedSeg); v.remindAllDayLabel = pickLabel(v.remindAllDaySeg);
+    v.themeLabel = pickLabel(v.themeSeg); v.fontLabel = pickLabel(v.fontSeg);
+    v.freeWdLabel = hm(wd[0])+'〜'+hm(wd[1]); v.freeHdLabel = hm(hd[0])+'〜'+hm(hd[1]);
+    { const DN=['日','月','火','水','木','金','土'];
+      const ds=wh ? [...(wh.days||[])].sort((a,b)=>a-b) : [];
+      const run = ds.length>2 && ds.every((d,i)=>i===0||d===ds[i-1]+1);
+      v.workLabel = !wh ? 'なし' : (ds.length ? (run ? DN[ds[0]]+'〜'+DN[ds[ds.length-1]] : ds.map(d=>DN[d]).join('')) + ' ' + hm(wh.from)+'〜'+hm(wh.to) : '曜日なし'); }
 
     // ---- 働いた時間と給料 ----
     v.jobWord = W.job; v.jobAddLabel = W.jobAdd; v.jobEg = W.jobEg; v.wageHead = W.wageHead;
@@ -2283,6 +2303,8 @@ export default class App extends React.Component {
     v.onShowRetired = ()=>{ tapLight(); this.setState(s=>({showRetired:!s.showRetired})); };
     v.showRetired = !!st.showRetired;
     v.jobsEmpty = (st.jobs||[]).filter(j=>!j.retired).length===0;
+    { const act=(st.jobs||[]).filter(j=>!j.retired); v.jobsLabel = act.length ? (act[0].name||'（名前なし）') + (act.length>1 ? ` ほか${act.length-1}` : '') : 'なし'; }
+    v.wageFeatureLabel = pickLabel(v.wageFeatureSeg);
     v.confirmJobShown = !!st.confirmJob;
     if(st.confirmJob){
       const j=(st.jobs||[]).find(x=>x.id===st.confirmJob);
@@ -2317,6 +2339,7 @@ export default class App extends React.Component {
       v.leaveStart = pl.start; v.onLeaveStart = (e)=>this.setSetting('paidLeave', {...pl, start:Number(e.target.value)});
       v.leaveText = this.leaveSummary() ? this.leaveSummary().text : '';
     }
+    { const ls=pl && this.leaveSummary(); v.leaveLabel = ls ? ls.short.replace(/^有給 /,'').replace(/（.*$/,'') : 'オフ'; }
 
     // ---- 予定の出し入れ ----
     const d0=(ms)=>{ if(!ms) return ''; const d=new Date(ms); return `${d.getMonth()+1}月${d.getDate()}日`; };
@@ -2351,6 +2374,8 @@ export default class App extends React.Component {
     v.overlayCals = (st.overlayCals||[]).map(c=>({ key:c.id, label:c.title, on:(cfg.overlayIds||[]).includes(c.id), dot:c.color||'#999',
       onClick:()=>{ tapLight(); const cur=cfg.overlayIds||[]; this.setSetting('overlayIds', cur.includes(c.id) ? cur.filter(x=>x!==c.id) : [...cur, c.id]); this._overlayCache=null; setTimeout(()=>this._loadOverlay&&this._loadOverlay(),0); } }));
     v.exportCal = tg(cfg.exportCal); v.onExportCal = ()=>this.toggleExportCal();
+    v.overlayLabel = cfg.overlayOn ? `${(cfg.overlayIds||[]).length}つ` : 'オフ';
+    v.backupLabel = cfg.lastAutoBackup ? d0(cfg.lastAutoBackup) : '';
     // iCloud で同期（2台の iPhone）
     v.syncShown = isNative();
     v.sync = tg(cfg.sync); v.onSync = ()=>this.toggleSync();
@@ -2417,7 +2442,7 @@ export default class App extends React.Component {
       onNavCal:()=>{ if(st.screen==='month') { this.goToday(); return; } this.setState({screen:'month', dayNum:null, detailId:null}); },
       onNavFree:()=>this.setState({screen:'free'}),
       onNavReport:()=>this.setState({screen:'report'}),
-      onNavSettings:()=>{ this.setState({screen:'settings', editTypeKey:null}); this._loadTips(); },
+      onNavSettings:()=>{ this.setState({screen:'settings', editTypeKey:null, setPage:null}); this._loadTips(); },
       onOpenSummary:()=>this.setState({screen:'summary', shareToast:false, cardKind:'month', cardFrom:st.screen}),
       onSummaryClose:()=>this.setState(s=>({screen:s.cardFrom||'month'})),
       // カレンダーは指の動きについてくる。離したところで隣の月に収まるか、元に戻る。
@@ -3124,7 +3149,7 @@ export default class App extends React.Component {
     // 時給の入力は設定から外した。時給はバイト先ごとに決める。
     // settings.hourly は、バイト先を選んでいない昔の予定のための控えとして残してある。
     const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:7,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',transition:'all .2s cubic-bezier(.2,.9,.2,1)',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
-    v.weekSeg=[[0,'日曜'],[1,'月曜']].map(([n,label])=>({ label, onClick:()=>this.setSetting('weekStart',n), style:segCell(cfg.weekStart===n) }));
+    v.weekSeg=[[0,'日曜日'],[1,'月曜日']].map(([n,label])=>({ label, sel:cfg.weekStart===n, onClick:()=>this.setSetting('weekStart',n), style:segCell(cfg.weekStart===n) }));
     v.typeRows = st.types.map((t,i)=>({
       name:t.name, open: st.editTypeKey===t.key, hint: st.editTypeKey===t.key?'':'名前と色',
       rowStyle:{borderBottom:'1px solid var(--line)'},
@@ -4768,7 +4793,8 @@ export default class App extends React.Component {
     // 画面の左の端から右へなぞると、前の画面に戻る（iPhone のいつもの戻り方）。
     // 前は左上の「←」を押すしかなく、大きい iPhone では親指が届かなかった
     { const back={ day:v.onDayBack, detail:v.onBack, new:v.onCancel, list:v.onListBack, notices:v.onNoticesBack,
-        import:v.onImportBack, doc:v.onDocBack, card:v.onCardBack, summary:v.onSummaryClose, share:v.onShareClose }[st.screen];
+        import:v.onImportBack, doc:v.onDocBack, card:v.onCardBack, summary:v.onSummaryClose, share:v.onShareClose,
+        settings: st.setPage ? ()=>this.setState({setPage:null, editTypeKey:null, editJobId:null, typeDelete:null}) : undefined }[st.screen];
       const blocked = !!(st.dialog || st.confirmDelete || st.confirmRestore || st.ymSheet || st.discardAsk || st.repEditAsk || st.somedayPick);
       v.onEdgeStart = (e)=>{ const t=e.touches&&e.touches[0]; if(!t || !back || blocked) { this._edge=null; return; }
         const box=e.currentTarget.getBoundingClientRect(); const x=t.clientX-box.left;
@@ -4951,7 +4977,7 @@ export default class App extends React.Component {
     }
     // 予定か通知設定が変わったときだけ予約を貼り直す
     // 予定か通知の設定（記録のリマインド・朝のまとめ・前の晩・日曜の見直し・名前を隠す）が変わったときだけ予約を貼り直す
-    const NK = ['remind', 'morning', 'morningAt', 'evening', 'weekly', 'hideTitles'];
+    const NK = ['notifyOff', 'remind', 'morning', 'morningAt', 'evening', 'weekly', 'hideTitles'];
     if (prevState.events !== this.state.events || NK.some((k) => prevState.settings[k] !== this.state.settings[k])) {
       clearTimeout(this._remT);
       this._remT = setTimeout(() => this._syncReminders(), 400);

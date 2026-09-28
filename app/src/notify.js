@@ -86,6 +86,8 @@ export function dayDigest(events, y, m, d, hideAll) {
  *  - weekly  : 日曜の夜（20:00）に、来週まだ決まっていない予定の数
  */
 function buildSchedule(events, settings) {
+  // 設定のいちばん上の「通知」をオフにしたら、予定ごとのお知らせも含めて何も出さない
+  if (settings && settings.notifyOff) return [];
   const now = Date.now();
   const out = [];
   const hideAll = !!settings.hideTitles;
