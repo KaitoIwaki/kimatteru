@@ -192,7 +192,7 @@ function Main({ v, open }) {
 
     <div style={s(HEAD)}>予定の保存</div>
     <div style={s(CARD)}>
-      {v.syncShown && <Row label="iCloud で同期" right={<Toggle t={v.sync} onClick={v.onSync} />} />}
+      {v.syncShown && <Row label="iCloud で同期" sub={v.syncSub} right={<Toggle t={v.sync} onClick={v.onSync} />} />}
       <Row label="最近消した予定" value={`${v.trashCount}件`} chevron onClick={v.onOpenTrash} />
       <Row label="控えと機種変更" value={v.backupLabel} chevron onClick={v.onSetPage('backup')} />
       <Row label="ファイルで出し入れ" chevron onClick={v.onSetPage('files')} last />
@@ -209,7 +209,7 @@ function Main({ v, open }) {
     <div style={s(CARD)}>
       <LinkRow href={v.supportHref} label="よくある質問" blank />
       <Row label="使い方をもう一度見る" chevron onClick={v.onReplayGuide} />
-      <LinkRow href={v.contactHref} label="お問い合わせ" />
+      <LinkRow href={v.contactHref} label="お問い合わせ" value={v.contactEmail} />
       <LinkRow href={v.reviewHref} label="App Store でレビューする" blank />
       <Row label="利用規約" chevron onClick={v.onOpenTerms} />
       <Row label="プライバシーポリシー" chevron onClick={v.onOpenPrivacy} />
@@ -311,7 +311,7 @@ function TypesPage({ v }) {
       <AddRow label="種類を追加" onClick={v.onAddTypeRow} />
       {v.newTypeShown && (
         <div style={s('padding:2px 16px 16px;background:var(--bg2)')}>
-          <input value={v.newTypeName} placeholder={v.typeEg || '種類の名前'} onChange={v.onNewTypeName} style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:14px;color:var(--ink);font-family:inherit;margin:12px 0 14px')} />
+          <input value={v.newTypeName} placeholder={v.newTypeEg || '種類の名前'} onChange={v.onNewTypeName} style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:14px;color:var(--ink);font-family:inherit;margin:12px 0 14px')} />
           <div style={s('display:flex;flex-wrap:wrap;gap:12px')}>
             {(v.newTypeSwatches || []).map((sw, i) => (<div key={i} style={s(sw.style)} onClick={sw.onClick} />))}
           </div>
@@ -431,7 +431,7 @@ function BackupPage({ v }) {
   return (<>
     <div style={s(CARD)}>
       <Row label="端末の中の控え" value={v.backupLabel} chevron onClick={v.onOpenBackups} />
-      <Row label="控えをファイルに保存" chevron onClick={v.onExportBackup} />
+      <Row label="控えをファイルに保存" value={v.lastExportLabel} chevron onClick={v.onExportBackup} />
       <Row label="ファイルから戻す" chevron onClick={v.onPickBackup} last />
     </div>
     <div style={s(NOTE)}>毎日1回、自動でとります（7日分）</div>

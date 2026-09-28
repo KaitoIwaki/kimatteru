@@ -1075,7 +1075,7 @@ export default class App extends React.Component {
       const es=this.evScale();
       const st={fontSize:+(10*es).toFixed(1),lineHeight:Math.round(15*es)+'px',height:Math.round(17*es),borderRadius:4,padding:'0 4px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',boxSizing:'border-box',marginBottom:2,cursor:'pointer'};
       return { key:e.id, title:e.title, onClick:()=>this.openFor(e, this.state.screen==='day' ? 'day' : 'month'),
-        style: e.status==='mikakutei' ? {...st, background:this.paperShow(t.paper), color:this.inkDash(t.color), border:'1.3px dashed '+this.softLine(t.color), lineHeight:'13px'}
+        style: e.status==='mikakutei' ? {...st, background:this.paperShow(t.paper), color:this.inkDash(t.color), border:'1.3px dashed '+this.softLine(t.color), lineHeight:(Math.round(15*es)-2)+'px'}
           : {...st, background:this.softFill(t.color), color:this.inkOn(t.color)} }; }) };
   }
   statusWord(ev){
@@ -1993,7 +1993,7 @@ export default class App extends React.Component {
     tapLight();
     const tpls=this.stampTemplates();
     this.setState(s=>({ stamp: s.stamp ? null : (tpls.length ? {key:tpls[0].key, status:'kakutei'} : null),
-      screen: tpls.length ? s.screen : 'settings', typeListOpen:false }));
+      screen: tpls.length ? s.screen : 'settings', setPage: tpls.length ? s.setPage : 'jobs', typeListOpen:false }));
     if(!tpls.length) this.toast('設定の勤務先から「シフトの型」を足すと使えます', 3200);
   }
   stampDay(Y,M,d){
@@ -2382,7 +2382,8 @@ export default class App extends React.Component {
     // iCloud で同期（2台の iPhone）
     v.syncShown = isNative();
     v.sync = tg(cfg.sync); v.onSync = ()=>this.toggleSync();
-    v.syncSub = cfg.sync ? (cfg.lastSyncAt ? `最後に合わせた時刻：${new Date(cfg.lastSyncAt).getHours()}:${String(new Date(cfg.lastSyncAt).getMinutes()).padStart(2,'0')}` : '合わせています…') : '本人の iCloud だけを使います。開発者は中身を見られません。アカウント登録もいりません';
+    v.syncSub = cfg.sync ? (cfg.lastSyncAt ? `最後に合わせた時刻 ${new Date(cfg.lastSyncAt).getHours()}:${String(new Date(cfg.lastSyncAt).getMinutes()).padStart(2,'0')}` : '合わせています…') : '';
+    v.lastExportLabel = cfg.lastExportAt ? d0(cfg.lastExportAt) : '';
 
     // ---- 安全 ----
     v.lockAvailable = !!this._lockAvailable;
@@ -2409,6 +2410,8 @@ export default class App extends React.Component {
   }
   renderVals(){
     const st=this.state, wageOn=st.wageOn && this.wageFeatureOn();
+    // 月の見出しの詰め方の既定（途中で返す道があっても v.hd が必ずあるように。最後に幅から選び直す）
+    const HD0 = { arrowW:38, monthPx:28, yearPx:14, showYear:true, todayPad:'6px 11px', iconW:38, pad:'0 16px 10px 12px', padX:28 };
     const stepBtn={width:30,height:30,borderRadius:15,background:'var(--bg2)',color:'var(--ink)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:500,cursor:'pointer',userSelect:'none'};
     // たたんだ行の「›」と値。開くと右に倒れて、値が色づく。
     const chevron=(open)=>({fontSize:15,color:'var(--ink-faint)',flexShrink:0,display:'inline-block',
@@ -2416,7 +2419,7 @@ export default class App extends React.Component {
     const rowVal=(open)=>({fontSize:14.5,fontWeight:open?700:500,color:open?'#1D9E75':'var(--ink-mut)',
       whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',fontVariantNumeric:'tabular-nums'});
     const wl=['日','月','火','水','木','金','土'];
-    const v={
+    const v={ hd:HD0,
       fw:402, fh:874,
       monthShown:st.screen==='month', dayShown:st.screen==='day', newShown:st.screen==='new', detailShown:st.screen==='detail', dialogShown:!!st.dialog&&!st.dialog.phase, celebShown:!!st.dialog&&!!st.dialog.phase, freeShown:st.screen==='free',
       monthLabel:String(st.ym.m+1), year:String(st.ym.y), wageOn, stepBtn,
@@ -2721,7 +2724,7 @@ export default class App extends React.Component {
     // 保存できていないことを黙っていると、いちばん悪い形で気づく——
     // 画面には出ているのに、閉じて開いたら消えている。必ず出す。
     v.saveFailedShown = !!st.saveFailed;
-    v.onSaveFailedTap = ()=>this.setState({screen:'settings', pasteOpen:false});
+    v.onSaveFailedTap = ()=>this.setState({screen:'settings', setPage:'backup', pasteOpen:false});
     // ファイルから戻したときは、黙っていると「勝手に戻った」と見える
     v.recoveredShown = !!st.recovered;
     v.recoveredText = `保存されていた${st.recovered}件の予定を戻しました`;
@@ -4336,7 +4339,7 @@ export default class App extends React.Component {
 
     v.rowRemindOpen = dr.picking==='remind';
     v.onTapRemindRow = openRow('remind');
-    v.remindValue = (typeof dr.remindMin==='number') ? this.remindLabel(dr.remindMin, dr.allDay) : 'なし';
+    v.remindValue = st.settings.notifyOff ? '通知はオフ' : (typeof dr.remindMin==='number') ? this.remindLabel(dr.remindMin, dr.allDay) : 'なし';
     v.chevRemind = chevron(v.rowRemindOpen); v.valRemind = rowVal(v.rowRemindOpen);
     v.chevDate = chevron(v.dateOpen);
     v.dateValStyle = rowVal(v.dateOpen);
@@ -4455,7 +4458,7 @@ export default class App extends React.Component {
       v.dTimeText = ev.allDay ? (evSpan(ev)>1 ? this.spanLabel(ev)+'　終日' : '終日') : ev.start+'–'+endShown;
       v.dSpanText = evSpan(ev)>1 ? evSpan(ev)+'日間' : '';
       const drm = typeof ev.remindMin==='number' ? ev.remindMin : null;
-      v.dRemindText = drm===null ? '' : this.remindLabel(drm, ev.allDay)+'にお知らせ';
+      v.dRemindText = (drm===null || st.settings.notifyOff) ? '' : this.remindLabel(drm, ev.allDay)+'にお知らせ';
       // 場所は地図で開けるようにする。地図アプリを持っていなくても
       // ブラウザの Google マップに落ちるので、リンク1本で済む。
       v.dPlace = (ev.place||'').trim();
@@ -4799,8 +4802,9 @@ export default class App extends React.Component {
     // 前は左上の「←」を押すしかなく、大きい iPhone では親指が届かなかった
     { const back={ day:v.onDayBack, detail:v.onBack, new:v.onCancel, list:v.onListBack, notices:v.onNoticesBack,
         import:v.onImportBack, doc:v.onDocBack, card:v.onCardBack, summary:v.onSummaryClose, share:v.onShareClose,
-        settings: st.setPage ? ()=>this.setState({setPage:null, editTypeKey:null, editJobId:null, typeDelete:null}) : undefined }[st.screen];
-      const blocked = !!(st.dialog || st.confirmDelete || st.confirmRestore || st.ymSheet || st.discardAsk || st.repEditAsk || st.somedayPick);
+        settings: st.setPage ? ()=>this.setState({setPage:null, editTypeKey:null, editJobId:null, typeDelete:null, newType:null}) : undefined }[st.screen];
+      const blocked = !!(st.dialog || st.confirmDelete || st.confirmRestore || st.ymSheet || st.discardAsk || st.repEditAsk || st.somedayPick
+        || st.confirmJob || st.tplNew || st.backupListOpen || st.trashOpen || st.profileSheet);
       v.onEdgeStart = (e)=>{ const t=e.touches&&e.touches[0]; if(!t || !back || blocked) { this._edge=null; return; }
         const box=e.currentTarget.getBoundingClientRect(); const x=t.clientX-box.left;
         this._edge = x<22 ? {x:t.clientX, y:t.clientY} : null; };
