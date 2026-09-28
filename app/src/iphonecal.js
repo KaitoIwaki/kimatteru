@@ -44,7 +44,9 @@ export function toAppShape(e) {
   if (isNaN(sd.getTime())) return null;
   const base = { y: sd.getFullYear(), m: sd.getMonth(), day: sd.getDate() };
   const spanDays = dayNo(ed.getFullYear(), ed.getMonth(), ed.getDate()) - dayNo(base.y, base.m, base.day);
-  if (e.isAllDay) {
+  // 読み出しでは allDay という名前で来る（書き込みは isAllDay）。前は isAllDay だけを見ていて、1日の終日の予定が 0:00–23:59 の時刻の予定になっていた
+  const allDay = e.allDay != null ? e.allDay : e.isAllDay;
+  if (allDay) {
     // 終日の終わりは「次の日の0時」で来ることが多い。その日は含めない
     const endIncl = (ed.getHours() === 0 && ed.getMinutes() === 0 && spanDays > 0) ? spanDays : spanDays + 1;
     return { ...base, start: '00:00', end: '23:59', allDay: true, days: Math.max(1, Math.min(60, endIncl)) };
@@ -127,19 +129,30 @@ export async function syncExport(events, calId, map, hideAll) {
   }
   // 消す：もう決まっていない・消えた予定
   for (const id of Object.keys(out)) {
-    if (want.has(id)) continue;
+    // '#id' は書いた中身の控え（署名）。予定の番号ではないので、ここでは消さない
+    if (id.startsWith('#') || want.has(id)) continue;
     try { await CapacitorCalendar.deleteEvent({ id: out[id] }); } catch (e) { /* もう無い */ }
     delete out[id];
+    delete out['#' + id];
   }
   // 作る・直す
   for (const [id, ev] of want) {
+    const hidden = !!(ev.secret || hideAll);
     const body = {
-      title: (ev.secret || hideAll) ? '予定' : (ev.title || '予定'),
-      calendarId: calId, location: (ev.secret || hideAll) ? undefined : (ev.place || undefined),
-      description: 'LUKKO から', url: ev.link || undefined, ...toTimes(ev),
+      title: hidden ? '予定' : (ev.title || '予定'),
+      // 空の文字は「場所を消す」として届く。undefined だと送られず、隠したあとも前の場所が残っていた
+      calendarId: calId, location: hidden ? '' : (ev.place || ''),
+      description: 'LUKKO から', url: (!hidden && ev.link) || undefined, ...toTimes(ev),
     };
     const sig = JSON.stringify(body);
     if (out[id] && out['#' + id] === sig) continue;
+    // リンクは直す（modifyEvent）では消せない。前はリンクがあって今は無いときは、消して作り直す
+    let prevUrl = false;
+    try { prevUrl = !!(out['#' + id] && JSON.parse(out['#' + id]).url); } catch (e) { prevUrl = true; }
+    if (out[id] && prevUrl && !body.url) {
+      try { await CapacitorCalendar.deleteEvent({ id: out[id] }); } catch (e) { /* もう無い */ }
+      delete out[id];
+    }
     try {
       if (out[id]) await CapacitorCalendar.modifyEvent({ id: out[id], ...body });
       else { const r = await CapacitorCalendar.createEvent({ ...body, commit: true }); if (r && r.id) out[id] = String(r.id); }

@@ -362,6 +362,13 @@ const sanitizeTrash = (list, now = Date.now()) => (Array.isArray(list) ? list.fi
   (x) => x && typeof x === 'object' && x.ev && typeof x.ev === 'object' && isNum(x.at) && now - x.at < TRASH_DAYS * 86400000
 ).slice(0, 400) : []);
 
+// 消した印（iCloud 同期のため）。予定以外（棚・勤務先・種類）と、棚へ移した予定は「最近消した予定」に入らない。
+// 印が無いと、もう1台がまだ持っているものを送り返してきて、消したはずのものが戻っていた。[[id, 消した時刻], …]
+const sanitizeGone = (list, now = Date.now()) => (Array.isArray(list) ? list.filter(
+  (x) => Array.isArray(x) && typeof x[0] === 'string' && isNum(x[1]) && now - x[1] < TRASH_DAYS * 86400000
+).slice(0, 800) : []);
+const goneAdd = (s, ids) => [...ids.filter(Boolean).map((id) => [id, Date.now()]), ...(s.gone || [])].slice(0, 800);
+
 // 日にちをまだ決めていない予定。「今週のどこか」「今月のどこか」「来月あたり」「いつか」
 const SOMEDAY_WHEN = ['week', 'month', 'next', 'someday'];
 const SOMEDAY_LABEL = { week: '今週のどこか', month: '今月のどこか', next: '来月あたり', someday: 'いつか' };
@@ -441,6 +448,7 @@ export default class App extends React.Component {
           supports: sanitizeSupports(saved.supports),
           trash: sanitizeTrash(saved.trash),
           someday: sanitizeSomeday(saved.someday),
+          gone: sanitizeGone(saved.gone),
         };
       }
     } catch (e) {
@@ -477,7 +485,7 @@ export default class App extends React.Component {
     swipe:{ dx:0, animating:false },
     swipeRow:null, // 一覧で左へ開いている行 {id,dx,animating}
     notices:[], lastSeenVersion:null, noticeOpen:null,
-    trash:[], someday:[],
+    trash:[], someday:[], gone:[],
     // バイト先。名前と時給を持つ。予定に紐づけると、その時給で計算する。
     jobs:[], editJobId:null, newJob:null, supports:[],
     ym: thisMonth(),      // カレンダーで表示している月
@@ -967,7 +975,7 @@ export default class App extends React.Component {
   }
   pillText(ev, wageOn){
     if(ev.status==='mikakutei') return '？'+ev.title;
-    if(ev.status==='jisseki') return wageOn ? this.fmtWage(this.wage(ev)) : '✓'+ev.title;
+    if(ev.status==='jisseki') return wageOn && ev.type==='baito' ? this.fmtWage(this.wage(ev)) : '✓'+ev.title;
     return ev.title;
   }
   // マスが狭いので、印（？ ✓）と予定の名前を分けて描く。
@@ -984,7 +992,7 @@ export default class App extends React.Component {
     if(ev.overlay) return { mark:'', body:hh+ev.title };
     // 点線の頭の「仮」は設定で出す（月表示の帯では、点線の枠そのものが「まだ」を言っているので、ふだんは付けない）
     if(ev.status==='mikakutei') return { mark: compact ? (cfg.kariMark ? '仮' : '') : '？', body:hh+ev.title };
-    if(ev.status==='jisseki') return wageOn ? { mark:'', body:this.fmtWage(this.wage(ev)) } : { mark:'✓', body:hh+ev.title };
+    if(ev.status==='jisseki') return wageOn && ev.type==='baito' ? { mark:'', body:this.fmtWage(this.wage(ev)) } : { mark:'✓', body:hh+ev.title };
     return { mark:'', body:hh+ev.title };
   }
   markStyleFor(ev){
@@ -1420,17 +1428,27 @@ export default class App extends React.Component {
     setTimeout(()=>{ settleSuccess(); this.setState(s=>({onboard:{...s.onboard, demo:'done'}})); }, 430);
   }
   onboardResetDemo(){ this.setState(s=>({onboard:{...s.onboard, demo:'dash'}})); }
-  onboardNext(){ tapLight(); this.setState(s=>({onboard:{...s.onboard, step:s.onboard.step+1, fast:false}})); }
-  onboardBack(){ this.setState(s=>({onboard:{...s.onboard, step:Math.max(0,s.onboard.step-1), fast:false}})); }
+  // ページを進める押し下げは、外側の「押すと速くなる」まで届く（子→親の順）。
+  // 同じ押し下げで fast:true が後から入り、次のページが速送りで始まっていた。印を立てて、外側で見送る
+  _obStepTap(){ this._obStepping=true; setTimeout(()=>{ this._obStepping=false; }, 0); }
+  onboardNext(){ tapLight(); this._obStepTap(); this.setState(s=>({onboard:{...s.onboard, step:s.onboard.step+1, fast:false}})); }
+  onboardBack(){ this._obStepTap(); this.setState(s=>({onboard:{...s.onboard, step:Math.max(0,s.onboard.step-1), fast:false}})); }
   /**
    * 最初に1問だけ聞く：ふだんの予定に近いのは？
    * 開いてすぐ「用事・バイト・遊び」と「カフェバイト」が並ぶと、社会人はそこで閉じてしまう。
    * 答えで、種類・呼び名・見本・給料の出し方・空き状況の時間帯・週のはじまりを決める。
    */
   onboardPick(key){
-    tapLight();
-    this.setState(s=>{ const r=this.applyProfile(key, s); if(!r) return null;
-      return { ...r, onboard:{...s.onboard, step:1, picked:key, demo:'dash', fast:false} }; });
+    tapLight(); this._obStepTap();
+    this.setState(s=>{
+      const next={...s.onboard, step:1, picked:key, demo:'dash', fast:false};
+      // 設定から「使い方をもう一度見る」ときは、見直したいだけ。同じ答えなら何も変えずに進む。
+      // 違う答えでも、自分で直した週のはじまり・勤務時間・空き状況の時間帯・仮の印は残す
+      if(s.onboard.replay && key===s.settings.profile) return { onboard:next };
+      const r=this.applyProfile(key, s); if(!r) return null;
+      if(s.onboard.replay) return { ...r, onboard:next, settings:{...r.settings, weekStart:s.settings.weekStart, workHours:s.settings.workHours,
+        freeWd:s.settings.freeWd, freeHd:s.settings.freeHd, kariMark:s.settings.kariMark} };
+      return { ...r, onboard:next }; });
   }
   finishOnboard(goImport){
     stampHeavy();
@@ -1472,7 +1490,7 @@ export default class App extends React.Component {
     // 消したバイト先の記録は、名前と時給を予定に書き込んで残す。
     // 前は設定の時給（1,120円）で数え直されて、過去の給料が変わっていた
     const job=this.state.jobs.find(j=>j.id===id);
-    this.setState(s=>({ jobs:s.jobs.filter(j=>j.id!==id), editJobId:null, confirmJob:null,
+    this.setState(s=>({ jobs:s.jobs.filter(j=>j.id!==id), editJobId:null, confirmJob:null, gone:goneAdd(s,['job:'+id]),
       events:s.events.map(e=>{
         if(e.jobId!==id) return e;
         const keep = e.status==='jisseki'
@@ -1655,11 +1673,17 @@ export default class App extends React.Component {
   // 最近消した予定から戻す
   restoreTrash(ids, quiet){
     const want=new Set(ids);
-    const back=(this.state.trash||[]).filter(x=>want.has(x.ev.id)).map(x=>x.ev);
-    const evs=sanitizeEvents(back);
-    this.setState(s=>({ events:[...s.events.filter(e=>!want.has(e.id)), ...evs],
-      trash:(s.trash||[]).filter(x=>!want.has(x.ev.id)) }));
-    if(!quiet) this.toast(`${evs.length}件を戻しました`);
+    const hit=(this.state.trash||[]).filter(x=>want.has(x.ev.id));
+    // 棚（日にち未定）から消したものは、日付を持たない。棚へ戻す
+    const shelf=hit.filter(x=>x.someday).map(x=>({...x.someday, at:Date.now()}));
+    // 戻した時刻を付け直す。古い時刻のままだと、iCloud に残っている「消した」印に負けて、また消える
+    const now=Date.now();
+    const evs=sanitizeEvents(hit.filter(x=>!x.someday).map(x=>x.ev)).map(e=>({...e, updatedAt:now}));
+    const kept=new Set([...evs.map(e=>e.id), ...shelf.map(x=>x.ev && x.ev.id)]);
+    this.setState(s=>({ events:[...s.events.filter(e=>!kept.has(e.id)), ...evs],
+      someday: shelf.length ? [...shelf, ...(s.someday||[]).filter(x=>!shelf.some(y=>y.id===x.id))] : s.someday,
+      trash:(s.trash||[]).filter(x=>!kept.has(x.ev.id)) }));
+    if(!quiet) this.toast(`${evs.length+shelf.length}件を戻しました`);
   }
   openDialog(ev,mode,ret){
     // 実績を記録し直すときは、記録済みの終了時刻から始める
@@ -1742,7 +1766,7 @@ export default class App extends React.Component {
     const t=this.state.today;
     const item={ id:uid('s'), when, title:ev0.title, type:ev0.type, y:t.y, m:t.m, day:t.d, at:Date.now(),
       ev:{...ev0, status:'mikakutei'} };
-    this.setState(s=>({ events:s.events.filter(e=>e.id!==id), someday:[item, ...(s.someday||[])],
+    this.setState(s=>({ events:s.events.filter(e=>e.id!==id), someday:[item, ...(s.someday||[])], gone:goneAdd(s,[id]),
       dialog:null, detailId: s.detailId===id ? null : s.detailId, screen: s.detailId===id ? 'month' : s.screen }));
     this.toast(`「${ev0.title}」を「${SOMEDAY_LABEL[when]}」に置きました`);
   }
@@ -1753,14 +1777,14 @@ export default class App extends React.Component {
     const base = it.ev || { id:uid('n'), type:it.type, title:it.title, start:this.defTimes(it.type).start, end:this.defTimes(it.type).end, allDay:false };
     const ev={...base, y, m, day:d, status:'mikakutei', updatedAt:Date.now()};
     if(!ev.id) ev.id=uid('n');
-    this.setState(s=>({ someday:(s.someday||[]).filter(x=>x.id!==sid), events:[...s.events, ev], somedayPick:null, ym:{y,m} }));
+    this.setState(s=>({ someday:(s.someday||[]).filter(x=>x.id!==sid), events:[...s.events, ev], somedayPick:null, ym:{y,m}, gone:goneAdd(s,[sid]) }));
     this.toast(`${m+1}月${d}日に置きました`);
   }
   dropSomeday(sid){
     const it=(this.state.someday||[]).find(x=>x.id===sid); if(!it) return;
     tapLight();
-    this.setState(s=>({ someday:(s.someday||[]).filter(x=>x.id!==sid),
-      trash: it.ev ? [{ev:it.ev, at:Date.now()}, ...(s.trash||[])].slice(0,400) : s.trash }));
+    this.setState(s=>({ someday:(s.someday||[]).filter(x=>x.id!==sid), gone:goneAdd(s,[sid]),
+      trash: it.ev ? [{ev:it.ev, someday:it, at:Date.now()}, ...(s.trash||[])].slice(0,400) : s.trash }));
   }
   // 候補日のうち1つが決まったとき、残りの候補を「無くなった」にする
   settleCandidates(yes){
@@ -1960,7 +1984,7 @@ export default class App extends React.Component {
   // 前は1件ずつ作成画面を開くか、コピーで置くしかなかった。勤務表を写すのに1か月で20回以上かかった
   stampTemplates(){
     const out=[];
-    for(const j of (this.state.jobs||[])) if(!j.retired) (j.templates||[]).forEach((t,i)=>out.push({...t, jobId:j.id, idx:i, key:j.id+':'+i, jobName:j.name}));
+    for(const j of (this.state.jobs||[])) if(!j.retired) (j.templates||[]).forEach((t,i)=>out.push({...t, jobId:j.id, idx:i, key:j.id+':'+(t.id!=null ? t.id : i), jobName:j.name}));
     return out;
   }
   toggleStamp(){
@@ -1975,8 +1999,14 @@ export default class App extends React.Component {
     const t=this.stampTemplates().find(x=>x.key===sp.key); if(!t) return;
     tapLight();
     const same=this.state.events.find(e=>e.stampKey===t.key && e.y===Y && e.m===M && e.day===d && e.status!=='nakunatta');
-    // 同じ型がもう置いてあれば外す（押し間違いをその場で直せるように）
-    if(same){ this.setState(s=>({events:s.events.filter(e=>e.id!==same.id)})); return; }
+    // 同じ型がもう置いてあれば外す（押し間違いをその場で直せるように）。
+    // 働いた記録（給料の元）は押し間違いで消さない。外したものは「最近消した予定」に入れて、取り消しも出す
+    if(same){
+      if(same.status==='jisseki'){ this.toast('働いた記録は、シフト入力では外せません'); return; }
+      this.setState(s=>({events:s.events.filter(e=>e.id!==same.id), trash:[{ev:same, at:Date.now()}, ...(s.trash||[])].slice(0,400)}));
+      this.showUndo(`${M+1}/${d}の「${same.title}」を外しました`, {kind:'del', ids:[same.id]});
+      return;
+    }
     const hasOff = this.state.types.some(x=>x.key==='off');
     const type = t.allDay ? 'off' : 'baito';
     const ev={ id:uid('t'), type, title:t.name || (t.allDay ? '休み' : (t.jobName||'勤務')), y:Y, m:M, day:d,
@@ -2028,7 +2058,7 @@ export default class App extends React.Component {
     const to=this.state.types.find(t=>t.key===moveTo && t.key!==key);
     if(!to) return;
     stampHeavy();
-    this.setState(s=>({ types:s.types.filter(t=>t.key!==key), editTypeKey:null, typeDelete:null,
+    this.setState(s=>({ types:s.types.filter(t=>t.key!==key), editTypeKey:null, typeDelete:null, gone:goneAdd(s,['type:'+key]),
       events:s.events.map(e=>e.type===key?{...e, type:moveTo, updatedAt:Date.now()}:e) }));
     this.toast(`予定を「${to.name}」へ移して、種類を消しました`);
   }
@@ -2243,7 +2273,9 @@ export default class App extends React.Component {
       onCloseDay:(e)=>this.patchJob(j.id,{closeDay:Number(e.target.value)||undefined}),
       onPayDay:(e)=>this.patchJob(j.id,{payDay:Number(e.target.value)||undefined}),
       templates:(j.templates||[]).map((t,k)=>({ key:k, sym:t.sym, text:`${t.sym}　${t.name||''} ${t.allDay?'（休み）':this.fmtMin(t.from)+'–'+this.fmtMin(t.to)}`,
-        onRemove:()=>{ tapLight(); this.patchJob(j.id,{templates:(j.templates||[]).filter((_,x)=>x!==k)}); } })),
+        onRemove:()=>{ tapLight();
+          // 消す前に、残る型へ今の番号を名前として持たせる。番号が詰まると、置いてあるシフトが別の型のものに化ける
+          this.patchJob(j.id,{templates:(j.templates||[]).map((t,x)=>t.id!=null ? t : {...t, id:String(x)}).filter((_,x)=>x!==k)}); } })),
       onAddTemplate:()=>{ tapLight(); this.setState({tplNew:{jobId:j.id, sym:'', name:'', from:510, to:1050, brk:60, allDay:false}}); },
       usedCount: st.events.filter(e=>e.jobId===j.id).length,
     }));
@@ -2271,7 +2303,7 @@ export default class App extends React.Component {
       v.onTplBrk=(e)=>up('brk', Number(e.target.value)); v.onTplAllDay=()=>up('allDay', !t.allDay);
       v.brkOpts=[0,15,30,45,60,90,120].map(m=>({value:m,label:m?m+'分':'なし'}));
       v.onTplSave=()=>{ const sym=(t.sym||'').trim(); if(!sym) return; tapLight();
-        this.setState(s=>({ tplNew:null, jobs:s.jobs.map(j=>j.id===t.jobId?{...j, templates:[...(j.templates||[]), {sym, name:(t.name||'').trim(), from:t.from, to:t.to, brk:t.brk, allDay:!!t.allDay}]}:j) })); };
+        this.setState(s=>({ tplNew:null, jobs:s.jobs.map(j=>j.id===t.jobId?{...j, templates:[...(j.templates||[]), {id:uid('p'), sym, name:(t.name||'').trim(), from:t.from, to:t.to, brk:t.brk, allDay:!!t.allDay}]}:j) })); };
       v.onTplCancel=()=>this.setState({tplNew:null});
     }
     // 有給
@@ -2302,7 +2334,7 @@ export default class App extends React.Component {
     v.onOpenTrash = ()=>{ tapLight(); this.setState({trashOpen:true}); };
     v.trashShown = !!st.trashOpen;
     if(st.trashOpen){
-      v.trashRows = tr.slice(0,100).map(x=>({ key:x.ev.id, title:x.ev.title, when:`${x.ev.m+1}/${x.ev.day}`, gone:`${d0(x.at)}に削除`,
+      v.trashRows = tr.slice(0,100).map(x=>({ key:x.ev.id, title:x.ev.title, when: x.someday ? "日にち未定" : `${x.ev.m+1}/${x.ev.day}`, gone:`${d0(x.at)}に削除`,
         onRestore:()=>{ tapLight(); this.restoreTrash([x.ev.id]); } }));
       v.onCloseTrash = ()=>this.setState({trashOpen:false});
     }
@@ -2330,7 +2362,7 @@ export default class App extends React.Component {
     v.lockLabel = this._lockLabel || 'Face ID';
 
     // ---- このアプリについて ----
-    v.onReplayGuide = ()=>{ tapLight(); this.setState(s=>({settings:{...s.settings, onboarded:false}, onboard:{step:0, demo:'dash', picked:this.profile()}})); };
+    v.onReplayGuide = ()=>{ tapLight(); this.setState(s=>({settings:{...s.settings, onboarded:false}, onboard:{step:0, demo:'dash', picked:this.profile(), replay:true}})); };
     v.supportHref = 'https://kaitoiwaki.github.io/kimatteru/legal/support.html';
     v.appVersionLabel = `${APP_MARKETING}（${v.appVersion}）`;
   }
@@ -2497,7 +2529,7 @@ export default class App extends React.Component {
       v.onObSkip = ()=>this.finishOnboard(false);
       // 画面を押したら、演出を飛ばして全部出す
       v.obFast = !!ob.fast;
-      v.onObFast = ()=>{ if(!this.state.onboard.fast) this.setState(s=>({onboard:{...s.onboard, fast:true}})); };
+      v.onObFast = ()=>{ if(this._obStepping) return; if(!this.state.onboard.fast) this.setState(s=>({onboard:{...s.onboard, fast:true}})); };
       // 0枚目：使い方の1問
       v.obQLine1 = ((t)=>t.split('').map((ch,i)=>({ch, style:{display:'inline-block', animation:`inkRise .5s cubic-bezier(.2,.7,.25,1) ${(0.15+i*0.05).toFixed(2)}s both`}})))('ふだんの予定に');
       v.obQLine2 = ((t)=>t.split('').map((ch,i)=>({ch, style:{display:'inline-block', animation:`inkRise .5s cubic-bezier(.2,.7,.25,1) ${(0.55+i*0.05).toFixed(2)}s both`}})))('近いのは？');
@@ -3182,7 +3214,7 @@ export default class App extends React.Component {
       const Y=st.ym.y, M=st.ym.m;
       const isYear = st.cardKind==='year';
       v.cardIsYear = isYear;
-      const done = st.events.filter(e=>e.status==='jisseki' && e.y===Y && (isYear || e.m===M));
+      const done = st.events.filter(e=>e.status==='jisseki' && e.type==='baito' && e.y===Y && (isYear || e.m===M));
       const wageSum = Math.round(done.reduce((a,e)=>a+this.wage(e),0));
       const hourSum = done.reduce((a,e)=>a+this.paidHours(e),0);
       v.cardTitle = isYear ? '今年のまとめ' : '今月のまとめ';
@@ -3259,7 +3291,7 @@ export default class App extends React.Component {
       }));
 
       // ---- 給料。バイトの実績がその年に1件でもあるときだけ。無い人には金の話は要らない ----
-      const doneAll = st.events.filter(e=>e.status==='jisseki' && !e.noReport);
+      const doneAll = st.events.filter(e=>e.status==='jisseki' && e.type==='baito' && !e.noReport);
       v.repWageShown = doneAll.some(e=>e.y===Y && e.type==='baito');
       const sum=(list)=>{
         const hours=list.reduce((a,e)=>a+this.paidHours(e),0);
@@ -3312,8 +3344,8 @@ export default class App extends React.Component {
         const list=st.events.filter(e=>e.jobId===j.id && e.status==='jisseki' && evFrom(e)>=a && evFrom(e)<=b);
         const wage=Math.round(list.reduce((x,e)=>x+this.wage(e),0));
         let head=`${endD.getMonth()+1}/${endD.getDate()}締め`;
-        if(p){ const payM = (p>c && c<31) ? endD.getMonth() : endD.getMonth()+1; const pd=new Date(endD.getFullYear(), payM, p>=31 ? 0 : p);
-          if(p>=31) pd.setMonth(pd.getMonth()+1, 0);
+        if(p){ const payM = (p>c && c<31) ? endD.getMonth() : endD.getMonth()+1; // 月末払い（31）は payM の月の末日。day 0 は前の月の末日になるので、1つ先の月の 0 日で取る
+          const pd = p>=31 ? new Date(endD.getFullYear(), payM+1, 0) : new Date(endD.getFullYear(), payM, p);
           head=`${pd.getMonth()+1}月${pd.getDate()}日に入る分`; }
         return { name:j.name||'（名前なし）', head, range:`${startD.getMonth()+1}/${startD.getDate()}〜${endD.getMonth()+1}/${endD.getDate()}`, wage:this.fmtWage(wage), times:list.length };
       });
@@ -4412,7 +4444,7 @@ export default class App extends React.Component {
       if(ev.candId){ const g=st.events.filter(e=>e.candId===ev.candId).sort((a,b)=>evFrom(a)-evFrom(b)); v.dCandText=`候補 ${g.findIndex(e=>e.id===ev.id)+1}/${g.length}`; } else v.dCandText='';
       v.dTimeChanged = ev.status==='jisseki' && ev.actualEnd && ev.actualEnd!==ev.end;
       v.dWantText = ev.want ? '希望 '+ev.want[0]+'–'+ev.want[1] : (v.dTimeChanged?'予定 '+ev.start+'–'+ev.end:'');
-      v.dWageShown = ev.status==='jisseki';
+      v.dWageShown = ev.status==='jisseki' && ev.type==='baito';
       if(v.dWageShown){ v.dWorkHours=this.fmtHours(this.paidHours(ev)); v.dWage=this.fmtWage(this.wage(ev));
         v.dBreakText = this.breakMin(ev) ? '休憩 '+this.breakMin(ev)+'分を引いています' : ''; }
       const primary=(label,fn)=>{ v.dPrimaryLabel=label; v.dPrimaryAction=fn;
@@ -5249,7 +5281,7 @@ export default class App extends React.Component {
     const st = this.state;
     const Y = st.ym.y, M = st.ym.m;
     if (kind === 'year') {
-      const yr = st.events.filter((e) => e.y === Y && e.status === 'jisseki');
+      const yr = st.events.filter((e) => e.y === Y && e.status === 'jisseki' && e.type === 'baito');
       const prior = this.priorFor(Y);
       return drawYearCard({
         year: `${Y}年`,
@@ -5264,7 +5296,7 @@ export default class App extends React.Component {
     // 今月。稼いだ額・時間と日数・バイト先ごとの内訳だけ。
     // 「果たした約束」と「流れた予定」はやめた——前者は遊びの予定を確定にした
     // 数でしかなく、約束を果たしたかどうかは誰も記録していない。
-    const jis = st.events.filter((e) => e.y === Y && e.m === M && e.status === 'jisseki');
+    const jis = st.events.filter((e) => e.y === Y && e.m === M && e.status === 'jisseki' && e.type === 'baito');
     return drawMonthCard({
       yearMonth: `${Y}年 ${M + 1}月`,
       wage: this.splitWage(Math.round(jis.reduce((a, e) => a + this.wage(e), 0))),
@@ -5359,6 +5391,7 @@ export default class App extends React.Component {
       supports: sanitizeSupports(saved.supports),
       trash: sanitizeTrash(saved.trash),
       someday: sanitizeSomeday(saved.someday),
+      gone: sanitizeGone(saved.gone),
       recovered: why.recovered ? events.length : s.recovered,
     }));
     if (why.newer) this.toast('新しいほうの保存から開きました（古いほうは控えに残しました）', 4200);

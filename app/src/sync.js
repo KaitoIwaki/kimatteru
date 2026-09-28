@@ -79,8 +79,8 @@ export function packForSync(state) {
     types: state.types || [],
     jobs: state.jobs || [],
     someday: state.someday || [],
-    // 墓標：消した予定の id と、消した時刻
-    tomb: (state.trash || []).map((x) => [x.ev && x.ev.id, x.at]).filter((x) => x[0]),
+    // 墓標：消した予定の id と、消した時刻。棚・勤務先（job:id）・種類（type:key）と、棚へ移した予定の印（gone）も
+    tomb: [...(state.trash || []).map((x) => [x.ev && x.ev.id, x.at]), ...(state.gone || [])].filter((x) => x && x[0]),
   };
 }
 
@@ -91,7 +91,7 @@ export function packForSync(state) {
 export function mergeSync(local, remote) {
   if (!remote || !Array.isArray(remote.events)) return null;
   const tomb = new Map();
-  for (const [id, at] of [...(remote.tomb || []), ...((local.trash || []).map((x) => [x.ev && x.ev.id, x.at]))]) {
+  for (const [id, at] of [...(remote.tomb || []), ...((local.trash || []).map((x) => [x.ev && x.ev.id, x.at])), ...(local.gone || [])]) {
     if (!id) continue;
     tomb.set(id, Math.max(tomb.get(id) || 0, at || 0));
   }
@@ -115,12 +115,24 @@ export function mergeSync(local, remote) {
     const cur = byId.get(id);
     if (cur && (cur.updatedAt || 0) <= at && !(local.trash || []).some((x) => x.ev && x.ev.id === id)) { byId.delete(id); changed = true; }
   }
-  const types = [...(local.types || [])];
-  for (const t of remote.types || []) if (t && !types.some((x) => x.key === t.key)) { types.push(t); changed = true; }
-  const jobs = [...(local.jobs || [])];
-  for (const j of remote.jobs || []) if (j && !jobs.some((x) => x.id === j.id)) { jobs.push(j); changed = true; }
-  const someday = [...(local.someday || [])];
-  for (const x of remote.someday || []) if (x && !someday.some((y) => y.id === x.id) && !tomb.has(x.id)) { someday.push(x); changed = true; }
+  // 棚・勤務先・種類：消した印があるものは、どちらの端末にあっても消す（送り返さない）
+  const keep = (list, idOf, at) => {
+    const out = (list || []).filter((x) => { const t = tomb.get(idOf(x)); return !(t && t >= at(x)); });
+    if (out.length !== (list || []).length) changed = true;
+    return out;
+  };
+  const types = keep(local.types, (t) => 'type:' + t.key, () => 0);
+  for (const t of remote.types || []) if (t && !types.some((x) => x.key === t.key) && !tomb.has('type:' + t.key)) { types.push(t); changed = true; }
+  const jobs = keep(local.jobs, (j) => 'job:' + j.id, () => 0);
+  for (const j of remote.jobs || []) if (j && !jobs.some((x) => x.id === j.id) && !tomb.has('job:' + j.id)) { jobs.push(j); changed = true; }
+  const shelfAt = (x) => x.at || 0;
+  const someday = keep(local.someday, (x) => x.id, shelfAt);
+  for (const x of remote.someday || []) {
+    if (!x || someday.some((y) => y.id === x.id)) continue;
+    const t = tomb.get(x.id);
+    if (t && t >= shelfAt(x)) continue;
+    someday.push(x); changed = true;
+  }
   if (!changed) return null;
   return { events: [...byId.values()], types, jobs, someday };
 }

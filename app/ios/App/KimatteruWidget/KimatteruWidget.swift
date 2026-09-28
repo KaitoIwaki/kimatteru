@@ -467,7 +467,8 @@ struct MonthGrid: View {
     var numSize: CGFloat = 10
     var colored: Bool = true
 
-    private var rows: Int { max(1, cells.count / 7) }
+    // 中身が無い（アプリをまだ開いていない・読めない）ときは 0 行。max(1, …) にすると空の配列の [0] を読んで落ちる
+    private var rows: Int { cells.count / 7 }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -841,7 +842,8 @@ struct MonthCalendar: View {
     let cells: [MonthCell]
     let hol: Set<Int>
     let weekStart: Int
-    private var rows: Int { max(1, cells.count / 7) }
+    // 中身が無い（アプリをまだ開いていない・読めない）ときは 0 行。max(1, …) にすると空の配列の [0] を読んで落ちる
+    private var rows: Int { cells.count / 7 }
 
     var body: some View {
         VStack(spacing: 0) {

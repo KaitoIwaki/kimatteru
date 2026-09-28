@@ -160,18 +160,26 @@ export async function listImportCalendars() {
  *  gone は、読んだ範囲・読んだカレンダーの中で、元にもう無いもの
  */
 export function diffImport(incoming, existing, range) {
+  // くり返しの予定は、どの回も iPhone の番号（srcId）が同じ。番号 → その番号の予定すべて、で持つ。
+  // 前は番号1つに1件しか持たず、2回目の取り込みで毎週のシフトが1件ずつ別の日へ動いていた
   const bySrc = new Map();
-  for (const e of existing) if (e.srcId) bySrc.set(e.srcId, e);
+  for (const e of existing) if (e.srcId) { if (!bySrc.has(e.srcId)) bySrc.set(e.srcId, []); bySrc.get(e.srcId).push(e); }
+  const inCount = new Map();
+  for (const e of incoming) if (e.srcId) inCount.set(e.srcId, (inCount.get(e.srcId) || 0) + 1);
+  const days = (e) => (e.allDay ? (e.days || 1) : 1);
   const key = (e) => `${e.y}-${e.m}-${e.day}-${e.start}-${e.title}`;
   const seen = new Set(existing.map(key));
   const fresh = [], changed = [];
   const hit = new Set();
   for (const e of incoming) {
-    const cur = e.srcId && bySrc.get(e.srcId);
+    const list = (e.srcId && bySrc.get(e.srcId) || []).filter((x) => !hit.has(x.id));
+    // 同じ日の回を先に。くり返しでない（番号が1件ずつ）ときだけ、日が変わったものも「直った」とみなす
+    const cur = list.find((x) => x.y === e.y && x.m === e.m && x.day === e.day)
+      || (list.length === 1 && bySrc.get(e.srcId).length === 1 && inCount.get(e.srcId) === 1 ? list[0] : null);
     if (cur) {
       hit.add(cur.id);
       const same = cur.y === e.y && cur.m === e.m && cur.day === e.day && cur.start === e.start && cur.end === e.end
-        && cur.title === e.title && (cur.place || '') === (e.place || '') && !!cur.allDay === !!e.allDay;
+        && cur.title === e.title && (cur.place || '') === (e.place || '') && !!cur.allDay === !!e.allDay && days(cur) === days(e);
       if (!same) changed.push({ incoming: e, existing: cur });
       continue;
     }
