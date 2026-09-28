@@ -1,6 +1,7 @@
 import React from 'react';
 import { s } from './style';
 import { Jp } from './jp.jsx';
+import sproutImg from './assets/sprout.png';
 
 // 設定の画面。view.jsx から切り出した（群が増えて、1つのファイルに収まりにくくなったため）。
 // 値はすべて App.jsx の renderVals / _settingsVals が返す v から来る。
@@ -471,42 +472,19 @@ function TipIcon({ kind }) {
   return (<svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 19.5s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.3c0 4.9-7 9.2-7 9.2z" {...st} /></svg>);
 }
 function Sprout() {
-  // 丘は画面の幅いっぱいに、ふちをぼかして地に溶かす（四角く切れて見えないように）
-  return (
-    <svg viewBox="0 0 375 130" preserveAspectRatio="xMidYMax meet" style={{ display: 'block', width: '100%', height: 130 }}>
-      <defs>
-        <linearGradient id="lk-fade" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stopColor="#fff" stopOpacity="0" />
-          <stop offset=".22" stopColor="#fff" stopOpacity="1" />
-          <stop offset=".78" stopColor="#fff" stopOpacity="1" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
-        </linearGradient>
-        <mask id="lk-hill-mask"><rect x="0" y="0" width="375" height="130" fill="url(#lk-fade)" /></mask>
-      </defs>
-      <ellipse cx="187" cy="150" rx="200" ry="44" style={{ fill: 'var(--card)' }} mask="url(#lk-hill-mask)" />
-      <g transform="translate(77 0)">
-        <path d="M110 112c0-18 1-30 6-44" stroke="#6E8F72" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-        <path d="M92 110c8-3 25-3 36 0" stroke="#6E8F72" strokeWidth="2" fill="none" strokeLinecap="round" opacity=".7" />
-        <path d="M113 80c-6-15-24-22-40-17 3 15 20 25 40 17z" fill={SAGE} opacity=".75" />
-        <path d="M113 80c-9-9-22-13-34-14" stroke="#6E8F72" strokeWidth="1.3" fill="none" opacity=".6" />
-        <path d="M117 70c3-19 19-31 37-30-1 19-17 32-37 30z" fill={SAGE} />
-        <path d="M117 70c7-10 18-18 30-24" stroke="#6E8F72" strokeWidth="1.3" fill="none" opacity=".6" />
-        <g stroke="var(--ink-faint)" strokeWidth="2" strokeLinecap="round">
-          <path d="M84 50l-8-7M72 68h-11M142 44l9-8M150 64h11M107 26l-2-8" />
-        </g>
-      </g>
-    </svg>
-  );
+  // イラスト：イラスト緑花（RYOKKA）「双葉（発芽）」 https://illust-ryokka.jp/ （商用・アプリ利用可、クレジット不要、色の変更可）
+  // 葉をカレンダーのセージ色に、土を淡い土色に塗り替え、土の下は地に溶けるように透明にしてある
+  return <img src={sproutImg} alt="" style={{ display: 'block', width: 170, height: 'auto', margin: '0 auto' }} />;
 }
 function SupportPage({ v }) {
   return (<>
     <div style={s('text-align:center;padding:18px 8px 6px')}>
-      <div style={s(`font-family:${ROUND};font-size:21px;font-weight:500;color:var(--ink);line-height:1.6;letter-spacing:.04em`)}>いつも使ってくださって、<br />ありがとうございます。</div>
-      <div style={s(`font-family:${ROUND};font-size:13px;color:var(--ink-mut);line-height:1.9;margin-top:12px;letter-spacing:.04em`)}>あなたの応援が、<br />これからの開発の力になります。</div>
+      <div style={s(`font-family:${ROUND};font-size:21px;font-weight:500;color:var(--ink);line-height:1.6`)}>いつも使ってくださって、<br />ありがとうございます。</div>
+      <div style={s(`font-family:${ROUND};font-size:13px;color:var(--ink-mut);line-height:1.9;margin-top:12px`)}>あなたの応援が、<br />これからの開発の力になります。</div>
     </div>
-    <div style={s('margin:14px -16px 20px')}><Sprout /></div>
+    <div style={s('margin:22px 0 26px')}><Sprout /></div>
 
-    <div style={s(HEAD + `;font-family:${ROUND};color:#5E8A66;font-size:13px`)}>応援する</div>
+    <div style={s(HEAD + `;font-family:${ROUND};color:#5E8A66;font-size:13px;text-align:center;margin:0 0 10px`)}>応援する</div>
     <div style={s('display:flex;flex-direction:column;gap:10px;margin-bottom:28px')}>
       {(v.tipRows || []).map((t, i) => {
         const look = TIP_LOOK[t.id] || { title: t.label, sub: '', icon: 'heart' };
@@ -525,12 +503,12 @@ function SupportPage({ v }) {
       })}
     </div>
 
-    {/* 手書きふうの「いつもありがとう」 */}
-    <div style={s('display:flex;justify-content:center;margin:10px 0 0')}>
-      <div style={s(`font-family:${ROUND};font-size:16px;color:var(--ink-mut);transform:rotate(-8deg);line-height:1.5;text-align:left`)}>
-        <div style={s('margin-left:-6px')}>いつも</div>
-        <div style={s('margin-left:14px')}>ありがとう</div>
-        <svg width="90" height="12" viewBox="0 0 90 12" style={{ display: 'block', marginLeft: 6 }}><path d="M2 10C25 3 55 1 88 4" stroke="var(--ink-faint)" strokeWidth="1.6" fill="none" strokeLinecap="round" /></svg>
+    {/* 手書きふうの「いつもありがとう」。まとまりごと中央に置く */}
+    <div style={s('display:flex;flex-direction:column;align-items:center;margin:10px 0 0')}>
+      <div style={s(`font-family:${ROUND};font-size:16px;color:var(--ink-mut);transform:rotate(-6deg);line-height:1.5;text-align:center`)}>
+        <div>いつも</div>
+        <div>ありがとう</div>
+        <svg width="90" height="12" viewBox="0 0 90 12" style={{ display: 'block', margin: '0 auto' }}><path d="M2 10C25 3 55 1 88 4" stroke="var(--ink-faint)" strokeWidth="1.6" fill="none" strokeLinecap="round" /></svg>
       </div>
     </div>
     <svg viewBox="0 0 375 60" preserveAspectRatio="none" style={{ display: 'block', width: 'calc(100% + 32px)', height: 60, margin: '26px -16px -110px' }}>
@@ -565,9 +543,10 @@ export function Settings({ v }) {
   return (
     <div ref={rootRef} style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
       {Page ? (
-        <div className="scr-head-solo" style={s('padding:0 12px 10px;display:flex;align-items:center;gap:4px')}>
+        <div className="scr-head-solo" style={s('padding:0 12px 10px;display:flex;align-items:center;gap:4px;position:relative')}>
           <span role="button" aria-label="設定へ戻る" style={s('display:flex;align-items:center;gap:2px;font-size:14px;color:var(--ink-mut);cursor:pointer;padding:6px 4px;flex-shrink:0')} onClick={v.onSetBack}><span style={s('font-size:24px;line-height:1')}>‹</span>{page === 'support' ? '' : '設定'}</span>
-          <span style={s('flex:1;text-align:center;font-size:14px;font-weight:600;color:var(--ink);margin-right:52px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis')}>{v.setPageTitle}</span>
+          {/* 題は戻るの幅に関係なく、画面の真ん中に置く */}
+          <span style={s('position:absolute;left:72px;right:72px;bottom:10px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none')}>{v.setPageTitle}</span>
         </div>
       ) : (
         <div className="scr-head-solo" style={s('padding:0 20px 10px')}>
