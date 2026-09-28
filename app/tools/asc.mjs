@@ -16,7 +16,8 @@
 //     node tools/asc.mjs release    ← 審査を通って「リリース待ち」の版を確かめる（読むだけ）
 //     node tools/asc.mjs release go ← その版を App Store に公開する（書き込み。取り消せない）
 //     node tools/asc.mjs shots      ← 6.9 インチのスクショの枠を読む（読むだけ）
-//     node tools/asc.mjs shots go   ← store-assets/sukuji/flat の 6 枚に差し替える（書き込み）
+//     node tools/asc.mjs shots go   ← store-assets/sukuji/flat-work の 7 枚（社会人の1か月）に差し替える（書き込み）
+//     node tools/asc.mjs cpp [go|submit] ← 学生向けのカスタムプロダクトページ（flat の 6 枚）
 //
 // 鍵はここでしか読まない。表示もしないし、Apple 以外へは送らない。
 import crypto from 'node:crypto';
@@ -652,12 +653,19 @@ async function version() {
 // 版が書き換えられる状態でないときは止まる（審査中の版には触らない）。
 // 手順は Apple の決まりどおり：予約（POST appScreenshots）→ 指示された URL へ分割 PUT →
 // 「上げ終えた」と MD5 を PATCH。最後に並び順を PATCH で固定する
-const SHOTS = ['wide-1.png', 'wide-2.png', '3.png', '4.png', '5.png', '6.png'];
+// 1.3 から、いちばん上の店頭は社会人の1か月（sukuji/flat-work/）。7 枚目に「仕事の予定も、外に出ない。」
+// 学生の1か月（sukuji/flat/）は、学生向けのカスタムプロダクトページ（cpp）に回す
+const SHOTS = ['wide-1.png', 'wide-2.png', '3.png', '4.png', '7.png', '5.png', '6.png'];
+const SHOTS_DIR = 'flat-work';
+const CPP_SHOTS = ['wide-1.png', 'wide-2.png', '3.png', '4.png', '5.png', '6.png'];
+const CPP_DIR = 'flat';
+const CPP_NAME = '学生向け';
+const CPP_PROMO = 'バイトのシフトと給料、遊びの候補日。決まっていない予定は点線、決まったら塗り。空いてる日だけを、画像で友だちに送れます。';
 async function shots() {
   const go = process.argv[3] === 'go';
-  const dir = new URL('../../store-assets/sukuji/flat/', import.meta.url);
+  const dir = new URL(`../../store-assets/sukuji/${SHOTS_DIR}/`, import.meta.url);
   const files = SHOTS.map((f) => ({ name: f, path: new URL(f, dir) }));
-  for (const f of files) if (!fs.existsSync(f.path)) throw new Error(`無い: store-assets/sukuji/flat/${f.name}`);
+  for (const f of files) if (!fs.existsSync(f.path)) throw new Error(`無い: store-assets/sukuji/${SHOTS_DIR}/${f.name}`);
 
   const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
   const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
@@ -678,6 +686,12 @@ async function shots() {
       relationships: { appStoreVersionLocalization: { data: { type: 'appStoreVersionLocalizations', id: vl.id } } } } })).data;
     console.log('6.9 インチの枠を作った');
   }
+  await uploadInto(set, files);
+  console.log('App Store Connect で保存は不要（API で入れたものはそのまま残る）。提出は submit で。');
+}
+
+// 枠（appScreenshotSet）の中身を、files に差し替える。いまの店頭にも、カスタムプロダクトページにも使う
+async function uploadInto(set, files) {
   // 今あるものを消す
   const old = (await get(`/v1/appScreenshotSets/${set.id}/appScreenshots`)).data;
   for (const o of old) { await call(`/v1/appScreenshots/${o.id}`, 'DELETE'); console.log(`  消した ${o.attributes.fileName}`); }
@@ -703,7 +717,63 @@ async function shots() {
   // 受け取りの状態（すぐには COMPLETE にならない。しばらくして status で見る）
   const after = (await get(`/v1/appScreenshotSets/${set.id}/appScreenshots`)).data;
   console.log(`${NL}6.9 インチの枠: ${after.map((x) => `${x.attributes.fileName}=${x.attributes.assetDeliveryState?.state}`).join(', ')}`);
-  console.log('App Store Connect で保存は不要（API で入れたものはそのまま残る）。提出は submit で。');
+}
+
+/**
+ * 学生向けのカスタムプロダクトページ（同じアプリで、画像と文を変えた別の店頭）。
+ *   node tools/asc.mjs cpp        ← いまあるページを読む（読むだけ）
+ *   node tools/asc.mjs cpp go     ← 「学生向け」を作って（無ければ）、学生の1か月の 6 枚を入れる（書き込み）
+ *   node tools/asc.mjs cpp submit ← 審査に出す（書き込み。ページは審査を通ると URL で見られる）
+ *
+ * いちばん上の店頭（検索から来る人）は 1.3 から社会人の1か月にした。学生を置いていかないために、
+ * これまでの学生の画像はこちらに回す。SNS や学生向けの広告からは、このページの URL へ送る
+ */
+async function cpp() {
+  const mode = process.argv[3] || '';
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const pages = (await get(`/v1/apps/${app.id}/appCustomProductPages?limit=20`)).data;
+  for (const p of pages) line(p.attributes.name, `${p.attributes.visible ? '公開' : '非公開'}  ${p.attributes.url || ''}`);
+  let page = pages.find((p) => p.attributes.name === CPP_NAME);
+  if (!mode) { console.log(`${NL}作るなら: node tools/asc.mjs cpp go`); return; }
+  const dir = new URL(`../../store-assets/sukuji/${CPP_DIR}/`, import.meta.url);
+  const files = CPP_SHOTS.map((f) => ({ name: f, path: new URL(f, dir) }));
+  for (const f of files) if (!fs.existsSync(f.path)) throw new Error(`無い: store-assets/sukuji/${CPP_DIR}/${f.name}`);
+  if (!page) {
+    // ページ・版・日本語の文を、1回の POST でまとめて作る（別々には作れない）
+    const made = await call('/v1/appCustomProductPages', 'POST', {
+      data: { type: 'appCustomProductPages', attributes: { name: CPP_NAME },
+        relationships: { app: { data: { type: 'apps', id: app.id } },
+          appCustomProductPageVersions: { data: [{ type: 'appCustomProductPageVersions', id: '${v1}' }] } } },
+      included: [
+        { type: 'appCustomProductPageVersions', id: '${v1}',
+          relationships: { appCustomProductPageLocalizations: { data: [{ type: 'appCustomProductPageLocalizations', id: '${l1}' }] } } },
+        { type: 'appCustomProductPageLocalizations', id: '${l1}', attributes: { locale: 'ja', promotionalText: CPP_PROMO } },
+      ] });
+    page = made.data;
+    console.log(`「${CPP_NAME}」を作った`);
+  }
+  const vers = (await get(`/v1/appCustomProductPages/${page.id}/appCustomProductPageVersions`)).data;
+  const ver = vers.find((x) => ['PREPARE_FOR_SUBMISSION', 'REJECTED', 'DEVELOPER_REJECTED'].includes(x.attributes.state)) || vers[0];
+  if (mode === 'submit') {
+    const rs = (await call('/v1/reviewSubmissions', 'POST', { data: { type: 'reviewSubmissions', attributes: { platform: 'IOS' },
+      relationships: { app: { data: { type: 'apps', id: app.id } } } } })).data;
+    await call('/v1/reviewSubmissionItems', 'POST', { data: { type: 'reviewSubmissionItems',
+      relationships: { reviewSubmission: { data: { type: 'reviewSubmissions', id: rs.id } },
+        appCustomProductPageVersion: { data: { type: 'appCustomProductPageVersions', id: ver.id } } } } });
+    await call(`/v1/reviewSubmissions/${rs.id}`, 'PATCH', { data: { type: 'reviewSubmissions', id: rs.id, attributes: { submitted: true } } });
+    console.log(`「${CPP_NAME}」を審査に出した`);
+    return;
+  }
+  const locs = (await get(`/v1/appCustomProductPageVersions/${ver.id}/appCustomProductPageLocalizations`)).data;
+  const loc = locs.find((x) => x.attributes.locale === 'ja') || locs[0];
+  const sets = (await get(`/v1/appCustomProductPageLocalizations/${loc.id}/appScreenshotSets`)).data;
+  let set = sets.find((x) => x.attributes.screenshotDisplayType === 'APP_IPHONE_67');
+  if (!set) {
+    set = (await call('/v1/appScreenshotSets', 'POST', { data: { type: 'appScreenshotSets', attributes: { screenshotDisplayType: 'APP_IPHONE_67' },
+      relationships: { appCustomProductPageLocalization: { data: { type: 'appCustomProductPageLocalizations', id: loc.id } } } } })).data;
+  }
+  await uploadInto(set, files);
+  console.log(`${NL}審査に出すなら: node tools/asc.mjs cpp submit`);
 }
 
 // 審査を通った版は、手動リリースにしてあると PENDING_DEVELOPER_RELEASE で止まる。
@@ -723,6 +793,6 @@ async function release() {
 }
 
 const cmd = process.argv[2] || 'status';
-const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots };
+const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
