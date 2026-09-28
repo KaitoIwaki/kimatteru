@@ -2312,7 +2312,8 @@ export default class App extends React.Component {
       const j=(st.jobs||[]).find(x=>x.id===st.confirmJob);
       const n=st.events.filter(e=>e.jobId===st.confirmJob && e.status==='jisseki').length;
       v.confirmJobText = `${j?j.name||'この'+W.job:''}を消しますか？` ;
-      v.confirmJobBody = n ? `働いた記録${n}件は、名前と時給を残したまま残ります（金額は変わりません）。やめただけなら「辞めた（しまう）」のほうが、あとで戻せます。` : 'この勤務先を使っている予定はありません。';
+      v.confirmJobBody = n ? `・働いた記録${n}件と金額は残ります
+・やめただけなら「辞めた」にすると、あとで戻せます` : 'この勤務先を使っている予定はありません';
       v.onConfirmJob = ()=>this.removeJob(st.confirmJob);
       v.onCancelJob = ()=>this.setState({confirmJob:null});
     }

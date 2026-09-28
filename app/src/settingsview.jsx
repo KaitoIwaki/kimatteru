@@ -20,6 +20,10 @@ const VALUE = 'font-size:14.5px;color:var(--ink-mut);white-space:nowrap;overflow
 const CHEV = 'font-size:17px;color:var(--ink-faint);flex-shrink:0;line-height:1';
 const ROWPAD = 'padding:0 16px;min-height:44px';
 
+/** 説明が2つ以上あるときの箇条書き（アプリの文章のきまり：短く・複数なら箇条書き） */
+function bullets(items) {
+  return items.map((t, i) => (<span key={i} style={s('display:flex;gap:6px')}><span style={s('flex-shrink:0')}>・</span><span>{t}</span></span>));
+}
 /** 1行。左に名前、右に値やスイッチ。sub は本当に要る所だけ */
 function Row({ label, sub, right, onClick, last, chevron, value, danger, keep }) {
   // 値のある行は、名前に半分の幅を残して、長い値のほうを「…」で切る（文字を大きくしたとき、名前が2行に折れていた）
@@ -193,7 +197,7 @@ function Main({ v, open }) {
       <Row label="控えと機種変更" value={v.backupLabel} chevron onClick={v.onSetPage('backup')} />
       <Row label="ファイルで出し入れ" chevron onClick={v.onSetPage('files')} last />
     </div>
-    <div style={s(NOTE)}>{''}<Jp parts={['予定はこの iPhone の中にだけあります。', v.syncShown ? 'iCloud 同期は、あなたの iCloud だけを使います。' : '']} /></div>
+    <div style={s(NOTE)}>{v.syncShown ? '予定は、この iPhone とあなたの iCloud にだけ保存します' : '予定は、この iPhone の中にだけ保存します'}</div>
 
     <div style={s(HEAD)}>安全</div>
     <div style={s(CARD)}>
@@ -247,7 +251,7 @@ function Main({ v, open }) {
                 </div>
               ))}
               <div style={s('font-size:12px;color:var(--ink-faint);padding:12px 16px 14px;line-height:1.8;text-wrap:pretty')}>
-                {''}<Jp parts={['応援しても、', '増える機能は', 'ありません。', '広告なし・通信なしの', 'ままで', '作りつづけます。']} />
+                応援で増える機能はありません。広告なし・通信なしで続けます
               </div>
             </div>
           )}
@@ -295,7 +299,7 @@ function TypesPage({ v }) {
               </div>
               {t.deleting && (
                 <div style={s('margin-top:12px;padding:12px;border-radius:12px;background:var(--bg2)')}>
-                  <div style={s('font-size:13px;color:var(--ink-soft);margin-bottom:10px;line-height:1.7')}>この種類の予定を、どの種類へ移しますか？</div>
+                  <div style={s('font-size:13px;color:var(--ink-soft);margin-bottom:10px;line-height:1.7')}>予定をどの種類へ移しますか？</div>
                   <div style={s('display:flex;flex-wrap:wrap;gap:6px')}>{t.moveChips.map((c, k) => (<span key={k} style={s(c.style)} onClick={c.onClick}>{c.label}</span>))}</div>
                   <div style={s('font-size:13px;color:var(--ink-mut);margin-top:10px;cursor:pointer')} onClick={t.onCancelDelete}>やめる</div>
                 </div>
@@ -329,7 +333,7 @@ function WorkPage({ v }) {
         <Row label="時間" right={<Range a={v.workFrom} b={v.workTo} onA={v.onWorkFrom} onB={v.onWorkTo} opts={v.timeOpts} />} last />
       </>)}
     </div>
-    <div style={s(NOTE)}>この時間は、予定が無くても空き状況で「ふさがり」になります。</div>
+    <div style={s(NOTE)}>空き状況で、この時間を「ふさがり」にします</div>
   </>);
 }
 function JobsPage({ v }) {
@@ -392,7 +396,7 @@ function JobsPage({ v }) {
     {v.retiredCount > 0 && (
       <div style={s('font-size:13px;color:var(--ink-mut);margin:-16px 6px 20px;cursor:pointer')} onClick={v.onShowRetired}>{v.showRetired ? '辞めたところを隠す' : `辞めたところ（${v.retiredCount}）も出す`}</div>
     )}
-    <div style={s(NOTE)}>時給を変えても、これまでの記録の金額は変わりません。</div>
+    <div style={s(NOTE)}>時給を変えても、記録済みの金額は変わりません</div>
   </>);
 }
 function LeavePage({ v }) {
@@ -405,7 +409,7 @@ function LeavePage({ v }) {
       </>)}
     </div>
     {v.leaveShown && !!v.leaveText && <div style={s('font-size:14px;color:var(--ink);margin:-14px 6px 22px;line-height:1.7')}>{v.leaveText}</div>}
-    <div style={s(NOTE)}>「休み」の予定のうち、名前に「有給」「半休」があるものを数えます。</div>
+    <div style={s(NOTE)}>名前に「有給」「半休」がある休みを数えます</div>
   </>);
 }
 function OverlayPage({ v }) {
@@ -420,7 +424,7 @@ function OverlayPage({ v }) {
         </div>
       ))}
     </div>
-    <div style={s(NOTE)}>会社や家族のカレンダーを、灰色で並べて見せます。LUKKO には保存しません。</div>
+    <div style={s(NOTE)}>選んだカレンダーを灰色で表示します（保存はしません）</div>
   </>);
 }
 function BackupPage({ v }) {
@@ -430,15 +434,15 @@ function BackupPage({ v }) {
       <Row label="控えをファイルに保存" chevron onClick={v.onExportBackup} />
       <Row label="ファイルから戻す" chevron onClick={v.onPickBackup} last />
     </div>
-    <div style={s(NOTE)}>控えは毎日1回、自動でとっています（7日分）。</div>
+    <div style={s(NOTE)}>毎日1回、自動でとります（7日分）</div>
     <input id="backup-file" type="file" accept=".json,application/json" onChange={v.onBackupFile} style={s('display:none')} />
     {!!v.backupError && (
       <div style={s('font-size:12px;color:#A8452B;margin:-14px 8px 18px;line-height:1.6;text-wrap:pretty')}>{v.backupError}</div>
     )}
     <div style={s(HEAD)}>機種変更のとき</div>
     <div style={s(CARD + ';padding:14px 16px;font-size:14px;color:var(--ink-soft);line-height:1.8')}>
-      <div style={s('display:flex;gap:10px')}><span style={s('font-weight:700;color:var(--ink)')}>1</span><span>「クイックスタート」か「iCloud バックアップから復元」で移せば、予定もそのまま移ります。</span></div>
-      <div style={s('display:flex;gap:10px;margin-top:8px')}><span style={s('font-weight:700;color:var(--ink)')}>2</span><span>念のため、移す前に「控えをファイルに保存」。移らなかったら、新しい iPhone で「ファイルから戻す」。</span></div>
+      <div style={s('display:flex;gap:10px')}><span style={s('font-weight:700;color:var(--ink)')}>1</span><span>「クイックスタート」か「iCloud バックアップから復元」で、予定も移ります</span></div>
+      <div style={s('display:flex;gap:10px;margin-top:8px')}><span style={s('font-weight:700;color:var(--ink)')}>2</span><span>移らなかったら：前の iPhone で「控えをファイルに保存」→ 新しい iPhone で「ファイルから戻す」</span></div>
     </div>
     <div style={s('font-size:13px;color:var(--ink-mut);margin:-14px 6px 20px;cursor:pointer;text-decoration:underline')} onClick={v.onTogglePaste}>ファイルをえらべないときは、貼り付けで戻す</div>
     {v.pasteOpen && (
@@ -460,7 +464,7 @@ function FilesPage({ v }) {
       {v.tidyCount > 0 && <Row label="取り込んだ予定を整理する" value={`${v.tidyCount}件`} chevron onClick={v.onOpenTidy} last={!v.undoImportShown} />}
       {v.undoImportShown && <Row label={v.undoImportLabel} chevron onClick={v.onUndoImport} last />}
     </div>
-    <div style={s(NOTE)}>TimeTree や Google カレンダーから書き出したファイルを取り込めます。</div>
+    <div style={s(NOTE)}>TimeTree・Google カレンダーのファイルを取り込めます</div>
     <input id="ics-file" type="file" accept=".ics,text/calendar" onChange={v.onIcsFile} style={s('display:none')} />
   </>);
 }
@@ -544,10 +548,10 @@ export function Settings({ v }) {
           {v.profileRetireShown && (
             <div style={s('display:flex;align-items:center;gap:10px;margin-top:14px;padding:12px 14px;border-radius:13px;background:var(--bg2);cursor:pointer')} onClick={v.onProfileRetire}>
               <span style={s(`width:20px;height:20px;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;${v.profileRetireOn ? 'background:var(--ink);color:var(--card)' : 'border:1.5px solid var(--line)'}`)}>{v.profileRetireOn ? '✓' : ''}</span>
-              <span style={s('font-size:13px;color:var(--ink-soft);line-height:1.6')}>バイト先をまとめて「辞めた」にする（働いた記録と給料はそのまま残ります）</span>
+              <span style={s('font-size:13px;color:var(--ink-soft);line-height:1.6')}>バイト先をまとめて「辞めた」にする（記録は残ります）</span>
             </div>
           )}
-          <div style={s('font-size:11.5px;color:var(--ink-faint);margin:12px 4px 0;line-height:1.8')}>種類の並びと呼び名、空き状況で見る時間帯が変わります。予定はそのまま残ります。</div>
+          <div style={s('font-size:11.5px;color:var(--ink-faint);margin:12px 4px 0;line-height:1.8')}>{bullets(['予定の種類・呼び名・空きを見る時間が変わります', '予定はそのまま残ります'])}</div>
         </Sheet>
       )}
 
@@ -561,7 +565,7 @@ export function Settings({ v }) {
           ) : (
             <div style={s('text-align:center;color:var(--ink-faint);font-size:14px;padding:30px 0')}>まだ控えはありません</div>
           )}
-          <div style={s('font-size:11.5px;color:var(--ink-faint);margin:12px 4px 0;line-height:1.8')}>毎日1回、自動で取っています。7日分と、毎月1日のぶんを3か月残します。</div>
+          <div style={s('font-size:11.5px;color:var(--ink-faint);margin:12px 4px 0;line-height:1.8')}>{bullets(['毎日1回、自動でとります', '7日分と、月初めの3か月分を残します'])}</div>
         </Sheet>
       )}
 
@@ -591,11 +595,11 @@ export function Settings({ v }) {
       {v.tplNewShown && (
         <Sheet title="シフトの型を足す" onClose={v.onTplCancel}>
           <div style={s('background:var(--card);border-radius:15px;overflow:hidden')}>
-            <Row label="記号（1〜2文字）" sub="マスに出す字。例：日・夜・早・遅・休" right={<input value={v.tplSym} onChange={v.onTplSym} maxLength={2} style={s('width:4ch;border:none;outline:none;background:var(--bg2);border-radius:9px;padding:7px 10px;font-size:15px;color:var(--ink);text-align:center;font-family:inherit')} />} />
+            <Row label="記号（1〜2文字）" sub="例：日・夜・早・遅・休" right={<input value={v.tplSym} onChange={v.onTplSym} maxLength={2} style={s('width:4ch;border:none;outline:none;background:var(--bg2);border-radius:9px;padding:7px 10px;font-size:15px;color:var(--ink);text-align:center;font-family:inherit')} />} />
             <Row label="名前" right={<input value={v.tplName} onChange={v.onTplName} placeholder="日勤" style={s('width:9ch;border:none;outline:none;background:var(--bg2);border-radius:9px;padding:7px 10px;font-size:14px;color:var(--ink);font-family:inherit')} />} />
             <Row label="休み（終日）" right={<Toggle t={v.tplAllDay} onClick={v.onTplAllDay} />} />
             {v.tplAllDay.track.background !== 'var(--ink)' && (<>
-              <Row label="時間" sub="終わりが始まりより前なら、翌日に終わります（夜勤）" right={<span style={s('display:flex;align-items:center;gap:5px')}><TimeSel value={v.tplFrom} onChange={v.onTplFrom} opts={v.timeOpts} />〜<TimeSel value={v.tplTo} onChange={v.onTplTo} opts={v.timeOpts} /></span>} />
+              <Row label="時間" sub="終わりが早ければ翌日まで（夜勤）" right={<span style={s('display:flex;align-items:center;gap:5px')}><TimeSel value={v.tplFrom} onChange={v.onTplFrom} opts={v.timeOpts} />〜<TimeSel value={v.tplTo} onChange={v.onTplTo} opts={v.timeOpts} /></span>} />
               <Row label="いつもの休憩" right={<TimeSel value={v.tplBrk} onChange={v.onTplBrk} opts={v.brkOpts} />} last />
             </>)}
           </div>
@@ -608,7 +612,7 @@ export function Settings({ v }) {
         <div style={s('position:absolute;inset:0;z-index:93;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onCancelJob}>
           <div style={s('width:100%;max-width:300px;background:var(--card);border-radius:16px;padding:22px 20px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={(e) => e.stopPropagation()}>
             <div style={s('font-size:17px;color:var(--ink);text-align:center;text-wrap:balance')}>{v.confirmJobText}</div>
-            <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:8px 0 18px;text-wrap:pretty')}>{v.confirmJobBody}</div>
+            <div style={s('font-size:13px;color:var(--ink-mut);text-align:left;margin:10px 0 18px;line-height:1.7;white-space:pre-line')}>{v.confirmJobBody}</div>
             <div style={s('display:flex;flex-direction:column;gap:8px')}>
               <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onConfirmJob}>消す</div>
               <div style={s('padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancelJob}>やめる</div>
