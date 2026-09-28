@@ -432,34 +432,34 @@ export function renderApp(v) {
       {/* ===================== MONTH ===================== */}
       {v.monthShown && (
         <div style={s('display:flex;flex-direction:column;height:100%')}>
-          <div className="month-head" style={s('padding:0 16px 10px 12px;display:flex;align-items:center;justify-content:space-between')}>
-            <div style={s('display:flex;align-items:center;gap:2px')}>
-              <span role="button" aria-label="前の月" tabIndex={0} style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onPrevMonth}>‹</span>
+          <div className="month-head" style={s(`padding:${v.hd.pad};display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;white-space:nowrap`)}>
+            <div style={s('display:flex;align-items:center;gap:2px;min-width:0;flex-shrink:1')}>
+              <span role="button" aria-label="前の月" tabIndex={0} style={s(`width:${v.hd.arrowW}px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-mut);cursor:pointer;user-select:none`)} onClick={v.onPrevMonth}>‹</span>
               {/* 押すと年月をえらべる。‹ › だけだと来年の3月に7回かかる */}
-              <div role="button" aria-label="年と月をえらぶ" style={s('display:flex;align-items:baseline;gap:7px;cursor:pointer;user-select:none;padding:2px 4px;margin:-2px -4px')} onClick={v.onTapMonthHead}>
-                <span style={s('font-size:28px;font-weight:300;color:var(--ink);letter-spacing:-.5px')}>{v.monthLabel}月</span>
-                <span style={s('font-size:14px;font-weight:500;color:var(--ink-mut)')}>{v.year}</span>
+              <div role="button" aria-label="年と月をえらぶ" style={s('display:flex;align-items:baseline;gap:7px;cursor:pointer;user-select:none;padding:2px 4px;margin:-2px -4px;white-space:nowrap;flex-shrink:0')} onClick={v.onTapMonthHead}>
+                <span style={s(`font-size:${v.hd.monthPx}px;font-weight:300;color:var(--ink);letter-spacing:-.5px;white-space:nowrap`)}>{v.monthLabel}月</span>
+                {v.hd.showYear && <span style={s(`font-size:${v.hd.yearPx}px;font-weight:500;color:var(--ink-mut);white-space:nowrap`)}>{v.year}</span>}
               </div>
-              <span role="button" aria-label="次の月" tabIndex={0} style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onNextMonth}>›</span>
+              <span role="button" aria-label="次の月" tabIndex={0} style={s(`width:${v.hd.arrowW}px;height:38px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink-mut);cursor:pointer;user-select:none`)} onClick={v.onNextMonth}>›</span>
             </div>
-            <div style={s('display:flex;align-items:center;gap:4px')}>
+            <div style={s('display:flex;align-items:center;gap:2px;flex-shrink:0')}>
               {/* 今月以外を見ているときだけ出る。押すと今日の月へ戻る */}
               {v.todayBtnShown && (
-                <span role="button" aria-label="今日へ戻る" style={s('padding:6px 11px;border-radius:999px;border:1px solid var(--line);font-size:13px;color:var(--ink);cursor:pointer;user-select:none;margin-right:2px;animation:capRise .2s ease')} onClick={v.onGoToday}>今日</span>
+                <span role="button" aria-label="今日へ戻る" style={s(`padding:${v.hd.todayPad};border-radius:999px;border:1px solid var(--line);font-size:13px;color:var(--ink);cursor:pointer;user-select:none;margin-right:2px;white-space:nowrap;flex-shrink:0;animation:capRise .2s ease`)} onClick={v.onGoToday}>今日</span>
               )}
-              <div role="button" aria-label="予定を探す" style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer')} onClick={v.onOpenSearch}>
+              <div role="button" aria-label="予定を探す" style={s(`width:${v.hd.iconW}px;height:38px;flex-shrink:0;`+'display:flex;align-items:center;justify-content:center;cursor:pointer')} onClick={v.onOpenSearch}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <circle cx="10.5" cy="10.5" r="6.2" stroke="var(--ink-soft)" strokeWidth="1.6" />
                   <path d="M15.2 15.2 20 20" stroke="var(--ink-soft)" strokeWidth="1.6" strokeLinecap="round" />
                 </svg>
               </div>
-              <div role="button" aria-label="これからの予定の一覧" style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer')} onClick={v.onOpenAgenda}>
+              <div role="button" aria-label="これからの予定の一覧" style={s(`width:${v.hd.iconW}px;height:38px;flex-shrink:0;`+'display:flex;align-items:center;justify-content:center;cursor:pointer')} onClick={v.onOpenAgenda}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                   <path d="M9 6.5h11M9 12h11M9 17.5h11" stroke="var(--ink-soft)" strokeWidth="1.6" strokeLinecap="round" />
                   <circle cx="4.6" cy="6.5" r="1.2" fill="var(--ink-soft)" /><circle cx="4.6" cy="12" r="1.2" fill="var(--ink-soft)" /><circle cx="4.6" cy="17.5" r="1.2" fill="var(--ink-soft)" />
                 </svg>
               </div>
-              <div role="button" aria-label="お知らせ" style={s('width:38px;height:38px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative')} onClick={v.onBell}>
+              <div role="button" aria-label="お知らせ" style={s(`width:${v.hd.iconW}px;height:38px;flex-shrink:0;`+'display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative')} onClick={v.onBell}>
                 <svg width="21" height="21" viewBox="0 0 24 24" fill="none">
                   <path d="M6 10a6 6 0 0 1 12 0c0 3.2.7 5 1.4 6a.6.6 0 0 1-.5.9H5.1a.6.6 0 0 1-.5-.9C5.3 15 6 13.2 6 10Z" stroke="var(--ink-soft)" strokeWidth="1.5" strokeLinejoin="round" />
                   <path d="M10.2 20.2a2 2 0 0 0 3.6 0" stroke="var(--ink-soft)" strokeWidth="1.5" strokeLinecap="round" />
@@ -575,7 +575,7 @@ export function renderApp(v) {
               <div style={s('font-size:13px;color:var(--ink-soft);line-height:1.7;text-wrap:pretty')}>
                 {''}<Jp parts={['決まっている予定は','塗り、','まだ分からない予定は','点線で','並びます。']} />
               </div>
-              <div style={s('font-size:12.5px;color:var(--ink-mut)')}>下の ＋ から、最初の予定を置いてみてください</div>
+              <div style={s('font-size:12.5px;color:var(--ink-mut)')}><Jp parts={['下の ＋ から、', '最初の予定を', '置いてみてください']} /></div>
               {v.importAvailable && (
                 <div style={s('margin-top:8px;padding:12px 20px;border-radius:15px;border:1px solid var(--line);background:var(--card);font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer')} onClick={v.onOpenImport}>
                   iPhone のカレンダーから取り込む

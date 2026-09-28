@@ -16,14 +16,20 @@ const ICON = 'width:26px;height:26px;border-radius:7px;background:var(--bg2);col
 
 /** 1行。左に名前（と小さな説明）、右に値やスイッチ */
 function Row({ label, sub, right, onClick, last, chevron }) {
+  // 右の値が長いと、左の説明が数文字幅に押しつぶされて縦長になっていた（「学校とバイト（はじめのまま）」など）。
+  // 文字を大きくすると幅が減るので、もっと起きる。左には 150px を残し、入らなければ右を次の行へ回す
   return (
-    <div style={s(`display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;${last ? '' : 'border-bottom:1px solid var(--line);'}${onClick ? 'cursor:pointer;' : ''}`)} onClick={onClick}>
-      <span style={s('display:flex;flex-direction:column;gap:2px;min-width:0;flex:1')}>
+    <div style={s(`display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;column-gap:12px;row-gap:8px;padding:13px 16px;${last ? '' : 'border-bottom:1px solid var(--line);'}${onClick ? 'cursor:pointer;' : ''}`)} onClick={onClick}>
+      <span style={s('display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 150px')}>
         <span style={s('font-size:15px;color:var(--ink)')}>{label}</span>
         {!!sub && <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty;line-height:1.6')}>{sub}</span>}
       </span>
-      {right}
-      {chevron && <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>›</span>}
+      {(right || chevron) && (
+        <span style={s('display:flex;align-items:center;gap:12px;margin-left:auto;max-width:100%;min-width:0')}>
+          {right}
+          {chevron && <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>›</span>}
+        </span>
+      )}
     </div>
   );
 }
@@ -71,7 +77,7 @@ export function Settings({ v }) {
         <div style={s(HEAD)}>使い方</div>
         <div style={s(CARD)}>
           <Row label="ふだんの予定" sub="種類の並び・呼び名・空き状況の時間帯が、これに合わせて決まります" last
-            right={<span style={s('font-size:14px;color:var(--ink-mut);white-space:nowrap')}>{v.profileLabel}</span>} chevron onClick={v.onOpenProfile} />
+            right={<span style={s('font-size:14px;color:var(--ink-mut);text-align:right;min-width:0;flex-shrink:1;line-height:1.45;text-wrap:balance')}>{v.profileLabel}</span>} chevron onClick={v.onOpenProfile} />
         </div>
         <div style={s(NOTE)}>{''}<Jp parts={['卒業・就職・転職で', '働き方が変わったときも、', 'ここから選び直せます。', '予定はそのまま残ります。']} /></div>
 

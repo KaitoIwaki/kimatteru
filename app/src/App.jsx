@@ -4776,6 +4776,23 @@ export default class App extends React.Component {
       v.onEdgeEnd = (e)=>{ const t=e.changedTouches&&e.changedTouches[0]; const g=this._edge; this._edge=null;
         if(!g || !t || !back) return; const dx=t.clientX-g.x, dy=Math.abs(t.clientY-g.y);
         if(dx>70 && dy<70){ tapLight(); back(); } }; }
+    // 月の見出しの詰め方。1行に「‹ 10月 2026 › 今日 🔍 ≡ 🔔」を置くと、375 の幅でちょうど足りない。
+    // 前は折り返し禁止も無く、2桁の月や「今日」が出ると「10／月」「今／日」と縦に折れていた。
+    // 文字を大きくすると（画面ごと拡大）使える幅が 375→300 に減るので、どの月でも折れていた。
+    // 使える幅から、いちばん広い形 → 詰めた形 → いちばん詰めた形 の順に、入るものを選ぶ
+    {
+      const W = (typeof window!=='undefined' && window.innerWidth ? window.innerWidth : 375) / this.zoom();
+      const digits = String(v.monthLabel||'').length || 1;
+      const today = !!v.todayBtnShown, otherYear = String(v.year)!==String(st.today.y);
+      const forms = [
+        { arrowW:38, monthPx:28, yearPx:14, showYear:true, todayPad:'6px 11px', iconW:38, pad:'0 16px 10px 12px', padX:28 },
+        { arrowW:30, monthPx:25, yearPx:12, showYear:otherYear, todayPad:'5px 9px', iconW:34, pad:'0 10px 10px 6px', padX:16 },
+        { arrowW:26, monthPx:22, yearPx:11, showYear:otherYear, todayPad:'4px 7px', iconW:31, pad:'0 6px 10px 2px', padX:8 },
+      ];
+      const need = (f) => f.arrowW*2 + digits*f.monthPx*0.58 + f.monthPx + (f.showYear ? 7 + f.yearPx*2.5 : 0)
+        + (today ? 13*2 + parseInt(f.todayPad.split(' ')[1],10)*2 + 8 : 0) + f.iconW*3 + 8 + f.padX;
+      v.hd = forms.find((f) => need(f) <= W) || forms[forms.length-1];
+    }
     // 設定の画面の値（群が増えたので別の関数に分けた）。ほかの値を上書きするので最後に呼ぶ
     if(v.settingsShown) this._settingsVals(v);
     return { v };
