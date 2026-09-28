@@ -792,7 +792,42 @@ async function release() {
   console.log(`公開を頼みました。いまの状態: ${after}（ストアに出るまで数時間かかることがある）`);
 }
 
+/**
+ * App ID（com.kimatteru.app）の許可（capability）。
+ *   node tools/asc.mjs caps         ← いまの許可と署名ファイルを読む（読むだけ）
+ *   node tools/asc.mjs caps icloud  ← iCloud を足し、古い署名ファイルを消す（書き込み）
+ *
+ * iCloud 同期（sync.js）は、キーと値の保存（NSUbiquitousKeyValueStore）だけを使う。
+ * App ID に iCloud が無いと、entitlements に書いても署名で落ちる。
+ * 許可を足すと、今ある署名ファイルは Apple の側で無効になるので消しておく。
+ * 次の Codemagic のビルドが fetch-signing-files --create で作り直す
+ */
+async function caps() {
+  const mode = process.argv[3] || '';
+  const ids = (await get(`/v1/bundleIds?filter[identifier]=${BUNDLE_ID}&limit=20`)).data;
+  const bid = ids.find((x) => x.attributes.identifier === BUNDLE_ID);
+  if (!bid) throw new Error(`App ID が見つからない: ${BUNDLE_ID}`);
+  const list = async () => (await get(`/v1/bundleIds/${bid.id}/bundleIdCapabilities`)).data;
+  let have = await list();
+  line('許可', have.map((c) => c.attributes.capabilityType).join(', ') || '（なし）');
+  const profs = (await get(`/v1/bundleIds/${bid.id}/profiles?limit=50`)).data;
+  for (const p of profs) line('署名ファイル', `${p.attributes.name}  ${p.attributes.profileType}  ${p.attributes.profileState}`);
+  if (mode !== 'icloud') { if (!mode) console.log(`${NL}iCloud を足すなら: node tools/asc.mjs caps icloud`); return; }
+  if (!have.some((c) => c.attributes.capabilityType === 'ICLOUD')) {
+    await call('/v1/bundleIdCapabilities', 'POST', { data: { type: 'bundleIdCapabilities',
+      attributes: { capabilityType: 'ICLOUD', settings: [{ key: 'ICLOUD_VERSION', options: [{ key: 'XCODE_6' }] }] },
+      relationships: { bundleId: { data: { type: 'bundleIds', id: bid.id } } } } });
+    console.log('iCloud を足した');
+  } else console.log('iCloud はもう入っている');
+  for (const p of profs) {
+    await call(`/v1/profiles/${p.id}`, 'DELETE');
+    console.log(`消した: ${p.attributes.name}`);
+  }
+  have = await list();
+  line('許可（あと）', have.map((c) => c.attributes.capabilityType).join(', '));
+}
+
 const cmd = process.argv[2] || 'status';
-const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp };
+const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
