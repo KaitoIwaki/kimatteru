@@ -114,11 +114,7 @@ export function buildWidgetPayload(state, today) {
       const pos = f === l ? 0 : n === f ? 1 : n === l ? 3 : 2;
       (days[k] || (days[k] = [])).push(pos ? { ...item, p: pos } : item);
     }
-    // 日をまたぐ勤務（22:00–翌6:00）は、明けの日にも「0:00–6:00」として出す
-    if (wraps && f + 1 >= from && f + 1 <= to && toM(endT) > 0) {
-      const k = key(f + 1);
-      (days[k] || (days[k] = [])).push({ ...item, t: '00:00', e: endT });
-    }
+    // 日をまたぐ勤務は、始まった日にだけ出す（翌日に「0:00–0:30」を足すと、予定が2つに見えた。アプリの月表示とそろえる）
   }
 
   // 並べ方：終日を先に、そのあと時刻の早い順。同じ時刻なら名前で。
