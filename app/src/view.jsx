@@ -102,9 +102,9 @@ function Report({ v }) {
 function Nav({ label, prev, next, prevLabel, nextLabel }) {
   return (
     <div style={s('display:flex;align-items:center;justify-content:space-between;padding:0 2px 10px')}>
-      <span role="button" aria-label={prevLabel} style={s('width:36px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={prev}>‹</span>
-      <span style={s('font-size:15px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{label}</span>
-      <span role="button" aria-label={nextLabel} style={s('width:36px;height:32px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={next}>›</span>
+      <span role="button" aria-label={prevLabel} style={s('width:36px;height:32px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={prev}>‹</span>
+      <span style={s('font-size:14.5px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{label}</span>
+      <span role="button" aria-label={nextLabel} style={s('width:36px;height:32px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={next}>›</span>
     </div>
   );
 }
@@ -115,7 +115,7 @@ function Head({ head, sub, size }) {
     <>
       <div style={s('display:flex;align-items:baseline;gap:3px;margin-bottom:6px')}>
         <span style={s(`font-size:${size || 40}px;font-weight:300;color:var(--ink);letter-spacing:-.8px;font-variant-numeric:tabular-nums;line-height:1`)}>{head.num}</span>
-        <span style={s('font-size:18px;font-weight:400;color:var(--ink-mut)')}>{head.unit}</span>
+        <span style={s('font-size:17px;font-weight:400;color:var(--ink-mut)')}>{head.unit}</span>
         {!!head.rest && <span style={s('font-size:14px;color:var(--ink-mut);margin-left:4px')}>{head.rest}</span>}
       </div>
       <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.06em')}>{sub}</div>
@@ -143,8 +143,8 @@ function ShareRow({ label, onClick }) {
       <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line)')}>
         <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={onClick}>
           <span style={s('width:26px;height:26px;border-radius:7px;background:var(--bg2);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800')}>✓</span>
-          <span style={s('flex:1;font-size:15px;color:var(--ink)')}>{label}</span>
-          <span style={s('font-size:16px;color:var(--ink-faint)')}>›</span>
+          <span style={s('flex:1;font-size:14.5px;color:var(--ink)')}>{label}</span>
+          <span style={s('font-size:15px;color:var(--ink-faint)')}>›</span>
         </div>
       </div>
     </>
@@ -187,7 +187,7 @@ function ReportMonth({ v }) {
                   <span style={s('font-size:14px;color:var(--ink)')}>{r.head}</span>
                   <span style={s('font-size:11px;color:var(--ink-mut)')}>{r.name}・{r.range}・{r.times}回</span>
                 </span>
-                <span style={s('font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums')}>{r.wage}</span>
+                <span style={s('font-size:16px;color:var(--ink);font-variant-numeric:tabular-nums')}>{r.wage}</span>
               </div>
             ))}
           </div>
@@ -199,8 +199,8 @@ function ReportMonth({ v }) {
           <div style={s('font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 8px')}>給料</div>
           <div style={s('background:var(--card);border-radius:17px;padding:20px 18px 20px;margin-bottom:22px;border:1px solid var(--line)')}>
             <div style={s('display:flex;align-items:baseline;gap:3px;margin-bottom:6px')}>
-              <span style={s('font-size:18px;font-weight:400;color:var(--ink-mut)')}>{v.repMonthWageParts.unit}</span>
-              <span style={s('font-size:34px;font-weight:300;color:var(--ink);letter-spacing:-.6px;font-variant-numeric:tabular-nums;line-height:1')}>{v.repMonthWageParts.num}</span>
+              <span style={s('font-size:17px;font-weight:400;color:var(--ink-mut)')}>{v.repMonthWageParts.unit}</span>
+              <span style={s('font-size:30px;font-weight:300;color:var(--ink);letter-spacing:-.6px;font-variant-numeric:tabular-nums;line-height:1')}>{v.repMonthWageParts.num}</span>
             </div>
             <div style={s('font-size:11px;color:var(--ink-mut);letter-spacing:.06em')}>働いた {v.repMonthHours}・{v.repMonthDays}日</div>
             {/* バイト先ごとの内訳。掛け持ちだと、どちらでいくら稼いだかが要る */}
@@ -259,15 +259,15 @@ function ReportYearWage({ v }) {
       <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:22px;border:1px solid var(--line)')}>
         <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
           <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた時間</span>
-          <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearHours}</span>
+          <span style={s('font-size:16px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearHours}</span>
         </div>
         <div style={s('display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)')}>
           <span style={s('font-size:14px;color:var(--ink-mut)')}>働いた日数</span>
-          <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearDays}日</span>
+          <span style={s('font-size:16px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.repYearDays}日</span>
         </div>
         <div style={s(`display:flex;align-items:center;justify-content:space-between;padding:14px 16px;${(v.repYearJobs || []).length > 1 ? 'border-bottom:1px solid var(--line)' : ''}`)}>
           <span style={s('font-size:14px;color:var(--ink-mut)')}>稼いだ額</span>
-          <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>およそ {v.repYearWage}</span>
+          <span style={s('font-size:16px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>およそ {v.repYearWage}</span>
         </div>
         {/* バイト先ごとの内訳。掛け持ちのときだけ出す */}
         {(v.repYearJobs || []).length > 1 && <JobRows jobs={v.repYearJobs} pad soft />}
@@ -288,19 +288,19 @@ function ReportYearWage({ v }) {
       <div style={s('background:var(--card);border-radius:17px;overflow:hidden;border:1px solid var(--line);margin-bottom:22px')}>
         <div style={s('display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer')} onClick={v.onTogglePrior}>
           <div style={s('display:flex;flex-direction:column;gap:2px;flex:1;padding-right:12px;min-width:0')}>
-            <span style={s('font-size:15px;color:var(--ink)')}>使い始める前の額</span>
+            <span style={s('font-size:14.5px;color:var(--ink)')}>使い始める前の額</span>
             <span style={s('font-size:11px;color:var(--ink-mut)')}>{v.repPriorHint}</span>
           </div>
           <span style={s('font-size:14px;color:var(--ink-mut);font-variant-numeric:tabular-nums;flex-shrink:0')}>{v.repPriorLabel}</span>
-          <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>{v.repPriorOpen ? '⌄' : '›'}</span>
+          <span style={s('font-size:15px;color:var(--ink-faint);flex-shrink:0')}>{v.repPriorOpen ? '⌄' : '›'}</span>
         </div>
         {v.repPriorOpen && (
           <div style={s('padding:2px 16px 16px')}>
             <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
               <span style={s('font-size:14px;color:var(--ink-mut)')}>{v.repYearLabel}のぶん</span>
               <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
-                <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft)')}>¥</span>
-                <input value={v.repPriorValue} onChange={v.onPriorChange} inputMode="numeric" maxLength={8} placeholder="0" style={s('width:9ch;min-width:9ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
+                <span style={s('font-size:14.5px;font-weight:400;color:var(--ink-soft)')}>¥</span>
+                <input value={v.repPriorValue} onChange={v.onPriorChange} inputMode="numeric" maxLength={8} placeholder="0" style={s('width:9ch;min-width:9ch;border:none;outline:none;background:transparent;font-size:15px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
               </div>
             </div>
             <div style={s('font-size:11px;color:var(--ink-faint);margin-top:12px;line-height:1.8;text-wrap:pretty')}>
@@ -624,14 +624,14 @@ export function renderApp(v) {
       {v.dayShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 6px 18px')}>
-            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onDayBack}>←</span>
+            <span role="button" aria-label="戻る" style={s('font-size:20px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onDayBack}>←</span>
             <span style={s('display:flex;align-items:center;gap:6px')}>
-              <span role="button" aria-label="前の日" style={s('width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDayPrev}>‹</span>
+              <span role="button" aria-label="前の日" style={s('width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDayPrev}>‹</span>
               <span style={s('display:flex;flex-direction:column;align-items:center;gap:1px')}>
                 <span style={s(v.dayTitleStyle)}>{v.dayTitle}</span>
                 {!!v.dayHoliday && <span style={s(`font-size:11px;font-weight:600;color:${'#B4453A'}`)}>{v.dayHoliday}</span>}
               </span>
-              <span role="button" aria-label="次の日" style={s('width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDayNext}>›</span>
+              <span role="button" aria-label="次の日" style={s('width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDayNext}>›</span>
             </span>
             <div style={s('display:flex;background:var(--bg2);border-radius:9px;padding:2px')}>
               {(v.daySeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
@@ -691,7 +691,7 @@ export function renderApp(v) {
                 <span style={s('font-size:10.5px;color:var(--ink-faint);flex-shrink:0')}>iPhone</span>
               </div>
             ))}
-            <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding:15px;border-radius:15px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:15px;font-weight:400;cursor:pointer')} onClick={v.onDayAdd}>＋ 予定を追加</div>
+            <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding:15px;border-radius:15px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:14.5px;font-weight:400;cursor:pointer')} onClick={v.onDayAdd}>＋ 予定を追加</div>
           </div>
           )}
         </div>
@@ -701,8 +701,8 @@ export function renderApp(v) {
       {v.listShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 8px 18px')}>
-            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onListBack}>←</span>
-            <span style={s('font-size:16px;font-weight:400;color:var(--ink)')}>予定の一覧</span>
+            <span role="button" aria-label="戻る" style={s('font-size:20px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onListBack}>←</span>
+            <span style={s('font-size:15px;font-weight:400;color:var(--ink)')}>予定の一覧</span>
             <span style={s('width:44px')} />
           </div>
           <div style={s('padding:0 16px 10px')}>
@@ -711,7 +711,7 @@ export function renderApp(v) {
             </div>
             {v.listTab === 'search' && (
               <input value={v.searchQ} onChange={v.onSearchQ} autoFocus placeholder="題名・場所・メモで探す" enterKeyHint="search"
-                style={s('width:100%;box-sizing:border-box;margin-top:10px;border:1px solid var(--line);outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:16px;color:var(--ink);font-family:inherit')} />
+                style={s('width:100%;box-sizing:border-box;margin-top:10px;border:1px solid var(--line);outline:none;background:var(--card);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit')} />
             )}
             {v.listTab === 'upcoming' && (
               <div style={s('display:flex;justify-content:flex-end;margin-top:8px')}>
@@ -775,11 +775,11 @@ export function renderApp(v) {
       {v.somedayPickShown && (
         <div style={s('position:absolute;inset:0;z-index:88;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onSomedayPickClose}>
           <div style={s('width:100%;max-width:320px;background:var(--card);border-radius:18px;padding:18px 16px 12px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
-            <div style={s('font-size:16px;color:var(--ink);text-align:center;margin-bottom:10px;text-wrap:balance')}>{v.somedayPickTitle}</div>
+            <div style={s('font-size:15px;color:var(--ink);text-align:center;margin-bottom:10px;text-wrap:balance')}>{v.somedayPickTitle}</div>
             <div style={s('display:flex;align-items:center;justify-content:space-between;padding:0 2px 6px')}>
-              <span role="button" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer')} onClick={v.onSomedayPickPrev}>‹</span>
+              <span role="button" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer')} onClick={v.onSomedayPickPrev}>‹</span>
               <span style={s('font-size:14px;font-weight:700;color:var(--ink)')}>{v.somedayPickLabel}</span>
-              <span role="button" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer')} onClick={v.onSomedayPickNext}>›</span>
+              <span role="button" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer')} onClick={v.onSomedayPickNext}>›</span>
             </div>
             <div style={s('display:grid;grid-template-columns:repeat(7,1fr)')}>
               {(v.somedayPickWeekdays || []).map((w, i) => (<div key={i} style={s(w.style)}>{w.label}</div>))}
@@ -800,14 +800,14 @@ export function renderApp(v) {
               まとめタブに置いていたころは、見ている月と送る月が別だった。 */}
           <div className="scr-head" style={s('padding:0 18px 6px')}>
             <span />
-            <span style={s('font-size:16px;font-weight:400;color:var(--ink)')}>いつ空いてる？</span>
+            <span style={s('font-size:15px;font-weight:400;color:var(--ink)')}>いつ空いてる？</span>
             <span role="button" style={s('font-size:14px;color:var(--ink-mut);cursor:pointer;padding:6px 0 6px 12px;user-select:none;white-space:nowrap')} onClick={v.onOpenShare}>シェア</span>
           </div>
           <div style={s('padding:6px 18px 12px;display:flex;align-items:center;justify-content:space-between')}>
             <div style={s('display:flex;align-items:center;gap:14px')}>
-              <span style={s('font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onFreePrev}>◀</span>
-              <span style={s('font-size:17px;font-weight:400;color:var(--ink);min-width:44px;text-align:center')}>{v.freeMonthLabel}月</span>
-              <span style={s('font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onFreeNext}>▶</span>
+              <span style={s('font-size:17px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onFreePrev}>◀</span>
+              <span style={s('font-size:16px;font-weight:400;color:var(--ink);min-width:44px;text-align:center')}>{v.freeMonthLabel}月</span>
+              <span style={s('font-size:17px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onFreeNext}>▶</span>
             </div>
             <div style={s('display:flex;align-items:center;gap:12px;font-size:13px;font-weight:700')}>
               <span style={s('color:#1D9E75')}>○{v.cO}</span>
@@ -866,15 +866,15 @@ export function renderApp(v) {
       {v.newShown && (
         <div style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
-            <span style={s('font-size:16px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancel}>キャンセル</span>
-            <span style={s('font-size:16px;font-weight:400;color:var(--ink);white-space:nowrap')}>{v.newTitle}</span>
+            <span style={s('font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancel}>キャンセル</span>
+            <span style={s('font-size:15px;font-weight:400;color:var(--ink);white-space:nowrap')}>{v.newTitle}</span>
             {/* この画面の主要な動作。ここだけは 600 で残す——太さを落とすと、
                 隣の「キャンセル」と同じ強さになって、どちらが本筋か分からなくなる。 */}
-            <span style={s(`font-size:16px;font-weight:600;color:${v.draftColor};cursor:pointer`)} onClick={v.onSave}>保存</span>
+            <span style={s(`font-size:15px;font-weight:600;color:${v.draftColor};cursor:pointer`)} onClick={v.onSave}>保存</span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:8px 16px 40px 16px')}>
             <div style={s(`background:var(--card);border-radius:17px;padding:4px 14px;margin-bottom:${(v.suggests || []).length ? 10 : 18}px`)}>
-              <input value={v.draftTitle} placeholder={v.titlePlaceholder} onChange={v.onTitle} onKeyDown={v.onTitleKey} autoFocus={v.titleAutoFocus} enterKeyHint="done" style={s('width:100%;border:none;outline:none;padding:14px 0;font-size:16px;color:var(--ink);background:transparent')} />
+              <input value={v.draftTitle} placeholder={v.titlePlaceholder} onChange={v.onTitle} onKeyDown={v.onTitleKey} autoFocus={v.titleAutoFocus} enterKeyHint="done" style={s('width:100%;border:none;outline:none;padding:14px 0;font-size:15px;color:var(--ink);background:transparent')} />
             </div>
             {/* よく入れる予定。押すと種類・時刻・場所も前回と同じで入る */}
             {(v.suggests || []).length > 0 && (
@@ -902,7 +902,7 @@ export function renderApp(v) {
 
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
               <div style={s(`display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:${v.jobPickerShown ? '1px solid var(--line)' : 'none'}`)} onClick={v.onTapTypeRow}>
-                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>種類</span>
+                <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0')}>種類</span>
                 <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                   <span style={s(v.typeDotStyle)} />
                   <span style={s(v.valType)}>{v.typeValue}</span>
@@ -922,7 +922,7 @@ export function renderApp(v) {
               {v.jobPickerShown && (
                 <>
                   <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapJobRow}>
-                    <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>{v.jobWordNew}</span>
+                    <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0')}>{v.jobWordNew}</span>
                     <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                       <span style={s(v.valJob)}>{v.jobValue}</span>
                       <span style={s(v.chevJob)}>›</span>
@@ -943,7 +943,7 @@ export function renderApp(v) {
 
             {v.newTypeShown && (
               <div style={s('background:var(--card);border-radius:15px;padding:14px;margin-bottom:16px;border:1px solid var(--line);animation:riseUp .24s cubic-bezier(.2,.9,.2,1)')}>
-                <input value={v.newTypeName} placeholder={v.newTypeEg} onChange={v.onNewTypeName} style={s('width:100%;border:none;outline:none;padding:6px 0 12px;font-size:15px;color:var(--ink);border-bottom:1px solid var(--line)')} />
+                <input value={v.newTypeName} placeholder={v.newTypeEg} onChange={v.onNewTypeName} style={s('width:100%;border:none;outline:none;padding:6px 0 12px;font-size:14.5px;color:var(--ink);border-bottom:1px solid var(--line)')} />
                 <div style={s('display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 6px')}>
                   {(v.newTypeSwatches || []).map((sw, i) => (
                     <div key={i} style={s(sw.style)} onClick={sw.onClick} />
@@ -960,14 +960,14 @@ export function renderApp(v) {
               <>
                 {v.newJobShown && (
                   <div style={s('background:var(--card);border-radius:17px;padding:16px;margin:-10px 0 22px;border:1px solid var(--line);animation:riseUp .24s cubic-bezier(.2,.9,.2,1)')}>
-                    <input value={v.newJobName} onChange={v.onNewJobName} placeholder={v.newJobEg} style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:15px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
+                    <input value={v.newJobName} onChange={v.onNewJobName} placeholder={v.newJobEg} style={s('width:100%;border:none;outline:none;background:var(--bg2);border-radius:12px;padding:11px 13px;font-size:14.5px;color:var(--ink);font-family:inherit;margin-bottom:14px')} />
                     <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px')}>
                       <span style={s('font-size:14px;color:var(--ink-mut)')}>時給</span>
                       <div style={s('display:flex;align-items:center;gap:10px;flex-shrink:0')}>
                         <div style={s(v.stepBtn)} onClick={v.onNewJobMinus}>−</div>
                         <div style={s('display:flex;align-items:center;gap:3px;background:var(--bg2);border-radius:12px;padding:6px 12px')}>
-                          <span style={s('font-size:15px;font-weight:400;color:var(--ink-soft)')}>¥</span>
-                          <input value={v.newJobHourly} onChange={v.onNewJobHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:16px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
+                          <span style={s('font-size:14.5px;font-weight:400;color:var(--ink-soft)')}>¥</span>
+                          <input value={v.newJobHourly} onChange={v.onNewJobHourly} inputMode="numeric" maxLength={5} style={s('width:6ch;min-width:6ch;border:none;outline:none;background:transparent;font-size:15px;font-weight:400;color:var(--ink);text-align:right;font-variant-numeric:tabular-nums;font-family:inherit;padding:0')} />
                         </div>
                         <div style={s(v.stepBtn)} onClick={v.onNewJobPlus}>＋</div>
                       </div>
@@ -983,7 +983,7 @@ export function renderApp(v) {
 
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
               <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line)')} onClick={v.onTapDate}>
-                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>日にち</span>
+                <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0')}>日にち</span>
                 <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                   {!!v.dateSummary && <span style={s('font-size:12px;font-weight:400;color:#1D9E75;white-space:nowrap')}>{v.dateSummary}</span>}
                   <span style={s(v.dateValStyle)}>{v.dateLabel}</span>
@@ -995,20 +995,20 @@ export function renderApp(v) {
                   {/* 年月の表示はボタン。押すと年と月を直接えらべる。
                       1ヶ月ずつしか動けないと、来年3月に行くのに8回タップになる。 */}
                   <div style={s('display:flex;align-items:center;justify-content:space-between;padding:6px 2px 8px')}>
-                    <span role="button" aria-label="前の月" style={s(`width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none;${v.ymPickOpen ? 'opacity:0;pointer-events:none' : ''}`)} onClick={v.onDatePrev}>‹</span>
+                    <span role="button" aria-label="前の月" style={s(`width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none;${v.ymPickOpen ? 'opacity:0;pointer-events:none' : ''}`)} onClick={v.onDatePrev}>‹</span>
                     <span role="button" aria-label="年と月をえらぶ" style={s(`display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:11px;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;user-select:none;transition:all .18s;${v.ymPickOpen ? 'background:var(--ink);color:var(--card)' : 'background:var(--card);color:var(--ink);border:1px solid var(--line)'}`)} onClick={v.onTapYM}>
                       {v.datePickLabel}
                       <span style={s(`font-size:10px;display:inline-block;transition:transform .2s;${v.ymPickOpen ? 'transform:rotate(180deg)' : ''}`)}>▾</span>
                     </span>
-                    <span role="button" aria-label="次の月" style={s(`width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none;${v.ymPickOpen ? 'opacity:0;pointer-events:none' : ''}`)} onClick={v.onDateNext}>›</span>
+                    <span role="button" aria-label="次の月" style={s(`width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none;${v.ymPickOpen ? 'opacity:0;pointer-events:none' : ''}`)} onClick={v.onDateNext}>›</span>
                   </div>
 
                   {v.ymPickOpen ? (
                     <div style={s('padding:2px 0 6px')}>
                       <div style={s('display:flex;align-items:center;justify-content:center;gap:22px;padding:4px 0 12px')}>
-                        <span role="button" aria-label="前の年" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYearPrev}>‹</span>
-                        <span style={s('font-size:19px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums;min-width:64px;text-align:center')}>{v.ymYearLabel}</span>
-                        <span role="button" aria-label="次の年" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYearNext}>›</span>
+                        <span role="button" aria-label="前の年" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYearPrev}>‹</span>
+                        <span style={s('font-size:17px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums;min-width:64px;text-align:center')}>{v.ymYearLabel}</span>
+                        <span role="button" aria-label="次の年" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYearNext}>›</span>
                       </div>
                       <div style={s('display:grid;grid-template-columns:repeat(4,1fr);gap:7px')}>
                         {(v.ymMonths || []).map((mo, i) => (
@@ -1050,7 +1050,7 @@ export function renderApp(v) {
               )}
 
               <div style={s(`display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line)`)}>
-                <span style={s('font-size:15px;color:var(--ink)')}>終日予定</span>
+                <span style={s('font-size:14.5px;color:var(--ink)')}>終日予定</span>
                 <div style={s(v.allDayTrack)} onClick={v.onToggleAllDay}><div style={s(v.allDayKnob)} /></div>
               </div>
 
@@ -1061,13 +1061,13 @@ export function renderApp(v) {
                         自由に選ばせると「3日後の11:00」のような、予定ではなく
                         期間になってしまい、実働時間の計算が意味を失う。 */}
                     <div style={s('display:flex;align-items:center;justify-content:space-between;gap:8px;padding:11px 16px')}>
-                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>{r.label}</span>
+                      <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0')}>{r.label}</span>
                       <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                         <span style={s(i === 0
                           ? 'font-size:13.5px;color:var(--ink-soft);background:var(--bg2);border-radius:10px;padding:7px 11px;white-space:nowrap;cursor:pointer'
                           : `font-size:13.5px;border-radius:10px;padding:7px 11px;white-space:nowrap;${v.endNextDay ? 'color:#0F6E56;background:rgba(29,158,117,.12);font-weight:700' : 'color:var(--ink-faint);background:transparent'}`)}
                           onClick={i === 0 ? v.onTapStartDate : undefined}>{i === 0 ? v.startDateText : v.endDateText}</span>
-                        <span style={s(`${r.valStyle && ''}font-size:15px;font-weight:${r.open ? 700 : 600};color:${r.open ? '#1D9E75' : 'var(--ink)'};background:var(--bg2);border-radius:10px;padding:7px 12px;font-variant-numeric:tabular-nums;cursor:pointer`)} onClick={r.onTap}>{r.value}</span>
+                        <span style={s(`${r.valStyle && ''}font-size:14.5px;font-weight:${r.open ? 700 : 600};color:${r.open ? '#1D9E75' : 'var(--ink)'};background:var(--bg2);border-radius:10px;padding:7px 12px;font-variant-numeric:tabular-nums;cursor:pointer`)} onClick={r.onTap}>{r.value}</span>
                       </span>
                     </div>
                     {r.open && (
@@ -1076,7 +1076,7 @@ export function renderApp(v) {
                         <div style={s(v.wheelColStyle)} onScroll={r.hScroll} ref={r.hRef}>
                           {(r.hItems || []).map((it, j) => (<div key={j} style={s(v.wheelItemStyle)}>{it}</div>))}
                         </div>
-                        <span style={s('font-size:20px;font-weight:300;color:var(--ink)')}>:</span>
+                        <span style={s('font-size:18px;font-weight:300;color:var(--ink)')}>:</span>
                         <div style={s(v.wheelColStyle)} onScroll={r.mScroll} ref={r.mRef}>
                           {(r.mItems || []).map((it, j) => (<div key={j} style={s(v.wheelItemStyle)}>{it}</div>))}
                         </div>
@@ -1102,12 +1102,12 @@ export function renderApp(v) {
               {v.allDayShown && (
                 <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 16px')}>
                   <span style={s('display:flex;flex-direction:column;gap:2px;padding-right:12px')}>
-                    <span style={s('font-size:15px;color:var(--ink)')}>何日間</span>
+                    <span style={s('font-size:14.5px;color:var(--ink)')}>何日間</span>
                     {!!v.spanRangeLabel && <span style={s('font-size:11px;font-weight:600;color:#1D9E75;font-variant-numeric:tabular-nums')}>{v.spanRangeLabel}</span>}
                   </span>
                   <span style={s('display:flex;align-items:center;gap:12px')}>
                     <span role="button" aria-label="1日減らす" style={s(v.spanMinusStyle)} onClick={v.onSpanMinus}>−</span>
-                    <span style={s('font-size:16px;font-weight:400;color:var(--ink);min-width:52px;text-align:center;font-variant-numeric:tabular-nums')}>{v.spanCountLabel}</span>
+                    <span style={s('font-size:15px;font-weight:400;color:var(--ink);min-width:52px;text-align:center;font-variant-numeric:tabular-nums')}>{v.spanCountLabel}</span>
                     <span role="button" aria-label="1日増やす" style={s(v.spanPlusStyle)} onClick={v.onSpanPlus}>＋</span>
                   </span>
                 </div>
@@ -1116,7 +1116,7 @@ export function renderApp(v) {
 
             <div style={s('background:var(--card);border-radius:17px;overflow:hidden;margin-bottom:18px')}>
               <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;cursor:pointer')} onClick={v.onTapRemindRow}>
-                <span style={s('font-size:15px;color:var(--ink);flex-shrink:0')}>お知らせ</span>
+                <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0')}>お知らせ</span>
                 <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                   <span style={s(v.valRemind)}>{v.remindValue}</span>
                   <span style={s(v.chevRemind)}>›</span>
@@ -1137,7 +1137,7 @@ export function renderApp(v) {
               {/* 職場で画面を見られやすい人のため。ウィジェットでは「予定あり」、通知では時刻だけにする */}
               <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-top:1px solid var(--line)')}>
                 <span style={s('display:flex;flex-direction:column;gap:2px;padding-right:10px')}>
-                  <span style={s('font-size:15px;color:var(--ink)')}>名前を隠す</span>
+                  <span style={s('font-size:14.5px;color:var(--ink)')}>名前を隠す</span>
                   <span style={s('font-size:11px;color:var(--ink-mut)')}>ウィジェットと通知では「予定あり」とだけ出します</span>
                 </span>
                 <div style={s(v.secretTrack)} onClick={v.onToggleSecret}><div style={s(v.secretKnob)} /></div>
@@ -1153,7 +1153,7 @@ export function renderApp(v) {
                 {v.multiRowShown && (
                   <div style={s(v.repRowShown || v.linkRowShown || v.placeRowShown || v.memoRowShown ? 'border-bottom:1px solid var(--line)' : '')}>
                     <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
-                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapMultiRow}>複数日</span>
+                      <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapMultiRow}>複数日</span>
                       <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                         <span style={s(v.valMulti)} onClick={v.onTapMultiRow}>{v.multiValue}</span>
                         <span role="button" aria-label="複数日を外す" style={s(v.removeStyle)} onClick={v.onRemoveMulti}>✕</span>
@@ -1162,9 +1162,9 @@ export function renderApp(v) {
                     {v.rowMultiOpen && (
                       <div style={s('padding:2px 12px 14px;background:var(--bg2)')}>
                         <div style={s('display:flex;align-items:center;justify-content:space-between;padding:6px 2px 8px')}>
-                          <span role="button" aria-label="前の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onMultiPrev}>‹</span>
+                          <span role="button" aria-label="前の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onMultiPrev}>‹</span>
                           <span style={s('font-size:14px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.multiPickLabel}</span>
-                          <span role="button" aria-label="次の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onMultiNext}>›</span>
+                          <span role="button" aria-label="次の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onMultiNext}>›</span>
                         </div>
                         <div style={s('display:grid;grid-template-columns:repeat(7,1fr)')}>
                           {(v.multiWeekdays || []).map((w, i) => (<div key={i} style={s(w.style)}>{w.label}</div>))}
@@ -1184,7 +1184,7 @@ export function renderApp(v) {
                     {v.candShown && (
                       <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-top:1px solid var(--line)')}>
                         <span style={s('display:flex;flex-direction:column;gap:2px;padding-right:10px')}>
-                          <span style={s('font-size:15px;color:var(--ink)')}>どれか1日に決まる（候補日）</span>
+                          <span style={s('font-size:14.5px;color:var(--ink)')}>どれか1日に決まる（候補日）</span>
                           <span style={s('font-size:11px;color:var(--ink-mut)')}>1つ確定したら、ほかの候補を片づけるか聞きます</span>
                         </span>
                         <div style={s(v.candTrack)} onClick={v.onToggleCand}><div style={s(v.candKnob)} /></div>
@@ -1195,7 +1195,7 @@ export function renderApp(v) {
                 {v.repRowShown && (
                   <div style={s(v.linkRowShown || v.placeRowShown || v.memoRowShown ? 'border-bottom:1px solid var(--line)' : '')}>
                     <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
-                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapRepRow}>くり返し</span>
+                      <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapRepRow}>くり返し</span>
                       <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                         <span style={s(v.valRep)} onClick={v.onTapRepRow}>{v.repValue}</span>
                         <span role="button" aria-label="くり返しを外す" style={s(v.removeStyle)} onClick={v.onRemoveRep}>✕</span>
@@ -1230,7 +1230,7 @@ export function renderApp(v) {
                 {v.linkRowShown && (
                   <div style={s(v.placeRowShown || v.memoRowShown ? 'border-bottom:1px solid var(--line)' : '')}>
                     <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
-                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapLinkRow}>Web会議・リンク</span>
+                      <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapLinkRow}>Web会議・リンク</span>
                       <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                         <span style={s(v.valLink)} onClick={v.onTapLinkRow}>{v.linkValue}</span>
                         <span role="button" aria-label="リンクを外す" style={s(v.removeStyle)} onClick={v.onRemoveLink}>✕</span>
@@ -1239,7 +1239,7 @@ export function renderApp(v) {
                     {v.rowLinkOpen && (
                       <div style={s('padding:2px 14px 14px;background:var(--bg2)')}>
                         <input value={v.linkText} onChange={v.onLinkText} placeholder="https://（Zoom・Teams・Meet など）" inputMode="url" autoCapitalize="off" autoCorrect="off"
-                          style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;margin-top:11px;font-size:15px;color:var(--ink);font-family:inherit')} />
+                          style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;margin-top:11px;font-size:14.5px;color:var(--ink);font-family:inherit')} />
                         <div style={s('font-size:11px;color:var(--ink-faint);margin:9px 4px 0;line-height:1.6')}>予定を開くと「参加する」ですぐ開けます</div>
                       </div>
                     )}
@@ -1248,7 +1248,7 @@ export function renderApp(v) {
                 {v.placeRowShown && (
                   <div style={s(v.memoRowShown ? 'border-bottom:1px solid var(--line)' : '')}>
                     <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
-                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapPlaceRow}>場所</span>
+                      <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapPlaceRow}>場所</span>
                       <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                         <span style={s(v.valPlace)} onClick={v.onTapPlaceRow}>{v.placeValue}</span>
                         <span role="button" aria-label="場所を外す" style={s(v.removeStyle)} onClick={v.onRemovePlace}>✕</span>
@@ -1257,7 +1257,7 @@ export function renderApp(v) {
                     {v.rowPlaceOpen && (
                       <div style={s('padding:2px 14px 14px;background:var(--bg2)')}>
                         <input value={v.placeText} onChange={v.onPlaceText} placeholder={v.placePlaceholder}
-                          style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;margin-top:11px;font-size:15px;color:var(--ink);font-family:inherit')} />
+                          style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;margin-top:11px;font-size:14.5px;color:var(--ink);font-family:inherit')} />
                         <div style={s('font-size:11px;color:var(--ink-faint);margin:9px 4px 0;line-height:1.6')}>入れておくと、予定を開いたときに地図で開けます</div>
                       </div>
                     )}
@@ -1266,7 +1266,7 @@ export function renderApp(v) {
                 {v.memoRowShown && (
                   <div>
                     <div style={s('display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px')}>
-                      <span style={s('font-size:15px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapMemoRow}>メモ</span>
+                      <span style={s('font-size:14.5px;color:var(--ink);flex-shrink:0;cursor:pointer')} onClick={v.onTapMemoRow}>メモ</span>
                       <span style={s('display:flex;align-items:center;gap:7px;min-width:0')}>
                         <span style={s(v.valMemo)} onClick={v.onTapMemoRow}>{v.memoValue}</span>
                         <span role="button" aria-label="メモを外す" style={s(v.removeStyle)} onClick={v.onRemoveMemo}>✕</span>
@@ -1275,7 +1275,7 @@ export function renderApp(v) {
                     {v.rowMemoOpen && (
                       <div style={s('padding:2px 14px 14px;background:var(--bg2)')}>
                         <textarea value={v.memoText} onChange={v.onMemoText} placeholder="持ち物や覚えておきたいこと" rows={4}
-                          style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;margin-top:11px;font-size:15px;color:var(--ink);font-family:inherit;resize:none;line-height:1.7')} />
+                          style={s('width:100%;box-sizing:border-box;border:none;outline:none;background:var(--card);border-radius:12px;padding:11px 13px;margin-top:11px;font-size:14.5px;color:var(--ink);font-family:inherit;resize:none;line-height:1.7')} />
                       </div>
                     )}
                   </div>
@@ -1288,7 +1288,7 @@ export function renderApp(v) {
                 {/* ＋ はチップと同じ高さにする（padding 8px＋行 17px＋枠 1px）。
                     高さを決め打ちにすると、チップの寸法を変えたときに縦がずれる。
                     チップ側を触ったら、ここも合わせること。 */}
-                <span style={s('width:26px;flex-shrink:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:8px 0;border:1px solid transparent;font-size:17px;line-height:17px;color:var(--ink-faint)')}>＋</span>
+                <span style={s('width:26px;flex-shrink:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;padding:8px 0;border:1px solid transparent;font-size:16px;line-height:17px;color:var(--ink-faint)')}>＋</span>
                 <div style={s('display:flex;flex-wrap:wrap;gap:8px;flex:1')}>
                   {(v.addChips || []).map((c, i) => (<div key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</div>))}
                 </div>
@@ -1299,16 +1299,16 @@ export function renderApp(v) {
           {/* 保存は画面の下にも置く。右上だけだと、片手では親指が届かない。
               キーボードが出ているときは、そのすぐ上に来る（画面ごと縮むので） */}
           <div className="save-bar" style={s('position:absolute;left:0;right:0;bottom:0;padding:10px 16px;background:var(--glass);backdrop-filter:blur(14px);border-top:1px solid var(--line);z-index:5')}>
-            <div role="button" style={s(`padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:700;color:#fff;background:${v.draftColorDeep};cursor:pointer`)} onClick={v.onSave}>保存</div>
+            <div role="button" style={s(`padding:14px;border-radius:15px;text-align:center;font-size:15px;font-weight:700;color:#fff;background:${v.draftColorDeep};cursor:pointer`)} onClick={v.onSave}>保存</div>
           </div>
           {v.discardShown && (
             <div style={s('position:absolute;inset:0;z-index:90;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onDiscardNo}>
               <div style={s('width:100%;max-width:300px;background:var(--card);border-radius:16px;padding:22px 20px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
-                <div style={s('font-size:17px;font-weight:400;color:var(--ink);text-align:center')}>書きかけの予定を捨てますか？</div>
+                <div style={s('font-size:16px;font-weight:400;color:var(--ink);text-align:center')}>書きかけの予定を捨てますか？</div>
                 <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:8px 0 18px')}>入れた内容は保存されません。</div>
                 <div style={s('display:flex;flex-direction:column;gap:8px')}>
-                  <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onDiscardYes}>捨てる</div>
-                  <div style={s('padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onDiscardNo}>書きつづける</div>
+                  <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:15px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onDiscardYes}>捨てる</div>
+                  <div style={s('padding:12px;text-align:center;font-size:14.5px;color:var(--ink-mut);cursor:pointer')} onClick={v.onDiscardNo}>書きつづける</div>
                 </div>
               </div>
             </div>
@@ -1316,11 +1316,11 @@ export function renderApp(v) {
           {v.repEditShown && (
             <div style={s('position:absolute;inset:0;z-index:90;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onRepEditCancel}>
               <div style={s('width:100%;max-width:300px;background:var(--card);border-radius:16px;padding:22px 20px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
-                <div style={s('font-size:17px;font-weight:400;color:var(--ink);text-align:center')}>くり返しの予定です</div>
+                <div style={s('font-size:16px;font-weight:400;color:var(--ink);text-align:center')}>くり返しの予定です</div>
                 <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:8px 0 18px')}>どこまで変えますか？</div>
                 <div style={s('display:flex;flex-direction:column;gap:8px')}>
-                  <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:15px;font-weight:700;background:var(--ink);color:var(--card);cursor:pointer')} onClick={v.onRepEditOne}>この予定だけ</div>
-                  <div style={s('padding:13px;border-radius:15px;text-align:center;font-size:15px;background:var(--card);color:var(--ink);border:1px solid var(--line);cursor:pointer')} onClick={v.onRepEditRest}>{v.repEditRest}</div>
+                  <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:14.5px;font-weight:700;background:var(--ink);color:var(--card);cursor:pointer')} onClick={v.onRepEditOne}>この予定だけ</div>
+                  <div style={s('padding:13px;border-radius:15px;text-align:center;font-size:14.5px;background:var(--card);color:var(--ink);border:1px solid var(--line);cursor:pointer')} onClick={v.onRepEditRest}>{v.repEditRest}</div>
                   <div style={s('padding:10px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onRepEditCancel}>やめる</div>
                 </div>
               </div>
@@ -1336,8 +1336,8 @@ export function renderApp(v) {
               右は「···」。編集・コピー・削除はこの中（実績の画面は混んでいるので、
               画面に箱を増やさない） */}
           <div className="scr-head-solo" style={s('display:flex;align-items:center;justify-content:space-between;padding:0 18px 10px 18px')}>
-            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onBack}>←</span>
-            <span role="button" aria-label="この予定の操作" style={s('font-size:20px;line-height:1;letter-spacing:2px;color:var(--ink-mut);cursor:pointer;padding:6px 0 6px 12px;user-select:none')} onClick={v.onOpenDetailMenu}>···</span>
+            <span role="button" aria-label="戻る" style={s('font-size:20px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onBack}>←</span>
+            <span role="button" aria-label="この予定の操作" style={s('font-size:18px;line-height:1;letter-spacing:2px;color:var(--ink-mut);cursor:pointer;padding:6px 0 6px 12px;user-select:none')} onClick={v.onOpenDetailMenu}>···</span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:14px 16px 40px 16px')}>
             <div style={s('background:var(--card);border-radius:16px;overflow:hidden;border:1px solid var(--line);min-height:170px')}>
@@ -1347,7 +1347,7 @@ export function renderApp(v) {
                   <span style={s(`font-size:13px;font-weight:400;color:${v.dTypeDark}`)}>{v.dStatusLabel}</span>
                   {!!v.dCandText && <span style={s('font-size:11px;padding:2px 8px;border-radius:999px;border:1px dashed var(--ink-faint);color:var(--ink-mut)')}>{v.dCandText}</span>}
                 </div>
-                <div style={s('font-size:24px;font-weight:300;color:var(--ink);margin:6px 0 2px 0;letter-spacing:-.3px')}>{v.dTitle}</div>
+                <div style={s('font-size:21px;font-weight:300;color:var(--ink);margin:6px 0 2px 0;letter-spacing:-.3px')}>{v.dTitle}</div>
                 <div style={s('font-size:14px;color:var(--ink-mut);margin-bottom:20px')}>
                   {v.dDateText}
                   {!!v.dHolText && <span style={s('margin-left:6px;font-size:12px;color:var(--sun)')}>{v.dHolText}</span>}
@@ -1355,7 +1355,7 @@ export function renderApp(v) {
                 </div>
 
                 <div style={s('display:flex;align-items:baseline;gap:8px')}>
-                  <span style={s('font-size:15px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dTimeText}</span>
+                  <span style={s('font-size:14.5px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dTimeText}</span>
                   {v.dTimeChanged && (
                     <span style={s('font-size:12px;font-weight:400;color:#D85A30')}>→ 変更あり</span>
                   )}
@@ -1385,7 +1385,7 @@ export function renderApp(v) {
                 )}
                 {/* Web 会議のリンク。いちばん押すものなので大きく */}
                 {!!v.dLink && (
-                  <a href={v.dLink} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;padding:13px 14px;border-radius:13px;background:var(--ink);color:var(--card);text-decoration:none;font-size:15px;font-weight:700;-webkit-tap-highlight-color:transparent')}>
+                  <a href={v.dLink} target="_blank" rel="noreferrer" style={s('display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;padding:13px 14px;border-radius:13px;background:var(--ink);color:var(--card);text-decoration:none;font-size:14.5px;font-weight:700;-webkit-tap-highlight-color:transparent')}>
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="13" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.8" /><path d="M16 10.5 21 8v8l-5-2.5" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" /></svg>
                     {v.dLinkLabel}
                   </a>
@@ -1402,14 +1402,14 @@ export function renderApp(v) {
                   <div style={s('margin-top:22px;padding-top:18px;border-top:1px solid var(--line);animation:riseUp .32s cubic-bezier(.2,.9,.2,1)')}>
                     <div style={s('display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px')}>
                       <span style={s('font-size:13px;color:var(--ink-mut)')}>実働時間</span>
-                      <span style={s('font-size:15px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dWorkHours}</span>
+                      <span style={s('font-size:14.5px;font-weight:400;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dWorkHours}</span>
                     </div>
                     {!!v.dBreakText && (
                       <div style={s('font-size:11px;color:var(--ink-faint);margin:-4px 0 10px;text-align:right')}>{v.dBreakText}</div>
                     )}
                     <div style={s('display:flex;justify-content:space-between;align-items:baseline')}>
                       <span style={s('font-size:13px;color:var(--ink-mut)')}>給料</span>
-                      <span style={s('font-size:24px;font-weight:300;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{v.dWage}</span>
+                      <span style={s('font-size:21px;font-weight:300;color:var(--ink);letter-spacing:-.3px;font-variant-numeric:tabular-nums')}>{v.dWage}</span>
                     </div>
                   </div>
                 )}
@@ -1444,7 +1444,7 @@ export function renderApp(v) {
             <div style={s('background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden')}>
               {v.dHist ? (
                 <>
-                  <div style={s('display:flex;gap:18px;padding:14px 16px 12px;font-size:15px')}>
+                  <div style={s('display:flex;gap:18px;padding:14px 16px 12px;font-size:14.5px')}>
                     <span style={s('color:var(--ink)')}>{v.dHist.year}</span>
                     <span style={s('color:var(--ink-soft)')}>{v.dHist.month}</span>
                   </div>
@@ -1480,9 +1480,9 @@ export function renderApp(v) {
         <div style={s('position:absolute;inset:0;z-index:88;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onYmSheetClose}>
           <div style={s('width:100%;max-width:320px;background:var(--bg);border-radius:20px;padding:18px 18px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
             <div style={s('display:flex;align-items:center;justify-content:center;gap:22px;padding:2px 0 16px')}>
-              <span role="button" aria-label="前の年" style={s('width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:21px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYmSheetPrevYear}>‹</span>
-              <span style={s('font-size:20px;font-weight:300;color:var(--ink);font-variant-numeric:tabular-nums;min-width:72px;text-align:center')}>{v.ymSheetYear}</span>
-              <span role="button" aria-label="次の年" style={s('width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:21px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYmSheetNextYear}>›</span>
+              <span role="button" aria-label="前の年" style={s('width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYmSheetPrevYear}>‹</span>
+              <span style={s('font-size:18px;font-weight:300;color:var(--ink);font-variant-numeric:tabular-nums;min-width:72px;text-align:center')}>{v.ymSheetYear}</span>
+              <span role="button" aria-label="次の年" style={s('width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:19px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onYmSheetNextYear}>›</span>
             </div>
             {/* 横に払っても年が変わる。‹ › だけだと的が小さい */}
             <div
@@ -1505,7 +1505,7 @@ export function renderApp(v) {
       {v.confirmShown && (
         <div style={s('position:absolute;inset:0;z-index:90;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onCancelDelete}>
           <div style={s('width:100%;max-width:300px;background:var(--card);border-radius:16px;padding:22px 20px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
-            <div style={s('font-size:17px;font-weight:400;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.confirmTitle}</div>
+            <div style={s('font-size:16px;font-weight:400;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.confirmTitle}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:8px 0 20px;text-wrap:pretty')}>{v.confirmBody}</div>
             {v.repDeleteShown && (
               <div style={s('display:flex;align-items:center;gap:10px;padding:12px 13px;margin-bottom:14px;border-radius:13px;background:var(--bg2);cursor:pointer')} onClick={v.onToggleRepDelete}>
@@ -1514,8 +1514,8 @@ export function renderApp(v) {
               </div>
             )}
             <div style={s('display:flex;flex-direction:column;gap:8px')}>
-              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onConfirmDelete}>{v.confirmOkLabel}</div>
-              <div style={s('padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancelDelete}>やめる</div>
+              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:15px;font-weight:700;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onConfirmDelete}>{v.confirmOkLabel}</div>
+              <div style={s('padding:12px;text-align:center;font-size:14.5px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancelDelete}>やめる</div>
             </div>
           </div>
         </div>
@@ -1527,12 +1527,12 @@ export function renderApp(v) {
           <div style={s('width:100%;max-width:320px;background:var(--card);border-radius:16px;padding:22px 20px 18px 20px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
             {v.dlgMoving ? (
               <>
-                <div style={s('font-size:19px;font-weight:400;color:var(--ink);text-align:center;letter-spacing:-.3px')}>{v.dlgMoveTitle}</div>
+                <div style={s('font-size:17px;font-weight:400;color:var(--ink);text-align:center;letter-spacing:-.3px')}>{v.dlgMoveTitle}</div>
                 <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:6px 0 12px 0')}>{v.dlgSub}</div>
                 <div style={s('display:flex;align-items:center;justify-content:space-between;padding:0 2px 6px')}>
-                  <span role="button" aria-label="前の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDlgMovePrev}>‹</span>
+                  <span role="button" aria-label="前の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDlgMovePrev}>‹</span>
                   <span style={s('font-size:14px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums')}>{v.dlgMoveLabel}</span>
-                  <span role="button" aria-label="次の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDlgMoveNext}>›</span>
+                  <span role="button" aria-label="次の月" style={s('width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDlgMoveNext}>›</span>
                 </div>
                 <div style={s('display:grid;grid-template-columns:repeat(7,1fr)')}>
                   {(v.dlgMoveWeekdays || []).map((w, i) => (<div key={i} style={s(w.style)}>{w.label}</div>))}
@@ -1542,14 +1542,14 @@ export function renderApp(v) {
                 </div>
                 <div style={s('font-size:12px;color:var(--ink-mut);text-align:center;margin:10px 0 12px')}>{v.dlgMoveChosenText}</div>
                 <div style={s('display:flex;flex-direction:column;gap:8px')}>
-                  <div style={s(`padding:13px;border-radius:13px;text-align:center;font-size:15px;font-weight:700;cursor:pointer;${v.dlgMoveChosen ? 'background:var(--ink);color:var(--card)' : 'background:var(--bg2);color:var(--ink-faint);pointer-events:none'}`)} onClick={v.onDlgMoveFix}>この日で決まった</div>
+                  <div style={s(`padding:13px;border-radius:13px;text-align:center;font-size:14.5px;font-weight:700;cursor:pointer;${v.dlgMoveChosen ? 'background:var(--ink);color:var(--card)' : 'background:var(--bg2);color:var(--ink-faint);pointer-events:none'}`)} onClick={v.onDlgMoveFix}>この日で決まった</div>
                   <div style={s(`padding:12px;border-radius:13px;text-align:center;font-size:14px;cursor:pointer;border:1px solid var(--line);${v.dlgMoveChosen ? 'color:var(--ink)' : 'color:var(--ink-faint);pointer-events:none'}`)} onClick={v.onDlgMoveKeep}>この日に、まだ仮で置く</div>
                   <div style={s('padding:10px;text-align:center;font-size:13px;color:var(--ink-mut);cursor:pointer')} onClick={v.onDlgMoveSomeday}>日にちはまだ決めない（今月のどこか）</div>
                   <div style={s('padding:6px;text-align:center;font-size:13px;color:var(--ink-faint);cursor:pointer')} onClick={v.onDlgMoveBack}>もどる</div>
                 </div>
               </>
             ) : (<>
-            <div style={s('font-size:19px;font-weight:400;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.dlgHeading}</div>
+            <div style={s('font-size:17px;font-weight:400;color:var(--ink);text-align:center;letter-spacing:-.3px;text-wrap:balance')}>{v.dlgHeading}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:6px 0 18px 0')}>{v.dlgSub}</div>
 
             <div style={s('background:var(--bg2);border-radius:15px;overflow:hidden;margin-bottom:6px')}>
@@ -1565,7 +1565,7 @@ export function renderApp(v) {
                       <div style={s(v.dlgWheelColStyle)} onScroll={r.hScroll} ref={r.hRef}>
                         {(r.hItems || []).map((it, j) => (<div key={j} style={s(v.wheelItemStyle)}>{it}</div>))}
                       </div>
-                      <span style={s('font-size:19px;font-weight:400;color:var(--ink)')}>:</span>
+                      <span style={s('font-size:17px;font-weight:400;color:var(--ink)')}>:</span>
                       <div style={s(v.dlgWheelColStyle)} onScroll={r.mScroll} ref={r.mRef}>
                         {(r.mItems || []).map((it, j) => (<div key={j} style={s(v.wheelItemStyle)}>{it}</div>))}
                       </div>
@@ -1597,11 +1597,11 @@ export function renderApp(v) {
 
             <div style={s('display:flex;flex-direction:column;gap:9px')}>
               <div style={s(v.dlgPrimaryStyle)} onClick={v.onDlgPrimary}>{v.dlgPrimaryLabel}</div>
-              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:600;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onDlgNakunatta}>{v.dlgGoneLabel}</div>
+              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:15px;font-weight:600;background:var(--card);color:#A8452B;border:1px solid #EAD9D2;cursor:pointer')} onClick={v.onDlgNakunatta}>{v.dlgGoneLabel}</div>
               {v.dlgMoveShown && (
-                <div style={s('padding:13px;border-radius:15px;text-align:center;font-size:15px;font-weight:600;background:var(--card);color:var(--ink);border:1px solid var(--line);cursor:pointer')} onClick={v.onDlgMove}>別の日になった</div>
+                <div style={s('padding:13px;border-radius:15px;text-align:center;font-size:14.5px;font-weight:600;background:var(--card);color:var(--ink);border:1px solid var(--line);cursor:pointer')} onClick={v.onDlgMove}>別の日になった</div>
               )}
-              <div style={s('padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onDlgStillMaybe}>{v.dlgMaybeLabel}</div>
+              <div style={s('padding:12px;text-align:center;font-size:14.5px;color:var(--ink-mut);cursor:pointer')} onClick={v.onDlgStillMaybe}>{v.dlgMaybeLabel}</div>
             </div>
 
             <div style={s('margin-top:6px;padding-top:12px;border-top:1px solid var(--line);text-align:center')}>
@@ -1617,11 +1617,11 @@ export function renderApp(v) {
       {v.candAskShown && (
         <div style={s('position:absolute;inset:0;z-index:91;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')}>
           <div style={s('width:100%;max-width:300px;background:var(--card);border-radius:16px;padding:22px 20px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')}>
-            <div style={s('font-size:17px;font-weight:400;color:var(--ink);text-align:center;text-wrap:balance')}>{v.candAskTitle}</div>
+            <div style={s('font-size:16px;font-weight:400;color:var(--ink);text-align:center;text-wrap:balance')}>{v.candAskTitle}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:center;margin:8px 0 18px;text-wrap:pretty')}>{v.candAskBody}</div>
             <div style={s('display:flex;flex-direction:column;gap:8px')}>
-              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:16px;font-weight:700;background:var(--ink);color:var(--card);cursor:pointer')} onClick={v.onCandYes}>{v.candAskYes}</div>
-              <div style={s('padding:12px;text-align:center;font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCandNo}>残しておく</div>
+              <div style={s('padding:14px;border-radius:15px;text-align:center;font-size:15px;font-weight:700;background:var(--ink);color:var(--card);cursor:pointer')} onClick={v.onCandYes}>{v.candAskYes}</div>
+              <div style={s('padding:12px;text-align:center;font-size:14.5px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCandNo}>残しておく</div>
             </div>
           </div>
         </div>
@@ -1677,7 +1677,7 @@ export function renderApp(v) {
       {v.summaryShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:#1A1A1A')}>
           <div className="scr-head" style={s('padding:0 18px 8px;flex-shrink:0')}>
-            <span style={s('font-size:16px;color:rgba(255,255,255,.65);cursor:pointer')} onClick={v.onSummaryClose}>閉じる</span>
+            <span style={s('font-size:15px;color:rgba(255,255,255,.65);cursor:pointer')} onClick={v.onSummaryClose}>閉じる</span>
             <span style={s('font-size:14px;font-weight:400;color:rgba(255,255,255,.9)')}>{v.cardTitle}</span>
             <span style={s('width:44px')} />
           </div>
@@ -1690,7 +1690,7 @@ export function renderApp(v) {
               : <div style={s('width:100%;max-width:340px;aspect-ratio:1080/680;border-radius:16px;background:rgba(255,255,255,.06)')} />}
 
             <div style={s('display:flex;gap:10px;width:100%;max-width:340px;margin-top:18px')}>
-              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:600;cursor:pointer')} onClick={v.onShareCard}>
+              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:14.5px;font-weight:600;cursor:pointer')} onClick={v.onShareCard}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
                   <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -1712,7 +1712,7 @@ export function renderApp(v) {
       {v.shareShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:#1A1A1A')}>
           <div className="scr-head" style={s('padding:0 18px 8px;flex-shrink:0')}>
-            <span style={s('font-size:16px;color:rgba(255,255,255,.65);cursor:pointer')} onClick={v.onShareClose}>閉じる</span>
+            <span style={s('font-size:15px;color:rgba(255,255,255,.65);cursor:pointer')} onClick={v.onShareClose}>閉じる</span>
             <span style={s('font-size:14px;font-weight:400;color:rgba(255,255,255,.9)')}>空いてる日をシェア</span>
             <span style={s('width:44px')} />
           </div>
@@ -1771,8 +1771,8 @@ export function renderApp(v) {
             </div>
 
             <div style={s('display:flex;gap:10px;width:100%;max-width:340px;margin-top:16px')}>
-              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:rgba(255,255,255,.1);color:#fff;font-size:15px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,.2)')} onClick={v.onCopyFreeText}>文字でコピー</div>
-              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
+              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:rgba(255,255,255,.1);color:#fff;font-size:14.5px;font-weight:700;cursor:pointer;border:1px solid rgba(255,255,255,.2)')} onClick={v.onCopyFreeText}>文字でコピー</div>
+              <div style={s('flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:14px;border-radius:16px;background:var(--card);color:var(--ink);font-size:14.5px;font-weight:700;cursor:pointer')} onClick={v.onShareCard}>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
                   <path d="M12 15V4m0 0L8 8m4-4 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -1896,7 +1896,7 @@ export function renderApp(v) {
       {v.probeShown && (
         <div style={s('position:absolute;inset:0;z-index:97;background:rgba(20,20,22,.5);display:flex;align-items:center;justify-content:center;padding:20px;animation:scrimIn .2s ease')} onClick={v.onProbeClose}>
           <div style={s('width:100%;max-width:340px;max-height:80%;overflow-y:auto;background:var(--card);border-radius:18px;padding:18px;animation:dlgIn .25s cubic-bezier(.2,.9,.2,1)')} onClick={v.stop}>
-            <div style={s('font-size:15px;font-weight:400;color:var(--ink);margin-bottom:12px')}>課金の状態</div>
+            <div style={s('font-size:14.5px;font-weight:400;color:var(--ink);margin-bottom:12px')}>課金の状態</div>
             {(v.probeRows || []).map((r, i) => (
               <div key={i} style={s('margin-bottom:10px')}>
                 {!!r.k && <div style={s('font-size:11px;color:var(--ink-mut);margin-bottom:2px')}>{r.k}</div>}
@@ -2142,8 +2142,8 @@ export function renderApp(v) {
       {v.importShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
-            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onImportBack}>←</span>
-            <span style={s('font-size:16px;font-weight:400;color:var(--ink);white-space:nowrap')}>予定の取り込み</span>
+            <span role="button" aria-label="戻る" style={s('font-size:20px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onImportBack}>←</span>
+            <span style={s('font-size:15px;font-weight:400;color:var(--ink);white-space:nowrap')}>予定の取り込み</span>
             <span style={s('width:44px')} />
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:14px 20px 60px')}>
@@ -2151,7 +2151,7 @@ export function renderApp(v) {
             {v.impPhase === 'done' ? (
               <div style={s('text-align:center;padding:56px 10px')}>
                 <div style={s('width:56px;height:56px;border-radius:28px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;animation:checkPop .5s cubic-bezier(.2,.9,.2,1) both')}>✓</div>
-                <div style={s('font-size:19px;font-weight:400;color:var(--ink);margin-top:18px')}>
+                <div style={s('font-size:17px;font-weight:400;color:var(--ink);margin-top:18px')}>
                   {v.impTidied === 'skip' ? `${v.impAdded}件をまとめから外しました` : v.impTidied === 'delete' ? `${v.impAdded}件を消しました` : `${v.impAdded}件を取り込みました`}
                 </div>
                 <div style={s('font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.9;text-wrap:pretty')}>
@@ -2171,7 +2171,7 @@ export function renderApp(v) {
                     {''}<Jp parts={['新しい予定は、','下の ＋ から','入れられます。']} />
                   </div>
                 )}
-                <div style={s('margin-top:28px;padding:15px;border-radius:16px;background:var(--ink);color:var(--card);font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onImportDone}>カレンダーを見る</div>
+                <div style={s('margin-top:28px;padding:15px;border-radius:16px;background:var(--ink);color:var(--card);font-size:14.5px;font-weight:700;cursor:pointer')} onClick={v.onImportDone}>カレンダーを見る</div>
                 {v.impUndoShown && (
                   <div style={s('margin-top:12px;padding:10px;font-size:13px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportUndo}>取り込む前に戻す</div>
                 )}
@@ -2179,7 +2179,7 @@ export function renderApp(v) {
             ) : v.impPhase === 'cals' ? (
               <>
                 {/* どのカレンダーを読むか。カレンダーごとに種類も決められる（会社の予定表 → 仕事） */}
-                <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>どのカレンダーを読みますか？</div>
+                <div style={s('font-size:18px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>どのカレンダーを読みますか？</div>
                 <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-bottom:14px;text-wrap:pretty')}>
                   {''}<Jp parts={['右の札を押すと、', 'そのカレンダーの予定を', '入れる種類を決められます。', '選んだ内容は', '次も使います。']} />
                 </div>
@@ -2197,12 +2197,12 @@ export function renderApp(v) {
                 <div style={s('display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px')}>
                   {(v.impRangeChips || []).map((c, i) => (<span key={i} style={s(c.style)} onClick={c.onClick}>{c.label}</span>))}
                 </div>
-                <div style={s(`padding:16px;border-radius:17px;text-align:center;font-size:16px;cursor:pointer;${v.impCalsOnCount ? 'background:var(--ink);color:var(--card)' : 'background:var(--bg2);color:var(--ink-mut);pointer-events:none'}`)} onClick={v.onReadCals}>読み込む</div>
+                <div style={s(`padding:16px;border-radius:17px;text-align:center;font-size:15px;cursor:pointer;${v.impCalsOnCount ? 'background:var(--ink);color:var(--card)' : 'background:var(--bg2);color:var(--ink-mut);pointer-events:none'}`)} onClick={v.onReadCals}>読み込む</div>
                 <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
               </>
             ) : v.impPhase === 'found' ? (
               <>
-                <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>
+                <div style={s('font-size:18px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:6px')}>
                   {v.impNone ? '予定が見つかりませんでした' : `${v.impCount}件の予定が見つかりました`}
                 </div>
                 <div style={s('font-size:13px;color:var(--ink-mut);line-height:1.9;margin-bottom:16px;text-wrap:pretty')}>
@@ -2242,14 +2242,14 @@ export function renderApp(v) {
                   </>
                 )}
                 {!v.impNone && !v.impTidy && (
-                  <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onDoImport}>
+                  <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:15px;font-weight:400;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onDoImport}>
                     {v.impOnCount}件を取り込む
                   </div>
                 )}
                 {/* 整理：外すのが本筋（予定は残る）。消すのは下に小さく、赤で */}
                 {!v.impNone && v.impTidy && (
                   <>
-                    <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onTidySkip}>
+                    <div style={s(`margin-top:8px;padding:16px;border-radius:17px;text-align:center;font-size:15px;font-weight:400;cursor:pointer;background:${v.impOnCount === '0' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impOnCount === '0' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impOnCount === '0' ? undefined : v.onTidySkip}>
                       {v.impOnCount}件をまとめから外す
                     </div>
                     <div style={s('font-size:11px;color:var(--ink-faint);text-align:center;margin-top:8px')}>予定はカレンダーに残ります</div>
@@ -2272,7 +2272,7 @@ export function renderApp(v) {
               </>
             ) : (
               <>
-                <div style={s('font-size:20px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:4px;line-height:1.55')}>
+                <div style={s('font-size:18px;font-weight:300;color:var(--ink);letter-spacing:-.3px;margin-bottom:4px;line-height:1.55')}>
                   {''}<Jp parts={['いま使っている', 'カレンダーの', '予定を', '持ってくる']} />
                 </div>
                 {/* 絵1枚と2行。前はここに3段落＋箱2つがあって、読む気が失せると言われた */}
@@ -2285,7 +2285,7 @@ export function renderApp(v) {
                   <div style={s('margin-top:18px')}>
                     <div style={s('font-size:13px;color:#A8452B;line-height:1.9;text-wrap:pretty')}>{v.impError}</div>
                     {v.impDenied && (
-                      <div style={s('margin-top:14px;padding:14px;border-radius:17px;border:1px solid var(--line);background:var(--card);text-align:center;font-size:15px;font-weight:700;color:var(--ink);cursor:pointer')} onClick={v.onOpenSettingsApp}>
+                      <div style={s('margin-top:14px;padding:14px;border-radius:17px;border:1px solid var(--line);background:var(--card);text-align:center;font-size:14.5px;font-weight:700;color:var(--ink);cursor:pointer')} onClick={v.onOpenSettingsApp}>
                         設定アプリを開く
                       </div>
                     )}
@@ -2296,7 +2296,7 @@ export function renderApp(v) {
                     許可を聞く前の画面のボタンに、許可した先の動きを書いてはいけない
                     （5.1.1(iv)）。Apple から Continue か Next を使うよう名指しで
                     指摘された。「やめる」も並べて、進まない道を同じ画面に置く。 */}
-                <div style={s(`margin-top:22px;padding:16px;border-radius:17px;text-align:center;font-size:16px;font-weight:400;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
+                <div style={s(`margin-top:22px;padding:16px;border-radius:17px;text-align:center;font-size:15px;font-weight:400;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
                   {v.impPhase === 'scanning' ? '読み込んでいます…' : '続ける'}
                 </div>
                 <div style={s('padding:14px;text-align:center;font-size:14px;color:var(--ink-mut);cursor:pointer')} onClick={v.onImportBack}>やめる</div>
@@ -2323,8 +2323,8 @@ export function renderApp(v) {
       {v.docShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
-            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onDocBack}>←</span>
-            <span style={s('font-size:16px;font-weight:400;color:var(--ink)')}>{v.docTitle}</span>
+            <span role="button" aria-label="戻る" style={s('font-size:20px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onDocBack}>←</span>
+            <span style={s('font-size:15px;font-weight:400;color:var(--ink)')}>{v.docTitle}</span>
             <span style={s('width:44px')} />
           </div>
           {/* 長い日本語の本文は両端揃えにする。左揃えのままだと行末がそろわず、
@@ -2350,8 +2350,8 @@ export function renderApp(v) {
       {v.noticesShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
-            <span role="button" aria-label="戻る" style={s('font-size:22px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onNoticesBack}>←</span>
-            <span style={s('font-size:16px;font-weight:400;color:var(--ink);white-space:nowrap')}>お知らせ</span>
+            <span role="button" aria-label="戻る" style={s('font-size:20px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onNoticesBack}>←</span>
+            <span style={s('font-size:15px;font-weight:400;color:var(--ink);white-space:nowrap')}>お知らせ</span>
             <span style={s(`font-size:13px;color:${v.noticeHasUnread ? 'var(--ink-mut)' : 'transparent'};cursor:pointer;white-space:nowrap`)} onClick={v.noticeHasUnread ? v.onMarkAllRead : undefined}>
               すべて既読
             </span>
@@ -2372,7 +2372,7 @@ export function renderApp(v) {
                     </div>
                     <div style={s(`font-size:14px;font-weight:${n.unread ? '700' : '500'};color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis`)}>{n.title}</div>
                   </div>
-                  <span style={s('font-size:16px;color:var(--ink-faint);flex-shrink:0')}>›</span>
+                  <span style={s('font-size:15px;color:var(--ink-faint);flex-shrink:0')}>›</span>
                 </div>
               ))
             )}
@@ -2388,12 +2388,12 @@ export function renderApp(v) {
                   <span style={s('flex:1')} />
                   <span style={s('font-size:11px;color:var(--ink-faint)')}>{v.nsWhen}</span>
                 </div>
-                <div style={s('font-size:17px;font-weight:400;color:var(--ink);line-height:1.55;text-wrap:pretty')}>{v.nsTitle}</div>
+                <div style={s('font-size:16px;font-weight:400;color:var(--ink);line-height:1.55;text-wrap:pretty')}>{v.nsTitle}</div>
                 <div style={s('font-size:14px;color:var(--ink-soft);margin-top:10px;line-height:1.9;text-align:justify')}>{v.nsBody}</div>
                 <div style={s('display:flex;gap:8px;margin-top:20px')}>
-                  <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:var(--bg2);color:var(--ink-soft);font-size:15px;font-weight:400;cursor:pointer')} onClick={v.onNoticeSheetClose}>閉じる</div>
+                  <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:var(--bg2);color:var(--ink-soft);font-size:14.5px;font-weight:400;cursor:pointer')} onClick={v.onNoticeSheetClose}>閉じる</div>
                   {!!v.nsActionLabel && (
-                    <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:#1D9E75;color:#fff;font-size:15px;font-weight:700;cursor:pointer')} onClick={v.onNoticeAction}>{v.nsActionLabel}</div>
+                    <div style={s('flex:1;text-align:center;padding:13px;border-radius:14px;background:#1D9E75;color:#fff;font-size:14.5px;font-weight:700;cursor:pointer')} onClick={v.onNoticeAction}>{v.nsActionLabel}</div>
                   )}
                 </div>
               </div>
@@ -2422,7 +2422,7 @@ export function renderApp(v) {
             <span style={s('font-size:10px;font-weight:600')}>カレンダー</span>
           </div>
           <div style={s(v.navFreeStyle)} onClick={v.onNavFree}>
-            <span style={s('font-size:15px;letter-spacing:-2px;line-height:24px;height:24px;display:flex;align-items:center')}>
+            <span style={s('font-size:14.5px;letter-spacing:-2px;line-height:24px;height:24px;display:flex;align-items:center')}>
               <span style={s('color:#1D9E75')}>○</span><span style={s('color:#B9770F')}>△</span><span style={s('color:#C1C5CC')}>×</span>
             </span>
             <span style={s('font-size:10px;font-weight:600')}>空き状況</span>

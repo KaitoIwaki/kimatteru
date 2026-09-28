@@ -2409,9 +2409,9 @@ export default class App extends React.Component {
     const st=this.state, wageOn=st.wageOn && this.wageFeatureOn();
     const stepBtn={width:30,height:30,borderRadius:15,background:'var(--bg2)',color:'var(--ink)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,fontWeight:500,cursor:'pointer',userSelect:'none'};
     // たたんだ行の「›」と値。開くと右に倒れて、値が色づく。
-    const chevron=(open)=>({fontSize:16,color:'var(--ink-faint)',flexShrink:0,display:'inline-block',
+    const chevron=(open)=>({fontSize:15,color:'var(--ink-faint)',flexShrink:0,display:'inline-block',
       transition:'transform .22s cubic-bezier(.2,.9,.2,1)', transform:open?'rotate(90deg)':'none'});
-    const rowVal=(open)=>({fontSize:15,fontWeight:open?700:500,color:open?'#1D9E75':'var(--ink-mut)',
+    const rowVal=(open)=>({fontSize:14.5,fontWeight:open?700:500,color:open?'#1D9E75':'var(--ink-mut)',
       whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',fontVariantNumeric:'tabular-nums'});
     const wl=['日','月','火','水','木','金','土'];
     const v={
@@ -3800,7 +3800,7 @@ export default class App extends React.Component {
       const dayHol = holidayName(Y,M,d);
       v.dayTitle = (M+1)+'月'+d+'日（'+wl[dow]+'）';
       v.dayHoliday = dayHol || '';
-      v.dayTitleStyle = {fontSize:16,fontWeight:400,
+      v.dayTitleStyle = {fontSize:15,fontWeight:400,
         color: (dayHol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)'};
       // 日をまたぐ予定も、覆っている日すべてに出す。
       // 月表示で隠している「無くなった」予定は、ここでも隠す（画面ごとに違うと混乱する）
@@ -4476,7 +4476,7 @@ export default class App extends React.Component {
       if(v.dWageShown){ v.dWorkHours=this.fmtHours(this.paidHours(ev)); v.dWage=this.fmtWage(this.wage(ev));
         v.dBreakText = this.breakMin(ev) ? '休憩 '+this.breakMin(ev)+'分を引いています' : ''; }
       const primary=(label,fn)=>{ v.dPrimaryLabel=label; v.dPrimaryAction=fn;
-        v.dPrimaryStyle={marginTop:16,padding:16,borderRadius:14,textAlign:'center',fontSize:16,fontWeight:400,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; };
+        v.dPrimaryStyle={marginTop:16,padding:15,borderRadius:14,textAlign:'center',fontSize:15,fontWeight:400,color:t.dark,background:t.paper,border:'1px solid '+t.color,cursor:'pointer'}; };
       if(ev.status==='nakunatta') primary('予定として戻す',()=>{ tapLight(); this.updateEvent(ev.id,{status:'kakutei'}); });
       // 働いた記録は、バイトのほか「仕事」にも付けられる（残業＝予定より延びた時間を数えるため）。給料はバイトだけ
       else if(ev.status==='kakutei' && (ev.type==='baito' || ev.type==='work') && !ev.allDay) primary('働いた記録をつける',()=>this.openDialog(ev,'worked',st.returnTo));
@@ -4522,7 +4522,7 @@ export default class App extends React.Component {
         onClick:()=>{ this.setState({detailMenu:false, pressed:null}); r.fn(); },
         onDown:()=>this.setPressed('menu:'+r.key), onUp:()=>this.setPressed(null),
         style:{display:'flex',alignItems:'center',padding:'15px 18px',cursor:'pointer',
-          fontSize:15, color: r.red ? '#A8452B' : 'var(--ink)',
+          fontSize:14.5, color: r.red ? '#A8452B' : 'var(--ink)',
           ...(i ? {borderTop:'1px solid var(--line)'} : {}),
           ...(st.pressed==='menu:'+r.key ? {background:'var(--press)'} : {})} }));
       // 「…」の真下から生える。安全域ぶん下げてから、見出しの高さ（52）を足す
@@ -4666,13 +4666,13 @@ export default class App extends React.Component {
       // 白い字を載せるので、地は種類の色を35%暗くした色にする。
       // そのままの色だと、バイトの緑や遊びの橙で字と地の差が 4.5 に届かず、読みにくかった
       { const d0=this._mix(t.color,'#000000',0.35);
-        v.dlgPrimaryStyle = {padding:15,borderRadius:12,textAlign:'center',fontSize:16,fontWeight:700,color:'#fff',background:`rgb(${d0[0]},${d0[1]},${d0[2]})`,cursor:'pointer',boxShadow:'0 3px 10px '+t.paper}; }
+        v.dlgPrimaryStyle = {padding:14,borderRadius:12,textAlign:'center',fontSize:15,fontWeight:700,color:'#fff',background:`rgb(${d0[0]},${d0[1]},${d0[2]})`,cursor:'pointer',boxShadow:'0 3px 10px '+t.paper}; }
       v.dlgWheelColStyle = {width:60,height:150,overflowY:'scroll',scrollSnapType:'y mandatory',padding:'58px 0',textAlign:'center',WebkitMaskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)',maskImage:'linear-gradient(180deg,transparent,#000 30%,#000 70%,transparent)'};
       const dHours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
       const dMinutes=Array.from({length:60/MIN_STEP},(_,i)=>String(i*MIN_STEP).padStart(2,'0'));
       const dMkRow=(field,label,isFirst)=>({ label, value:d[field], open:d.picking===field,
         rowStyle:{borderBottom:isFirst?'1px solid var(--line)':'none'},
-        valStyle:{fontSize:16,fontWeight:d.picking===field?700:600,color:d.picking===field?t.color:'var(--ink)',fontVariantNumeric:'tabular-nums'},
+        valStyle:{fontSize:15,fontWeight:d.picking===field?700:600,color:d.picking===field?t.color:'var(--ink)',fontVariantNumeric:'tabular-nums'},
         onTap:()=>this.setState(s=>({dialog:{...s.dialog,picking:s.dialog.picking===field?null:field}})),
         hItems:dHours, mItems:dMinutes,
         hRef: field==='start'?this.dRefStartH:this.dRefEndH, mRef: field==='start'?this.dRefStartM:this.dRefEndM,
