@@ -3602,7 +3602,9 @@ export default class App extends React.Component {
       const padB = parseInt(this.state.wageOn ? 168 : 104, 10);
       const rowH = this._monthH ? (this._monthH - padB) / weekCount : 0;
       const laneH = Math.round(MONTH_BAR_H*this.evScale()) + 2;
-      const lanesN = rowH ? Math.max(MAX_LANES, Math.min(7, Math.floor((rowH - 22 - 14) / laneH))) : MAX_LANES;
+      // 入るぶんだけ積む（2〜7段）。前は最低4段で、予定の字を大きくした6週の月（11月など）は
+      // マスが画面より高くなり、いちばん下の週がナビの下に隠れていた。入らない予定は「+N件」
+      const lanesN = rowH ? Math.max(2, Math.min(7, Math.floor((rowH - 22 - 14) / laneH))) : MAX_LANES;
       // この月にかかる予定だけを相手にする。日またぎは前の月から始まっていることもある。
       const pool=st.events.filter(e=>
         !(st.settings.hideCanceled && e.status==='nakunatta') &&
