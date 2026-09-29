@@ -1310,7 +1310,10 @@ export default class App extends React.Component {
       // 消耗型は Apple 側で復元できない。自前で持たないと機種変更で消えるので、
       // 予定と同じ入れ物に入れる（控えにも入る）。
       const t=TIPS.find(x=>x.id===id);
-      this.setState(s=>({supports:[...(s.supports||[]), {id, yen:(t&&t.yen)||0, at:Date.now()}]}));
+      // 買えたら「ありがとう」の小窓を出す（前は下に2秒ほど字が出るだけで、サポーターカードにも気づかれにくかった）
+      this.setState(s=>({supports:[...(s.supports||[]), {id, yen:(t&&t.yen)||0, at:Date.now()}], tipThanks:{id}}));
+      settleSuccess();
+      return;
     }
     if(r.msg) this.setState({shareToast:true, shareMsg:r.msg},
       ()=>setTimeout(()=>this.setState({shareToast:false}), 2400));
@@ -2445,7 +2448,7 @@ export default class App extends React.Component {
       // キーボードが出ているあいだも隠す。ナビは浮かせてあるので、キーボードで画面が縮むと
       // 一緒に持ち上がって、入力欄の上に乗る（TestFlight の実機で見た）
       navShown: (st.screen==='month' || st.screen==='free' || st.screen==='report'
-        || (st.screen==='settings' && !st.pasteOpen)) && !st.kbOpen,
+        || (st.screen==='settings' && !st.pasteOpen)) && !st.kbOpen && !st.tipThanks,
       onBell:()=>this.openNotices(),
       navCur: st.screen,
       // カレンダーを見ているときにもう一度押すと、今日の月へ戻る（iPhone のカレンダーと同じ）
@@ -3061,6 +3064,15 @@ export default class App extends React.Component {
     v.onTipHeadDown = ()=>this.setPressed('tip:head');
     v.onTipUp = ()=>this.setPressed(null);
     v.onToggleTip = ()=>{ tapLight(); this.setState(s=>({tipOpen:!s.tipOpen})); };
+    // 買えたあとの「ありがとう」の小窓
+    v.tipThanksShown = !!st.tipThanks;
+    if(st.tipThanks){
+      const t=(st.tips||[]).find(x=>x.id===st.tipThanks.id), T0=TIPS.find(x=>x.id===st.tipThanks.id);
+      v.tipThanksId = st.tipThanks.id;
+      v.tipThanksPrice = t ? t.price : (T0 ? '¥'+T0.yen.toLocaleString('ja-JP') : '');
+      v.onTipThanksClose = ()=>{ tapLight(); this.setState({tipThanks:null}); };
+      v.onTipThanksCard = ()=>{ tapLight(); this.stopCardFlip(); this.setState({tipThanks:null, screen:'card', cardAngle:0}); };
+    }
     v.tipRows = (st.tips||[]).map((t,i)=>({
       id:t.id, label:t.label, pressed: st.pressed==='tip:'+t.id || st.tipBusy===t.id,
       // 返事を待っているあいだは値段のかわりに「…」。押したことが残る

@@ -556,6 +556,26 @@ export function Settings({ v }) {
       </div>
 
 
+      {/* ===== 応援のあとの「ありがとう」 ===== */}
+      {v.tipThanksShown && (() => {
+        const look = TIP_LOOK[v.tipThanksId] || { title: '応援', icon: 'heart' };
+        return (
+          <div style={s('position:fixed;inset:0;z-index:400;background:rgba(20,20,22,.36);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .22s ease')} onClick={v.onTipThanksClose}>
+            <div style={s('width:100%;max-width:320px;background:var(--bg);border-radius:22px;padding:26px 22px 18px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28);animation:dlgIn .32s cubic-bezier(.2,.9,.2,1)')} onClick={(e) => e.stopPropagation()}>
+              <img src={sproutImg} alt="" style={{ display: 'block', width: 96, height: 'auto', margin: '0 auto 14px' }} />
+              <div style={s(`font-family:${ROUND};font-size:21px;color:var(--ink);line-height:1.5`)}>応援、<br />ありがとうございます！</div>
+              <div style={s('display:inline-flex;align-items:center;gap:8px;margin:14px 0 20px;padding:7px 14px;border-radius:999px;background:var(--card)')}>
+                <TipIcon kind={look.icon} />
+                <span style={s(`font-family:${ROUND};font-size:14px;color:var(--ink)`)}>{look.title}</span>
+                <span style={s(`font-family:${ROUND};font-size:14px;color:#5E8A66;font-variant-numeric:tabular-nums`)}>{v.tipThanksPrice}</span>
+              </div>
+              <div style={s(`padding:13px;border-radius:14px;background:${SAGE};color:#fff;font-family:${ROUND};font-size:15px;cursor:pointer`)} onClick={v.onTipThanksCard}>サポーターカードを見る</div>
+              <div style={s(`padding:12px;margin-top:4px;font-family:${ROUND};font-size:14px;color:var(--ink-mut);cursor:pointer`)} onClick={v.onTipThanksClose}>閉じる</div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ===== 使い方をえらぶ ===== */}
       {v.profileSheetShown && (
         <Sheet title="ふだんの予定に近いのは？" onClose={v.onProfileClose}>
