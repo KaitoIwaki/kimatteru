@@ -1,6 +1,14 @@
 /* 「静かな文房具」— 紙と墨。色は予定のピルだけが持つ。 */
 * { box-sizing: border-box; }
 
+/* 応援の画面だけで使う手書きの字。Yomogi（SIL Open Font License、assets/Yomogi-OFL.txt）から、
+   その画面で使う70字だけを切り出してある（15KB）。アプリに入れてあるので通信はしない */
+@font-face {
+  font-family: 'LukkoYomogi';
+  src: url('./assets/yomogi-lukko.woff2') format('woff2');
+  font-display: block;
+}
+
 /* 地は白。カードを白に、まわりをわずかに沈めて段を作る。
    ベージュの紙から替えた理由は2つ。書き出す共有画像がもともと白系
    （sharecard.js の地は #FBFBFD）で、アプリと食い違っていたこと。

@@ -1,7 +1,7 @@
 import React from 'react';
 import { s } from './style';
 import { Jp } from './jp.jsx';
-import sproutImg from './assets/sprout.png';
+import sproutImg from './assets/sprout-line.png';
 
 // 設定の画面。view.jsx から切り出した（群が増えて、1つのファイルに収まりにくくなったため）。
 // 値はすべて App.jsx の renderVals / _settingsVals が返す v から来る。
@@ -459,7 +459,8 @@ export function resetSettingsScroll() { SAVED.main = 0; }
 // 応援の画面。お礼 → 芽の絵 → 金額3つ → 手書きの「いつもありがとう」。
 // 色はカレンダーの予定の色（セージの緑 #7FAE85）と、アプリの地・カードの色だけで作る（暗い画面でもそのまま読める）
 const SAGE = '#7FAE85';
-const ROUND = "'Hiragino Maru Gothic ProN','Hiragino Maru Gothic Pro','Hiragino Sans',sans-serif";
+// 手書きの字（Yomogi を切り出したもの。styles.css の @font-face）。無い字は丸ゴシックで出る
+const ROUND = "'LukkoYomogi','Hiragino Maru Gothic ProN','Hiragino Maru Gothic Pro','Hiragino Sans',sans-serif";
 const TIP_LOOK = {
   'com.kimatteru.app.tip300': { title: 'コーヒー1杯', sub: 'ちょっとした応援を、気軽に。', icon: 'cup' },
   'com.kimatteru.app.tip600': { title: 'ランチ1回', sub: '次のアイデアのために。', icon: 'rice' },
@@ -467,34 +468,34 @@ const TIP_LOOK = {
 };
 function TipIcon({ kind }) {
   const st = { stroke: 'var(--ink-soft)', strokeWidth: 1.6, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' };
-  if (kind === 'cup') return (<svg width="24" height="24" viewBox="0 0 24 24"><path d="M5 10h11v4.5A4.5 4.5 0 0 1 11.5 19h-2A4.5 4.5 0 0 1 5 14.5z" {...st} /><path d="M16 11.5h1.3a2.2 2.2 0 0 1 0 4.4H15.6" {...st} /><path d="M9 4.5c-.8 1 .8 1.7 0 2.8M12 4.5c-.8 1 .8 1.7 0 2.8" {...st} /></svg>);
-  if (kind === 'rice') return (<svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 4.5c2 0 3.4 1.6 4.6 3.8l2.4 4.6c1.3 2.6-.5 6.1-3.4 6.1H8.4c-2.9 0-4.7-3.5-3.4-6.1l2.4-4.6C8.6 6.1 10 4.5 12 4.5z" {...st} /><path d="M9 14h6v5H9z" {...st} fill="var(--ink-soft)" /></svg>);
-  return (<svg width="24" height="24" viewBox="0 0 24 24"><path d="M12 19.5s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.3c0 4.9-7 9.2-7 9.2z" {...st} /></svg>);
+  if (kind === 'cup') return (<svg width="20" height="20" viewBox="0 0 24 24"><path d="M5 10h11v4.5A4.5 4.5 0 0 1 11.5 19h-2A4.5 4.5 0 0 1 5 14.5z" {...st} /><path d="M16 11.5h1.3a2.2 2.2 0 0 1 0 4.4H15.6" {...st} /><path d="M9 4.5c-.8 1 .8 1.7 0 2.8M12 4.5c-.8 1 .8 1.7 0 2.8" {...st} /></svg>);
+  if (kind === 'rice') return (<svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 4.5c2 0 3.4 1.6 4.6 3.8l2.4 4.6c1.3 2.6-.5 6.1-3.4 6.1H8.4c-2.9 0-4.7-3.5-3.4-6.1l2.4-4.6C8.6 6.1 10 4.5 12 4.5z" {...st} /><path d="M9 14h6v5H9z" {...st} fill="var(--ink-soft)" /></svg>);
+  return (<svg width="20" height="20" viewBox="0 0 24 24"><path d="M12 19.5s-7-4.3-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.3c0 4.9-7 9.2-7 9.2z" {...st} /></svg>);
 }
 function Sprout() {
-  // イラスト：イラスト緑花（RYOKKA）「双葉（発芽）」 https://illust-ryokka.jp/ （商用・アプリ利用可、クレジット不要、色の変更可）
-  // 葉をカレンダーのセージ色に、土を淡い土色に塗り替え、土の下は地に溶けるように透明にしてある
-  return <img src={sproutImg} alt="" style={{ display: 'block', width: 170, height: 'auto', margin: '0 auto' }} />;
+  // イラスト：GreenStock40「芽生えのイラスト（線画）」 https://greenstock40.com/sprout01/
+  // （商用・スマートフォンアプリで利用可、クレジット不要、加工可。https://greenstock40.com/kiyaku/）。手描きの線のまま使う
+  return <img src={sproutImg} alt="" style={{ display: 'block', width: 150, height: 'auto', margin: '0 auto' }} />;
 }
 function SupportPage({ v }) {
   return (<>
     <div style={s('text-align:center;padding:18px 8px 6px')}>
-      <div style={s(`font-family:${ROUND};font-size:21px;font-weight:500;color:var(--ink);line-height:1.6`)}>いつも使ってくださって、<br />ありがとうございます。</div>
+      <div style={s(`font-family:${ROUND};font-size:22px;font-weight:400;color:var(--ink);line-height:1.6`)}>いつも使ってくださって、<br />ありがとうございます。</div>
       <div style={s(`font-family:${ROUND};font-size:13px;color:var(--ink-mut);line-height:1.9;margin-top:12px`)}>あなたの応援が、<br />これからの開発の力になります。</div>
     </div>
     <div style={s('margin:22px 0 26px')}><Sprout /></div>
 
     <div style={s(HEAD + `;font-family:${ROUND};color:#5E8A66;font-size:13px;text-align:center;margin:0 0 10px`)}>応援する</div>
-    <div style={s('display:flex;flex-direction:column;gap:10px;margin-bottom:28px')}>
+    <div style={s('display:flex;flex-direction:column;gap:8px;margin-bottom:28px')}>
       {(v.tipRows || []).map((t, i) => {
         const look = TIP_LOOK[t.id] || { title: t.label, sub: '', icon: 'heart' };
         return (
-          <div key={i} style={s({ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 14px 14px 12px', borderRadius: 18, background: 'var(--card)', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,.04)', ...(t.pressed ? { background: 'var(--press)' } : {}) })}
+          <div key={i} style={s({ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px 8px 10px', borderRadius: 16, background: 'var(--card)', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,.04)', ...(t.pressed ? { background: 'var(--press)' } : {}) })}
             onClick={t.onClick} onPointerDown={t.onDown} onPointerUp={t.onUp} onPointerCancel={t.onUp} onPointerLeave={t.onUp}>
-            <span style={s('width:44px;height:44px;border-radius:22px;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0')}><TipIcon kind={look.icon} /></span>
-            <span style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:3px')}>
-              <span style={s(`font-family:${ROUND};font-size:15px;font-weight:500;color:var(--ink)`)}>{look.title}</span>
-              {!!look.sub && <span style={s('font-size:11.5px;color:var(--ink-mut)')}>{look.sub}</span>}
+            <span style={s('width:36px;height:36px;border-radius:18px;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0')}><TipIcon kind={look.icon} /></span>
+            <span style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:0')}>
+              <span style={s(`font-family:${ROUND};font-size:15px;font-weight:400;color:var(--ink)`)}>{look.title}</span>
+              {!!look.sub && <span style={s(`font-family:${ROUND};font-size:11.5px;color:var(--ink-mut)`)}>{look.sub}</span>}
             </span>
             <span style={s(`font-family:${ROUND};font-size:15px;color:#5E8A66;font-variant-numeric:tabular-nums;flex-shrink:0`)}>{t.price}</span>
             <span style={s(CHEV)}>›</span>
@@ -546,7 +547,7 @@ export function Settings({ v }) {
         <div className="scr-head-solo" style={s('padding:0 12px 10px;display:flex;align-items:center;gap:4px;position:relative')}>
           <span role="button" aria-label="設定へ戻る" style={s('display:flex;align-items:center;gap:2px;font-size:14px;color:var(--ink-mut);cursor:pointer;padding:6px 4px;flex-shrink:0')} onClick={v.onSetBack}><span style={s('font-size:24px;line-height:1')}>‹</span>{page === 'support' ? '' : '設定'}</span>
           {/* 題は戻るの幅に関係なく、画面の真ん中に置く */}
-          <span style={s('position:absolute;left:72px;right:72px;bottom:10px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none')}>{v.setPageTitle}</span>
+          <span style={s('position:absolute;left:72px;right:72px;bottom:10px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none' + (page === 'support' ? `;font-family:${ROUND};font-weight:400;font-size:16px` : ''))}>{v.setPageTitle}</span>
         </div>
       ) : (
         <div className="scr-head-solo" style={s('padding:0 20px 10px')}>
