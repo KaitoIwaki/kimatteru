@@ -16,7 +16,7 @@ import sproutImg from './assets/sprout-line.png';
 const HEAD = 'font-size:12px;font-weight:400;color:var(--ink-mut);margin:0 6px 7px';
 const CARD = 'background:var(--card);border-radius:12px;overflow:hidden;margin-bottom:22px';
 const NOTE = 'font-size:11.5px;color:var(--ink-faint);margin:-15px 6px 22px;line-height:1.6;text-wrap:pretty';
-const LABEL = 'font-size:14px;font-weight:500;color:var(--ink)';
+const LABEL = 'font-size:14px;font-weight:400;color:var(--ink)';
 const VALUE = 'font-size:13.5px;color:var(--ink-mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0';
 const CHEV = 'font-size:16px;color:var(--ink-faint);flex-shrink:0;line-height:1';
 const ROWPAD = 'padding:0 16px;min-height:42px';
@@ -170,8 +170,8 @@ function Main({ v }) {
     </div>
     {v.notifyOn && (<>
       <div style={s(CARD)}>
-        <Row label="朝のまとめ" right={<Toggle t={v.morning} onClick={v.onMorning} />} last={v.morning.track.background !== 'var(--ink)'} />
-        {v.morning.track.background === 'var(--ink)' && (
+        <Row label="朝のまとめ" right={<Toggle t={v.morning} onClick={v.onMorning} />} last={!v.morning.on} />
+        {v.morning.on && (
           <Row label="時刻" right={<TimePick value={v.morningAt} onChange={v.onMorningAt} opts={v.timeOpts} />} last />
         )}
       </div>
@@ -563,7 +563,7 @@ export function Settings({ v }) {
             {(v.profileOpts || []).map((p) => (
               <div key={p.key} style={s(`display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:15px;background:var(--card);cursor:pointer;border:1px solid ${p.sel ? 'var(--ink)' : 'var(--line)'}`)} onClick={p.onClick}>
                 <span style={s('flex:1;display:flex;flex-direction:column;gap:2px')}>
-                  <span style={s('font-size:14px;font-weight:500;color:var(--ink)')}>{p.label}</span>
+                  <span style={s('font-size:14px;font-weight:400;color:var(--ink)')}>{p.label}</span>
                   <span style={s('font-size:12px;color:var(--ink-mut)')}>{p.note}</span>
                 </span>
                 {p.sel && <span style={s('font-size:13px;color:var(--ink-mut)')}>いま</span>}
@@ -623,7 +623,7 @@ export function Settings({ v }) {
             <Row label="記号（1〜2文字）" sub="例：日・夜・早・遅・休" right={<input value={v.tplSym} onChange={v.onTplSym} maxLength={2} style={s('width:4ch;border:none;outline:none;background:var(--bg2);border-radius:9px;padding:7px 10px;font-size:14px;color:var(--ink);text-align:center;font-family:inherit')} />} />
             <Row label="名前" right={<input value={v.tplName} onChange={v.onTplName} placeholder="日勤" style={s('width:9ch;border:none;outline:none;background:var(--bg2);border-radius:9px;padding:7px 10px;font-size:14px;color:var(--ink);font-family:inherit')} />} />
             <Row label="休み（終日）" right={<Toggle t={v.tplAllDay} onClick={v.onTplAllDay} />} />
-            {v.tplAllDay.track.background !== 'var(--ink)' && (<>
+            {!v.tplAllDay.on && (<>
               <Row label="時間" sub="終わりが早ければ翌日まで（夜勤）" right={<span style={s('display:flex;align-items:center;gap:5px')}><TimeSel value={v.tplFrom} onChange={v.onTplFrom} opts={v.timeOpts} />〜<TimeSel value={v.tplTo} onChange={v.onTplTo} opts={v.timeOpts} /></span>} />
               <Row label="いつもの休憩" right={<TimeSel value={v.tplBrk} onChange={v.onTplBrk} opts={v.brkOpts} />} last />
             </>)}

@@ -96,7 +96,9 @@ const FEATURE_FORM = '';
 const APP_MARKETING = typeof __APP_MARKETING__ === 'string' ? __APP_MARKETING__ : '1.3';
 
 // スイッチの見た目（設定のものと同じ）
-const tgTrackOb = (on) => ({ width: 44, height: 26, borderRadius: 13, background: on ? 'var(--ink)' : 'var(--line)', padding: 2, transition: 'background .28s cubic-bezier(.2,.9,.2,1)', cursor: 'pointer', display: 'flex', flexShrink: 0 });
+// スイッチのオンの色。前は墨（黒）で主張が強かった。カレンダーの予定の緑（セージ）にそろえる
+const TOGGLE_ON = '#7FAE85';
+const tgTrackOb = (on) => ({ width: 44, height: 26, borderRadius: 13, background: on ? TOGGLE_ON : 'var(--line)', padding: 2, transition: 'background .28s cubic-bezier(.2,.9,.2,1)', cursor: 'pointer', display: 'flex', flexShrink: 0 });
 const tgKnobOb = (on) => ({ width: 22, height: 22, borderRadius: 11, background: 'var(--card)', boxShadow: '0 1px 2px rgba(0,0,0,.25)', transition: 'transform .28s cubic-bezier(.2,.9,.2,1)', transform: on ? 'translateX(18px)' : 'translateX(0)' });
 import { shareCanvas, shareText, copyText, shareTextAndFile } from './shareimg';
 import { toIcs, parseIcs } from './ics';
@@ -2177,7 +2179,7 @@ export default class App extends React.Component {
    */
   _settingsVals(v){
     const st=this.state, cfg=st.settings, W=this.words();
-    const tg=(on)=>({track:tgTrackOb(!!on), knob:tgKnobOb(!!on)});
+    const tg=(on)=>({track:tgTrackOb(!!on), knob:tgKnobOb(!!on), on:!!on});
     const seg=(items, cur, set)=>items.map(([k,label])=>({ label, sel:cur===k, onClick:()=>{ tapLight(); set(k); },
       style:{flex:1,textAlign:'center',padding:'7px 0',borderRadius:7,fontSize:12.5,whiteSpace:'nowrap',fontWeight:cur===k?700:500,cursor:'pointer',
         background:cur===k?'var(--card)':'transparent',color:cur===k?'var(--ink)':'var(--ink-mut)',border:cur===k?'1px solid var(--line)':'1px solid transparent'} }));
@@ -3237,7 +3239,7 @@ export default class App extends React.Component {
       style:{width:13,height:13,borderRadius:7,background:t.color,flexShrink:0,
         boxShadow:'inset 0 0 0 1px rgba(0,0,0,.06)'} }));
     v.typeMoreLabel = st.types.length>8 ? '+'+(st.types.length-8) : '';
-    const tgTrack=(on,col)=>({width:44,height:26,borderRadius:13,background:on?'var(--ink)':'var(--line)',padding:2,transition:'background .28s cubic-bezier(.2,.9,.2,1)',cursor:'pointer',display:'flex',flexShrink:0});
+    const tgTrack=(on,col)=>({width:44,height:26,borderRadius:13,background:on?TOGGLE_ON:'var(--line)',padding:2,transition:'background .28s cubic-bezier(.2,.9,.2,1)',cursor:'pointer',display:'flex',flexShrink:0});
     const tgKnob=(on)=>({width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s cubic-bezier(.2,.9,.2,1)',transform:on?'translateX(18px)':'translateX(0)'});
     v.remindTrack=tgTrack(cfg.remind); v.remindKnob=tgKnob(cfg.remind);
     v.darkTrack=tgTrack(cfg.dark); v.darkKnob=tgKnob(cfg.dark); v.onToggleDark=()=>this.setSetting('dark',!cfg.dark);
@@ -3587,7 +3589,7 @@ export default class App extends React.Component {
     // 今月以外を見ているときだけ出す「今日」
     v.todayBtnShown = !(st.ym.y===st.today.y && st.ym.m===st.today.m);
     v.onGoToday = ()=>this.goToday();
-    v.wageTrackStyle = { width:44,height:26,borderRadius:13,background:wageOn?'var(--ink)':'var(--line)',padding:2,transition:'background .28s cubic-bezier(.2,.9,.2,1)',cursor:'pointer',display:'flex' };
+    v.wageTrackStyle = { width:44,height:26,borderRadius:13,background:wageOn?TOGGLE_ON:'var(--line)',padding:2,transition:'background .28s cubic-bezier(.2,.9,.2,1)',cursor:'pointer',display:'flex' };
     v.wageKnobStyle = { width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s cubic-bezier(.2,.9,.2,1)',transform:wageOn?'translateX(18px)':'translateX(0)' };
 
     const ws=st.settings.weekStart;
@@ -3967,7 +3969,7 @@ export default class App extends React.Component {
     v.candShown = dr.status==='mikakutei' && (dr.extraDays||[]).length>0 && !dr.editingId;
     v.candOn = !!dr.cand;
     v.onToggleCand = ()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, cand:!s.draft.cand}})); };
-    v.candTrack = { width:44,height:26,borderRadius:13,background:dr.cand?'var(--ink)':'var(--line)',padding:2,transition:'background .28s',cursor:'pointer',display:'flex',flexShrink:0 };
+    v.candTrack = { width:44,height:26,borderRadius:13,background:dr.cand?TOGGLE_ON:'var(--line)',padding:2,transition:'background .28s',cursor:'pointer',display:'flex',flexShrink:0 };
     v.candKnob = { width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s',transform:dr.cand?'translateX(18px)':'none' };
     // ---- 日にちをまだ決めない ----
     v.somedayChips = !dr.editingId ? SOMEDAY_WHEN.map(w=>({ label:SOMEDAY_LABEL[w], onClick:()=>{ tapLight();
@@ -3980,7 +3982,7 @@ export default class App extends React.Component {
     // ---- 名前を隠す ----
     v.secretOn = !!dr.secret;
     v.onToggleSecret = ()=>{ tapLight(); this.setState(s=>({draft:{...s.draft, secret:!s.draft.secret}})); };
-    v.secretTrack = { width:44,height:26,borderRadius:13,background:dr.secret?'var(--ink)':'var(--line)',padding:2,transition:'background .28s',cursor:'pointer',display:'flex',flexShrink:0 };
+    v.secretTrack = { width:44,height:26,borderRadius:13,background:dr.secret?TOGGLE_ON:'var(--line)',padding:2,transition:'background .28s',cursor:'pointer',display:'flex',flexShrink:0 };
     v.secretKnob = { width:22,height:22,borderRadius:11,background:'var(--card)',boxShadow:'0 1px 2px rgba(0,0,0,.25)',transition:'transform .28s',transform:dr.secret?'translateX(18px)':'none' };
     // ---- 書きかけを捨てるか ----
     v.onCancel = ()=>{ if(this.draftDirty()){ tapLight(); this.setState({discardAsk:true}); return; } this.setState({screen:st.returnTo}); };
