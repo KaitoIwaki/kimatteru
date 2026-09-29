@@ -46,14 +46,23 @@ function Toggle({ t, onClick }) {
   return <span style={s('flex-shrink:0;display:flex')}><div style={s(t.track)} onClick={(e) => { e.stopPropagation(); onClick(); }}><div style={s(t.knob)} /></div></span>;
 }
 /** 押すとメニューが出る行。items は { label, sel, onClick } */
-function PickRow({ label, items, open, last }) {
-  const cur = (items || []).find((x) => x.sel);
+// 選ぶ行。押すと iPhone 標準の選び方（ホイール）が出る。時刻と同じく、行の上に見えない <select> を重ねてある。
+// 前は独自の小さなメニューで、時刻の選び方（標準）と見た目がそろっていなかった
+function PickRow({ label, items, last }) {
+  const list = items || [];
+  const i0 = Math.max(0, list.findIndex((x) => x.sel));
+  const cur = list[i0];
   return (
     <Row label={label} last={last} value={cur ? cur.label : ''}
-      right={<svg width="11" height="16" viewBox="0 0 11 16" fill="none" style={{ flexShrink: 0, marginLeft: -2 }}>
-        <path d="M2 6 5.5 2.5 9 6M2 10l3.5 3.5L9 10" stroke="var(--ink-faint)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>}
-      onClick={(e) => open(e, items)} />
+      right={<>
+        <svg width="11" height="16" viewBox="0 0 11 16" fill="none" style={{ flexShrink: 0, marginLeft: -2 }}>
+          <path d="M2 6 5.5 2.5 9 6M2 10l3.5 3.5L9 10" stroke="var(--ink-faint)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <select aria-label={label} value={String(i0)} onChange={(e) => { const it = list[Number(e.target.value)]; if (it) it.onClick(); }}
+          style={s('position:absolute;inset:0;width:100%;height:100%;opacity:0;font-size:16px;cursor:pointer')}>
+          {list.map((it, i) => (<option key={i} value={String(i)}>{it.label}</option>))}
+        </select>
+      </>} />
   );
 }
 /** 時刻。見た目は字だけ。上に見えない <select> を重ねて、押すと iPhone のホイールが出る */
@@ -112,7 +121,7 @@ function AddRow({ label, onClick, top }) {
 }
 
 // ================= 最初の画面 =================
-function Main({ v, open }) {
+function Main({ v }) {
   return (<>
     {/* 使い方と種類 */}
     <div style={s(CARD)}>
@@ -129,7 +138,7 @@ function Main({ v, open }) {
 
     <div style={s(HEAD)}>カレンダー</div>
     <div style={s(CARD)}>
-      <PickRow label="週のはじまり" items={v.weekSeg} open={open} />
+      <PickRow label="週のはじまり" items={v.weekSeg} />
       <Row label="帯に時刻を出す" right={<Toggle t={v.barTime} onClick={v.onBarTime} />} />
       <Row label="点線に「仮」を付ける" right={<Toggle t={v.kariMark} onClick={v.onKariMark} />} />
       <Row label="無くなった予定を隠す" right={<Toggle t={{ track: v.hideTrack, knob: v.hideKnob }} onClick={v.onToggleHide} />} last />
@@ -137,8 +146,8 @@ function Main({ v, open }) {
 
     <div style={s(HEAD)}>表示</div>
     <div style={s(CARD)}>
-      <PickRow label="表示モード" items={v.themeSeg} open={open} />
-      <PickRow label="予定の文字の大きさ" items={v.fontSeg} open={open} last />
+      <PickRow label="表示モード" items={v.themeSeg} />
+      <PickRow label="予定の文字の大きさ" items={v.fontSeg} last />
     </div>
 
     <div style={s(HEAD)}>空き状況で見る時間</div>
@@ -155,8 +164,8 @@ function Main({ v, open }) {
     <div style={s(CARD)}>
       <Row label="通知" right={<Toggle t={v.notifyAll} onClick={v.onNotifyAll} />} last={!v.notifyOn} />
       {v.notifyOn && (<>
-        <PickRow label="予定の通知" items={v.remindTimedSeg} open={open} />
-        <PickRow label="終日の予定の通知" items={v.remindAllDaySeg} open={open} last />
+        <PickRow label="予定の通知" items={v.remindTimedSeg} />
+        <PickRow label="終日の予定の通知" items={v.remindAllDaySeg} last />
       </>)}
     </div>
     {v.notifyOn && (<>
@@ -178,7 +187,7 @@ function Main({ v, open }) {
     <div style={s(HEAD)}>{v.wageHead}</div>
     <div style={s(CARD)}>
       <Row label={v.jobWord} value={v.jobsLabel} chevron onClick={v.onSetPage('jobs')} />
-      <PickRow label="給料の表示" items={v.wageFeatureSeg} open={open} />
+      <PickRow label="給料の表示" items={v.wageFeatureSeg} />
       <Row label="有給" value={v.leaveLabel} chevron onClick={v.onSetPage('leave')} last />
     </div>
 
@@ -210,6 +219,7 @@ function Main({ v, open }) {
     <div style={s(CARD)}>
       <LinkRow href={v.supportHref} label="よくある質問" blank />
       <Row label="使い方をもう一度見る" chevron onClick={v.onReplayGuide} />
+      <LinkRow href={v.featureHref} label="機能をリクエストする" blank />
       <LinkRow href={v.contactHref} label="お問い合わせ" value={v.contactEmail} />
       <LinkRow href={v.reviewHref} label="App Store でレビューする" blank />
       <Row label="利用規約" chevron onClick={v.onOpenTerms} />
@@ -519,23 +529,8 @@ function SupportPage({ v }) {
 }
 
 export function Settings({ v }) {
-  // 押すと出るメニュー（TimeTree と同じ、行の下に小さく出る）
-  const [menu, setMenu] = React.useState(null);
-  const scRef = React.useRef(null);
   const rootRef = React.useRef(null);
-  const open = (e, items) => {
-    const row = e.currentTarget, root = rootRef.current;
-    if (!row || !root) return;
-    // 位置は offsetTop をたどって出す（画面ごと拡大していても、ずれない）
-    let top = 0, el = row;
-    while (el && el !== root) { top += el.offsetTop; el = el.offsetParent; }
-    const sc = root.querySelector('[data-set-scroll]');
-    const scrollTop = sc ? sc.scrollTop : 0;
-    const h = (items || []).length * 42 + 8;
-    let y = top - scrollTop + row.offsetHeight - 4;
-    if (y + h > root.clientHeight - 90) y = Math.max(8, top - scrollTop - h + 4);
-    setMenu({ items, y });
-  };
+  const scRef = React.useRef(null);
   const page = v.setPage;
   React.useLayoutEffect(() => {
     if (!page && scRef.current) scRef.current.scrollTop = SAVED.main || 0;
@@ -557,22 +552,9 @@ export function Settings({ v }) {
       <div data-set-scroll="1" key={page || 'main'} ref={scRef}
         onScroll={(e) => { if (!Page) SAVED.main = e.currentTarget.scrollTop; }}
         style={s(`flex:1;overflow-y:auto;padding:12px 16px 110px;${Page ? 'animation:slideFromRight .24s cubic-bezier(.2,.9,.2,1)' : ''}`)}>
-        {Page ? <Page v={v} /> : <Main v={v} open={open} />}
+        {Page ? <Page v={v} /> : <Main v={v} />}
       </div>
 
-      {menu && (
-        <div style={s('position:absolute;inset:0;z-index:95')} onClick={() => setMenu(null)}>
-          <div style={s(`position:absolute;right:16px;top:${menu.y}px;min-width:210px;max-width:78%;background:var(--card);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.18),0 0 0 1px var(--line);overflow:hidden;animation:dlgIn .18s cubic-bezier(.2,.9,.2,1)`)} onClick={(e) => e.stopPropagation()}>
-            {menu.items.map((it, i) => (
-              <div key={i} style={s(`display:flex;align-items:center;gap:10px;padding:0 16px;min-height:42px;cursor:pointer;${i ? 'border-top:1px solid var(--line)' : ''}`)}
-                onClick={() => { it.onClick(); setMenu(null); }}>
-                <span style={s('width:16px;font-size:14px;font-weight:700;color:var(--ink);flex-shrink:0')}>{it.sel ? '✓' : ''}</span>
-                <span style={s('font-size:14px;color:var(--ink);white-space:nowrap')}>{it.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ===== 使い方をえらぶ ===== */}
       {v.profileSheetShown && (

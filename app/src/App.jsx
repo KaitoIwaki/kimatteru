@@ -91,6 +91,8 @@ const PROFILES = {
 const PROFILE_KEYS = ['student', 'work', 'shift', 'free', 'family'];
 // App Store に出ている版の番号。設定では「1.3（0.31.0）」のようにストアと同じ番号を先に出す
 // （前は中の番号 0.30.0 だけで、ストアの 1.2 と食い違っていた）
+// 機能のリクエストを受ける Google フォームのアドレス（まだ無い。空ならメールで受ける）
+const FEATURE_FORM = '';
 const APP_MARKETING = typeof __APP_MARKETING__ === 'string' ? __APP_MARKETING__ : '1.3';
 
 // スイッチの見た目（設定のものと同じ）
@@ -3076,6 +3078,10 @@ export default class App extends React.Component {
     v.contactEmail = CONTACT;
     v.contactHref = 'mailto:'+CONTACT
       +'?subject='+encodeURIComponent(APP_NAME+' について（v'+v.appVersion+'）');
+    // 欲しい機能を送ってもらう入口。設定に入れる項目を増やす前に、要望がたまったものから作る。
+    // FEATURE_FORM に Google フォームのアドレスを入れると、そちらが開く。空のあいだはメール（件名付き）
+    v.featureHref = FEATURE_FORM || ('mailto:'+CONTACT+'?subject='+encodeURIComponent(APP_NAME+' 機能のリクエスト（v'+v.appVersion+'）')
+      +'&body='+encodeURIComponent('ほしい機能：\n\nどんなときに使いたいか：\n'));
     // App Store のレビュー欄を直接開く
     v.reviewHref = 'https://apps.apple.com/app/id'+APP_STORE_ID+'?action=write-review';
 
