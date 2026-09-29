@@ -490,10 +490,10 @@ function SupportPage({ v }) {
       {(v.tipRows || []).map((t, i) => {
         const look = TIP_LOOK[t.id] || { title: t.label, sub: '', icon: 'heart' };
         return (
-          <div key={i} style={s({ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px 8px 10px', borderRadius: 16, background: 'var(--card)', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,.04)', ...(t.pressed ? { background: 'var(--press)' } : {}) })}
+          <div key={i} style={s({ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 13px 11px 11px', borderRadius: 17, background: 'var(--card)', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,.04)', ...(t.pressed ? { background: 'var(--press)' } : {}) })}
             onClick={t.onClick} onPointerDown={t.onDown} onPointerUp={t.onUp} onPointerCancel={t.onUp} onPointerLeave={t.onUp}>
-            <span style={s('width:36px;height:36px;border-radius:18px;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0')}><TipIcon kind={look.icon} /></span>
-            <span style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:0')}>
+            <span style={s('width:40px;height:40px;border-radius:20px;background:var(--bg2);display:flex;align-items:center;justify-content:center;flex-shrink:0')}><TipIcon kind={look.icon} /></span>
+            <span style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
               <span style={s(`font-family:${ROUND};font-size:15px;font-weight:400;color:var(--ink)`)}>{look.title}</span>
               {!!look.sub && <span style={s(`font-family:${ROUND};font-size:11.5px;color:var(--ink-mut)`)}>{look.sub}</span>}
             </span>
