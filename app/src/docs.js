@@ -1,10 +1,11 @@
 // 規約とプライバシーポリシーの本文。
 // アプリ内の表示と、公開用HTML（tools/build-legal.mjs）で同じ原稿を使う。
+export const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSewSGJ40HFVLD_Ogylt1NfyJ5Ek1w2j0vNudQo5A6PzBIzArw/viewform';
 export const CONTACT = 'voidlabs.work@gmail.com';
 export const APP_NAME = 'LUKKO';
 // App Store のアプリID。レビュー画面へ飛ばすのに使う（配信ログの "Id:" に出るもの）
 export const APP_STORE_ID = '6794792375';
-export const EFFECTIVE = '2026年9月28日';
+export const EFFECTIVE = '2026年9月29日';
 
 export const PRIVACY = {
   key: 'privacy',
@@ -85,7 +86,8 @@ export const PRIVACY = {
     },
     {
       h: 'お問い合わせ',
-      p: [`本方針についてのご質問は、${CONTACT} までご連絡ください。`],
+      p: [`本方針についてのご質問は、${CONTACT} までご連絡ください。`,
+        'アプリの「お問い合わせ」「機能をリクエストする」は、Google フォームを開きます。送るかどうか、何を書くかはご本人が決められます。送られた内容は、返信とアプリの改善にだけ使います。フォームには Google のプライバシーポリシーが適用されます。'],
     },
   ],
 };

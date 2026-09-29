@@ -91,8 +91,22 @@ const PROFILES = {
 const PROFILE_KEYS = ['student', 'work', 'shift', 'free', 'family'];
 // App Store に出ている版の番号。設定では「1.3（0.31.0）」のようにストアと同じ番号を先に出す
 // （前は中の番号 0.30.0 だけで、ストアの 1.2 と食い違っていた）
-// 機能のリクエストを受ける Google フォームのアドレス（まだ無い。空ならメールで受ける）
-const FEATURE_FORM = '';
+// お問い合わせと機能のリクエストを受ける Google フォーム（開くのはブラウザ。アプリ自体は通信しない）。
+// 事前入力の番号（entry）は、フォームの質問ごとに決まっている。質問を作り直したら、ここも直す
+const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSewSGJ40HFVLD_Ogylt1NfyJ5Ek1w2j0vNudQo5A6PzBIzArw/viewform';
+const FORM_ENTRY = { kind: 'entry.282144982', device: 'entry.2064364294', version: 'entry.581874367' };
+/** 事前入力つきのフォームのアドレス。kind は「機能のリクエスト」など（フォームの選択肢と同じ字にする） */
+const formHref = (version, kind) => {
+  const q = ['usp=pp_url'];
+  if (kind) q.push(FORM_ENTRY.kind + '=' + encodeURIComponent(kind));
+  // 端末は「iPhone・iOS 18.1」の形で入れておく（書く手間を省くため。送るかどうかは本人が決める）
+  try {
+    const m = /(iPhone|iPad).*?OS (\d+)_(\d+)/.exec(navigator.userAgent || '');
+    if (m) q.push(FORM_ENTRY.device + '=' + encodeURIComponent(`${m[1]}・iOS ${m[2]}.${m[3]}`));
+  } catch (e) { /* 分からなければ空のまま */ }
+  if (version) q.push(FORM_ENTRY.version + '=' + encodeURIComponent(version));
+  return FORM_URL + '?' + q.join('&');
+};
 const APP_MARKETING = typeof __APP_MARKETING__ === 'string' ? __APP_MARKETING__ : '1.3';
 
 // スイッチの見た目（設定のものと同じ）
@@ -3090,12 +3104,11 @@ export default class App extends React.Component {
     // 困ったときの連絡先。アプリ内に無いと、メールではなくレビュー欄に書かれる。
     // 版を件名に入れておくと、どの版の話か聞き返さずに済む。
     v.contactEmail = CONTACT;
-    v.contactHref = 'mailto:'+CONTACT
-      +'?subject='+encodeURIComponent(APP_NAME+' について（v'+v.appVersion+'）');
+    // お問い合わせも同じフォームで受ける（種類は本人が選ぶ）。メールのアプリが無い iPhone でも送れる
+    v.contactHref = formHref(APP_MARKETING+'（'+v.appVersion+'）', '');
     // 欲しい機能を送ってもらう入口。設定に入れる項目を増やす前に、要望がたまったものから作る。
     // FEATURE_FORM に Google フォームのアドレスを入れると、そちらが開く。空のあいだはメール（件名付き）
-    v.featureHref = FEATURE_FORM || ('mailto:'+CONTACT+'?subject='+encodeURIComponent(APP_NAME+' 機能のリクエスト（v'+v.appVersion+'）')
-      +'&body='+encodeURIComponent('ほしい機能：\n\nどんなときに使いたいか：\n'));
+    v.featureHref = formHref(APP_MARKETING+'（'+v.appVersion+'）', '機能のリクエスト');
     // App Store のレビュー欄を直接開く
     v.reviewHref = 'https://apps.apple.com/app/id'+APP_STORE_ID+'?action=write-review';
 

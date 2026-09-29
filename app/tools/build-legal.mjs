@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
-const { PRIVACY, TERMS, APP_NAME, EFFECTIVE, CONTACT } = await import(pathToFileURL(join(root, 'src', 'docs.js')).href);
+const { PRIVACY, TERMS, APP_NAME, EFFECTIVE, CONTACT, FORM_URL } = await import(pathToFileURL(join(root, 'src', 'docs.js')).href);
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -157,6 +157,7 @@ const supportPage = () => `<!doctype html>
 
   <h2>作っている人・お問い合わせ</h2>
   <p>${esc(SUPPORT.maker)}</p>
+  <p><a href="${esc(FORM_URL)}">お問い合わせ・機能のリクエスト（フォーム）</a></p>
   <p><a href="mailto:${esc(CONTACT)}">${esc(CONTACT)}</a></p>
   <p><a href="./privacy.html">プライバシーポリシー</a>　<a href="./terms.html">利用規約</a></p>
   <p class="meta">最終更新：${esc(EFFECTIVE)}</p>

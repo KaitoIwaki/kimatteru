@@ -220,7 +220,7 @@ function Main({ v }) {
       <LinkRow href={v.supportHref} label="よくある質問" blank />
       <Row label="使い方をもう一度見る" chevron onClick={v.onReplayGuide} />
       <LinkRow href={v.featureHref} label="機能をリクエストする" blank />
-      <LinkRow href={v.contactHref} label="お問い合わせ" value={v.contactEmail} />
+      <LinkRow href={v.contactHref} label="お問い合わせ" blank />
       <LinkRow href={v.reviewHref} label="App Store でレビューする" blank />
       <Row label="利用規約" chevron onClick={v.onOpenTerms} />
       <Row label="プライバシーポリシー" chevron onClick={v.onOpenPrivacy} />
