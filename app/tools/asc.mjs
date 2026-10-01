@@ -614,9 +614,12 @@ async function submit() {
   // 出しかけのものが残っていないか。残ったまま出すと二重になる
   const subs = (await get(`/v1/reviewSubmissions?filter[app]=${app.id}&limit=10`)).data;
   const open = subs.find((s) => !['COMPLETE', 'CANCELING', 'CANCELED'].includes(s.attributes.state));
+  // リジェクトされた箱（UNRESOLVED_ISSUES）は、新しい箱を作らず、その箱のまま出し直す（Apple の手順）。
+  // 中身は版そのものなので、版に付けたビルドを替えてから出せば、新しいビルドで審査される
+  const redo = open && open.attributes.state === 'UNRESOLVED_ISSUES' ? open : null;
   // 取り下げは Apple 側で少し遅れて効く。CANCELING のまま次を出すと二重になるので、
   // 済むまで待つこと（状態は status で見られる）
-  check('出しかけが残っていない', !open, open ? `${open.attributes.state} のものがある` : '無し');
+  check('出しかけが残っていない', !open || redo, redo ? 'リジェクトされた箱を、そのまま出し直す' : open ? `${open.attributes.state} のものがある` : '無し');
 
   head('■ 提出物に入るもの');
   console.log(`  本体 ${v.attributes.versionString}（ビルド ${nowBuild ? nowBuild.attributes.version : '？'}）  1件だけ`);
@@ -637,6 +640,26 @@ async function submit() {
   }
 
   head('■ 出します');
+  if (redo) {
+    // 中身が REJECTED のままだと出し直せない（409）。直したという印（resolved）を付けてから出す
+    const items0 = (await get(`/v1/reviewSubmissions/${redo.id}/items?limit=20`)).data;
+    for (const it of items0) {
+      if (it.attributes.state !== 'REJECTED') continue;
+      await call(`/v1/reviewSubmissionItems/${it.id}`, 'PATCH', {
+        data: { type: 'reviewSubmissionItems', id: it.id, attributes: { resolved: true } },
+      });
+      console.log('  直した印を付けた（リジェクトされた中身）');
+    }
+    await call(`/v1/reviewSubmissions/${redo.id}`, 'PATCH', {
+      data: { type: 'reviewSubmissions', id: redo.id, attributes: { submitted: true } },
+    });
+    const back0 = (await get(`/v1/reviewSubmissions/${redo.id}`)).data;
+    const v20 = (await get(`/v1/appStoreVersions/${v.id}`)).data;
+    console.log(`  出し直した箱     ${redo.id}`);
+    console.log(`  提出の状態       ${back0.attributes.state}`);
+    console.log(`  版の状態         ${v20.attributes.appStoreState}`);
+    return;
+  }
   const sub = (await call('/v1/reviewSubmissions', 'POST', {
     data: {
       type: 'reviewSubmissions',
@@ -875,7 +898,22 @@ async function caps() {
   line('許可（あと）', have.map((c) => c.attributes.capabilityType).join(', '));
 }
 
+/** 読むだけ：いちばん新しい提出の箱の中身と、付いているビルドの輸出（暗号）の答え。出し直せないときの原因探しに */
+async function subinfo() {
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const subs = (await get(`/v1/reviewSubmissions?filter[app]=${app.id}&limit=3`)).data;
+  for (const s of subs) {
+    console.log(`箱 ${s.id}  ${s.attributes.state}`);
+    const items = (await get(`/v1/reviewSubmissions/${s.id}/items?limit=20`)).data;
+    for (const it of items) console.log(`  中身 ${it.id}  ${JSON.stringify(it.attributes)}`);
+  }
+  const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
+  console.log(`版 ${v.attributes.versionString}  ${v.attributes.appStoreState}`);
+  const b = (await get(`/v1/appStoreVersions/${v.id}/build`)).data;
+  if (b) console.log(`ビルド ${b.attributes.version}  ${b.attributes.processingState}  暗号の答え=${b.attributes.usesNonExemptEncryption}`);
+}
+
 const cmd = process.argv[2] || 'status';
-const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps };
+const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps, subinfo };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
