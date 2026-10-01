@@ -2292,10 +2292,10 @@ export function renderApp(v) {
                   </div>
                 )}
 
-                {/* 「カレンダーを読む」から「続ける」へ。
-                    許可を聞く前の画面のボタンに、許可した先の動きを書いてはいけない
-                    （5.1.1(iv)）。Apple から Continue か Next を使うよう名指しで
-                    指摘された。「やめる」も並べて、進まない道を同じ画面に置く。 */}
+                {/* この画面は、もう許可を聞かれた人（許可した・断った）にだけ出る。
+                    まだの人は、開いた時点で iPhone の許可の画面を出す（App.jsx の _askImportNow）。
+                    1.3（110）で 5.1.1(iv)：許可の前の独自の説明に「やめる」があり、許可を聞かずに閉じられた。
+                    ボタンは「続ける」（許可した先の動きを書かない。v1.0 での指摘）。 */}
                 <div style={s(`margin-top:22px;padding:16px;border-radius:17px;text-align:center;font-size:15px;font-weight:400;cursor:pointer;background:${v.impPhase === 'scanning' ? 'var(--bg2)' : 'var(--ink)'};color:${v.impPhase === 'scanning' ? 'var(--ink-mut)' : 'var(--card)'}`)} onClick={v.impPhase === 'scanning' ? undefined : v.onScan}>
                   {v.impPhase === 'scanning' ? '読み込んでいます…' : '続ける'}
                 </div>

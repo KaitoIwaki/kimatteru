@@ -1478,7 +1478,7 @@ export default class App extends React.Component {
     const morning = !!this.state.onboard.morning;
     this.setState(s=>({ settings:{...s.settings, onboarded:true, ...(morning ? {morning:true, morningAt:s.settings.morningAt||450} : {})},
       screen: goImport ? 'import' : 'month' }));
-    if(goImport) this.setState({imp:{phase:'idle', found:[], type:'yoji', error:''}});
+    if(goImport){ this.setState({imp:{phase:'idle', found:[], type:'yoji', error:''}}); setTimeout(()=>this._askImportNow(), 0); }
   }
 
   // ---- バイト先 ----
@@ -1563,7 +1563,18 @@ export default class App extends React.Component {
   }
 
   // ---- iPhone のカレンダーから取り込む ----
-  openImport(){ this.setState({screen:'import', imp:{phase:'idle', found:[], type:'yoji', error:''}}); }
+  openImport(){ this.setState({screen:'import', imp:{phase:'idle', found:[], type:'yoji', error:''}}); this._askImportNow(); }
+  /**
+   * まだ許可を聞いていない人には、説明の画面を挟まずに、すぐ iPhone の許可の画面を出す。
+   * 1.3（110）で 5.1.1(iv) のリジェクト：許可の前に独自の説明が出て、「やめる」で許可を聞かずに閉じられた。
+   * Apple の決まりは「説明を出すなら、そのあと必ず許可の画面へ進むこと」。説明そのものをやめて、押したらすぐ聞く。
+   * 許可済みの人は読むだけなので、これまでの画面（続ける／やめる）のまま。断った人には設定アプリへの道を出す
+   */
+  async _askImportNow(){
+    if(!canImport()) return;
+    const st = await checkCalendarAccess();
+    if(st==='prompt' && this.state.screen==='import') this.runScan();
+  }
   async runScan(){
     tapLight();
     this.setState(s=>({imp:{...s.imp, phase:'scanning', error:''}}));
