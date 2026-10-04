@@ -898,6 +898,75 @@ async function caps() {
   line('許可（あと）', have.map((c) => c.attributes.capabilityType).join(', '));
 }
 
+/**
+ * 毎日の数字（マーケティング用）。Apple の Analytics Reports API。
+ *   node tools/asc.mjs stats setup  ← 報告を毎日作ってもらう依頼を出す（書き込み・最初の1回だけ）
+ *   node tools/asc.mjs stats [日数]  ← 届いている日ごとの数字を表で出す（読むだけ。既定 14 日）
+ * 数字は1〜2日遅れで届く。依頼を出してから最初の報告までも1〜2日かかる。
+ * 「セッション」などは、iPhone で「App デベロッパと共有」をオンにしている人の分だけ
+ */
+async function stats() {
+  const arg = process.argv[3] || '';
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const reqs = (await get(`/v1/apps/${app.id}/analyticsReportRequests?limit=10`)).data;
+  let req = reqs.find((r) => r.attributes.accessType === 'ONGOING' && !r.attributes.stoppedDueToInactivity);
+  if (arg === 'setup') {
+    if (req) { console.log(`もう依頼してあります（${req.id}）`); return; }
+    req = (await call('/v1/analyticsReportRequests', 'POST', { data: { type: 'analyticsReportRequests',
+      attributes: { accessType: 'ONGOING' }, relationships: { app: { data: { type: 'apps', id: app.id } } } } })).data;
+    console.log(`依頼を出しました（${req.id}）。最初の数字は1〜2日後に届きます`);
+    return;
+  }
+  if (!req) { console.log('まだ依頼していません。node tools/asc.mjs stats setup'); return; }
+  const days = Number(arg) || 14;
+  // 見たい報告：ダウンロード（App Downloads）、ストアでの表示（App Store Discovery and Engagement）、使われ方（App Sessions）
+  const want = [['App Downloads Standard', 'downloads'], ['App Store Discovery and Engagement Standard', 'store'], ['App Sessions Standard', 'sessions']];
+  const reps = [];
+  let next = `/v1/analyticsReportRequests/${req.id}/reports?limit=200`;
+  while (next) { const r = await get(next); reps.push(...r.data); next = r.links && r.links.next ? r.links.next.replace(HOST, '') : null; }
+  const zlib = await import('node:zlib');
+  const byDate = {};
+  for (const [name, key] of want) {
+    const rep = reps.find((r) => r.attributes.name === name);
+    if (!rep) { console.log(`  ${name}：まだ無い`); continue; }
+    const inst = (await get(`/v1/analyticsReports/${rep.id}/instances?filter[granularity]=DAILY&limit=${days}`)).data;
+    if (!inst.length) { console.log(`  ${name}：まだ届いていない`); continue; }
+    for (const it of inst) {
+      const segs = (await get(`/v1/analyticsReportInstances/${it.id}/segments`)).data;
+      for (const sg of segs) {
+        const buf = Buffer.from(await (await fetch(sg.attributes.url)).arrayBuffer());
+        const text = zlib.gunzipSync(buf).toString('utf8');
+        const [head, ...rows] = text.trim().split(/\r?\n/);
+        const cols = head.split('\t');
+        const ci = (n) => cols.indexOf(n);
+        for (const row of rows) {
+          const c = row.split('\t');
+          const d = c[ci('Date')]; if (!d) continue;
+          const o = (byDate[d] = byDate[d] || { 新規DL: 0, 再DL: 0, 表示: 0, ページ: 0, セッション: 0, 学生向け: 0 });
+          const n = Number(c[ci('Counts')]) || 0;
+          if (key === 'downloads') {
+            const t = c[ci('Download Type')] || '';
+            if (/First-time/i.test(t)) o.新規DL += n; else if (/Redownload/i.test(t)) o.再DL += n;
+          } else if (key === 'store') {
+            const ev = c[ci('Event')] || '';
+            if (/Impression/i.test(ev)) o.表示 += n; else if (/Page view/i.test(ev)) o.ページ += n;
+            const pp = ci('Page Type') >= 0 ? c[ci('Page Type')] : '';
+            if (/Custom product page/i.test(pp) && /Page view/i.test(ev)) o.学生向け += n;
+          } else if (key === 'sessions') {
+            o.セッション += Number(c[ci('Sessions')]) || 0;
+          }
+        }
+      }
+    }
+  }
+  const dates = Object.keys(byDate).sort().slice(-days);
+  if (!dates.length) { console.log('まだ数字が届いていません（依頼から1〜2日かかります）'); return; }
+  console.log('日付        新規DL 再DL  表示  ページ 学生向け セッション');
+  for (const d of dates) { const o = byDate[d]; console.log(`${d}  ${String(o.新規DL).padStart(5)} ${String(o.再DL).padStart(4)} ${String(o.表示).padStart(5)} ${String(o.ページ).padStart(6)} ${String(o.学生向け).padStart(7)} ${String(o.セッション).padStart(9)}`); }
+  const last7 = dates.slice(-7).reduce((a, d) => a + byDate[d].新規DL, 0);
+  console.log(`${NL}直近7日の新規ダウンロード：${last7}（目標 100）`);
+}
+
 /** 読むだけ：いちばん新しい提出の箱の中身と、付いているビルドの輸出（暗号）の答え。出し直せないときの原因探しに */
 async function subinfo() {
   const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
@@ -914,6 +983,6 @@ async function subinfo() {
 }
 
 const cmd = process.argv[2] || 'status';
-const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps, subinfo };
+const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps, subinfo, stats };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
