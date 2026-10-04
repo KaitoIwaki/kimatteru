@@ -3554,7 +3554,7 @@ export default class App extends React.Component {
     v.toastShown = !!st.shareToast && !v.summaryShown && !v.shareShown;
     v.toastMsg = st.shareMsg || '';
     // ナビの島に隠れない高さに置く
-    v.toastBottom = v.navShown ? 96 : 30;
+    v.toastBottom = v.navShown ? this.navTop()+8 : 30;
     // 開くときのロック。確かめ終わるまで中身を隠す
     v.lockedShown = !!st.locked;
     v.onUnlock = ()=>this.unlock();
@@ -3646,7 +3646,7 @@ export default class App extends React.Component {
       const monthA=dayNo(Y,M,1), monthB=dayNo(Y,M,dim);
       // 1週に積める段。前は4段で決め打ちで、大きい画面ではマスの下半分が白いまま「+N件」になっていた。
       // 画面の高さから入る段数を計算する（4〜7段）
-      const padB = parseInt(this.state.wageOn ? 168 : 104, 10);
+      const NT=this.navTop(), padB = this.state.wageOn ? NT+66 : NT+2;
       const rowH = this._monthH ? (this._monthH - padB) / weekCount : 0;
       const laneH = Math.round(MONTH_BAR_H*this.evScale()) + 2;
       // 入るぶんだけ積む（2〜7段）。前は最低4段で、予定の字を大きくした6週の月（11月など）は
@@ -3834,7 +3834,7 @@ export default class App extends React.Component {
       transform:`translateX(calc(-33.3333% + ${sw.dx}px))`,
       transition: sw.animating ? 'transform .3s cubic-bezier(.22,.86,.3,1)' : 'none' };
     // 給料バーが出ているぶん、下に余白を足して最終週が隠れないようにする
-    v.monthPadBottom = (st.stamp ? 236 : wageOn ? 168 : 104)+'px';
+    { const NT=this.navTop(); v.monthPadBottom = (st.stamp ? NT+134 : wageOn ? NT+66 : NT+2)+'px'; }
     // まだ何も置かれていないときだけ、静かに使い方を添える
     // 予定が無いあいだ出る案内。✕ で消したら、もう出さない。
     // 消した人は「分かっている」と言っているので、予定をぜんぶ消して
@@ -5326,6 +5326,22 @@ export default class App extends React.Component {
    * （帯10px・日付11px）。WebView は iOS の本文の大きさ（-apple-system-body）を知っているので、
    * それを 17px を基準にした倍率にする。設定で「標準・大きめ・特大」も選べる。
    */
+  /**
+   * 下のナビの上の端が、画面の下から何 pt か（styles.css の --nav-top）。ホームバーの有無で変わるので測る。
+   * カレンダーの下の余白と、1週に積める段の数をこれで決める（前は 104 と決め打ちで、ナビの位置を変えるとずれた）
+   */
+  navTop() {
+    if (this._navTop) return this._navTop;
+    try {
+      const d = document.createElement('div');
+      d.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;visibility:hidden;pointer-events:none;height:var(--nav-top)';
+      document.body.appendChild(d);
+      const h = d.getBoundingClientRect().height;
+      document.body.removeChild(d);
+      if (h > 0) this._navTop = Math.round(h);
+    } catch (e) { /* 測れなければ下の既定 */ }
+    return this._navTop || 83;
+  }
   /** 画面の拡大（もう使わない。並びを計る所のために 1 を返す） */
   zoom() { return 1; }
   /** 予定の字の倍率。設定の「予定の文字の大きさ」か、iPhone の文字の大きさ */

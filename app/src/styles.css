@@ -191,14 +191,23 @@ input { font-family: inherit; }
    透け（62%）＋強めのぼかし＋彩度を上げる＋上の縁に細い光、で「厚みのある板」に見える。
    ガラスにするのはここと＋だけ。中身のボタンには使わない —— ガラスの上にガラスは濁るし、
    このアプリは紙とインクの見立てで艶が無い。
-   透けると後ろのピルの色が字の下に来る。字の差は tools/shot-glass.mjs で測る。 */
+   透けると後ろのピルの色が字の下に来る。字の差は tools/shot-glass.mjs で測る。
+   位置と大きさは iPhone 標準（ミュージックのタブバー）を測って合わせた：高さ 62・下から 21・左右 21・端は丸。
+   前は下から 38 で 17pt 浮いていて、カレンダーの見える所が狭かった。
+   ホームバーの無い iPhone（SE など）では下が 0 になるので、8 は空ける。
+   板の上の端（--nav-top）を基準に、案内・給料の帯・取り消しの帯・カレンダーの下の余白を置く */
+:root {
+  --nav-h: 62px;
+  --nav-bottom: max(8px, calc(env(safe-area-inset-bottom) - 13px));
+  --nav-top: calc(var(--nav-bottom) + var(--nav-h));
+}
 .tabbar {
-  left: 14px !important;
-  right: 14px !important;
-  bottom: calc(env(safe-area-inset-bottom) + 4px) !important;
-  height: 64px !important;
+  left: 21px !important;
+  right: 21px !important;
+  bottom: var(--nav-bottom) !important;
+  height: var(--nav-h) !important;
   padding: 0 6px !important;
-  border-radius: 24px !important;
+  border-radius: 31px !important;
   border: 1px solid var(--glass-rim) !important;
   border-top: 1px solid var(--glass-rim) !important;
   align-items: center !important;
@@ -219,13 +228,13 @@ input { font-family: inherit; }
 
 /* まだ1件も無いときの案内。タブバーの上に浮かせる（グリッドの高さを奪わない） */
 .first-run {
-  bottom: calc(env(safe-area-inset-bottom) + 84px) !important;
+  bottom: calc(var(--nav-top) + 16px) !important;
 }
 
 .wagebar {
-  left: 14px !important;
-  right: 14px !important;
-  bottom: calc(env(safe-area-inset-bottom) + 76px) !important;
+  left: 21px !important;
+  right: 21px !important;
+  bottom: calc(var(--nav-top) + 8px) !important;
   border-radius: 18px !important;
   border: 1px solid var(--line) !important;
   box-shadow: 0 8px 22px rgba(38, 37, 31, 0.1);
@@ -239,7 +248,7 @@ input { font-family: inherit; }
   padding-bottom: calc(env(safe-area-inset-bottom) + 10px) !important;
 }
 /* 取り消しの帯。ナビがあるときはナビの上、無いときは画面の下 */
-.undo-nav { bottom: calc(env(safe-area-inset-bottom) + 76px) !important; }
+.undo-nav { bottom: calc(var(--nav-top) + 8px) !important; }
 .undo-solo { bottom: calc(env(safe-area-inset-bottom) + 14px) !important; }
 /* 今日へ戻ったとき、今日のマスを一度だけ光らせる */
 @keyframes todayFlash { 0% { background: rgba(29, 158, 117, .28); } 100% { background: transparent; } }
