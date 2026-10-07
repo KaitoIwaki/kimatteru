@@ -724,19 +724,28 @@ export function renderApp(v) {
       {/* ===================== DAY ===================== */}
       {v.dayShown && (
         <div style={s('display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
-          <div className="scr-head" style={s('padding:0 18px 6px 18px')}>
-            <span role="button" aria-label="戻る" style={s('font-size:20px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 12px 6px 0;user-select:none')} onClick={v.onDayBack}>←</span>
-            <span style={s('display:flex;align-items:center;gap:6px')}>
-              <span role="button" aria-label="前の日" style={s('width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDayPrev}>‹</span>
-              <span style={s('display:flex;flex-direction:column;align-items:center;gap:1px')}>
-                <span style={s(v.dayTitleStyle)}>{v.dayTitle}</span>
-                {!!v.dayHoliday && <span style={s(`font-size:11px;font-weight:600;color:${'#B4453A'}`)}>{v.dayHoliday}</span>}
-              </span>
-              <span role="button" aria-label="次の日" style={s('width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-mut);cursor:pointer;user-select:none')} onClick={v.onDayNext}>›</span>
-            </span>
-            <div style={s('display:flex;background:var(--bg2);border-radius:9px;padding:2px')}>
+          {/* 上：戻る・大きな日付と曜日・一覧｜時間。その下に1週間の帯（押すとその日へ） */}
+          <div className="scr-head" style={s('padding:0 16px 4px 12px;display:flex;align-items:center;gap:6px')}>
+            <span role="button" aria-label="戻る" style={s('font-size:20px;line-height:1;color:var(--ink-mut);cursor:pointer;padding:6px 8px 6px 4px;user-select:none;flex-shrink:0')} onClick={v.onDayBack}>←</span>
+            <div style={s('flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;white-space:nowrap')}>
+              <span style={s(`font-size:22px;font-weight:600;letter-spacing:-.3px;color:${v.dayDateColor}`)}>{v.dayBigDate}</span>
+              <span style={s('font-size:13px;color:var(--ink-mut)')}>{v.dayDowFull}</span>
+              {!!v.dayHoliday && <span style={s('font-size:11px;font-weight:600;color:#B4453A;overflow:hidden;text-overflow:ellipsis')}>{v.dayHoliday}</span>}
+            </div>
+            <div style={s('display:flex;background:var(--bg2);border-radius:9px;padding:2px;flex-shrink:0')}>
               {(v.daySeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
             </div>
+          </div>
+          <div style={s('display:flex;align-items:center;gap:2px;padding:4px 8px 10px')}>
+            <span role="button" aria-label="前の日" style={s('width:22px;flex-shrink:0;text-align:center;font-size:18px;color:var(--ink-faint);cursor:pointer;user-select:none')} onClick={v.onDayPrev}>‹</span>
+            {(v.dayStrip || []).map((c) => (
+              <div key={c.key} style={s('flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer')} onClick={c.onClick}>
+                <span style={s(`font-size:10px;font-weight:600;color:${c.dowColor}`)}>{c.dow}</span>
+                <span style={s(`width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:15px;font-variant-numeric:tabular-nums;${c.sel ? 'background:var(--ink);font-weight:700' : c.today ? 'border:1.5px solid var(--ink);font-weight:600' : ''};color:${c.numColor}`)}>{c.date}</span>
+                <span style={s(`width:4px;height:4px;border-radius:2px;background:${c.has && !c.sel ? 'var(--ink-faint)' : 'transparent'}`)} />
+              </div>
+            ))}
+            <span role="button" aria-label="次の日" style={s('width:22px;flex-shrink:0;text-align:center;font-size:18px;color:var(--ink-faint);cursor:pointer;user-select:none')} onClick={v.onDayNext}>›</span>
           </div>
           {v.dayView === 'time' ? (
             <div key={v.dayKey} style={s(`display:flex;flex-direction:column;flex:1;min-height:0;animation:${v.dayAnim}`)}>
@@ -744,8 +753,12 @@ export function renderApp(v) {
             </div>
           ) : (
           <div key={v.dayKey} style={s(`flex:1;overflow-y:auto;padding:8px 16px 40px 16px;animation:${v.dayAnim}`)}>
+            {!!v.daySummary && <div style={s('font-size:12px;color:var(--ink-mut);margin:0 4px 10px')}>{v.daySummary}</div>}
             {v.dayEmpty && (
-              <div style={s('text-align:center;color:var(--ink-faint);font-size:14px;padding:48px 0')}>この日の予定はまだありません</div>
+              <div style={s('text-align:center;padding:44px 0 20px;display:flex;flex-direction:column;align-items:center;gap:8px')}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="5" width="17" height="15" rx="3" stroke="var(--ink-faint)" strokeWidth="1.4" /><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke="var(--ink-faint)" strokeWidth="1.4" strokeLinecap="round" /></svg>
+                <span style={s('color:var(--ink-mut);font-size:14px')}>この日の予定はまだありません</span>
+              </div>
             )}
             {(v.dayEvents || []).map((r) => (
               <React.Fragment key={r.key}>
@@ -760,23 +773,36 @@ export function renderApp(v) {
                   </svg>
                 </div>
                 <div
-                  style={s(r.bodyStyle)}
+                  style={s(r.cardStyle || r.bodyStyle)}
                   onClick={r.onClick}
                   onTouchStart={r.onTouchStart}
                   onTouchMove={r.onTouchMove}
                   onTouchEnd={r.onTouchEnd}
                   onTouchCancel={r.onTouchCancel}
                 >
-                  <div style={s('width:44px;flex-shrink:0;display:flex;flex-direction:column;gap:1px;font-variant-numeric:tabular-nums')}>
-                    <span style={s('font-size:14px;color:var(--ink)')}>{r.startText}</span>
-                    {!!r.endText && <span style={s('font-size:11.5px;color:var(--ink-mut)')}>{r.endText}</span>}
+                  {/* 左の端に種類の色の帯（まだなら点線） */}
+                  <span style={s(r.dashed ? `width:5px;flex-shrink:0;background:repeating-linear-gradient(to bottom, ${r.accent} 0 6px, transparent 6px 10px)` : `width:5px;background:${r.accent};flex-shrink:0`)} />
+                  <div style={s('flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding:13px 14px 13px 12px')}>
+                    <div style={s('width:52px;flex-shrink:0;display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums')}>
+                      <span style={s('font-size:15px;font-weight:600;color:var(--ink)')}>{r.startText}</span>
+                      {!!r.endText && <span style={s('font-size:12px;color:var(--ink-mut)')}>{r.endText}</span>}
+                    </div>
+                    <div style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:4px')}>
+                      <span style={s({ ...r.titleStyle, fontWeight: 500 })}>{r.titlePlain || r.titleText}</span>
+                      {(!!r.place || !!r.durText) && (
+                        <span style={s('display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-mut);min-width:0')}>
+                          {!!r.durText && <span style={s('flex-shrink:0')}>{r.durText}</span>}
+                          {!!r.place && (
+                            <span style={s('display:flex;align-items:center;gap:3px;min-width:0;overflow:hidden')}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}><path d="M12 21s-6-5.6-6-11a6 6 0 1 1 12 0c0 5.4-6 11-6 11z" stroke="currentColor" strokeWidth="2" /><circle cx="12" cy="10" r="2.2" stroke="currentColor" strokeWidth="2" /></svg>
+                              <span style={s('overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.place}</span>
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    <span style={s(r.chipStyle2 || 'font-size:11px;color:var(--ink-mut);flex-shrink:0')}>{r.statusWord}</span>
                   </div>
-                  <span style={s(r.barStyle)} />
-                  <div style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:2px')}>
-                    <span style={s(r.titleStyle)}>{r.titleText}</span>
-                    {!!r.place && <span style={s('font-size:12px;color:var(--ink-mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap')}>{r.place}</span>}
-                  </div>
-                  <span style={s('font-size:11px;color:var(--ink-mut);flex-shrink:0;align-self:flex-start;margin-top:2px')}>{r.statusWord}</span>
                 </div>
               </div>
               </React.Fragment>

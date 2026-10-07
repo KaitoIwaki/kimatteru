@@ -3913,6 +3913,43 @@ export default class App extends React.Component {
             touchAction:'pan-y'},
         };
       });
+      // 見た目を作り直した日の画面のための値（大きな日付・1週間の帯・まとめの一行・カードの長さと札）
+      const DOWF=['日曜日','月曜日','火曜日','水曜日','木曜日','金曜日','土曜日'];
+      v.dayBigDate = (M+1)+'月'+d+'日';
+      v.dayDowFull = DOWF[dow];
+      v.dayDateColor = (dayHol || dow===0) ? HOLIDAY_RED : dow===6 ? SATURDAY_BLUE : 'var(--ink)';
+      { const und=evs.filter(e=>e.status==='mikakutei').length;
+        v.daySummary = evs.length ? `予定 ${evs.length}件`+(und ? `・まだ ${und}件` : '') : ''; }
+      // その日を含む1週間の帯。押すとその日へ。予定のある日に点
+      { const w0=weekStartNo(Y,M,d,ws), tN=dayNo(st.today.y,st.today.m,st.today.d);
+        v.dayStrip = Array.from({length:7},(_,i)=>{ const n=w0+i, o=fromDayNo(n), dw=new Date(o.y,o.m,o.d).getDay(), hol=holidayName(o.y,o.m,o.d);
+          const has = st.events.some(e=>evCovers(e,n) && e.status!=='nakunatta');
+          const sel = n===dn;
+          return { key:String(n), dow:wl[dw], date:o.d, sel, today:n===tN, has,
+            dowColor:(hol||dw===0)?HOLIDAY_RED:dw===6?SATURDAY_BLUE:'var(--ink-faint)',
+            numColor: sel ? 'var(--card)' : (hol||dw===0)?HOLIDAY_RED:dw===6?SATURDAY_BLUE:'var(--ink)',
+            onClick:()=>{ if(sel) return; tapLight(); this.setState({ym:{y:o.y,m:o.m}, dayNum:o.d, swipeRow:null, dayDir:n>dn?1:-1}); } }; }); }
+      v.dayEvents.forEach(r=>{
+        const ev=evs.find(e=>e.id===r.key); if(!ev) return; const t=this.T(ev.type);
+        const endShown = ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end;
+        // 長さ（日をまたぐ予定も正しく）。終日は出さない
+        if(!ev.allDay){ let m=this.mins(endShown)-this.mins(ev.start); if(m<=0) m+=1440; r.durText=this.fmtHours(m/60); }
+        r.accent = ev.status==='nakunatta' ? 'var(--line)' : t.color;
+        r.dashed = ev.status==='mikakutei';
+        r.chipStyle2 = ev.status==='mikakutei'
+          ? {fontSize:11,padding:'2px 8px',borderRadius:999,border:'1px dashed '+this.softLine(t.color),color:this.inkDash(t.color),background:this.paperShow(t.paper),whiteSpace:'nowrap',flexShrink:0}
+          : ev.status==='nakunatta'
+            ? {fontSize:11,padding:'2px 8px',borderRadius:999,background:'var(--bg2)',color:'var(--ink-faint)',whiteSpace:'nowrap',flexShrink:0}
+            : {fontSize:11,padding:'2px 8px',borderRadius:999,background:this.softFill(t.color),color:this.inkOn(t.color),whiteSpace:'nowrap',flexShrink:0};
+        // 削除の赤は、横にずらしているときだけ敷く（角の丸みのすき間から赤がのぞかないように）
+        { const moved = !/translateX\(0px\)/.test(r.bodyStyle.transform||'') || !!r.bodyStyle.transition && r.bodyStyle.transition!=='none';
+          r.wrapStyle = {...r.wrapStyle, borderRadius:16}; r.delWrapStyle = {...r.delWrapStyle, visibility: moved ? 'visible' : 'hidden'}; }
+        r.titlePlain = ev.title;
+        r.cardStyle = {display:'flex',alignItems:'stretch',gap:0,background:'var(--card)',borderRadius:16,
+          border: ev.status==='mikakutei' ? '1.5px dashed '+this.softLine(t.color) : '1px solid var(--line)',
+          boxShadow:'0 1px 2px rgba(0,0,0,.03)',cursor:'pointer',position:'relative',overflow:'hidden',
+          transform:r.bodyStyle.transform, transition:r.bodyStyle.transition, touchAction:'pan-y'};
+      });
       v.onDayAdd = ()=>this.openNew(d,'day');
       // 重ねて表示している iPhone のカレンダーの予定（直すのは元のアプリで）
       v.dayOverlay = this._overlayFor(dn, dn+1).map(e=>({ key:e.id, title:e.title, place:e.place||'',
