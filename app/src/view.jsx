@@ -476,7 +476,7 @@ function DayDateStrip({ v }) {
     }, 180);
   };
   const days = v.dayStripCell ? Array.from({ length: LEN }, (_, i) => v.dayStripCell(base + i)) : [];
-  const TRACK = 72, THUMB = 18;
+  const TRACK = 140, THUMB = 32;
   return (
     <div style={s('padding:4px 12px 10px')}>
       <div ref={ref} onScroll={onScroll} data-strip="day"
@@ -492,7 +492,7 @@ function DayDateStrip({ v }) {
         </div>
       </div>
       {/* あとどれだけ流せるか */}
-      <div style={s(`position:relative;width:${TRACK}px;height:3px;margin:6px auto 0;border-radius:2px;background:var(--line)`)}>
+      <div style={s(`position:relative;width:${TRACK}px;height:3px;margin:8px auto 0;border-radius:2px;background:var(--line)`)}>
         <div style={s(`position:absolute;top:0;height:3px;width:${THUMB}px;border-radius:2px;background:var(--ink-faint);left:${(pos * (TRACK - THUMB)).toFixed(1)}px`)} />
       </div>
     </div>
