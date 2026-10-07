@@ -785,6 +785,7 @@ export function renderApp(v) {
                       <span style={s('font-size:15px;font-weight:600;color:var(--ink)')}>{r.startText}</span>
                       {!!r.endText && <span style={s('font-size:12px;color:var(--ink-mut)')}>{r.endText}</span>}
                     </div>
+                    <span style={s(r.barStyle)} />
                     <div style={s('flex:1;min-width:0;display:flex;flex-direction:column;gap:4px')}>
                       <span style={s({ ...r.titleStyle, fontWeight: 500 })}>{r.titlePlain || r.titleText}</span>
                       {(!!r.place || !!r.durText) && (

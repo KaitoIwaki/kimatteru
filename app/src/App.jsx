@@ -3941,6 +3941,8 @@ export default class App extends React.Component {
           : ev.status==='nakunatta'
             ? {fontSize:11,padding:'2px 8px',borderRadius:999,background:'var(--bg2)',color:'var(--ink-faint)',whiteSpace:'nowrap',flexShrink:0}
             : {fontSize:11,padding:'2px 8px',borderRadius:999,background:this.softFill(t.color),color:this.inkOn(t.color),whiteSpace:'nowrap',flexShrink:0};
+        // まだの予定の帯は、点線がはっきり見えるように短い線を並べる
+        if(r.dashed) r.barStyle = {width:4,alignSelf:'stretch',flexShrink:0,borderRadius:2,background:'repeating-linear-gradient(to bottom, '+t.color+' 0 6px, transparent 6px 10px)'};
         // 削除の赤は、横にずらしているときだけ敷く（角の丸みのすき間から赤がのぞかないように）
         { const moved = !/translateX\(0px\)/.test(r.bodyStyle.transform||'') || !!r.bodyStyle.transition && r.bodyStyle.transition!=='none';
           r.wrapStyle = {...r.wrapStyle, borderRadius:16}; r.delWrapStyle = {...r.delWrapStyle, visibility: moved ? 'visible' : 'hidden'}; }
