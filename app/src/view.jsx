@@ -780,9 +780,7 @@ export function renderApp(v) {
                   onTouchEnd={r.onTouchEnd}
                   onTouchCancel={r.onTouchCancel}
                 >
-                  {/* 左の端に種類の色の帯（まだなら点線） */}
-                  <span style={s(r.dashed ? `width:5px;flex-shrink:0;background:repeating-linear-gradient(to bottom, ${r.accent} 0 6px, transparent 6px 10px)` : `width:5px;background:${r.accent};flex-shrink:0`)} />
-                  <div style={s('flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding:13px 14px 13px 12px')}>
+                  <div style={s('flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding:13px 14px 13px 16px')}>
                     <div style={s('width:52px;flex-shrink:0;display:flex;flex-direction:column;gap:2px;font-variant-numeric:tabular-nums')}>
                       <span style={s('font-size:15px;font-weight:600;color:var(--ink)')}>{r.startText}</span>
                       {!!r.endText && <span style={s('font-size:12px;color:var(--ink-mut)')}>{r.endText}</span>}
