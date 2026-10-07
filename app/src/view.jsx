@@ -421,10 +421,12 @@ function TimeGrid({ cols, hours, hourH, scrollRef, head, gutter = 30 }) {
 
 /**
  * 日の画面の上の日付の帯。指で流した分だけ動き、1日ずつ止まる（週の表示と同じ）。
+ * 各月の1日は、曜日の代わりに「11月」と出す。流しているあいだは、上の真ん中に見えている月を出す。
  * 流せるのは開いた日の週の前後6週まで。流しているあいだだけ、下に帯の幅いっぱいの細いバーを出して、いまどのあたりか・あとどれだけ流せるかを見せる。
  * 選んだ日が見えない所へ移ったら（下の一覧を横に送ったときなど）、その週まで滑らかに流す。
  * 流せる範囲の外へ移ったときは、その週を真ん中に並べ直す
  */
+const PADW = 42;
 function DayDateStrip({ v }) {
   const ref = React.useRef(null);
   const raf = React.useRef(0);
@@ -432,10 +434,11 @@ function DayDateStrip({ v }) {
   const hide = React.useRef(0);
   const quiet = React.useRef(false);
   const [active, setActive] = React.useState(false);
+  const [mid, setMid] = React.useState(PADW + 3);
   const [w, setW] = React.useState(0);
   const [center, setCenter] = React.useState(v.dayStripWeek0);
   const [pos, setPos] = React.useState(0.5);
-  const PAD = 42, LEN = PAD * 2 + 7;
+  const PAD = PADW, LEN = PAD * 2 + 7;
   const base = center - PAD;
   const cw = (w || 360) / 7;
   React.useLayoutEffect(() => {
@@ -452,7 +455,7 @@ function DayDateStrip({ v }) {
     quiet.current = Math.abs(el.scrollLeft - PAD * cw) > 0.5;
     el.scrollLeft = PAD * cw;
     requestAnimationFrame(() => { el.style.scrollSnapType = ''; });
-    setPos(0.5);
+    setPos(0.5); setMid(PAD + 3);
   }, [center, cw]);
   // 選んだ日が見えていなければ、その週まで流す
   React.useEffect(() => {
@@ -477,6 +480,7 @@ function DayDateStrip({ v }) {
       const el = ref.current; if (!el) return;
       const max = el.scrollWidth - el.clientWidth;
       setPos(max > 0 ? Math.min(1, Math.max(0, el.scrollLeft / max)) : 0.5);
+      setMid(Math.min(LEN - 1, Math.max(0, Math.round(el.scrollLeft / cw) + 3)));
     });
     // 止まったところが日の区切りからずれていたら合わせる（区切りに止める仕組みが効かなかったとき用）
     clearTimeout(settle.current);
@@ -489,13 +493,15 @@ function DayDateStrip({ v }) {
   const days = v.dayStripCell ? Array.from({ length: LEN }, (_, i) => v.dayStripCell(base + i)) : [];
   const TRACK = w || 360, THUMB = Math.max(44, Math.round(TRACK * 7 / LEN));
   return (
-    <div style={s('padding:4px 12px 10px')}>
+    <div style={s('padding:4px 12px 10px;position:relative')}>
+      {/* 流しているあいだは、真ん中に見えている日の月を出す */}
+      <div style={s(`position:absolute;left:50%;top:0;transform:translate(-50%,-2px);z-index:2;pointer-events:none;padding:2px 10px;border-radius:999px;background:var(--ink);color:var(--card);font-size:11px;font-weight:600;white-space:nowrap;opacity:${active ? 1 : 0};transition:opacity ${active ? '.12s' : '.4s'} ease`)}>{days[mid] ? days[mid].monthFull : ''}</div>
       <div ref={ref} onScroll={onScroll} data-strip="day"
         style={s('overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
         <div style={{ display: 'flex', width: LEN * cw }}>
           {days.map((c) => (
             <div key={c.key} style={s({ width: cw, flexShrink: 0, scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' })} onClick={c.onClick}>
-              <span style={s(`font-size:10px;font-weight:600;color:${c.dowColor}`)}>{c.dow}</span>
+              <span style={s(`font-size:10px;font-weight:${c.monthHead ? 700 : 600};color:${c.monthHead ? 'var(--ink)' : c.dowColor};white-space:nowrap`)}>{c.monthHead || c.dow}</span>
               <span style={s(`width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:15px;font-variant-numeric:tabular-nums;${c.sel ? 'background:var(--ink);font-weight:700' : c.today ? 'border:1.5px solid var(--ink);font-weight:600' : ''};color:${c.numColor}`)}>{c.date}</span>
               <span style={s(`width:4px;height:4px;border-radius:2px;background:${c.has && !c.sel ? 'var(--ink-faint)' : 'transparent'}`)} />
             </div>

@@ -3928,6 +3928,7 @@ export default class App extends React.Component {
           const has = st.events.some(e=>evCovers(e,n) && e.status!=='nakunatta');
           const sel = n===dn;
           return { key:String(n), dow:wl[dw], date:o.d, sel, today:n===tN, has,
+            monthHead: o.d===1 ? (o.m+1)+'月' : '', monthFull: (o.y!==st.today.y ? o.y+'年' : '')+(o.m+1)+'月',
             dowColor:(hol||dw===0)?HOLIDAY_RED:dw===6?SATURDAY_BLUE:'var(--ink-faint)',
             numColor: sel ? 'var(--card)' : (hol||dw===0)?HOLIDAY_RED:dw===6?SATURDAY_BLUE:'var(--ink)',
             onClick:()=>{ if(sel) return; tapLight(); this.setState({ym:{y:o.y,m:o.m}, dayNum:o.d, swipeRow:null, dayDir:n>dn?1:-1}); } }; };
