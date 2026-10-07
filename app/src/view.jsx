@@ -421,18 +421,20 @@ function TimeGrid({ cols, hours, hourH, scrollRef, head, gutter = 30 }) {
 
 /**
  * 日の画面の上の日付の帯。指で流した分だけ動き、1日ずつ止まる（週の表示と同じ）。
- * 63 日を並べ、止まったら見えている所を真ん中に並べ直す。‹ › は1週間ずつ流す。
- * 選んだ日が見えない所へ移ったら（下の一覧を横に送ったときなど）、その週まで滑らかに流す
+ * 流せるのは開いた日の週の前後6週まで。下の細いバーで、いまどのあたりか・あとどれだけ流せるかを見せる。
+ * 選んだ日が見えない所へ移ったら（下の一覧を横に送ったときなど）、その週まで滑らかに流す。
+ * 流せる範囲の外へ移ったときは、その週を真ん中に並べ直す
  */
 function DayDateStrip({ v }) {
   const ref = React.useRef(null);
-  const vRef = React.useRef(v); vRef.current = v;
-  const timer = React.useRef(0);
+  const raf = React.useRef(0);
+  const settle = React.useRef(0);
   const [w, setW] = React.useState(0);
-  const [first, setFirst] = React.useState(v.dayStripWeek0);
-  const PAD = 28, LEN = 63;
-  const base = first - PAD;
-  const cw = (w || 336) / 7;
+  const [center, setCenter] = React.useState(v.dayStripWeek0);
+  const [pos, setPos] = React.useState(0.5);
+  const PAD = 42, LEN = PAD * 2 + 7;
+  const base = center - PAD;
+  const cw = (w || 360) / 7;
   React.useLayoutEffect(() => {
     const el = ref.current; if (!el) return undefined;
     const m = () => setW(el.clientWidth);
@@ -440,16 +442,14 @@ function DayDateStrip({ v }) {
     window.addEventListener('resize', m);
     return () => window.removeEventListener('resize', m);
   }, []);
-  // 左の端に first が来るよう合わせる（並べ直しても見た目は動かない）
+  // 並べ直したとき（最初・幅が変わったとき・範囲の外へ移ったとき）は、選んだ日の週を左の端に
   React.useLayoutEffect(() => {
     const el = ref.current; if (!el) return;
-    const target = PAD * cw;
-    if (Math.abs(el.scrollLeft - target) > 1) {
-      el.style.scrollSnapType = 'none';
-      el.scrollLeft = target;
-      requestAnimationFrame(() => { el.style.scrollSnapType = ''; });
-    }
-  }, [first, cw]);
+    el.style.scrollSnapType = 'none';
+    el.scrollLeft = PAD * cw;
+    requestAnimationFrame(() => { el.style.scrollSnapType = ''; });
+    setPos(0.5);
+  }, [center, cw]);
   // 選んだ日が見えていなければ、その週まで流す
   React.useEffect(() => {
     const el = ref.current; if (!el || !w) return;
@@ -458,25 +458,29 @@ function DayDateStrip({ v }) {
     if (sel >= visFirst && sel <= visFirst + 6) return;
     const nf = v.weekStartOf ? v.weekStartOf(sel) : sel;
     if (nf >= base && nf <= base + LEN - 7) el.scrollTo({ left: (nf - base) * cw, behavior: 'smooth' });
-    else setFirst(nf);
+    else setCenter(nf);
   }, [v.dayStripSel, w]);
   const onScroll = () => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => {
+    cancelAnimationFrame(raf.current);
+    raf.current = requestAnimationFrame(() => {
       const el = ref.current; if (!el) return;
-      const n = base + Math.round(el.scrollLeft / cw);
-      if (n !== first) setFirst(n);
-    }, 160);
+      const max = el.scrollWidth - el.clientWidth;
+      setPos(max > 0 ? Math.min(1, Math.max(0, el.scrollLeft / max)) : 0.5);
+    });
+    // 止まったところが日の区切りからずれていたら合わせる（区切りに止める仕組みが効かなかったとき用）
+    clearTimeout(settle.current);
+    settle.current = setTimeout(() => {
+      const el = ref.current; if (!el) return;
+      const t = Math.round(el.scrollLeft / cw) * cw;
+      if (Math.abs(el.scrollLeft - t) > 1) el.scrollTo({ left: t, behavior: 'smooth' });
+    }, 180);
   };
-  const by = (k) => () => { const el = ref.current; if (el) el.scrollBy({ left: k * 7 * cw, behavior: 'smooth' }); };
-  const cell = vRef.current.dayStripCell;
-  const days = cell ? Array.from({ length: LEN }, (_, i) => cell(base + i)) : [];
-  const arrow = 'width:22px;flex-shrink:0;text-align:center;font-size:18px;color:var(--ink-faint);cursor:pointer;user-select:none';
+  const days = v.dayStripCell ? Array.from({ length: LEN }, (_, i) => v.dayStripCell(base + i)) : [];
+  const TRACK = 72, THUMB = 18;
   return (
-    <div style={s('display:flex;align-items:center;padding:4px 8px 10px')}>
-      <span role="button" aria-label="前の週" style={s(arrow)} onClick={by(-1)}>‹</span>
+    <div style={s('padding:4px 12px 10px')}>
       <div ref={ref} onScroll={onScroll} data-strip="day"
-        style={s('flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
+        style={s('overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
         <div style={{ display: 'flex', width: LEN * cw }}>
           {days.map((c) => (
             <div key={c.key} style={s({ width: cw, flexShrink: 0, scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' })} onClick={c.onClick}>
@@ -487,7 +491,10 @@ function DayDateStrip({ v }) {
           ))}
         </div>
       </div>
-      <span role="button" aria-label="次の週" style={s(arrow)} onClick={by(1)}>›</span>
+      {/* あとどれだけ流せるか */}
+      <div style={s(`position:relative;width:${TRACK}px;height:3px;margin:6px auto 0;border-radius:2px;background:var(--line)`)}>
+        <div style={s(`position:absolute;top:0;height:3px;width:${THUMB}px;border-radius:2px;background:var(--ink-faint);left:${(pos * (TRACK - THUMB)).toFixed(1)}px`)} />
+      </div>
     </div>
   );
 }
