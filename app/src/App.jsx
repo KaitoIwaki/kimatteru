@@ -107,7 +107,7 @@ const formHref = (version, kind) => {
   if (version) q.push(FORM_ENTRY.version + '=' + encodeURIComponent(version));
   return FORM_URL + '?' + q.join('&');
 };
-const APP_MARKETING = typeof __APP_MARKETING__ === 'string' ? __APP_MARKETING__ : '1.3';
+const APP_MARKETING = typeof __APP_MARKETING__ === 'string' ? __APP_MARKETING__ : '1.3.1';
 
 // スイッチの見た目（設定のものと同じ）
 // スイッチのオンの色。前は墨（黒）で主張が強かった。カレンダーの予定の緑（セージ）にそろえる

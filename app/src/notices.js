@@ -16,6 +16,15 @@ export const KIND_INFO = 'info';
 const L = (...lines) => lines.map((x) => '・' + x).join('\n');
 export const RELEASE_NOTES = [
   {
+    version: '0.32.0',
+    title: '日の画面を見やすくしました',
+    body: L(
+      '日の画面を作り直しました。上の日付の帯は、横に流して日を選べます',
+      '週表示は、横に流すと日が続けて動くようにしました',
+      '下のメニューの位置と大きさを、iPhone の標準に合わせました',
+    ),
+  },
+  {
     version: '0.31.0',
     title: '仕事の予定にも使いやすくしました',
     body: L(
