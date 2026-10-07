@@ -421,7 +421,7 @@ function TimeGrid({ cols, hours, hourH, scrollRef, head, gutter = 30 }) {
 
 /**
  * 日の画面の上の日付の帯。指で流した分だけ動き、1日ずつ止まる（週の表示と同じ）。
- * 流せるのは開いた日の週の前後6週まで。下の細いバーで、いまどのあたりか・あとどれだけ流せるかを見せる。
+ * 流せるのは開いた日の週の前後6週まで。流しているあいだだけ、下に帯の幅いっぱいの細いバーを出して、いまどのあたりか・あとどれだけ流せるかを見せる。
  * 選んだ日が見えない所へ移ったら（下の一覧を横に送ったときなど）、その週まで滑らかに流す。
  * 流せる範囲の外へ移ったときは、その週を真ん中に並べ直す
  */
@@ -429,6 +429,9 @@ function DayDateStrip({ v }) {
   const ref = React.useRef(null);
   const raf = React.useRef(0);
   const settle = React.useRef(0);
+  const hide = React.useRef(0);
+  const quiet = React.useRef(false);
+  const [active, setActive] = React.useState(false);
   const [w, setW] = React.useState(0);
   const [center, setCenter] = React.useState(v.dayStripWeek0);
   const [pos, setPos] = React.useState(0.5);
@@ -446,6 +449,7 @@ function DayDateStrip({ v }) {
   React.useLayoutEffect(() => {
     const el = ref.current; if (!el) return;
     el.style.scrollSnapType = 'none';
+    quiet.current = Math.abs(el.scrollLeft - PAD * cw) > 0.5;
     el.scrollLeft = PAD * cw;
     requestAnimationFrame(() => { el.style.scrollSnapType = ''; });
     setPos(0.5);
@@ -461,6 +465,13 @@ function DayDateStrip({ v }) {
     else setCenter(nf);
   }, [v.dayStripSel, w]);
   const onScroll = () => {
+    // バーは流しているあいだだけ出す（並べ直しで位置を合わせたときは出さない）
+    if (quiet.current) quiet.current = false;
+    else {
+      setActive(true);
+      clearTimeout(hide.current);
+      hide.current = setTimeout(() => setActive(false), 900);
+    }
     cancelAnimationFrame(raf.current);
     raf.current = requestAnimationFrame(() => {
       const el = ref.current; if (!el) return;
@@ -476,7 +487,7 @@ function DayDateStrip({ v }) {
     }, 180);
   };
   const days = v.dayStripCell ? Array.from({ length: LEN }, (_, i) => v.dayStripCell(base + i)) : [];
-  const TRACK = 140, THUMB = 32;
+  const TRACK = w || 360, THUMB = Math.max(44, Math.round(TRACK * 7 / LEN));
   return (
     <div style={s('padding:4px 12px 10px')}>
       <div ref={ref} onScroll={onScroll} data-strip="day"
@@ -491,8 +502,8 @@ function DayDateStrip({ v }) {
           ))}
         </div>
       </div>
-      {/* あとどれだけ流せるか */}
-      <div style={s(`position:relative;width:${TRACK}px;height:3px;margin:8px auto 0;border-radius:2px;background:var(--line)`)}>
+      {/* あとどれだけ流せるか。帯の幅いっぱい・流しているあいだだけ */}
+      <div style={s(`position:relative;width:${TRACK}px;height:3px;margin:8px auto 0;border-radius:2px;background:var(--line);opacity:${active ? 1 : 0};transition:opacity ${active ? '.12s' : '.4s'} ease`)}>
         <div style={s(`position:absolute;top:0;height:3px;width:${THUMB}px;border-radius:2px;background:var(--ink-faint);left:${(pos * (TRACK - THUMB)).toFixed(1)}px`)} />
       </div>
     </div>
