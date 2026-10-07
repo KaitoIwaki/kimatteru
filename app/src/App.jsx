@@ -3922,13 +3922,16 @@ export default class App extends React.Component {
         v.daySummary = evs.length ? `予定 ${evs.length}件`+(und ? `・まだ ${und}件` : '') : ''; }
       // その日を含む1週間の帯。押すとその日へ。予定のある日に点
       { const w0=weekStartNo(Y,M,d,ws), tN=dayNo(st.today.y,st.today.m,st.today.d);
-        v.dayStrip = Array.from({length:7},(_,i)=>{ const n=w0+i, o=fromDayNo(n), dw=new Date(o.y,o.m,o.d).getDay(), hol=holidayName(o.y,o.m,o.d);
+        // 日付の帯は、指で流した分だけ動く（週の表示と同じ）。並べる日は帯の側で決め、ここは1日分の中身を返す
+        v.dayStripSel = dn; v.dayStripWeek0 = w0;
+        v.dayStripCell = (n)=>{ const o=fromDayNo(n), dw=new Date(o.y,o.m,o.d).getDay(), hol=holidayName(o.y,o.m,o.d);
           const has = st.events.some(e=>evCovers(e,n) && e.status!=='nakunatta');
           const sel = n===dn;
           return { key:String(n), dow:wl[dw], date:o.d, sel, today:n===tN, has,
             dowColor:(hol||dw===0)?HOLIDAY_RED:dw===6?SATURDAY_BLUE:'var(--ink-faint)',
             numColor: sel ? 'var(--card)' : (hol||dw===0)?HOLIDAY_RED:dw===6?SATURDAY_BLUE:'var(--ink)',
-            onClick:()=>{ if(sel) return; tapLight(); this.setState({ym:{y:o.y,m:o.m}, dayNum:o.d, swipeRow:null, dayDir:n>dn?1:-1}); } }; }); }
+            onClick:()=>{ if(sel) return; tapLight(); this.setState({ym:{y:o.y,m:o.m}, dayNum:o.d, swipeRow:null, dayDir:n>dn?1:-1}); } }; };
+        v.weekStartOf = (n)=>{ const o=fromDayNo(n); return weekStartNo(o.y,o.m,o.d,ws); }; }
       v.dayEvents.forEach(r=>{
         const ev=evs.find(e=>e.id===r.key); if(!ev) return; const t=this.T(ev.type);
         const endShown = ev.status==='jisseki' ? (ev.actualEnd||ev.end) : ev.end;

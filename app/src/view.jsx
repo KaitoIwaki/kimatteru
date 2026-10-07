@@ -420,6 +420,79 @@ function TimeGrid({ cols, hours, hourH, scrollRef, head, gutter = 30 }) {
 }
 
 /**
+ * 日の画面の上の日付の帯。指で流した分だけ動き、1日ずつ止まる（週の表示と同じ）。
+ * 63 日を並べ、止まったら見えている所を真ん中に並べ直す。‹ › は1週間ずつ流す。
+ * 選んだ日が見えない所へ移ったら（下の一覧を横に送ったときなど）、その週まで滑らかに流す
+ */
+function DayDateStrip({ v }) {
+  const ref = React.useRef(null);
+  const vRef = React.useRef(v); vRef.current = v;
+  const timer = React.useRef(0);
+  const [w, setW] = React.useState(0);
+  const [first, setFirst] = React.useState(v.dayStripWeek0);
+  const PAD = 28, LEN = 63;
+  const base = first - PAD;
+  const cw = (w || 336) / 7;
+  React.useLayoutEffect(() => {
+    const el = ref.current; if (!el) return undefined;
+    const m = () => setW(el.clientWidth);
+    m();
+    window.addEventListener('resize', m);
+    return () => window.removeEventListener('resize', m);
+  }, []);
+  // 左の端に first が来るよう合わせる（並べ直しても見た目は動かない）
+  React.useLayoutEffect(() => {
+    const el = ref.current; if (!el) return;
+    const target = PAD * cw;
+    if (Math.abs(el.scrollLeft - target) > 1) {
+      el.style.scrollSnapType = 'none';
+      el.scrollLeft = target;
+      requestAnimationFrame(() => { el.style.scrollSnapType = ''; });
+    }
+  }, [first, cw]);
+  // 選んだ日が見えていなければ、その週まで流す
+  React.useEffect(() => {
+    const el = ref.current; if (!el || !w) return;
+    const sel = v.dayStripSel;
+    const visFirst = base + Math.round(el.scrollLeft / cw);
+    if (sel >= visFirst && sel <= visFirst + 6) return;
+    const nf = v.weekStartOf ? v.weekStartOf(sel) : sel;
+    if (nf >= base && nf <= base + LEN - 7) el.scrollTo({ left: (nf - base) * cw, behavior: 'smooth' });
+    else setFirst(nf);
+  }, [v.dayStripSel, w]);
+  const onScroll = () => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      const el = ref.current; if (!el) return;
+      const n = base + Math.round(el.scrollLeft / cw);
+      if (n !== first) setFirst(n);
+    }, 160);
+  };
+  const by = (k) => () => { const el = ref.current; if (el) el.scrollBy({ left: k * 7 * cw, behavior: 'smooth' }); };
+  const cell = vRef.current.dayStripCell;
+  const days = cell ? Array.from({ length: LEN }, (_, i) => cell(base + i)) : [];
+  const arrow = 'width:22px;flex-shrink:0;text-align:center;font-size:18px;color:var(--ink-faint);cursor:pointer;user-select:none';
+  return (
+    <div style={s('display:flex;align-items:center;padding:4px 8px 10px')}>
+      <span role="button" aria-label="前の週" style={s(arrow)} onClick={by(-1)}>‹</span>
+      <div ref={ref} onScroll={onScroll} data-strip="day"
+        style={s('flex:1;min-width:0;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch')}>
+        <div style={{ display: 'flex', width: LEN * cw }}>
+          {days.map((c) => (
+            <div key={c.key} style={s({ width: cw, flexShrink: 0, scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' })} onClick={c.onClick}>
+              <span style={s(`font-size:10px;font-weight:600;color:${c.dowColor}`)}>{c.dow}</span>
+              <span style={s(`width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:15px;font-variant-numeric:tabular-nums;${c.sel ? 'background:var(--ink);font-weight:700' : c.today ? 'border:1.5px solid var(--ink);font-weight:600' : ''};color:${c.numColor}`)}>{c.date}</span>
+              <span style={s(`width:4px;height:4px;border-radius:2px;background:${c.has && !c.sel ? 'var(--ink-faint)' : 'transparent'}`)} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <span role="button" aria-label="次の週" style={s(arrow)} onClick={by(1)}>›</span>
+    </div>
+  );
+}
+
+/**
  * 週表示：日を横一列に並べて、指で流す（iPhone 標準のカレンダーの週表示と同じ動き）。
  * ・1画面に7日。離すと日の区切りに止まる（scroll-snap）。勢いよく払えば何日も進む
  * ・左の時刻と、上の曜日・日付は動かない（sticky）
@@ -736,17 +809,7 @@ export function renderApp(v) {
               {(v.daySeg || []).map((sg, i) => (<div key={i} style={s(sg.style)} onClick={sg.onClick}>{sg.label}</div>))}
             </div>
           </div>
-          <div style={s('display:flex;align-items:center;gap:2px;padding:4px 8px 10px')}>
-            <span role="button" aria-label="前の日" style={s('width:22px;flex-shrink:0;text-align:center;font-size:18px;color:var(--ink-faint);cursor:pointer;user-select:none')} onClick={v.onDayPrev}>‹</span>
-            {(v.dayStrip || []).map((c) => (
-              <div key={c.key} style={s('flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer')} onClick={c.onClick}>
-                <span style={s(`font-size:10px;font-weight:600;color:${c.dowColor}`)}>{c.dow}</span>
-                <span style={s(`width:32px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:15px;font-variant-numeric:tabular-nums;${c.sel ? 'background:var(--ink);font-weight:700' : c.today ? 'border:1.5px solid var(--ink);font-weight:600' : ''};color:${c.numColor}`)}>{c.date}</span>
-                <span style={s(`width:4px;height:4px;border-radius:2px;background:${c.has && !c.sel ? 'var(--ink-faint)' : 'transparent'}`)} />
-              </div>
-            ))}
-            <span role="button" aria-label="次の日" style={s('width:22px;flex-shrink:0;text-align:center;font-size:18px;color:var(--ink-faint);cursor:pointer;user-select:none')} onClick={v.onDayNext}>›</span>
-          </div>
+          <DayDateStrip v={v} />
           {v.dayView === 'time' ? (
             <div key={v.dayKey} style={s(`display:flex;flex-direction:column;flex:1;min-height:0;animation:${v.dayAnim}`)}>
               <TimeGrid cols={v.dayCols || []} hours={v.dayHours || []} hourH={v.dayHourH} scrollRef={v.dayScrollRef} gutter={40} />
