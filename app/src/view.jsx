@@ -419,6 +419,108 @@ function TimeGrid({ cols, hours, hourH, scrollRef, head, gutter = 30 }) {
   );
 }
 
+/**
+ * 週表示：日を横一列に並べて、指で流す（iPhone 標準のカレンダーの週表示と同じ動き）。
+ * ・1画面に7日。離すと日の区切りに止まる（scroll-snap）。勢いよく払えば何日も進む
+ * ・左の時刻と、上の曜日・日付は動かない（sticky）
+ * ・描くのは前後の数週間だけ。流し終わったら（onWeekSettle）見えている日を中心に描き直す。
+ *   描き直しても、見えている位置は変えない（下の useLayoutEffect で scrollLeft を合わせ直す）
+ */
+function WeekStrip({ v }) {
+  const GUT = 30;
+  const ref = React.useRef(null);
+  const vRef = React.useRef(v); vRef.current = v;
+  const timer = React.useRef(0);
+  const [w, setW] = React.useState(0);
+  const cols = v.weekCols || [];
+  const H = v.weekHourH || 44, total = H * 24;
+  const hours = v.weekHours || [];
+  const colW = Math.max(30, ((w || (typeof window !== 'undefined' ? Math.min(window.innerWidth, 520) : 375)) - GUT) / 7);
+  const anyAllDay = cols.some((c) => c.allDay && c.allDay.pills.length);
+  // 幅を測る（回転・幅の変化にも合わせる）。縦は最初に朝7時あたりへ
+  React.useLayoutEffect(() => {
+    const el = ref.current; if (!el) return undefined;
+    const m = () => setW(el.clientWidth);
+    m(); el.scrollTop = vRef.current.weekStartTop || 0;
+    window.addEventListener('resize', m);
+    return () => window.removeEventListener('resize', m);
+  }, []);
+  // いちばん左に見えている日（weekFirst）が左の端に来るよう合わせる。指で流して止まったあとは、もう合っているので動かない
+  React.useLayoutEffect(() => {
+    const el = ref.current; if (!el) return;
+    const target = (v.weekFirst - v.weekBase) * colW;
+    if (Math.abs(el.scrollLeft - target) > 1) {
+      el.style.scrollSnapType = 'none';
+      el.scrollLeft = target;
+      requestAnimationFrame(() => { el.style.scrollSnapType = ''; });
+    }
+    if (v.onWeekEl) v.onWeekEl(el, colW);
+  }, [v.weekBase, v.weekFirst, colW]);
+  const onScroll = () => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      const el = ref.current, vv = vRef.current; if (!el) return;
+      const n = vv.weekBase + Math.round(el.scrollLeft / colW);
+      if (vv.onWeekSettle) vv.onWeekSettle(n);
+    }, 160);
+  };
+  const bg = 'background:var(--bg)';
+  return (
+    <div ref={ref} onScroll={onScroll}
+      style={s(`flex:1;min-height:0;overflow:auto;position:relative;scroll-snap-type:x mandatory;scroll-padding-left:${GUT}px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch`)}>
+      <div style={{ width: GUT + cols.length * colW, position: 'relative' }}>
+        {/* 上：曜日と日付（と終日の予定）。縦に送っても上に残る */}
+        <div style={s(`position:sticky;top:0;z-index:3;${bg};border-bottom:1px solid var(--line)`)}>
+          <div style={s('display:flex')}>
+            <div style={s(`position:sticky;left:0;z-index:4;width:${GUT}px;flex-shrink:0;${bg}`)} />
+            {cols.map((c) => (
+              <div key={c.key} style={s({ ...c.headStyle, width: colW, flexShrink: 0 })} onClick={c.onHead}>
+                <div style={s(c.dowStyle)}>{c.dow}</div>
+                <div><span style={s(c.numStyle)}>{c.date}</span></div>
+              </div>
+            ))}
+          </div>
+          {anyAllDay && (
+            <div style={s('display:flex;padding:3px 0 1px;border-top:1px solid var(--line)')}>
+              <span style={s(`position:sticky;left:0;z-index:4;width:${GUT}px;flex-shrink:0;font-size:9px;color:var(--ink-faint);padding:3px 0 0 3px;${bg}`)}>終日</span>
+              {cols.map((c) => (
+                <div key={c.key} style={{ width: colW, flexShrink: 0, padding: '0 1px', minWidth: 0, boxSizing: 'border-box' }}>
+                  {c.allDay.pills.map((p) => (<div key={p.key} style={s(p.style)} onClick={p.onClick}>{p.title}</div>))}
+                  {c.allDay.more > 0 && <div style={s('font-size:9px;color:var(--ink-mut);padding-left:2px')}>+{c.allDay.more}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* 本体：左の時刻は横に流しても残る */}
+        <div style={{ display: 'flex', height: total, position: 'relative' }}>
+          <div style={s(`position:sticky;left:0;z-index:2;width:${GUT}px;flex-shrink:0;height:${total}px;${bg}`)}>
+            {hours.map((h, i) => (
+              <span key={i} style={s(`position:absolute;top:${h.top - 6}px;right:4px;font-size:9.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums`)}>{h.label}</span>
+            ))}
+          </div>
+          {cols.map((c) => (
+            <div key={c.key} style={s({ position: 'relative', width: colW, flexShrink: 0, scrollSnapAlign: 'start', borderLeft: '1px solid var(--line-faint)', boxSizing: 'border-box', background: c.isToday ? 'var(--today-bg)' : 'transparent' })} onClick={c.onSlot}>
+              {hours.map((h, i) => (<div key={i} style={s(`position:absolute;left:0;right:0;top:${h.top}px;border-top:1px solid ${i ? 'var(--line-faint)' : 'transparent'}`)} />))}
+              {c.boxes.map((b) => (
+                <div key={b.key} style={s(b.style)} onClick={b.onClick}>
+                  <div style={s('white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500')}>{b.title}</div>
+                  {!!b.time && <div style={s('font-size:9.5px;opacity:.8;font-variant-numeric:tabular-nums;white-space:nowrap')}>{b.time}</div>}
+                </div>
+              ))}
+              {c.nowTop != null && (
+                <div style={s(`position:absolute;left:-3px;right:0;top:${c.nowTop}px;height:0;border-top:1.5px solid var(--sun);z-index:1;pointer-events:none`)}>
+                  <span style={s('position:absolute;left:-1px;top:-4px;width:7px;height:7px;border-radius:4px;background:var(--sun)')} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Claude design のテンプレートを JSX に移植したもの。
 // 値はすべて renderVals() が返す v から来る（表示ロジックは logic 側に閉じている）。
 export function renderApp(v) {
@@ -499,11 +601,10 @@ export function renderApp(v) {
             )}
           </div>
 
-          {/* 週表示。7列×時刻の目盛り。横に払うと前後の週へ */}
+          {/* 週表示。日を横一列に並べて、指で流す。離すと日の区切りに止まる */}
           {v.calView === 'week' && (
-            <div key={v.weekKey} style={s(`display:flex;flex-direction:column;flex:1;min-height:0;padding-bottom:${v.monthPadBottom};animation:${v.weekAnim}`)}
-              onTouchStart={v.onWeekTouchStart} onTouchEnd={v.onWeekTouchEnd}>
-              <TimeGrid cols={v.weekCols || []} hours={v.weekHours || []} hourH={v.weekHourH} scrollRef={v.weekScrollRef} head />
+            <div style={s(`display:flex;flex-direction:column;flex:1;min-height:0;padding-bottom:${v.monthPadBottom}`)}>
+              <WeekStrip v={v} />
             </div>
           )}
 

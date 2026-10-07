@@ -3778,26 +3778,37 @@ export default class App extends React.Component {
         onClick:()=>{ tapLight(); this.setState(s=>({settings:{...s.settings, calView:k}, weekAnchor:null})); }}));
     }
     if(calView==='week'){
+      // 週表示は、日を横一列に並べて指で流す（iPhone 標準のカレンダーと同じ）。
+      // 前は7日ずつ入れ替える形で、払うと週ごとにパッと切り替わり、途中の日で止められなかった。
+      // weekAnchor は「いちばん左に見えている日」。前後 WIN_BACK / WIN_AHEAD 日を描いておき、
+      // 流し終わったら（WeekStrip の onSettle）見えている日を中心に描き直す。見た目の位置は変わらない
       const t=st.today;
       const inThis = st.ym.y===t.y && st.ym.m===t.m;
-      const anchor = st.weekAnchor!=null ? st.weekAnchor
+      const first = st.weekAnchor!=null ? st.weekAnchor
         : (inThis ? weekStartNo(t.y,t.m,t.d,ws) : weekStartNo(st.ym.y,st.ym.m,1,ws));
-      const days=Array.from({length:7},(_,i)=>fromDayNo(anchor+i));
-      // 見出しの月：今日を含む週なら今日の月、そうでなければ週の多いほうの月（前は木曜の月で、9/28〜の週が「10月」になった）
-      const tN=dayNo(t.y,t.m,t.d); const lab = (tN>=anchor && tN<anchor+7) ? {y:t.y,m:t.m} : days[3];
+      const WIN_BACK=28, WIN_AHEAD=35;
+      const base=first-WIN_BACK, len=WIN_BACK+WIN_AHEAD;
+      const days=Array.from({length:len},(_,i)=>fromDayNo(base+i));
+      // 見出しの月：見えている7日に今日があれば今日の月、無ければ見えている真ん中（4日目）の月
+      const tN=dayNo(t.y,t.m,t.d); const lab = (tN>=first && tN<first+7) ? {y:t.y,m:t.m} : fromDayNo(first+3);
       v.monthLabel=String(lab.m+1); v.year=String(lab.y);
-      v.todayBtnShown = !(anchor<=dayNo(t.y,t.m,t.d) && dayNo(t.y,t.m,t.d)<anchor+7);
+      v.todayBtnShown = !(first<=tN && tN<first+7);
       v.onGoToday = ()=>{ tapLight(); this.setState({weekAnchor:weekStartNo(t.y,t.m,t.d,ws), ym:{y:t.y,m:t.m}, flashToday:Date.now()}); };
-      const shiftW=(d)=>{ tapLight(); const n=anchor+d*7; const o=fromDayNo(n+3); this.setState({weekAnchor:n, ym:{y:o.y,m:o.m}, weekDir:d}); };
+      // ‹ › は7日ぶん滑らせる（指で流したのと同じ動き）。滑り終わりは onSettle が拾う
+      const shiftW=(d)=>{ tapLight();
+        const el=this._weekEl, w=this._weekColW;
+        if(el && w && el.scrollBy){ el.scrollBy({left:d*7*w, behavior:'smooth'}); return; }
+        const n=first+d*7, o=fromDayNo(n+3); this.setState({weekAnchor:n, ym:{y:o.y,m:o.m}}); };
       v.onPrevMonth = ()=>shiftW(-1);
       v.onNextMonth = ()=>shiftW(1);
-      v.onWeekTouchStart=(e)=>{ const p=e.touches&&e.touches[0]; if(!p) return; this._wsx=p.clientX; this._wsy=p.clientY; };
-      v.onWeekTouchEnd=(e)=>{ const p=e.changedTouches&&e.changedTouches[0]; const sx=this._wsx, sy=this._wsy; this._wsx=null;
-        if(!p||sx==null) return; const dx=p.clientX-sx, dy=p.clientY-sy; if(Math.abs(dx)>70 && Math.abs(dx)>Math.abs(dy)*1.5) shiftW(dx<0?1:-1); };
+      v.weekBase = base; v.weekFirst = first;
+      v.onWeekEl = (el, colW)=>{ this._weekEl=el; this._weekColW=colW; };
+      // 流し終わった：いちばん左に見えている日を覚えて、そこを中心に描き直す
+      v.onWeekSettle = (n)=>{ if(n===this.state.weekAnchor) return; const o=fromDayNo(n+3);
+        this.setState({weekAnchor:n, ym:{y:o.y,m:o.m}}); };
       const pool=st.events.filter(e=>!(st.settings.hideCanceled && e.status==='nakunatta'));
-      const over=this._overlayFor ? this._overlayFor(anchor, anchor+7) : [];
-      v.weekKey = String(anchor);
-      v.weekAnim = st.weekDir ? (st.weekDir>0?'slideFromRight':'slideFromLeft')+' .24s cubic-bezier(.2,.9,.2,1)' : 'none';
+      const over=this._overlayFor ? this._overlayFor(base, base+len) : [];
+      v.weekKey = 'strip';
       const H=this.HOUR_H;
       v.weekHourH = H;
       v.weekHours = Array.from({length:24},(_,h)=>({ label: h ? String(h) : '', top: h*H }));
@@ -3818,10 +3829,9 @@ export default class App extends React.Component {
             this.openNew(o.d,'month',{y:o.y,m:o.m,start:min}); },
         };
       });
-      v.weekScrollRef=(el)=>{ if(!el || el.dataset.pos===v.weekKey) return; el.dataset.pos=v.weekKey;
-        // 最初は朝7時あたりから見せる。その週に早い予定があれば、そこから
-        let first=7*60; for(const c of v.weekCols) for(const b of c.boxes) first=Math.min(first, b.a);
-        el.scrollTop=Math.max(0, first/60*H - 12); };
+      // 開いたときは朝7時あたりから見せる。見えている7日に早い予定があれば、そこから
+      { let m0=7*60; v.weekCols.slice(first-base, first-base+7).forEach(c=>c.boxes.forEach(b=>{ m0=Math.min(m0, b.a); }));
+        v.weekStartTop=Math.max(0, m0/60*H - 12); }
     }
     // 指の動きぶんだけ横にずらす。離したときだけ滑らせる。
     // 絶対配置にして、flex の縮みで幅が崩れないようにする
