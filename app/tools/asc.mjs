@@ -57,10 +57,14 @@ function need(name) {
 }
 
 /** 20分だけ有効な鍵。Apple の上限もそこまで */
+// 数字（stats）だけは、役割が「管理」のキーでないと Apple が読ませない（403）。
+// 提出などの書き込みは今までどおり「App マネージャ」のキーで行い、管理のキーは stats のときだけ使う。
+// ASC_STATS_KEY_ID / ASC_STATS_KEY_PATH が無ければ、いつものキーで試す
 function token() {
-  const kid = need('ASC_KEY_ID');
+  const statsKey = process.argv[2] === 'stats' && (process.env.ASC_STATS_KEY_ID || local().ASC_STATS_KEY_ID);
+  const kid = statsKey ? need('ASC_STATS_KEY_ID') : need('ASC_KEY_ID');
   const iss = need('ASC_ISSUER_ID');
-  const path = need('ASC_KEY_PATH');
+  const path = statsKey ? need('ASC_STATS_KEY_PATH') : need('ASC_KEY_PATH');
   if (!fs.existsSync(path)) {
     console.error(`鍵の file が見つかりません: ${path}`);
     process.exit(2);
