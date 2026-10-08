@@ -62,6 +62,9 @@ end
 # ---- 3. ビルド設定 ----
 # 版とビルド番号は App と同じにする。ずれていると App Store が受け取らない。
 # VERSIONING_SYSTEM を入れておかないと、agvtool の採番が拡張に効かない。
+# 表示する版（1.3.1 など）は App のものをそのまま使う。前は '1.0' と書いていて、本体とずれていた
+app_marketing = app.build_configurations.map { |c| c.build_settings['MARKETING_VERSION'] }.compact.first || '1.0'
+puts "・版は App と同じ #{app_marketing} にする"
 target.build_configurations.each do |c|
   c.build_settings.merge!(
     'PRODUCT_BUNDLE_IDENTIFIER'    => WIDGET_BUNDLE,
@@ -75,7 +78,7 @@ target.build_configurations.each do |c|
     # アプリ本体は 15.0 のまま（拡張のほうが高くても構わない）。
     'IPHONEOS_DEPLOYMENT_TARGET'   => '17.0',
     'TARGETED_DEVICE_FAMILY'       => '1',
-    'MARKETING_VERSION'            => '1.0',
+    'MARKETING_VERSION'            => app_marketing,
     'CURRENT_PROJECT_VERSION'      => '1',
     'VERSIONING_SYSTEM'            => 'apple-generic',
     'SKIP_INSTALL'                 => 'YES',
