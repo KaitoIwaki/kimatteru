@@ -9,10 +9,11 @@
 //
 // spec.json の形:
 //   { "headline": "遊びの予定、\n{まだ}決まってない", "sub": "点線で置いておけるカレンダー",
-//     "shot": "1-calendar.png", "tag": "学生向け" }
+//     "shot": "month", "tag": "学生向け" }
 //   ・headline の {…} は点線、[…] は実線の下線。宣伝の文字そのものでアプリの決まり（決まった＝塗り・まだ＝点線）を見せる
-//   ・shot は store-assets/promo/assets/ か store-assets/screenshots-6.9/ にある本物のスクショのファイル名。
-//     アプリの画面は描き直さない（実際と違う画面を出さない）
+//   ・shot は store-assets/marketing/shots/ にある今のアプリのスクショのファイル名（make-post-shots.mjs が撮る。
+//     month・week・day・day-time・wage・mada・list・free・share・report・add）。
+//     アプリの画面は描き直さない（実際と違う画面を出さない）。古いスクショ（promo/assets・screenshots-6.9）は今の画面と違うので使わない
 import { chromium } from 'playwright';
 import { readFileSync, existsSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
@@ -25,8 +26,8 @@ const specFile = join(dir, 'spec.json');
 if (!process.argv[2] || !existsSync(specFile)) { console.error('spec.json が見つかりません：' + specFile); process.exit(1); }
 const spec = JSON.parse(readFileSync(specFile, 'utf8'));
 
-const shotPath = [join(ROOT, 'store-assets', 'promo', 'assets', spec.shot || ''), join(ROOT, 'store-assets', 'screenshots-6.9', spec.shot || '')]
-  .find((p) => spec.shot && existsSync(p));
+const shotFile = spec.shot && !/.png$/.test(spec.shot) ? spec.shot + '.png' : spec.shot;
+const shotPath = shotFile && [join(ROOT, 'store-assets', 'marketing', 'shots', shotFile)].find((p) => existsSync(p));
 if (spec.shot && !shotPath) { console.error('スクショが見つかりません：' + spec.shot); process.exit(1); }
 const icon = pathToFileURL(join(ROOT, 'store-assets', 'promo', 'assets', 'icon.png')).href;
 
