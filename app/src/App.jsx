@@ -1,5 +1,6 @@
 ﻿import React from 'react';
 import { renderApp } from './view.jsx';
+import { App as CapApp } from '@capacitor/app';
 import { tapLight, penTick, settleSuccess, stampHeavy } from './haptics';
 import { demoEvents, wantsDemo, demoKind } from './demo';
 import { readLocal, readFile, saveLocal, saveFile, PERSISTED, isNative } from './store';
@@ -107,7 +108,7 @@ const formHref = (version, kind) => {
   if (version) q.push(FORM_ENTRY.version + '=' + encodeURIComponent(version));
   return FORM_URL + '?' + q.join('&');
 };
-const APP_MARKETING = typeof __APP_MARKETING__ === 'string' ? __APP_MARKETING__ : '1.3.1';
+const APP_MARKETING = typeof __APP_MARKETING__ === 'string' ? __APP_MARKETING__ : '1.3.2';
 
 // スイッチの見た目（設定のものと同じ）
 // スイッチのオンの色。前は墨（黒）で主張が強かった。カレンダーの予定の緑（セージ）にそろえる
@@ -2489,6 +2490,7 @@ export default class App extends React.Component {
         // 前のスワイプがまだ収まりきる前に次が始まったら、先にその1回ぶんを確定させる。
         // ここで捨てると、素早く2回払っても1ヶ月しか動かない。
         this._commitSwipe();
+        this._checkToday();
         this._sx=t.clientX; this._sy=t.clientY; this._axis=null;
         this._trackW=(e.currentTarget&&e.currentTarget.clientWidth)||320;
         this._dragDx=0; this._dragging=true;
@@ -3740,7 +3742,9 @@ export default class App extends React.Component {
                  fontSize:11,fontWeight:700,background:dayColor,color:'var(--card)',fontVariantNumeric:'tabular-nums',lineHeight:'18px'}
               : {fontSize:11, fontWeight: ((hol||dow===0||dow===6)?600:500), color:dayColor},
             // シフト入力のあいだは、押した日に型を置く（その日の一覧は開かない）
-            onDay:()=>{ if(this.state.stamp) this.stampDay(Y,M,d); else this.openDay(d); },
+            // 開くのは、このマスの月の日（いま選んでいる月 ym ではなく）。
+            // 見えている月と ym がずれたとき、押した日と違う日が開いていた
+            onDay:()=>{ if(this.state.stamp) this.stampDay(Y,M,d); else { this.setState({ym:{y:Y,m:M}}); this.openDay(d); } },
           };
         });
 
@@ -5012,6 +5016,13 @@ export default class App extends React.Component {
       const perm = await checkCalendarAccess();
       if (perm === 'granted') this.runScan();
     };
+    // iPhone で長く開きっぱなしにすると、ブラウザの「戻ってきた」合図（visibilitychange）が
+    // 届かないことがあるらしく、「今日」が数日前のまま・月がずれる、が起きた（2026-10、開き直すと直った）。
+    // アプリ側の合図（Capacitor の resume / pause）でも同じことをする。_onReturn は二重に呼ばれても1回にまとめる
+    try {
+      CapApp.addListener('resume', () => { this._onResume(); this._onReturn(); });
+      CapApp.addListener('pause', () => { this._hiddenAt = Date.now(); this._flushFile(); });
+    } catch (e) { /* ブラウザでは無くてよい */ }
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) { this._onResume(); this._onReturn(); return; }
       // 背景に回った。このまま終了されることがあるので、待たずに書く
@@ -5026,11 +5037,16 @@ export default class App extends React.Component {
 
     // 日付が変わったら「今日」の位置と記録の催促を更新する
     this._tick = setInterval(() => {
-      const t = todayParts();
-      const cur = this.state.today;
-      if (t.y !== cur.y || t.m !== cur.m || t.d !== cur.d) this.setState({ today: t });
+      this._checkToday();
       this._refreshNotif();
     }, 60000);
+  }
+
+  /** 日付が変わっていたら「今日」を進める。時計のほか、カレンダーに触れたときにも確かめる（安いので何度呼んでもよい） */
+  _checkToday() {
+    const t = todayParts();
+    const cur = this.state.today;
+    if (t.y !== cur.y || t.m !== cur.m || t.d !== cur.d) this.setState({ today: t });
   }
 
   /**
@@ -5041,6 +5057,11 @@ export default class App extends React.Component {
    * （書きかけの予定があるときは戻さない）。
    */
   _onReturn() {
+    // resume と visibilitychange の両方から来るので、続けて来たら1回にまとめる
+    if (this._returnedAt && Date.now() - this._returnedAt < 1500) return;
+    this._returnedAt = Date.now();
+    // 払っている途中でアプリを離れると、指を離した合図が来ないまま残る。戻ったら払う途中の状態を捨てる
+    if (this._dragging || this._sx != null) { this._dragging = false; this._sx = null; this._axis = null; this._pendingDir = 0; this.setState({ swipe: { dx: 0, animating: false } }); }
     const t = todayParts();
     const cur = this.state.today;
     const away = this._hiddenAt ? Date.now() - this._hiddenAt : 0;
@@ -5069,6 +5090,14 @@ export default class App extends React.Component {
 
   componentDidUpdate(prevProps, prevState) {
     this._applyTheme();
+    // 月の帯は、払っている間だけ指で直接ずらしている（_moveTrack）。描き直しのあとは、
+    // 帯の位置を必ず state の位置に戻す。指を離した合図が届かなかったとき（途中でアプリを離れた など）、
+    // 帯が隣の月を見せたままになり、見えている月と選んでいる月がずれていた
+    if (this._trackEl && !this._dragging) {
+      const sw = this.state.swipe || { dx: 0 };
+      const want = `translateX(calc(-33.3333% + ${sw.dx || 0}px))`;
+      if (this._trackEl.style.transform !== want) this._trackEl.style.transform = want;
+    }
     // 保存するのは、保存する中身（store.js の pack と同じ 8 つ）が入れ替わったときだけ。
     // 前は描き直すたびに保存していた。月を指で払うと、指が少し動くたびに描き直すので、
     // そのたびに全予定を文字にして localStorage へ書いていた（900 件で 30 回動かすと 32 回）。

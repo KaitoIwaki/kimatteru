@@ -16,6 +16,13 @@ export const KIND_INFO = 'info';
 const L = (...lines) => lines.map((x) => '・' + x).join('\n');
 export const RELEASE_NOTES = [
   {
+    version: '0.32.1',
+    title: '不具合を直しました',
+    body: L(
+      'カレンダーを開いたままにすると、「今日」が進まない・月の表示がずれる・押した日と違う日が開くことがありました',
+    ),
+  },
+  {
     version: '0.32.0',
     title: '日の画面を見やすくしました',
     body: L(
