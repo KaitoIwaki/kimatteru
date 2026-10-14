@@ -135,3 +135,53 @@ const mkEvent = (id, y, m) => {
   Date.now = realNow;
   write('load', { now: NOW, cases: out });
 }
+
+// ---- 計算（App のメソッド）：時間・給料・まとめの内訳・お知らせの言葉 ----
+// 予定は読み込みで直したあとの形（開始・終わりは正しい "H:MM"）だけを使う。画面の外から来る値はすべて読み込みを通るため
+{
+  const HH = () => { const h = int(0, 23), m = pick([0, 5, 15, 30, 45, 59]); return (rnd() < 0.2 ? String(h) : String(h).padStart(2, '0')) + ':' + String(m).padStart(2, '0'); };
+  const TYPES = [
+    { key: 'yoji', name: '用事', color: '#8B7AB8' }, { key: 'baito', name: 'バイト', color: '#7FAE85' },
+    { key: 'asobi', name: '遊び', color: '#D2916A' }, { key: 'other', name: 'その他', color: '#8A8A8A' }, { key: 'c1', name: '自分', color: '#123456' },
+  ];
+  const mkJobs = () => (rnd() < 0.2 ? [] : [{ id: 'j1', name: 'カフェ', hourly: 1100 }, { id: 'j2', name: '', hourly: 1250 }, { id: 'j3', hourly: 980.5 }].slice(0, int(1, 3)));
+  const mkEv = (i) => {
+    const e = { id: 'e' + i, y: 2026, m: int(0, 11), day: int(1, 28), start: HH(), end: HH(), type: pick(['yoji', 'baito', 'baito', 'asobi', 'other', 'c1', 'zzz']), status: pick(['kakutei', 'mikakutei', 'jisseki', 'nakunatta']),
+      title: pick(['ジム', 'ジム', ' 塾 ', '', 'バイト', '会議', '映画']) };
+    if (rnd() < 0.3) e.actualEnd = HH();
+    if (rnd() < 0.3) e.breakMin = pick([0, 30, 45, 60, -5, 900, '30', 15.5]);
+    if (rnd() < 0.2) e.hourly = pick([1000, 1500, 1234.5]);
+    if (rnd() < 0.4) e.jobId = pick(['j1', 'j2', 'j3', 'jx']);
+    if (rnd() < 0.15) e.jobName = '辞めた店';
+    if (rnd() < 0.12) { e.allDay = true; e.days = pick([1, 2, 3, undefined]); }
+    return e;
+  };
+  H.App.prototype._jobBreakdownNoColor = function (list) { return this._jobBreakdown(list).map(({ color, ...r }) => r); };
+  const cases = [];
+  const call = (app, method, args) => {
+    try { return { out: app[method](...args) }; } catch (err) { return { error: String(err && err.message || err) }; }
+  };
+  for (let k = 0; k < 300; k++) {
+    const app = new H.App({});
+    const jobs = mkJobs();
+    const settings = { ...app.state.settings, hourly: pick([1120, 1000, 1500]), priorWage: pick([{}, { 2026: 120000 }, { 2026: -5, 2025: 'x' }, { 2026: 123456789 }, { 2026: 1000.6 }]) };
+    const types = rnd() < 0.5 ? TYPES : TYPES.slice(0, 4);
+    app.state = { ...app.state, jobs, settings, types };
+    const evs = Array.from({ length: int(1, 15) }, (_, i) => mkEv(k * 100 + i));
+    const st = { jobs, settings, types };
+    const rec = (method, args) => cases.push({ st, method, args, ...call(app, method, args) });
+    for (const e of evs) {
+      rec('hourlyFor', [e]); rec('breakMin', [e]); rec('paidHours', [e]); rec('wage', [e]); rec('spentHours', [e]);
+      if (e.allDay) rec('spanLabel', [e]);
+      rec('fmtHours', [app.paidHours(e)]);
+    }
+    rec('_timeBreakdown', [evs]);
+    rec('_jobBreakdownNoColor', [evs.filter((e) => e.type === 'baito')]);
+    rec('priorFor', [2026]); rec('priorFor', [2025]);
+    rec('mins', [HH()]); rec('addMin', [HH(), int(-2000, 2000)]); rec('hoursBetween', [HH(), HH()]);
+    rec('fmtWage', [int(0, 3000000)]); rec('fmtMin', [int(0, 1440)]); rec('fmtHours', [int(0, 4000) / 60]); rec('fmtHours', [rnd() * 50]);
+    rec('fmtSpent', [pick([0, 1.5, 0.25, 10, 7.999]), pick([0, 1, 3])]);
+    rec('remindLabel', [pick([undefined, null, 0, 5, 10, 30, 59, 60, 90, 120, 180, 1439, 1440, 2880, 10080, '30']), pick([true, false])]);
+  }
+  write('calc', cases);
+}

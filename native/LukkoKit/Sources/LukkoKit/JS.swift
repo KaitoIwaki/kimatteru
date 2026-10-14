@@ -35,14 +35,59 @@ public enum JS {
         }
     }
 
-    static func numberToString(_ n: Double) -> String {
+    /// JS の数 → 文字（Number.prototype.toString の決まりどおり。最短の桁で、1e21 以上と 1e-7 未満だけ指数で書く）
+    public static func numberToString(_ n: Double) -> String {
         if n.isNaN { return "NaN" }
         if n.isInfinite { return n > 0 ? "Infinity" : "-Infinity" }
-        if n == n.rounded(), abs(n) < 1e21 { return String(format: "%.0f", n) }
-        // 小数は最短の表し方（JS と同じく、読み戻すと同じ値になる最短）
-        var s = "\(n)"
-        if s.hasSuffix(".0") { s.removeLast(2) }
-        return s
+        if n == 0 { return "0" }
+        let neg = n < 0
+        // Swift の description は最短の桁（読み戻すと同じ値）。そこから桁と位を取り出す
+        var desc = "\(abs(n))"
+        var exp = 0
+        if let e = desc.firstIndex(where: { $0 == "e" || $0 == "E" }) {
+            exp = Int(desc[desc.index(after: e)...])!
+            desc = String(desc[..<e])
+        }
+        var intPart = desc, frac = ""
+        if let dot = desc.firstIndex(of: ".") { intPart = String(desc[..<dot]); frac = String(desc[desc.index(after: dot)...]) }
+        var digits = intPart + frac
+        var pointPos = intPart.count + exp // 小数点が digits の何桁目の後ろにあるか
+        // 先頭の 0 を落とす
+        while digits.count > 1 && digits.first == "0" { digits.removeFirst(); pointPos -= 1 }
+        // 末尾の 0 を落とす
+        while digits.count > 1 && digits.last == "0" { digits.removeLast() }
+        let k = digits.count, m = pointPos
+        var out: String
+        if k <= m && m <= 21 {
+            out = digits + String(repeating: "0", count: m - k)
+        } else if 0 < m && m <= 21 {
+            let i = digits.index(digits.startIndex, offsetBy: m)
+            out = String(digits[..<i]) + "." + String(digits[i...])
+        } else if -6 < m && m <= 0 {
+            out = "0." + String(repeating: "0", count: -m) + digits
+        } else {
+            let e = m - 1
+            let head = String(digits.first!)
+            let rest = String(digits.dropFirst())
+            out = head + (rest.isEmpty ? "" : "." + rest) + "e" + (e >= 0 ? "+" : "-") + String(abs(e))
+        }
+        return neg ? "-" + out : out
+    }
+
+    /// JS の Math.round（.5 は大きいほうへ。-2.5 → -2）
+    public static func round(_ x: Double) -> Double {
+        if !x.isFinite { return x }
+        let f = x.rounded(.down)
+        return x - f >= 0.5 ? f + 1 : f
+    }
+
+    /// JS の (n).toLocaleString('ja-JP')（整数の 3 桁区切り。給料の表示はいつも整数）
+    public static func groupedInt(_ n: Double) -> String {
+        let neg = n < 0
+        let s = numberToString(abs(n).rounded(.toNearestOrAwayFromZero))
+        var out = ""
+        for (i, c) in s.reversed().enumerated() { if i > 0 && i % 3 == 0 { out.append(",") }; out.append(c) }
+        return (neg ? "-" : "") + String(out.reversed())
     }
 
     /// JS の Number(文字)。前後の空白は無視、空なら 0、読めなければ NaN
