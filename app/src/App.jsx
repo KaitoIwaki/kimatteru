@@ -3201,7 +3201,8 @@ export default class App extends React.Component {
       }
     }
     // 5つを等幅で並べる（真ん中が＋）。アイランド型なので幅は固定せず分け合う
-    const navItem=(active)=>({display:'flex',flex:1,flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,cursor:'pointer',color:active?'var(--ink)':'var(--ink-faint)',transition:'color .2s'});
+    // 4つを等幅で並べる。選んでいるタブは、板の中に一段明るい丸い面を敷く（iOS 26 のタブバーと同じ）
+    const navItem=(active)=>({display:'flex',flex:1,height:52,borderRadius:26,flexDirection:'column',alignItems:'center',justifyContent:'center',gap:3,cursor:'pointer',color:active?'var(--ink)':'var(--ink-mut)',background:active?'var(--tab-sel)':'transparent',transition:'color .2s, background .25s'});
     v.navCalStyle = navItem(st.screen==='month');
     v.navFreeStyle = navItem(st.screen==='free');
     v.navReportStyle = navItem(st.screen==='report');

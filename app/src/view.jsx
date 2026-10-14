@@ -2638,37 +2638,40 @@ export function renderApp(v) {
       )}
 
       {/* ===================== TAB BAR ===================== */}
+      {/* 下のナビ（iOS 26 と同じ形）：4つのタブを1つの板に、予定の追加は右に離した丸いボタン */}
       {v.navShown && (
-        <div className="tabbar" style={s('position:absolute;left:0;right:0;bottom:0;height:82px;padding:8px 24px 22px;background:var(--glass);backdrop-filter:blur(18px);border-top:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;z-index:60')}>
-          <div style={s(v.navCalStyle)} onClick={v.onNavCal}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <rect x="3.5" y="4.5" width="17" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
-              <path d="M3.5 9h17" stroke="currentColor" strokeWidth="1.7" />
-              <path d="M8 3v3M16 3v3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-            </svg>
-            <span style={s('font-size:10px;font-weight:600')}>カレンダー</span>
+        <div className="tabbar" style={s('position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:10px;z-index:60')}>
+          <div className="tab-pill" style={s('flex:1;min-width:0;height:100%;display:flex;align-items:center;padding:0 5px')}>
+            <div style={s(v.navCalStyle)} onClick={v.onNavCal}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <rect x="3.5" y="4.5" width="17" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M3.5 9h17" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M8 3v3M16 3v3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+              <span style={s('font-size:10px;font-weight:600')}>カレンダー</span>
+            </div>
+            <div style={s(v.navFreeStyle)} onClick={v.onNavFree}>
+              <span style={s('font-size:14.5px;letter-spacing:-2px;line-height:24px;height:24px;display:flex;align-items:center')}>
+                <span style={s('color:#1D9E75')}>○</span><span style={s('color:#B9770F')}>△</span><span style={s('color:#C1C5CC')}>×</span>
+              </span>
+              <span style={s('font-size:10px;font-weight:600')}>空き状況</span>
+            </div>
+            <div style={s(v.navReportStyle)} onClick={v.onNavReport}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M5 19V11M12 19V6M19 19v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              <span style={s('font-size:10px;font-weight:600')}>まとめ</span>
+            </div>
+            <div style={s(v.navSettingsStyle)} onClick={v.onNavSettings}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
+                <path d="M12 3.5v2M12 18.5v2M20.5 12h-2M5.5 12h-2M18 6l-1.4 1.4M7.4 16.6 6 18M18 18l-1.4-1.4M7.4 7.4 6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+              <span style={s('font-size:10px;font-weight:600')}>設定</span>
+            </div>
           </div>
-          <div style={s(v.navFreeStyle)} onClick={v.onNavFree}>
-            <span style={s('font-size:14.5px;letter-spacing:-2px;line-height:24px;height:24px;display:flex;align-items:center')}>
-              <span style={s('color:#1D9E75')}>○</span><span style={s('color:#B9770F')}>△</span><span style={s('color:#C1C5CC')}>×</span>
-            </span>
-            <span style={s('font-size:10px;font-weight:600')}>空き状況</span>
-          </div>
-          <div role="button" aria-label="予定を追加" style={s('display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;flex:1')} onClick={v.onFab}>
-            <div style={s('width:46px;height:46px;border-radius:23px;background:var(--ink);color:var(--card);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:300;box-shadow:0 4px 14px rgba(0,0,0,.24)')}>＋</div>
-          </div>
-          <div style={s(v.navReportStyle)} onClick={v.onNavReport}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M5 19V11M12 19V6M19 19v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>
-            <span style={s('font-size:10px;font-weight:600')}>まとめ</span>
-          </div>
-          <div style={s(v.navSettingsStyle)} onClick={v.onNavSettings}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" />
-              <path d="M12 3.5v2M12 18.5v2M20.5 12h-2M5.5 12h-2M18 6l-1.4 1.4M7.4 16.6 6 18M18 18l-1.4-1.4M7.4 7.4 6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-            </svg>
-            <span style={s('font-size:10px;font-weight:600')}>設定</span>
+          <div role="button" aria-label="予定を追加" className="tab-fab" style={s('flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)')} onClick={v.onFab}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" /></svg>
           </div>
         </div>
       )}
