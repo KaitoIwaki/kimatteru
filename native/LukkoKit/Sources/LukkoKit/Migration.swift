@@ -20,7 +20,7 @@ public enum Migration {
     }
 
     /// 読めなかった理由（引っ越しの記録に残す。利用者には見せない）
-    public enum Problem: Equatable {
+    public enum Problem: Error, Equatable {
         case missing(Candidate.Source)
         case unreadable(Candidate.Source, String)
     }
