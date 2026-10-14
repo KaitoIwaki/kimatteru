@@ -306,3 +306,93 @@ const mkEvent = (id, y, m) => {
   globalThis.Date = RealDate;
   write('ics', { now: NOWP, exportCases: JSON.parse(JSON.stringify(exportCases)), parseCases: JSON.parse(JSON.stringify(parseCases)) });
 }
+
+// ---- 取り込み（calendarimport.js の diffImport・dedupe・guessTypes）----
+{
+  const TITLES = ['定例', '会議', 'MTG', 'ｍｔｇ 週次', '1on1', 'バイト', 'カフェ バイト', 'シフト', '早番', '夜勤', '公休', '有給', '歯医者', '塾', 'ジム', '飲み会', 'ランチ', '映画', '誕生日',
+    '在宅勤務', '勤務', '研修', '旅行', 'お茶', '', 'ＡＢＣ商事', 'abc商事 打ち合わせ', '病院', 'Ｂｂｑ', 'テスト勉強', '自分の種類の予定'];
+  const HH = () => pick(['09:00', '10:00', '13:00', '17:00', '18:00', '22:00', '06:00', '00:00', '23:59']);
+  const mkIn = (i) => ({ srcId: rnd() < 0.85 ? 'src' + int(1, 12) : '', title: pick(TITLES), y: 2026, m: int(8, 10), day: int(1, 28), start: HH(), end: HH(),
+    allDay: rnd() < 0.1, days: pick([1, 2, undefined]), place: pick(['', '会議室', undefined]), srcCal: pick(['c1', 'c2', undefined]) });
+  const TYPESETS = [
+    [{ key: 'yoji', name: '用事' }, { key: 'baito', name: 'バイト' }, { key: 'asobi', name: '遊び' }, { key: 'other', name: 'その他' }],
+    [{ key: 'work', name: '仕事' }, { key: 'yoji', name: '用事' }, { key: 'asobi', name: 'プライベート' }, { key: 'family', name: '家族' }, { key: 'other', name: 'その他' }, { key: 'baito', name: 'バイト', hidden: true }],
+    [{ key: 'baito', name: '勤務' }, { key: 'off', name: '休み' }, { key: 'yoji', name: '用事' }, { key: 'asobi', name: 'プライベート' }, { key: 'c9', name: '自分の種類' }],
+    [{ key: 'asobi', name: '遊び' }, { key: 'baito', name: 'バイト' }],
+    [],
+  ];
+  const cases = [];
+  for (let k = 0; k < 200; k++) {
+    const incoming = Array.from({ length: int(0, 30) }, (_, i) => mkIn(i));
+    // くり返しの回を増やす（同じ番号・同じ名前・同じ時間帯）
+    if (rnd() < 0.5 && incoming.length) { const b = incoming[0]; for (let j = 1; j <= int(2, 6); j++) incoming.push({ ...b, day: Math.min(28, b.day + j * 7) }); }
+    const existing = Array.from({ length: int(0, 20) }, (_, i) => {
+      const e = { ...mkIn(i), id: 'x' + i, status: pick(['kakutei', 'mikakutei', 'nakunatta']) };
+      if (rnd() < 0.3) e.srcId = '';
+      return e;
+    });
+    // いくつかは incoming と同じ中身にする（直っていない・重なる）
+    for (const e of incoming.slice(0, 3)) if (rnd() < 0.5) existing.push({ ...e, id: 'dup' + existing.length, status: 'kakutei' });
+    const range = pick([null, { from: H.AppMod.dayNo(2026, 8, 1), to: H.AppMod.dayNo(2026, 10, 30) }, { from: H.AppMod.dayNo(2026, 9, 1), to: H.AppMod.dayNo(2026, 9, 31), cals: ['c1'] }]);
+    const types = pick(TYPESETS);
+    const diff = H.calendarimport.diffImport(incoming, existing, range);
+    cases.push({ incoming, existing, range, types,
+      diff: { fresh: diff.fresh.map((e) => incoming.indexOf(e)), changed: diff.changed.map((c) => [incoming.indexOf(c.incoming), existing.indexOf(c.existing)]), gone: diff.gone.map((e) => existing.indexOf(e)) },
+      dedupe: H.calendarimport.dedupe(incoming, existing).map((e) => incoming.indexOf(e)),
+      guess: H.calendarimport.guessTypes(incoming, types) });
+  }
+  write('import', JSON.parse(JSON.stringify(cases)));
+}
+
+// ---- iCloud で 2 台をそろえる（sync.js の packForSync・mergeSync）----
+{
+  const cases = [];
+  const ev = (id) => ({ id, y: 2026, m: 9, day: int(1, 28), start: '10:00', end: '11:00', title: 't' + id, ...(rnd() < 0.8 ? { updatedAt: int(1, 100) } : {}) });
+  for (let k = 0; k < 300; k++) {
+    const ids = Array.from({ length: 12 }, (_, i) => pick(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 1, 2, '']) + (rnd() < 0.5 ? '' : i));
+    const local = {
+      events: ids.slice(0, int(0, 8)).filter(() => rnd() < 0.8).map(ev),
+      trash: rnd() < 0.5 ? [{ ev: { id: pick(ids) }, at: int(1, 100) }, { ev: null, at: 5 }, { at: 3 }] : [],
+      gone: rnd() < 0.5 ? [[pick(ids), int(1, 100)], ['job:j' + int(1, 3), int(1, 100)], ['type:t' + int(1, 3), int(1, 100)], [pick(['s1', 's2']), int(1, 100)]] : [],
+      types: [{ key: 't1' }, { key: 't2' }].filter(() => rnd() < 0.7),
+      jobs: [{ id: 'j1' }, { id: 'j2' }].filter(() => rnd() < 0.7),
+      someday: [{ id: 's1', at: int(0, 100) }, { id: 's2' }].filter(() => rnd() < 0.7),
+    };
+    const remote = rnd() < 0.08 ? pick([null, {}, { events: 'x' }]) : {
+      v: 1,
+      events: [...ids.slice(int(0, 6)).filter(() => rnd() < 0.7).map(ev), ...(rnd() < 0.2 ? [null, { title: 'no id' }] : [])],
+      types: [{ key: 't1' }, { key: 't3' }, null].filter(() => rnd() < 0.7),
+      jobs: [{ id: 'j2' }, { id: 'j3' }].filter(() => rnd() < 0.7),
+      someday: [{ id: 's2', at: int(0, 100) }, { id: 's3' }, null].filter(() => rnd() < 0.7),
+      tomb: [[pick(ids), int(1, 100)], [pick(ids), int(1, 100)], ['job:j' + int(1, 3), int(1, 100)], ['type:t' + int(1, 3), 0], ['', 5], [null, 3]].filter(() => rnd() < 0.6),
+    };
+    cases.push({ local, remote, pack: H.sync.packForSync(local), merged: H.sync.mergeSync(local, remote) });
+  }
+  write('sync', JSON.parse(JSON.stringify(cases)));
+}
+
+// ---- ウィジェットに渡す中身（widgetdata.js の buildWidgetPayload・memoLines）----
+{
+  const RealDate = Date;
+  const cases = [];
+  const HH = () => String(int(0, 23)).padStart(2, '0') + ':' + pick(['00', '15', '30']);
+  for (let k = 0; k < 120; k++) {
+    const today = new RealDate(2026, int(0, 11), int(1, 28), int(0, 23), int(0, 59));
+    const events = [];
+    for (let i = 0; i < int(0, 40); i++) {
+      const base = new RealDate(today.getFullYear(), today.getMonth(), today.getDate() + int(-35, 35));
+      const e = { id: pick(['w' + i, '', 7 + i]), y: base.getFullYear(), m: base.getMonth(), day: base.getDate(), start: HH(), end: HH(),
+        title: pick(['定例', '', '  空白つき  ', 'とても長い名前の予定ですとても長い名前の予定です', 'バイト']), type: pick(['yoji', 'baito', 'zzz']),
+        status: pick(['kakutei', 'mikakutei', 'jisseki', 'nakunatta']) };
+      if (rnd() < 0.15) { e.allDay = true; if (rnd() < 0.6) e.days = int(2, 9); }
+      if (rnd() < 0.2) e.secret = true;
+      if (rnd() < 0.3) e.memo = pick(['筆記用具\n名札\r\n上履き', '  \n\n', '一行だけのとても長い持ち物の説明をここに書きます', 'a\nb\nc\nd\ne\nf\ng\nh']);
+      if (e.status === 'jisseki' && rnd() < 0.5) e.actualEnd = HH();
+      events.push(e);
+    }
+    const state = { events, types: [{ key: 'yoji', color: '#8B7AB8' }, { key: 'baito', color: '#7FAE85' }, { key: 'x' }], settings: { weekStart: pick([0, 1, '1', undefined]), hideTitles: rnd() < 0.2 } };
+    const p = H.widgetdata.buildWidgetPayload(state, today);
+    cases.push({ state, today: [today.getFullYear(), today.getMonth(), today.getDate(), today.getHours(), today.getMinutes()], at: today.getTime(), payload: p });
+  }
+  write('widget', JSON.parse(JSON.stringify(cases)));
+}
