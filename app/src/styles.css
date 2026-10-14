@@ -291,3 +291,28 @@ input { font-family: inherit; }
     animation-delay: 0s !important;
   }
 }
+
+/* 新しい予定は、下から出るカード（iOS 26 のシート）。上に少しすき間を空けて、後ろの画面（暗くしたもの）が見える */
+[data-screen="new"] {
+  position: relative;
+  z-index: 3;
+  margin-top: calc(env(safe-area-inset-top) + 10px);
+  height: calc(100% - env(safe-area-inset-top) - 10px) !important;
+  border-radius: 38px 38px 0 0;
+  overflow: hidden;
+  box-shadow: 0 -6px 30px rgba(0, 0, 0, 0.12);
+}
+[data-screen="new"] .scr-head { padding-top: 14px !important; }
+.sheet-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--glass-nav);
+  -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid var(--glass-rim);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+/* スイッチを押しているあいだ、つまみが横に伸びる（iOS と同じ）。オンのときは左へ伸ばす */
+.ios-switch > div { transition: transform .35s cubic-bezier(.3,1.25,.55,1), width .2s ease !important; }
+.ios-switch:active > div { width: 34px !important; border-radius: 14px !important; }
+.ios-switch[style*="rgb(127, 174, 133)"]:active > div { transform: translateX(13px) !important; }

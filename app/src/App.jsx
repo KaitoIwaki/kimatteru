@@ -5166,6 +5166,7 @@ export default class App extends React.Component {
       else if(this._navRoot(b)){ kind=null; hist.length=0; hist.push(b); }
       else { kind='push'; hist.push(b); } }
     if(this._skipNav){ this._skipNav=false; return {skip:true}; }
+    if(a==='new' && !kind) this._dropSheetUnder();
     if(!kind) return null;
     const scr=this._liveScreen();
     if(!scr) return null;
@@ -5181,29 +5182,67 @@ export default class App extends React.Component {
   _liveScreen(){ const r=this._rootEl; return r && r.querySelector(':scope > [data-screen]'); }
   _liftLive(live, z){ const keep={position:live.style.position, zIndex:live.style.zIndex, background:live.style.background, boxShadow:live.style.boxShadow};
     Object.assign(live.style,{position:'relative', zIndex:String(z), background:'var(--bg)'}); return keep; }
+  // 暗くする薄い黒の幕。filter（明るさ）で暗くすると、iPhone ではすりガラスの部品を含む画面が真っ白になった
+  //（2026-10 の画面収録で、前の画面が写らず白い所だけが見えていた）。幕を重ねて暗くする
+  _dimLayer(z){ const d=document.createElement('div');
+    Object.assign(d.style,{position:'absolute', left:'0', top:'0', width:'100%', height:'100%', background:'#000', opacity:'0', pointerEvents:'none', zIndex:String(z)});
+    this._rootEl.appendChild(d); return d; }
+  _dropSheetUnder(){ const u=this._sheetUnder; this._sheetUnder=null; if(u){ u.clone.remove(); return u.dim; } return null; }
   _navAnim(snap){
     const live=this._liveScreen(); if(!live || !live.animate || !this._rootEl) return;
     (this._navAnims||[]).forEach(an=>{ try{ an.finish(); }catch(e){} });
     const {kind, clone, scrolls, from}=snap;
-    const D=(kind==='present'||kind==='dismiss') ? 460 : 420, E='cubic-bezier(.32,.72,0,1)';
-    const over = kind==='pop' || kind==='dismiss';
-    this._placeClone(clone, scrolls, over ? 3 : 1);
-    const keep=this._liftLive(live, over ? 1 : 2);
-    const sh='-8px 0 24px rgba(0,0,0,.12)';
-    const fr={
-      push:   [[{transform:'translateX(100%)',boxShadow:sh},{transform:'translateX(0)',boxShadow:sh}], [{transform:'translateX(0)',filter:'brightness(1)'},{transform:'translateX(-30%)',filter:'brightness(.92)'}]],
-      pop:    [[{transform:'translateX(-30%)',filter:'brightness(.92)'},{transform:'translateX(0)',filter:'brightness(1)'}], [{transform:'translateX(0)',boxShadow:sh},{transform:'translateX(100%)',boxShadow:sh}]],
-      present:[[{transform:'translateY(100%)'},{transform:'translateY(0)'}], [{filter:'brightness(1)'},{filter:'brightness(.9)'}]],
-      dismiss:[[{filter:'brightness(.9)'},{filter:'brightness(1)'}], [{transform:'translateY(0)'},{transform:'translateY(100%)'}]],
-    }[kind];
+    const E='cubic-bezier(.32,.72,0,1)';
     this._navBusy=true;
-    const a1=live.animate(fr[0],{duration:D,easing:E}), a2=clone.animate(fr[1],{duration:D,easing:E});
+    // 新しい予定：下からカードが出る。後ろには前の画面を暗くして残す（閉じるまで）
+    if(kind==='present'){
+      this._dropSheetUnder();
+      this._placeClone(clone, scrolls, 1);
+      const dim=this._dimLayer(2);
+      const a1=live.animate([{transform:'translateY(100%)'},{transform:'translateY(0)'}],{duration:480,easing:E});
+      dim.animate([{opacity:0},{opacity:.28}],{duration:480,easing:E,fill:'forwards'});
+      this._navAnims=[a1];
+      this._sheetUnder={clone, dim};
+      a1.onfinish=a1.oncancel=()=>{ this._navBusy=false; };
+      return;
+    }
+    // 新しい予定を閉じる：カードが下へ。後ろの暗い幕は消えていく
+    if(kind==='dismiss'){
+      const dim=this._dropSheetUnder() || this._dimLayer(2);
+      // 閉じていくカードは、下のタブ（z 60）より上に出す
+      this._placeClone(clone, scrolls, 70);
+      // 写しは data-screen を外すので、カードの形（上のすき間・角の丸み）をここで付け直す
+      Object.assign(clone.style,{top:'calc(env(safe-area-inset-top) + 10px)', height:'calc(100% - env(safe-area-inset-top) - 10px)', borderRadius:'38px 38px 0 0', overflow:'hidden', marginTop:'0'});
+      dim.style.zIndex='69';
+      const a2=clone.animate([{transform:'translateY(0)'},{transform:'translateY(100%)'}],{duration:420,easing:E});
+      dim.animate([{opacity:.28},{opacity:0}],{duration:420,easing:E,fill:'forwards'});
+      this._navAnims=[a2];
+      a2.onfinish=a2.oncancel=()=>{ this._navBusy=false; clone.remove(); dim.remove(); };
+      return;
+    }
+    this._dropSheetUnder();
+    const D=460;
+    const over = kind==='pop';
+    this._placeClone(clone, scrolls, over ? 3 : 1);
+    const dim=this._dimLayer(2);
+    const keep=this._liftLive(live, over ? 1 : 3);
+    const sh='-8px 0 24px rgba(0,0,0,.12)';
+    let a1, a2;
+    if(kind==='push'){
+      a1=live.animate([{transform:'translateX(100%)',boxShadow:sh},{transform:'translateX(0)',boxShadow:sh}],{duration:D,easing:E});
+      a2=clone.animate([{transform:'translateX(0)'},{transform:'translateX(-30%)'}],{duration:D,easing:E});
+      dim.animate([{opacity:0},{opacity:.1}],{duration:D,easing:E,fill:'forwards'});
+    } else {
+      a1=live.animate([{transform:'translateX(-30%)'},{transform:'translateX(0)'}],{duration:D,easing:E});
+      a2=clone.animate([{transform:'translateX(0)',boxShadow:sh},{transform:'translateX(100%)',boxShadow:sh}],{duration:D,easing:E});
+      dim.animate([{opacity:.1},{opacity:0}],{duration:D,easing:E,fill:'forwards'});
+    }
     this._navAnims=[a1,a2];
     const done=()=>{
       if(done.ran) return; done.ran=true;
       this._navBusy=false;
       Object.assign(live.style, keep);
-      clone.remove();
+      clone.remove(); dim.remove();
       // 進んだときの写しは、なぞって戻るときのために取っておく（5枚まで）
       if(kind==='push'){ const m=this._navSnaps||(this._navSnaps={}); delete m[from]; m[from]={node:clone, scrolls}; const ks=Object.keys(m); if(ks.length>5) delete m[ks[0]]; }
     };
@@ -5216,20 +5255,22 @@ export default class App extends React.Component {
     const snap=to && this._navSnaps && this._navSnaps[to];
     const under = snap ? snap.node : document.createElement('div');
     this._placeClone(under, snap ? snap.scrolls : null, 1);
-    const keep=this._liftLive(live, 2); live.style.boxShadow='-8px 0 24px rgba(0,0,0,.12)';
-    this._edgeDrag={live, under, keep, w:this._rootEl.clientWidth||375};
+    const dim=this._dimLayer(2);
+    const keep=this._liftLive(live, 3); live.style.boxShadow='-8px 0 24px rgba(0,0,0,.12)';
+    this._edgeDrag={live, under, dim, keep, w:this._rootEl.clientWidth||375};
     this._edgeMove(0);
     return true;
   }
   _edgeMove(dx){ const d=this._edgeDrag; if(!d) return; const p=Math.min(1,dx/d.w);
     d.live.style.transform=`translateX(${dx}px)`;
-    d.under.style.transform=`translateX(${-30*(1-p)}%)`; d.under.style.filter=`brightness(${.92+.08*p})`; }
+    d.under.style.transform=`translateX(${-30*(1-p)}%)`; d.dim.style.opacity=String(.1*(1-p)); }
   _edgeFinish(go, onBack){
     const d=this._edgeDrag; this._edgeDrag=null; if(!d) return;
     const E='cubic-bezier(.2,.8,.3,1)', D=go?240:260;
     const fromL=d.live.style.transform||'translateX(0)', fromU=d.under.style.transform||'translateX(-30%)';
     const a1=d.live.animate([{transform:fromL},{transform:go?`translateX(${d.w}px)`:'translateX(0)'}],{duration:D,easing:E,fill:'forwards'});
     d.under.animate([{transform:fromU},{transform:go?'translateX(0)':'translateX(-30%)'}],{duration:D,easing:E,fill:'forwards'});
+    d.dim.animate([{opacity:Number(d.dim.style.opacity)||0},{opacity:go?0:.1}],{duration:D,easing:E,fill:'forwards'});
     this._navBusy=true;
     a1.onfinish=()=>{
       this._navBusy=false;
@@ -5239,9 +5280,9 @@ export default class App extends React.Component {
         this._skipNav=true;
         clear(d.live); Object.assign(d.live.style, d.keep); d.live.style.visibility='hidden';
         if(onBack) onBack();
-        setTimeout(()=>{ this._skipNav=false; clear(d.under); d.under.remove(); const l=this._liveScreen(); if(l) l.style.visibility=''; }, 50);
+        setTimeout(()=>{ this._skipNav=false; clear(d.under); d.under.remove(); d.dim.remove(); const l=this._liveScreen(); if(l) l.style.visibility=''; }, 50);
       } else {
-        clear(d.live); Object.assign(d.live.style, d.keep); clear(d.under); d.under.remove();
+        clear(d.live); Object.assign(d.live.style, d.keep); clear(d.under); d.under.remove(); d.dim.remove();
       }
     };
   }

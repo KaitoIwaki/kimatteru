@@ -1116,11 +1116,12 @@ export function renderApp(v) {
       {v.newShown && (
         <div data-screen="new" style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
           <div className="scr-head" style={s('padding:0 18px 10px 18px')}>
-            <span style={s('font-size:15px;color:var(--ink-mut);cursor:pointer')} onClick={v.onCancel}>キャンセル</span>
+            {/* iOS 26 のシートと同じ：左に ✕、右に ✓ の丸いボタン */}
+            <span role="button" aria-label="キャンセル" className="sheet-btn" style={s('cursor:pointer')} onClick={v.onCancel}><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6 6 18" stroke="var(--ink)" strokeWidth="2" strokeLinecap="round" /></svg></span>
             <span style={s('font-size:15px;font-weight:400;color:var(--ink);white-space:nowrap')}>{v.newTitle}</span>
             {/* この画面の主要な動作。ここだけは 600 で残す——太さを落とすと、
                 隣の「キャンセル」と同じ強さになって、どちらが本筋か分からなくなる。 */}
-            <span style={s(`font-size:15px;font-weight:600;color:${v.draftColor};cursor:pointer`)} onClick={v.onSave}>保存</span>
+            <span role="button" aria-label="保存" className="sheet-btn" style={s(`cursor:pointer;background:${v.draftColor};border-color:transparent`)} onClick={v.onSave}><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
           </div>
           <div style={s('flex:1;overflow-y:auto;padding:8px 16px 40px 16px')}>
             <div style={s(`background:var(--card);border-radius:17px;padding:4px 14px;margin-bottom:${(v.suggests || []).length ? 10 : 18}px`)}>

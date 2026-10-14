@@ -94,10 +94,20 @@ final class NativeTabBar: UIView {
         pill.clipsToBounds = true
         addSubview(pill)
 
-        indicator.backgroundColor = UIColor.label.withAlphaComponent(0.08)
+        // 選んでいるタブの下に敷く面。iOS 26 ではガラスのレンズ（動くときに少しふくらむ）
+        indicator.backgroundColor = UIColor.label.withAlphaComponent(0.07)
         indicator.layer.cornerRadius = 26
         indicator.layer.cornerCurve = .continuous
+        indicator.clipsToBounds = true
         indicator.alpha = 0
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            let lens = UIVisualEffectView(effect: UIGlassEffect())
+            lens.frame = indicator.bounds
+            lens.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            indicator.addSubview(lens)
+        }
+        #endif
         pill.contentView.addSubview(indicator)
 
         stack.axis = .horizontal
@@ -207,9 +217,20 @@ final class NativeTabBar: UIView {
         current = key
         recolor()
         setNeedsLayout()
-        UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.82, initialSpringVelocity: 0.4, options: [.allowUserInteraction, .beginFromCurrentState]) {
+        let moving = indicator.alpha > 0
+        let opts: UIView.AnimationOptions = [.allowUserInteraction, .beginFromCurrentState]
+        // 動き出しで少しふくらみ、ばねで隣のタブへ移って、元の大きさに戻る（iOS 26 のタブと同じ動き）
+        if moving {
+            UIView.animate(withDuration: 0.14, delay: 0, options: opts.union(.curveEaseOut)) {
+                self.indicator.transform = CGAffineTransform(scaleX: 1.16, y: 1.12)
+            }
+        }
+        UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.74, initialSpringVelocity: 0.3, options: opts) {
             self.layoutIfNeeded()
             self.placeIndicator()
+        }
+        UIView.animate(withDuration: 0.4, delay: moving ? 0.16 : 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 0.2, options: opts) {
+            self.indicator.transform = .identity
         }
     }
 
@@ -222,7 +243,9 @@ final class NativeTabBar: UIView {
     private func placeIndicator() {
         guard let i = keys.firstIndex(of: current), i < buttons.count else { indicator.alpha = 0; return }
         let f = buttons[i].convert(buttons[i].bounds, to: pill.contentView)
-        indicator.frame = CGRect(x: f.minX, y: (pill.bounds.height - 52) / 2, width: f.width, height: 52)
+        // 拡大中でも位置がずれないよう、frame ではなく大きさ（bounds）と中心（center）で置く
+        indicator.bounds = CGRect(x: 0, y: 0, width: f.width, height: 52)
+        indicator.center = CGPoint(x: f.midX, y: pill.bounds.height / 2)
         indicator.alpha = 1
     }
 
