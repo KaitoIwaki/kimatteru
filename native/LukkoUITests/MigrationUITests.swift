@@ -12,7 +12,8 @@ final class MigrationUITests: XCTestCase {
 
     private func launch(_ args: [String]) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = args
+        // 引っ越しの記録（debug.*）は、この引数のときだけ画面の隅に出る
+        app.launchArguments = args + ["-lukkoDebug"]
         app.launch()
         return app
     }

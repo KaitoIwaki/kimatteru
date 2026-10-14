@@ -52,7 +52,7 @@ final class BootGoldenTests: XCTestCase {
     func testShareText() {
         let eng = Engine(state: [:], now: 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
         XCTAssertEqual(eng.shareText(["y": 2026, "m": 9, "day": 3, "start": "19:00", "end": "21:00", "title": "歓迎会", "place": "渋谷", "status": "mikakutei"]),
-                       "10/3（土）19:00〜21:00 歓迎会 @渋谷（まだ仮）\n地図：https://maps.apple.com/?q=%E6%B8%8B%E8%B0%B7")
+                       "10/3（土） 19:00〜21:00 歓迎会 @渋谷（まだ仮）\n地図：https://maps.apple.com/?q=%E6%B8%8B%E8%B0%B7")
         XCTAssertEqual(eng.shareText(["y": 2026, "m": 9, "day": 3, "allDay": true, "days": 2, "title": "旅行", "place": "https://x.test/a b", "link": "https://zoom.us/j/1", "status": "kakutei"]),
                        "10/3（土）から2日間 旅行\nhttps://zoom.us/j/1")
         XCTAssertEqual(JS.encodeURIComponent("a b&c/d?é'()*~"), "a%20b%26c%2Fd%3F%C3%A9'()*~")

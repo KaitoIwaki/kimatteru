@@ -111,10 +111,13 @@ final class AppData {
     }
 
     /// いまの中身を保存ファイルに書く（いまの版の pack と同じ：savedAt と 11 項目）
-    func save() throws {
+    func save() throws { try save(state) }
+    /// 画面で変わった中身（保存する 11 項目）を書く
+    func save(_ persisted: [String: JSONValue]) throws {
         var raw: [String: JSONValue] = ["savedAt": .number(now())]
-        for k in StoreFile.persistedKeys { raw[k] = state[k] ?? .null }
+        for k in StoreFile.persistedKeys { raw[k] = persisted[k] ?? .null }
         try SafeFile.write(try StoreFile(raw: raw).encode(), to: fileURL)
+        state = persisted
     }
 
     static func stamp(_ d: Date) -> String {

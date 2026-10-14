@@ -104,7 +104,7 @@ public final class Engine {
         return .array(Array((add + (state["gone"]?.array ?? [])).prefix(800)))
     }
     /// JS の `{...o, k: v}`（v が nil なら「無い」）
-    static func with(_ o: Obj, _ patch: [String: JSONValue?]) -> Obj {
+    public static func with(_ o: Obj, _ patch: [String: JSONValue?]) -> Obj {
         var r = o
         for (k, v) in patch { if let v { r[k] = v } else { r.removeValue(forKey: k) } }
         return r
