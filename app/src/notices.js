@@ -16,6 +16,14 @@ export const KIND_INFO = 'info';
 const L = (...lines) => lines.map((x) => '・' + x).join('\n');
 export const RELEASE_NOTES = [
   {
+    version: '0.32.2',
+    title: '時間を決めない予定を入れやすくしました',
+    body: L(
+      '日の画面の「時間を決めずに入れる」から、その日にすることを入れられます',
+      '設定のいちばん上から、応援とレビューができます',
+    ),
+  },
+  {
     version: '0.32.1',
     title: '不具合を直しました',
     body: L(
