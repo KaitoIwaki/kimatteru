@@ -14,18 +14,17 @@ public enum TypeDefs {
                    "ask": .string("この予定、どうなりました？")],
     ]
 
+    /// JS：hex.replace('#','') を 2 文字ずつ parseInt(…, 16)。読めないところは NaN（色の値が壊れていても落ちない）
     static func hexRgb(_ hex: String) -> [Double] {
-        let h = hex.replacingOccurrences(of: "#", with: "")
+        let h = Array((hex.range(of: "#").map { hex.replacingCharacters(in: $0, with: "") } ?? hex).utf16)
         return [0, 2, 4].map { i -> Double in
-            let chars = Array(h)
-            guard i < chars.count else { return .nan }
-            let s = String(chars[i..<min(i + 2, chars.count)])
-            return Double(Int(s, radix: 16) ?? -1).isFinite && Int(s, radix: 16) != nil ? Double(Int(s, radix: 16)!) : .nan
+            guard i < h.count else { return .nan }
+            return JS.parseHex(String(decoding: h[i..<min(i + 2, h.count)], as: UTF16.self))
         }
     }
-    static func mixHex(_ a: String, _ b: String, _ t: Double) -> [Int] {
+    static func mixHex(_ a: String, _ b: String, _ t: Double) -> [String] {
         let A = hexRgb(a), B = hexRgb(b)
-        return A.indices.map { Int(JS.round(A[$0] + (B[$0] - A[$0]) * t)) }
+        return A.indices.map { JS.numberToString(JS.round(A[$0] + (B[$0] - A[$0]) * t)) }
     }
     public static func paperOf(_ hex: String) -> String { let l = mixHex(hex, "#ffffff", 0.62); return "rgba(\(l[0]),\(l[1]),\(l[2]),.72)" }
     public static func darkOf(_ hex: String) -> String { let d = mixHex(hex, "#000000", 0.5); return "rgb(\(d[0]),\(d[1]),\(d[2]))" }
@@ -208,7 +207,7 @@ extension AppCore {
                 if let line = freeText(o.y, o.m, o.d, polite, overlay: overlay) { lines.append((polite ? "・" : "") + line) }
             }
         }
-        let nm = (JS.truthy(so["name"]) ? JS.string(so["name"]) : "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let nm = (JS.truthy(so["name"]) ? JS.string(so["name"]) : "").jsTrimmed
         if lines.isEmpty { return polite ? "この期間は、あいにく空いている日がありません。" : "この期間は空いてる日がありません" }
         return polite ? "\(nm.isEmpty ? "" : nm + "の")空いている日程です。\n\(lines.joined(separator: "\n"))\nご都合のよい日をお知らせください。"
                       : "空いてる日\n\(lines.joined(separator: "\n"))"

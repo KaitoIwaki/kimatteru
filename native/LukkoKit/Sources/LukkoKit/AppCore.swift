@@ -127,7 +127,7 @@ public struct AppCore {
                 if let job { name = JS.truthy(job["name"]) ? JS.string(job["name"]) : "（名前なし）" }
                 else if isBaito && JS.truthy(e["jobName"]) { name = JS.string(e["jobName"]) }
                 else {
-                    let tt = JS.truthy(e["title"]) ? JS.string(e["title"]).trimmingCharacters(in: .whitespacesAndNewlines) : ""
+                    let tt = JS.truthy(e["title"]) ? JS.string(e["title"]).jsTrimmed : ""
                     name = tt.isEmpty ? "（名前なし）" : tt
                 }
                 var cur = by[name] ?? { order.append(name); return Row(name: name, hours: 0, days: 0, times: 0) }()

@@ -125,7 +125,7 @@ public enum IcsCore {
     static let dtRe = try! NSRegularExpression(pattern: "^([0-9]{4})([0-9]{2})([0-9]{2})(?:T([0-9]{2})([0-9]{2})([0-9]{2})?(Z)?)?$")
 
     static func parseDt(_ value: String, _ params: [String: String], tz: TimeZone) -> Dt? {
-        let s = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let s = value.jsTrimmed
         let ns = s as NSString
         guard let m = dtRe.firstMatch(in: s, range: NSRange(location: 0, length: ns.length)) else { return nil }
         func g(_ i: Int) -> String? { let r = m.range(at: i); return r.location == NSNotFound ? nil : ns.substring(with: r) }
@@ -226,7 +226,7 @@ public enum IcsCore {
                 let t = NotifyCore.LocalTime(start.y, start.m, start.d, start.hh, start.mm + parseDuration(val("DURATION")))
                 end = Dt(y: t.y, m: t.m, d: t.d, hh: t.h, mm: t.min, allDay: start.allDay)
             }
-            let t0 = unesc(val("SUMMARY")).trimmingCharacters(in: .whitespacesAndNewlines)
+            let t0 = unesc(val("SUMMARY")).jsTrimmed
             let title = t0.isEmpty ? "無題" : t0
             let uid = val("UID").isEmpty ? "u\(k)" : val("UID")
             var exdates = overridden[uid] ?? []

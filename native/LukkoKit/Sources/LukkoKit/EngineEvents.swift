@@ -141,7 +141,7 @@ extension Engine {
         let spanField: JSONValue? = span > 1 ? num(Double(span)) : nil
         let remindField: JSONValue? = dr["remindMin"]?.number.map { .number($0) }
         func trimmed(_ k: String) -> JSONValue? {
-            let s = (JS.truthy(dr[k]) ? JS.string(dr[k]) : "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let s = (JS.truthy(dr[k]) ? JS.string(dr[k]) : "").jsTrimmed
             return s.isEmpty ? nil : str(s)
         }
         let placeField = trimmed("place"), memoField = trimmed("memo"), linkField = trimmed("link")

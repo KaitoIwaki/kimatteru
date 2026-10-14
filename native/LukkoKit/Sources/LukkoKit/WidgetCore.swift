@@ -13,7 +13,7 @@ public enum WidgetCore {
     /// JS の文字の長さ（UTF-16）で切って「…」を付ける。
     /// JS は絵文字の途中（UTF-16 の半分）でも切るが、Swift の文字は半分を持てないので、その場合だけ半分を落とす
     static func cut(_ v: JSONValue?, _ n: Int) -> String {
-        let t = (JS.truthy(v) ? JS.string(v) : "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let t = (JS.truthy(v) ? JS.string(v) : "").jsTrimmed
         let u = Array(t.utf16)
         guard u.count > n else { return t }
         var head = Array(u[0..<(n - 1)])
@@ -25,7 +25,7 @@ public enum WidgetCore {
     public static func memoLines(_ memo: JSONValue?) -> [String] {
         let s = JS.truthy(memo) ? JS.string(memo) : ""
         let raw = s.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            .map { $0.jsTrimmed }.filter { !$0.isEmpty }
         return raw.prefix(maxMemo).map { cut(.string($0), memoLen) }
     }
 

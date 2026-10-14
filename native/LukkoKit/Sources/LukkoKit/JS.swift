@@ -92,7 +92,7 @@ public enum JS {
 
     /// JS の Number(文字)。前後の空白は無視、空なら 0、読めなければ NaN
     public static func number(_ s: String) -> Double {
-        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        let t = s.jsTrimmed
         if t.isEmpty { return 0 }
         let lower = t.lowercased()
         if lower.hasPrefix("0x"), let v = UInt64(t.dropFirst(2), radix: 16) { return Double(v) }
@@ -139,6 +139,47 @@ public enum JS {
             return c != 0 ? c < 0 : x.offset < y.offset
         }.map { $0.element }
     }
+
+    /// JS の比べる関数の答え（数）を、並べ替えの向きにする。NaN は「同じ」
+    public static func sign(_ d: Double) -> Int { d < 0 ? -1 : (d > 0 ? 1 : 0) }
+
+    /// JS の String.prototype.trim。Swift の whitespacesAndNewlines とは、U+0085（JS は消さない）と U+FEFF（JS は消す）が違う
+    public static func isTrimSpace(_ u: Unicode.Scalar) -> Bool {
+        switch u.value {
+        case 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0xA0, 0x1680, 0x2000...0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF: return true
+        default: return false
+        }
+    }
+    public static func trim(_ s: String) -> String {
+        let sc = s.unicodeScalars
+        guard let a = sc.firstIndex(where: { !isTrimSpace($0) }) else { return "" }
+        let b = sc.lastIndex(where: { !isTrimSpace($0) })!
+        return String(sc[a...b])
+    }
+
+    /// JS の s.slice(0, n)（UTF-16 の数で切る。サロゲートの片方だけが残るときは、その片方を落とす）
+    public static func slice16(_ s: String, _ n: Int) -> String {
+        let u = Array(s.utf16)
+        if u.count <= n { return s }
+        var cut = Array(u[0..<max(0, n)])
+        if let last = cut.last, UTF16.isLeadSurrogate(last) { cut.removeLast() }
+        return String(decoding: cut, as: UTF16.self)
+    }
+
+    /// JS の parseInt(s, 16)（頭から読めるところまで読む。1 文字も読めなければ NaN）
+    public static func parseHex(_ s: String) -> Double {
+        var v = 0.0, any = false
+        for c in trim(s).unicodeScalars {
+            guard c.isASCII, let d = Int(String(c), radix: 16) else { break }
+            v = v * 16 + Double(d); any = true
+        }
+        return any ? v : .nan
+    }
+}
+
+extension String {
+    /// JS の trim() と同じ
+    public var jsTrimmed: String { JS.trim(self) }
 }
 
 /// 日付の数え方（タイムゾーンに左右されない、暦の上の計算だけ）
