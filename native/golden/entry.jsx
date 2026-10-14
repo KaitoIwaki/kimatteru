@@ -1,6 +1,7 @@
 // Node で App を作るための入口。ブラウザにしか無いものを、最低限だけ用意する
 const mem = new Map();
 globalThis.window = globalThis;
+globalThis.__ls = mem; // 正解表を作るとき、起動前の保存の中身を入れる
 globalThis.localStorage = { getItem: (k) => (mem.has(k) ? mem.get(k) : null), setItem: (k, v) => mem.set(k, String(v)), removeItem: (k) => mem.delete(k) };
 globalThis.document = { addEventListener() {}, removeEventListener() {}, hidden: false, documentElement: { style: { setProperty() {} }, setAttribute() {}, dataset: {} }, getElementById: () => null, createElement: () => ({ style: {}, getContext: () => null, setAttribute() {}, appendChild() {} }), body: { appendChild() {}, removeChild() {} }, querySelector: () => null, fonts: { ready: Promise.resolve() } };
 globalThis.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {}, addListener() {} });
