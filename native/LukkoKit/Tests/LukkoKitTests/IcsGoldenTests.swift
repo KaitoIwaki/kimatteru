@@ -22,7 +22,7 @@ final class IcsGoldenTests: XCTestCase {
             let evs = c["events"]?.array ?? []
             // 書き出しの名前は、正解表を作ったときと同じものを使う（X-WR-CALNAME の行から読む）
             let want = c["text"]?.string ?? ""
-            let name = want.contains("X-WR-CALNAME:私の\,予定") ? "私の,予定" : "LUKKO"
+            let name = want.contains("X-WR-CALNAME:私の\\,予定") ? "私の,予定" : "LUKKO"
             let text = IcsCore.toIcs(evs, name: name, stampUTC: stamp)
             check(.string(text), c["text"], "#\(i) toIcs")
             check(.array(IcsCore.parseIcs(want, today: (n[0], n[1], n[2]), tz: tz)), c["parsed"], "#\(i) parse(toIcs)")

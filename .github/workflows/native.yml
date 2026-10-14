@@ -26,13 +26,18 @@ jobs:
           xcrun simctl list devices available | grep -i iphone | head -20
       - name: 中身のテスト（LukkoKit）
         working-directory: native/LukkoKit
-        run: swift test 2>&1 | tee ../../kit-test.log
+        # パイプでつなぐと失敗が隠れる（tee が成功を返す）。pipefail で、試験の失敗をこの段の失敗にする
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee ../../kit-test.log
       - name: プロジェクトを組み立てる
+        if: always()
         working-directory: native
         run: |
           brew install xcodegen
           xcodegen generate
       - name: 画面の写真（シミュレーター）
+        if: always()
         working-directory: native
         run: |
           DEV=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(|iPhone 1[6-9] \(" | grep -v Max | head -1 | sed -E 's/^ *([^(]+) \(.*/\1/' | sed 's/ *$//')
