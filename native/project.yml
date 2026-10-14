@@ -1,0 +1,49 @@
+# SwiftUI 版の Xcode プロジェクト。Mac が無いので、Xcode の画面で作らずに、この設定から XcodeGen で組み立てる
+# （GitHub の Mac・Codemagic の上で `xcodegen generate`）。
+name: LUKKO
+options:
+  bundleIdPrefix: com.kimatteru
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  LukkoKit:
+    path: LukkoKit
+targets:
+  LUKKO:
+    type: application
+    platform: iOS
+    sources: [LukkoApp]
+    dependencies:
+      - package: LukkoKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.kimatteru.app
+        PRODUCT_NAME: LUKKO
+        MARKETING_VERSION: "2.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: LUKKO
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        CODE_SIGNING_ALLOWED: NO
+  LUKKOUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [LukkoUITests]
+    dependencies:
+      - target: LUKKO
+    settings:
+      base:
+        CODE_SIGNING_ALLOWED: NO
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  LUKKO:
+    build:
+      targets:
+        LUKKO: all
+        LUKKOUITests: [test]
+    test:
+      targets: [LUKKOUITests]

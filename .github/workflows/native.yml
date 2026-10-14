@@ -1,0 +1,52 @@
+# SwiftUI 版を GitHub の Mac で確かめる：中身のテスト → アプリのビルド → シミュレーターで画面の写真
+# 結果（テストの記録と写真）は artifacts に置く。手元から gh で取り出して見る。
+name: native
+on:
+  push:
+    branches: [swiftui]
+    paths: ['native/**', '.github/workflows/native.yml']
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode
+        run: |
+          ls /Applications | grep -i xcode || true
+          sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          xcodebuild -version
+          xcrun simctl list devices available | grep -i iphone | head -20
+      - name: 中身のテスト（LukkoKit）
+        working-directory: native/LukkoKit
+        run: swift test 2>&1 | tee ../../kit-test.log
+      - name: プロジェクトを組み立てる
+        working-directory: native
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: 画面の写真（シミュレーター）
+        working-directory: native
+        run: |
+          DEV=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(|iPhone 1[6-9] \(" | grep -v Max | head -1 | sed -E 's/^ *([^(]+) \(.*/\1/' | sed 's/ *$//')
+          echo "device: $DEV"
+          set -o pipefail
+          xcodebuild test -project LUKKO.xcodeproj -scheme LUKKO -destination "platform=iOS Simulator,name=$DEV" -resultBundlePath ../ui.xcresult 2>&1 | tee ../ui-test.log | tail -60
+      - name: 写真を取り出す
+        if: always()
+        run: |
+          mkdir -p shots
+          if [ -d ui.xcresult ]; then
+            xcrun xcresulttool export attachments --path ui.xcresult --output-path shots || true
+          fi
+          ls -la shots | head -50
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-results
+          path: |
+            shots
+            kit-test.log
+            ui-test.log
