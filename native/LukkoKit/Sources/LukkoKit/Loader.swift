@@ -60,7 +60,7 @@ public enum Loader {
         switch v {
         case .object(let o): return o.map { ($0.key, $0.value) }
         case .array(let a): return a.enumerated().map { ("\($0.offset)", $0.element) }
-        case .string(let s): return s.map { String($0) }.enumerated().map { ("\($0.offset)", JSONValue.string($0.element)) }
+        case .string(let s): return s.utf16.enumerated().map { ("\($0.offset)", JSONValue.string(String(decoding: [$0.element], as: UTF16.self))) }  // JS は UTF-16 の 1 単位ずつ
         default: return []
         }
     }
