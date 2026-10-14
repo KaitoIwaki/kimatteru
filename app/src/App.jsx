@@ -1176,7 +1176,8 @@ export default class App extends React.Component {
       if(next<=22*60) dt={start:this.fmtMin(next), end:this.fmtMin(next+60)};
     }
     const cfg=this.state.settings;
-    const allDay = !!tt.allDayDefault && typeof o.start!=='number';
+    // 日の画面の「終日で追加」からは、種類にかかわらず終日で始める
+    const allDay = o.allDay!=null ? !!o.allDay : (!!tt.allDayDefault && typeof o.start!=='number');
     const remindMin = allDay ? (typeof cfg.remindAllDay==='number' ? cfg.remindAllDay : null) : (typeof cfg.remindTimed==='number' ? cfg.remindTimed : null);
     const job=(this.state.jobs||[]).find(j=>!j.retired);
     this.setState({screen:'new',returnTo:ret,newType:null,draft:{editingId:null,title:'',type,status:'kakutei',start:dt.start,end:dt.end,y:ym.y,m:ym.m,day,pickY:ym.y,pickM:ym.m,extraDays:[],jobId:(job||{}).id,allDay,days:1,remindMin,place:'',memo:'',link:'',repEvery:null,repSpan:3,repDows:[],added:[],picking:null,someday:null,cand:false,secret:false}});
@@ -3962,6 +3963,8 @@ export default class App extends React.Component {
           transform:r.bodyStyle.transform, transition:r.bodyStyle.transition, touchAction:'pan-y'};
       });
       v.onDayAdd = ()=>this.openNew(d,'day');
+      // 時間を決めずに、その日にすること（終日の予定）を入れる
+      v.onDayAddAllDay = ()=>this.openNew(d,'day',{allDay:true});
       // 重ねて表示している iPhone のカレンダーの予定（直すのは元のアプリで）
       v.dayOverlay = this._overlayFor(dn, dn+1).map(e=>({ key:e.id, title:e.title, place:e.place||'',
         time: e.allDay ? '終日' : e.start+'–'+e.end,

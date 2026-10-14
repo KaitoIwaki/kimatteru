@@ -904,7 +904,11 @@ export function renderApp(v) {
                 <span style={s('font-size:10.5px;color:var(--ink-faint);flex-shrink:0')}>iPhone</span>
               </div>
             ))}
-            <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;margin-top:14px;padding:15px;border-radius:15px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:14.5px;font-weight:400;cursor:pointer')} onClick={v.onDayAdd}>＋ 予定を追加</div>
+            {/* 時間を決める予定と、時間を決めずにその日にすること（終日） */}
+            <div style={s('display:flex;gap:10px;margin-top:14px')}>
+              <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;padding:15px 8px;border-radius:15px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:14.5px;font-weight:400;cursor:pointer;white-space:nowrap')} onClick={v.onDayAdd}>＋ 予定を追加</div>
+              <div style={s('display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:0;padding:15px 8px;border-radius:15px;border:1.5px dashed var(--line);color:var(--ink-soft);font-size:14.5px;font-weight:400;cursor:pointer;white-space:nowrap')} onClick={v.onDayAddAllDay}>＋ 終日で追加</div>
+            </div>
           </div>
           )}
         </div>
