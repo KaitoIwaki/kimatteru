@@ -88,6 +88,18 @@ function LinkRow({ href, label, value, last, blank }) {
     </a>
   );
 }
+/** 左に小さな絵の付いた行。href があれば外へのリンク */
+function IconRow({ icon, label, onClick, href, last }) {
+  const body = (
+    <div style={s(`position:relative;display:flex;align-items:center;gap:12px;${ROWPAD};cursor:pointer`)} onClick={onClick}>
+      <span style={s('width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center')}>{icon}</span>
+      <span style={s(LABEL + ';flex:1;padding:12px 0')}>{label}</span>
+      <span style={s(CHEV)}>›</span>
+      {!last && <span style={s('position:absolute;left:56px;right:0;bottom:0;height:1px;background:var(--line)')} />}
+    </div>
+  );
+  return href ? <a href={href} target="_blank" rel="noreferrer" style={s('display:block;text-decoration:none;-webkit-tap-highlight-color:transparent')}>{body}</a> : body;
+}
 function Seg({ items, width }) {
   return (
     <div style={s(`display:flex;background:var(--bg2);border-radius:10px;padding:2px;${width ? `width:${width}px;` : 'flex:1;'}`)}>
@@ -123,6 +135,24 @@ function AddRow({ label, onClick, top }) {
 // ================= 最初の画面 =================
 function Main({ v }) {
   return (<>
+    {/* 応援とレビュー。設定を開いてすぐ見える所に置く（前はいちばん下で、気づかれにくかった）。押さなければ何も起きない */}
+    <div style={s(CARD)}>
+        {v.supporterShown && (
+          <div style={s(v.supporterRowStyle)} onClick={v.onOpenCard}
+            onPointerDown={v.onSupDown} onPointerUp={v.onSupUp}
+            onPointerCancel={v.onSupUp} onPointerLeave={v.onSupUp}>
+            <span style={s('width:22px;height:22px;border-radius:11px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0')}>✓</span>
+            <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
+              <span style={s(LABEL)}>サポーターカード</span>
+              <span style={s('font-size:12px;color:var(--ink-mut)')}>{v.supporterTotal}・{v.supporterCount}・{v.supporterSince}</span>
+            </span>
+            <span style={s(CHEV)}>›</span>
+          </div>
+        )}
+        {v.tipShown && <IconRow icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 21v-9" stroke="#6E9E75" strokeWidth="1.8" strokeLinecap="round" /><path d="M12 12c0-3.6-2.6-6-6.6-6 0 3.8 2.6 6 6.6 6Z" fill="#7FAE85" fillOpacity=".3" stroke="#6E9E75" strokeWidth="1.6" strokeLinejoin="round" /><path d="M12 10.5c0-3.4 2.4-5.6 6.4-5.6 0 3.6-2.4 5.6-6.4 5.6Z" fill="#7FAE85" fillOpacity=".3" stroke="#6E9E75" strokeWidth="1.6" strokeLinejoin="round" /></svg>} label="LUKKO を応援する" onClick={v.onSetPage('support')} />}
+        <IconRow href={v.reviewHref} icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="m12 3.6 2.5 5.2 5.7.7-4.2 3.9 1.1 5.6L12 16.3 6.9 19l1.1-5.6-4.2-3.9 5.7-.7Z" stroke="#C9A13B" strokeWidth="1.7" strokeLinejoin="round" /></svg>} label="App Store でレビューする" last />
+    </div>
+
     {/* 使い方と種類 */}
     <div style={s(CARD)}>
       <Row label="使い方" value={v.profileLabel} chevron onClick={v.onOpenProfile} />
@@ -221,33 +251,12 @@ function Main({ v }) {
       <Row label="使い方をもう一度見る" chevron onClick={v.onReplayGuide} />
       <LinkRow href={v.featureHref} label="機能をリクエストする" blank />
       <LinkRow href={v.contactHref} label="お問い合わせ" blank />
-      <LinkRow href={v.reviewHref} label="App Store でレビューする" blank />
       <Row label="利用規約" chevron onClick={v.onOpenTerms} />
       <Row label="プライバシーポリシー" chevron onClick={v.onOpenPrivacy} />
       {/* 5回叩くと診断が出る。ふつうに使う人には何も起きない */}
       <Row label="バージョン" value={v.appVersionLabel} onClick={v.onTapVersion} last />
     </div>
 
-    {/* 応援。設定のいちばん下 */}
-    {v.supportGroupShown && (<>
-      <div style={s(HEAD)}>応援</div>
-      <div style={s(CARD)}>
-        {v.supporterShown && (
-          <div style={s(v.supporterRowStyle)} onClick={v.onOpenCard}
-            onPointerDown={v.onSupDown} onPointerUp={v.onSupUp}
-            onPointerCancel={v.onSupUp} onPointerLeave={v.onSupUp}>
-            <span style={s('width:22px;height:22px;border-radius:11px;background:#1D9E75;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0')}>✓</span>
-            <span style={s('display:flex;flex-direction:column;gap:2px;flex:1;min-width:0')}>
-              <span style={s(LABEL)}>サポーターカード</span>
-              <span style={s('font-size:12px;color:var(--ink-mut)')}>{v.supporterTotal}・{v.supporterCount}・{v.supporterSince}</span>
-            </span>
-            <span style={s(CHEV)}>›</span>
-          </div>
-        )}
-        {/* 押すと応援の画面が開く（感謝と、これから作りたいもの、金額） */}
-        {v.tipShown && <Row label="開発を応援する" chevron onClick={v.onSetPage('support')} last />}
-      </div>
-    </>)}
   </>);
 }
 

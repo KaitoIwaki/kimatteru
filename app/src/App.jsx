@@ -1253,7 +1253,8 @@ export default class App extends React.Component {
     if(this._tipsTried) return;
     this._tipsTried = true;
     try{
-      const list = await loadTips();
+      // 見本の撮影（?demo=）のときだけ、ブラウザでも応援の行が出るように値段を置く
+      const list = wantsDemo() && !isNative() ? TIPS.map(t=>({...t, price:'¥'+t.yen})) : await loadTips();
       if(list && list.length) this.setState({tips:list});
     }catch(e){
       // 黙って諦める（利用者に見せるものではない）。診断からは見える。
