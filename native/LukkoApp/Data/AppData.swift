@@ -19,6 +19,8 @@ final class AppData {
     let library: URL
     var fileURL: URL { library.appendingPathComponent(StoreFile.fileName) }
     var migrationDir: URL { library.appendingPathComponent("LUKKO-migration") }
+    /// 「LUKKO」カレンダーに書いた予定の対応表（いまの版は localStorage の lukko.exportMap に持っていた）
+    var exportMapURL: URL { library.appendingPathComponent("lukko-exportMap.json") }
 
     init(library: URL? = nil) {
         self.library = library ?? FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask)[0]
@@ -86,6 +88,15 @@ final class AppData {
                 return
             }
         }
+        // 3b. 書き出しの対応表も持ってくる。無いと、引っ越した直後に「LUKKO」カレンダーへ同じ予定をもう一度書いてしまう
+        if let text = ls?["lukko.exportMap"], !FileManager.default.fileExists(atPath: exportMapURL.path) {
+            if let v = try? JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)), case .object = v {
+                do { try SafeFile.write(Data(text.utf8), to: exportMapURL); log("書き出しの対応表を持ってきた") }
+                catch { log("書き出しの対応表を書けなかった：\(error)"); loaded = true; return }
+            } else {
+                log("書き出しの対応表が読めない形だった（持ってこない。次の書き出しで作り直す）")
+            }
+        }
         // 4. 印を付ける（localStorage を読めたときだけ。読めなかったら、次の起動でもう一度）
         if ls != nil {
             UserDefaults.standard.set(true, forKey: Self.migratedKey)
@@ -117,6 +128,7 @@ final class AppData {
     func resetForTest() {
         try? FileManager.default.removeItem(at: fileURL)
         try? FileManager.default.removeItem(at: migrationDir)
+        try? FileManager.default.removeItem(at: exportMapURL)
         UserDefaults.standard.removeObject(forKey: Self.migratedKey)
     }
 }

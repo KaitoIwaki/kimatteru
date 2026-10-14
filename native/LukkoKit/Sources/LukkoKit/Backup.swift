@@ -37,7 +37,7 @@ public enum Backup {
     /// 読めたら { data, count, dropped, at }。予定は数える前にふるいにかける（出す件数と、実際に戻る件数を合わせる）
     public static func parse(_ text: String, makeId: () -> String) -> JSONValue {
         func err(_ s: String) -> JSONValue { .object(["error": .string(s)]) }
-        guard let obj = try? JSONDecoder().decode(JSONValue.self, from: Data(text.utf8)) else {
+        guard let obj = try? JSJSON.parse(text) else {
             return err("控えの中身を読めませんでした。全文が貼れているか確かめてください。")
         }
         guard JS.truthy(obj), obj["app"] == .string(mark) else { return err("このアプリの控えではないようです。") }

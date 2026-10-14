@@ -281,7 +281,7 @@ public enum PhoneCal {
             var prevUrl = false
             if let old = out["#" + id], JS.truthy(old) {
                 // JS：JSON.parse(…).url。読めない・null のときは投げて true になる
-                if let o = try? JSONDecoder().decode(JSONValue.self, from: Data(JS.string(old).utf8)), o != .null { prevUrl = JS.truthy(o["url"]) } else { prevUrl = true }
+                if let o = try? JSJSON.parse(JS.string(old)), o != .null { prevUrl = JS.truthy(o["url"]) } else { prevUrl = true }
             }
             if let nid = out[id], JS.truthy(nid), prevUrl, dict["url"] == nil {
                 try? await cal.deleteEvent(id: JS.string(nid))
@@ -366,6 +366,118 @@ public enum JSJSON {
         case .string(let s): return quote(s)
         case .array(let a): return "[" + a.map(stringify).joined(separator: ",") + "]"
         case .object(let o): return "{" + o.keys.sorted().map { quote($0) + ":" + stringify(o[$0]!) }.joined(separator: ",") + "}"
+        }
+    }
+}
+
+extension JSJSON {
+    struct SyntaxError: Error {}
+    /// JS の JSON.parse と同じ決まりで読む（末尾のカンマやコメントは読まない。同じ鍵はあとのほうが勝つ）。
+    /// Swift の JSONDecoder は、末尾のカンマなどを黙って読んでしまうことがあるので、控えの読み込みはこちらを使う
+    public static func parse(_ text: String) throws -> JSONValue {
+        var p = Parser(u: Array(text.utf16))
+        p.ws()
+        let v = try p.value()
+        p.ws()
+        guard p.i == p.u.count else { throw SyntaxError() }
+        return v
+    }
+    struct Parser {
+        let u: [UInt16]
+        var i = 0
+        mutating func ws() { while i < u.count, [0x20, 0x09, 0x0A, 0x0D].contains(u[i]) { i += 1 } }
+        mutating func eat(_ c: UInt16) throws { guard i < u.count, u[i] == c else { throw SyntaxError() }; i += 1 }
+        mutating func lit(_ s: String, _ v: JSONValue) throws -> JSONValue {
+            for c in s.utf16 { try eat(c) }
+            return v
+        }
+        mutating func value() throws -> JSONValue {
+            guard i < u.count else { throw SyntaxError() }
+            switch u[i] {
+            case 0x7B: // {
+                i += 1; ws()
+                var o: [String: JSONValue] = [:]
+                if i < u.count, u[i] == 0x7D { i += 1; return .object(o) }
+                while true {
+                    ws()
+                    guard i < u.count, u[i] == 0x22 else { throw SyntaxError() }
+                    let k = try string()
+                    ws(); try eat(0x3A); ws()
+                    o[k] = try value()
+                    ws()
+                    guard i < u.count else { throw SyntaxError() }
+                    if u[i] == 0x2C { i += 1; continue }
+                    if u[i] == 0x7D { i += 1; return .object(o) }
+                    throw SyntaxError()
+                }
+            case 0x5B: // [
+                i += 1; ws()
+                var a: [JSONValue] = []
+                if i < u.count, u[i] == 0x5D { i += 1; return .array(a) }
+                while true {
+                    ws()
+                    a.append(try value())
+                    ws()
+                    guard i < u.count else { throw SyntaxError() }
+                    if u[i] == 0x2C { i += 1; continue }
+                    if u[i] == 0x5D { i += 1; return .array(a) }
+                    throw SyntaxError()
+                }
+            case 0x22: return .string(try string())
+            case 0x74: return try lit("true", .bool(true))
+            case 0x66: return try lit("false", .bool(false))
+            case 0x6E: return try lit("null", .null)
+            default: return .number(try number())
+            }
+        }
+        mutating func string() throws -> String {
+            try eat(0x22)
+            var out: [UInt16] = []
+            while true {
+                guard i < u.count else { throw SyntaxError() }
+                let c = u[i]; i += 1
+                if c == 0x22 { break }
+                if c < 0x20 { throw SyntaxError() }
+                if c != 0x5C { out.append(c); continue }
+                guard i < u.count else { throw SyntaxError() }
+                let e = u[i]; i += 1
+                switch e {
+                case 0x22: out.append(0x22)
+                case 0x5C: out.append(0x5C)
+                case 0x2F: out.append(0x2F)
+                case 0x62: out.append(0x08)
+                case 0x66: out.append(0x0C)
+                case 0x6E: out.append(0x0A)
+                case 0x72: out.append(0x0D)
+                case 0x74: out.append(0x09)
+                case 0x75:
+                    guard i + 4 <= u.count, let v = UInt16(String(decoding: u[i..<i + 4], as: UTF16.self), radix: 16) else { throw SyntaxError() }
+                    out.append(v); i += 4
+                default: throw SyntaxError()
+                }
+            }
+            return String(decoding: out, as: UTF16.self)
+        }
+        mutating func number() throws -> Double {
+            let s = i
+            func digit(_ c: UInt16) -> Bool { c >= 0x30 && c <= 0x39 }
+            if i < u.count, u[i] == 0x2D { i += 1 }
+            guard i < u.count, digit(u[i]) else { throw SyntaxError() }
+            if u[i] == 0x30 { i += 1 } else { while i < u.count, digit(u[i]) { i += 1 } }
+            if i < u.count, u[i] == 0x2E {
+                i += 1
+                guard i < u.count, digit(u[i]) else { throw SyntaxError() }
+                while i < u.count, digit(u[i]) { i += 1 }
+            }
+            if i < u.count, u[i] == 0x65 || u[i] == 0x45 {
+                i += 1
+                if i < u.count, u[i] == 0x2B || u[i] == 0x2D { i += 1 }
+                guard i < u.count, digit(u[i]) else { throw SyntaxError() }
+                while i < u.count, digit(u[i]) { i += 1 }
+            }
+            let str = String(decoding: u[s..<i], as: UTF16.self)
+            // 桁あふれは JS と同じく Infinity（Swift の Double(String) も同じ）
+            return Double(str) ?? .nan
         }
     }
 }

@@ -8,8 +8,16 @@ public final class Engine {
     public typealias Obj = [String: JSONValue]
 
     public private(set) var state: Obj
-    /// いまのミリ秒（JS の Date.now()）
-    public var now: Double
+    /// いまのミリ秒（JS の Date.now()）。clock があればそれ（アプリ）、無ければ試験の時計
+    public var now: Double {
+        get { clock?() ?? fixedNow }
+        set { fixedNow = newValue }
+    }
+    private var fixedNow: Double
+    /// 本物の時計。入れると、待ち（setTimeout）も本物の時間で動く
+    public var clock: (() -> Double)? = nil
+    /// 中身が変わったとき（画面と保存に知らせる）
+    public var didChange: () -> Void = {}
     /// 地元の時刻の数え方（端末のタイムゾーン）
     public var timeZone: TimeZone
     /// 番号を作る（Web 版の uid）。試験では差し替えられる
@@ -33,24 +41,40 @@ public final class Engine {
     public var undoPrevKeys: [String] = []
 
     public init(state: Obj, now: Double, timeZone: TimeZone) {
-        self.state = state; self.now = now; self.timeZone = timeZone
+        self.state = state; self.fixedNow = now; self.timeZone = timeZone
     }
 
     // MARK: 中身の差し替え（JS の setState。上の段だけ混ぜる。nil は「無い」）
     public func set(_ patch: [String: JSONValue?]) {
         for (k, v) in patch { if let v { state[k] = v } else { state.removeValue(forKey: k) } }
+        didChange()
     }
     func core() -> AppCore { AppCore(state: state) }
     func uid(_ prefix: String) -> String { makeUid(prefix, now) }
 
     // MARK: 待ち（setTimeout）
+    private var live: [Int: DispatchWorkItem] = [:]
     @discardableResult
     func later(_ ms: Double, _ fn: @escaping () -> Void) -> Int {
         let id = nextTimer; nextTimer += 1
+        if clock != nil {
+            // アプリ：本物の時間で待つ
+            let item = DispatchWorkItem { [weak self] in
+                guard let self, self.live.removeValue(forKey: id) != nil else { return }
+                fn()
+            }
+            live[id] = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + max(0, ms) / 1000, execute: item)
+            return id
+        }
         timers.append(Timer(id: id, at: now + ms, fn: fn))
         return id
     }
-    func cancel(_ id: Int?) { if let id { timers.removeAll { $0.id == id } } }
+    func cancel(_ id: Int?) {
+        guard let id else { return }
+        timers.removeAll { $0.id == id }
+        live.removeValue(forKey: id)?.cancel()
+    }
     /// 時計を ms だけ進め、そのあいだに来る待ちを時刻の順に動かす
     public func advance(_ ms: Double) {
         let end = now + ms
