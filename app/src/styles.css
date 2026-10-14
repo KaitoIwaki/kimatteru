@@ -113,7 +113,12 @@ input { font-family: inherit; }
    一覧の行（.ios-cell）は、薄くする代わりに行の地が沈む（iOS の表の行と同じ）。
    スイッチは薄くしない。月のマス（指で払う所, data-nopress の中）も薄くしない */
 [role="button"]:not([style*="transition"]), [style*="cursor: pointer"]:not([style*="transition"]) { transition: opacity .22s ease; }
-[role="button"]:active, [style*="cursor: pointer"]:active { opacity: .45 !important; transition: none !important; }
+[role="button"]:active, [style*="cursor: pointer"]:not(select):not(input):active { opacity: .45 !important; transition: none !important; }
+/* 見えない選び方（<select>）を重ねた行は、押しても薄くせず、行の地を沈める。
+   前は <select> 自身が押したときに半分見えるようになり、iPhone がそれを「見た目が変わった」と受け取って
+   1回目の押しを飲み込み、なかなか開かなかった */
+select:active { opacity: 0 !important; }
+.pick-cell:has(select:active) { background: var(--press); }
 .ios-cell:active { opacity: 1 !important; background: var(--press) !important; }
 .ios-switch:active, [data-nopress] [style*="cursor: pointer"]:active { opacity: 1 !important; }
 /* 下から出る画面（シート）：iOS と同じ、下から一気に出て、ゆっくり止まる */

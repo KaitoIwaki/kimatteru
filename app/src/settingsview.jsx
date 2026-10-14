@@ -26,11 +26,11 @@ function bullets(items) {
   return items.map((t, i) => (<span key={i} style={s('display:flex;gap:6px')}><span style={s('flex-shrink:0')}>・</span><span>{t}</span></span>));
 }
 /** 1行。左に名前、右に値やスイッチ。sub は本当に要る所だけ */
-function Row({ label, sub, right, onClick, last, chevron, value, danger, keep }) {
+function Row({ label, sub, right, onClick, last, chevron, value, danger, keep, cls }) {
   // 値のある行は、名前に半分の幅を残して、長い値のほうを「…」で切る（文字を大きくしたとき、名前が2行に折れていた）
   const hold = keep || (value != null && value !== '');
   return (
-    <div className={onClick ? 'ios-cell' : undefined} style={s(`position:relative;display:flex;align-items:center;gap:12px;${ROWPAD};${onClick ? 'cursor:pointer;' : ''}`)} onClick={onClick}>
+    <div className={onClick ? 'ios-cell' : cls} style={s(`position:relative;display:flex;align-items:center;gap:12px;${ROWPAD};${onClick ? 'cursor:pointer;' : ''}`)} onClick={onClick}>
       <span style={s(`display:flex;flex-direction:column;gap:1px;min-width:${hold ? `min(50%, ${String(label).length + 0.5}em)` : '0'};flex:1;padding:10px 0`)}>
         <span style={s(danger ? LABEL + ';color:#A8452B' : LABEL)}>{label}</span>
         {!!sub && <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty;line-height:1.5')}>{sub}</span>}
@@ -53,7 +53,7 @@ function PickRow({ label, items, last }) {
   const i0 = Math.max(0, list.findIndex((x) => x.sel));
   const cur = list[i0];
   return (
-    <Row label={label} last={last} value={cur ? cur.label : ''}
+    <Row label={label} last={last} value={cur ? cur.label : ''} cls="pick-cell"
       right={<>
         <svg width="11" height="16" viewBox="0 0 11 16" fill="none" style={{ flexShrink: 0, marginLeft: -2 }}>
           <path d="M2 6 5.5 2.5 9 6M2 10l3.5 3.5L9 10" stroke="var(--ink-faint)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
