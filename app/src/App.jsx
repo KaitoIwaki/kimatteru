@@ -427,6 +427,8 @@ const mergeTypes = (saved, builtin) => {
     .map((x) => x.t);
 };
 
+// 設定の詳しい画面の、ひとつ上の画面（戻るで行く先）
+const SET_PARENT = { work: 'free', jobs: 'wage', leave: 'wage', overlay: 'iphone', backup: 'data', files: 'data' };
 const todayParts = () => {
   const n = new Date();
   return { y: n.getFullYear(), m: n.getMonth(), d: n.getDate() };
@@ -2223,8 +2225,11 @@ export default class App extends React.Component {
     // 中身の多いもの（種類・勤務先・有給・勤務時間・重ねて表示・控え・ファイル）は押すと開く画面に分けた
     v.setPage = st.setPage || null;
     v.onSetPage = (p)=>()=>{ tapLight(); this.setState({setPage:p, editTypeKey:null, editJobId:null, typeDelete:null}); };
-    v.onSetBack = ()=>{ tapLight(); this.setState({setPage:null, editTypeKey:null, editJobId:null, typeDelete:null, newType:null}); };
-    v.setPageTitle = ({support:'応援する', types:'予定の種類', work:'勤務時間', jobs:W.job, leave:'有給', overlay:'重ねて表示', backup:'控えと機種変更', files:'ファイルで出し入れ'})[st.setPage] || '';
+    // 設定は2段。最初の画面は項目の名前だけで、押すと中身の画面（display など）、その中からさらに詳しい画面（work など）へ。
+    // 戻るは1段ずつ（詳しい画面からは、その親の画面へ）
+    v.onSetBack = ()=>{ tapLight(); this.setState(s=>({setPage:SET_PARENT[s.setPage]||null, editTypeKey:null, editJobId:null, typeDelete:null, newType:null})); };
+    v.setBackLabel = SET_PARENT[st.setPage] ? '戻る' : '設定';
+    v.setPageTitle = ({support:'応援する', display:'カレンダーと表示', free:'空き状況', notify:'通知', wage:(W.wageHead||'給料'), iphone:'iPhone のカレンダー', data:'保存と安全', help:'ヘルプ', types:'予定の種類', work:'勤務時間', jobs:W.job, leave:'有給', overlay:'重ねて表示', backup:'控えと機種変更', files:'ファイルで出し入れ'})[st.setPage] || '';
     const hm=(m)=>this.fmtMin(m===1440?1440:m).replace(/^0(\d):/,'$1:');
     const pickLabel=(items)=>{ const x=(items||[]).find(i=>i.sel); return x ? x.label : ''; };
     // 通知（いちばん上のスイッチで、全部まとめて止められる）
@@ -4908,7 +4913,7 @@ export default class App extends React.Component {
     // 前は左上の「←」を押すしかなく、大きい iPhone では親指が届かなかった
     { const back={ day:v.onDayBack, detail:v.onBack, new:v.onCancel, list:v.onListBack, notices:v.onNoticesBack,
         import:v.onImportBack, doc:v.onDocBack, card:v.onCardBack, summary:v.onSummaryClose, share:v.onShareClose,
-        settings: st.setPage ? ()=>this.setState({setPage:null, editTypeKey:null, editJobId:null, typeDelete:null, newType:null}) : undefined }[st.screen];
+        settings: st.setPage ? ()=>this.setState(s=>({setPage:SET_PARENT[s.setPage]||null, editTypeKey:null, editJobId:null, typeDelete:null, newType:null})) : undefined }[st.screen];
       const blocked = !!(st.dialog || st.confirmDelete || st.confirmRestore || st.ymSheet || st.discardAsk || st.repEditAsk || st.somedayPick
         || st.confirmJob || st.tplNew || st.backupListOpen || st.trashOpen || st.profileSheet);
       v.onEdgeStart = (e)=>{ const t=e.touches&&e.touches[0]; if(!t || !back || blocked) { this._edge=null; return; }

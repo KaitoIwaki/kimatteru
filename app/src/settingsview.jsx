@@ -89,11 +89,12 @@ function LinkRow({ href, label, value, last, blank }) {
   );
 }
 /** 左に小さな絵の付いた行。href があれば外へのリンク */
-function IconRow({ icon, label, onClick, href, last }) {
+function IconRow({ icon, label, onClick, href, last, value }) {
   const body = (
     <div style={s(`position:relative;display:flex;align-items:center;gap:12px;${ROWPAD};cursor:pointer`)} onClick={onClick}>
       <span style={s('width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center')}>{icon}</span>
       <span style={s(LABEL + ';flex:1;padding:12px 0')}>{label}</span>
+      {value != null && value !== '' && <span style={s(VALUE)}>{value}</span>}
       <span style={s(CHEV)}>›</span>
       {!last && <span style={s('position:absolute;left:56px;right:0;bottom:0;height:1px;background:var(--line)')} />}
     </div>
@@ -134,6 +135,8 @@ function AddRow({ label, onClick, top }) {
 
 // ================= 最初の画面 =================
 function Main({ v }) {
+  // 最初の画面は、項目の名前だけ（iPhone の設定と同じ）。押すと中身の画面が開く。
+  // 前は40行近くを1枚に並べていて、目的の項目を探しにくかった
   return (<>
     {/* 応援とレビュー。設定を開いてすぐ見える所に置く（前はいちばん下で、気づかれにくかった）。押さなければ何も起きない */}
     <div style={s(CARD)}>
@@ -166,7 +169,25 @@ function Main({ v }) {
         </span>} />
     </div>
 
-    <div style={s(HEAD)}>カレンダー</div>
+    <div style={s(CARD)}>
+      <IconRow icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mut)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /></svg>} label="カレンダーと表示" onClick={v.onSetPage('display')} />
+      <IconRow icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mut)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="6.5" cy="12" r="3" /><path d="m13 15 2.8-6 2.8 6Z" /></svg>} label="空き状況" onClick={v.onSetPage('free')} />
+      <IconRow icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mut)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15Z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></svg>} label="通知" value={v.notifyOn ? 'オン' : 'オフ'} onClick={v.onSetPage('notify')} />
+      <IconRow icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mut)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8.5" /><path d="m9 7.5 3 4.5 3-4.5M9 12.5h6M9 15.5h6M12 12v6" /></svg>} label={v.wageHead} onClick={v.onSetPage('wage')} />
+      {v.importAvailable && <IconRow icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mut)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5" /><path d="M11 18h2" /></svg>} label="iPhone のカレンダー" onClick={v.onSetPage('iphone')} />}
+      <IconRow icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mut)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3.5 5 6v5.5c0 4.2 3 7.6 7 9 4-1.4 7-4.8 7-9V6Z" /><path d="m9 12 2.2 2.2L15.5 10" /></svg>} label="保存と安全" onClick={v.onSetPage('data')} last />
+    </div>
+
+    <div style={s(CARD)}>
+      <IconRow icon={<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--ink-mut)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="8.5" /><path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5v.4M12 16.8v.2" /></svg>} label="ヘルプ" onClick={v.onSetPage('help')} last />
+    </div>
+    {/* 5回叩くと診断が出る。ふつうに使う人には何も起きない */}
+    <div style={s('text-align:center;font-size:12px;color:var(--ink-faint);padding:6px 0 0')} onClick={v.onTapVersion}>LUKKO {v.appVersionLabel}</div>
+  </>);
+}
+
+function DisplayPage({ v }) {
+  return (<>
     <div style={s(CARD)}>
       <PickRow label="週のはじまり" items={v.weekSeg} />
       <Row label="帯に時刻を出す" right={<Toggle t={v.barTime} onClick={v.onBarTime} />} />
@@ -180,7 +201,11 @@ function Main({ v }) {
       <PickRow label="予定の文字の大きさ" items={v.fontSeg} last />
     </div>
 
-    <div style={s(HEAD)}>空き状況で見る時間</div>
+  </>);
+}
+function FreePage({ v }) {
+  return (<>
+    <div style={s(NOTE + ';margin:0 4px 10px')}>空き状況の○△×を決める時間です</div>
     <div style={s(CARD)}>
       <Row label="平日" right={<Range a={v.freeWd[0]} b={v.freeWd[1]} onA={v.onFreeWd(0)} onB={v.onFreeWd(1)} opts={v.timeOpts} />} />
       <Row label="休日" right={<Range a={v.freeHd[0]} b={v.freeHd[1]} onA={v.onFreeHd(0)} onB={v.onFreeHd(1)} opts={v.timeOpts} />} />
@@ -190,7 +215,10 @@ function Main({ v }) {
       )}
     </div>
 
-    <div style={s(HEAD)}>通知</div>
+  </>);
+}
+function NotifyPage({ v }) {
+  return (<>
     <div style={s(CARD)}>
       <Row label="通知" right={<Toggle t={v.notifyAll} onClick={v.onNotifyAll} />} last={!v.notifyOn} />
       {v.notifyOn && (<>
@@ -214,15 +242,21 @@ function Main({ v }) {
       </div>
     </>)}
 
-    <div style={s(HEAD)}>{v.wageHead}</div>
+  </>);
+}
+function WagePage({ v }) {
+  return (<>
     <div style={s(CARD)}>
       <Row label={v.jobWord} value={v.jobsLabel} chevron onClick={v.onSetPage('jobs')} />
       <PickRow label="給料の表示" items={v.wageFeatureSeg} />
       <Row label="有給" value={v.leaveLabel} chevron onClick={v.onSetPage('leave')} last />
     </div>
 
+  </>);
+}
+function IphonePage({ v }) {
+  return (<>
     {v.importAvailable && (<>
-      <div style={s(HEAD)}>iPhone のカレンダー</div>
       <div style={s(CARD)}>
         <Row label="予定を取り込む" chevron onClick={v.onOpenImport} />
         <Row label="重ねて表示" value={v.overlayLabel} chevron onClick={v.onSetPage('overlay')} />
@@ -230,6 +264,10 @@ function Main({ v }) {
       </div>
     </>)}
 
+  </>);
+}
+function DataPage({ v }) {
+  return (<>
     <div style={s(HEAD)}>予定の保存</div>
     <div style={s(CARD)}>
       {v.syncShown && <Row label="iCloud で同期" sub={v.syncSub} right={<Toggle t={v.sync} onClick={v.onSync} />} />}
@@ -245,22 +283,22 @@ function Main({ v }) {
       <Row label="予定の名前を隠す" sub="通知・ウィジェット" right={<Toggle t={v.hideTitles} onClick={v.onHideTitles} />} last />
     </div>
 
-    <div style={s(HEAD)}>サポート</div>
+  </>);
+}
+function HelpPage({ v }) {
+  return (<>
     <div style={s(CARD)}>
       <LinkRow href={v.supportHref} label="よくある質問" blank />
       <Row label="使い方をもう一度見る" chevron onClick={v.onReplayGuide} />
       <LinkRow href={v.featureHref} label="機能をリクエストする" blank />
       <LinkRow href={v.contactHref} label="お問い合わせ" blank />
       <Row label="利用規約" chevron onClick={v.onOpenTerms} />
-      <Row label="プライバシーポリシー" chevron onClick={v.onOpenPrivacy} />
-      {/* 5回叩くと診断が出る。ふつうに使う人には何も起きない */}
-      <Row label="バージョン" value={v.appVersionLabel} onClick={v.onTapVersion} last />
+      <Row label="プライバシーポリシー" chevron onClick={v.onOpenPrivacy} last />
     </div>
 
   </>);
 }
 
-// ================= 押すと開く画面 =================
 function TypesPage({ v }) {
   return (
     <div style={s(CARD)}>
@@ -544,12 +582,12 @@ export function Settings({ v }) {
   React.useLayoutEffect(() => {
     if (!page && scRef.current) scRef.current.scrollTop = SAVED.main || 0;
   }, [page]);
-  const Page = { support: SupportPage, types: TypesPage, work: WorkPage, jobs: JobsPage, leave: LeavePage, overlay: OverlayPage, backup: BackupPage, files: FilesPage }[page];
+  const Page = { support: SupportPage, display: DisplayPage, free: FreePage, notify: NotifyPage, wage: WagePage, iphone: IphonePage, data: DataPage, help: HelpPage, types: TypesPage, work: WorkPage, jobs: JobsPage, leave: LeavePage, overlay: OverlayPage, backup: BackupPage, files: FilesPage }[page];
   return (
     <div ref={rootRef} style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
       {Page ? (
         <div className="scr-head-solo" style={s('padding:0 12px 10px;display:flex;align-items:center;gap:4px;position:relative')}>
-          <span role="button" aria-label="設定へ戻る" style={s('display:flex;align-items:center;gap:2px;font-size:14px;color:var(--ink-mut);cursor:pointer;padding:6px 4px;flex-shrink:0')} onClick={v.onSetBack}><span style={s('font-size:24px;line-height:1')}>‹</span>{page === 'support' ? '' : '設定'}</span>
+          <span role="button" aria-label="設定へ戻る" style={s('display:flex;align-items:center;gap:2px;font-size:14px;color:var(--ink-mut);cursor:pointer;padding:6px 4px;flex-shrink:0')} onClick={v.onSetBack}><span style={s('font-size:24px;line-height:1')}>‹</span>{page === 'support' ? '' : (v.setBackLabel || '設定')}</span>
           {/* 題は戻るの幅に関係なく、画面の真ん中に置く */}
           <span style={s('position:absolute;left:72px;right:72px;bottom:10px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none' + (page === 'support' ? `;font-family:${ROUND};font-weight:400;font-size:16px` : ''))}>{v.setPageTitle}</span>
         </div>
