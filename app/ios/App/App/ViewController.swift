@@ -24,5 +24,7 @@ class ViewController: CAPBridgeViewController {
         bridge?.registerPluginInstance(WidgetBridgePlugin())
         // Face ID のロック・切り替え画面のぼかし・評価の小窓（LukkoNative.swift）
         bridge?.registerPluginInstance(LukkoNativePlugin())
+        // 下のタブ（iPhone の本物の部品。iOS 26 では Liquid Glass。TabBar.swift）
+        bridge?.registerPluginInstance(TabBarPlugin())
     }
 }

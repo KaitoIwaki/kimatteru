@@ -31,6 +31,7 @@ public class LukkoNativePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "authenticate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setShield", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "alert", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "kvsInfo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "kvsGet", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "kvsSet", returnType: CAPPluginReturnPromise)
@@ -180,6 +181,48 @@ public class LukkoNativePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     // MARK: - 評価の小窓
+
+    // MARK: - iPhone 標準の確認画面（アラート）と、下から出る選択肢（アクションシート）
+    //
+    //  画面は Web で描いているが、確認の小窓と選択肢だけは iPhone の本物（UIAlertController）を出す。
+    //  buttons は [{ label, style: "default" | "cancel" | "destructive" }]。押されたボタンの番号を返す。
+    //  外を触って閉じた（アクションシートのとき）・出せなかったときは index = -1
+    @objc func alert(_ call: CAPPluginCall) {
+        let title = call.getString("title")
+        let message = call.getString("message")
+        let sheet = call.getBool("sheet") ?? false
+        let buttons = call.getArray("buttons", JSObject.self) ?? []
+        DispatchQueue.main.async {
+            guard let vc = self.bridge?.viewController else { call.resolve(["index": -1]); return }
+            var top: UIViewController = vc
+            while let p = top.presentedViewController { top = p }
+            let ac = UIAlertController(title: title, message: (message?.isEmpty ?? true) ? nil : message,
+                                       preferredStyle: sheet ? .actionSheet : .alert)
+            var hasCancel = false
+            for (i, b) in buttons.enumerated() {
+                let label = b["label"] as? String ?? ""
+                let st: UIAlertAction.Style
+                switch b["style"] as? String {
+                case "cancel": st = .cancel; hasCancel = true
+                case "destructive": st = .destructive
+                default: st = .default
+                }
+                let action = UIAlertAction(title: label, style: st) { _ in call.resolve(["index": i]) }
+                ac.addAction(action)
+                if (b["preferred"] as? Bool) == true { ac.preferredAction = action }
+            }
+            if sheet && !hasCancel {
+                ac.addAction(UIAlertAction(title: "キャンセル", style: .cancel) { _ in call.resolve(["index": -1]) })
+            }
+            // iPad ではアクションシートを吹き出しで出す。出どころは画面の下の真ん中
+            if let pop = ac.popoverPresentationController, let v = vc.view {
+                pop.sourceView = v
+                pop.sourceRect = CGRect(x: v.bounds.midX, y: v.bounds.maxY - 80, width: 1, height: 1)
+                pop.permittedArrowDirections = []
+            }
+            top.present(ac, animated: true)
+        }
+    }
 
     @objc func requestReview(_ call: CAPPluginCall) {
         DispatchQueue.main.async {

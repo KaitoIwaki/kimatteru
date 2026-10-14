@@ -14,7 +14,8 @@ import { DOCS, EFFECTIVE, CONTACT, APP_NAME, APP_STORE_ID } from './docs';
 import { applyStatusBarTheme } from './statusbar';
 import { canImport, askCalendarAccess, checkCalendarAccess, readCalendarEvents, dedupe, diffImport, listImportCalendars, guessTypes, openAppSettings } from './calendarimport';
 import { listPhoneCalendars, readOverlay, ensureExportCalendar, syncExport, clearExport } from './iphonecal';
-import { lockInfo, authenticate, setShield, requestReview } from './native';
+import { lockInfo, authenticate, setShield, requestReview, canNativeAlert, nativeAlert } from './native';
+import { nativeTabBar, setTabBar, onTabTap } from './tabbar';
 import { syncInfo, readRemote, writeRemote, packForSync, mergeSync, onRemoteChange } from './sync';
 import { holidayName } from './holidays';
 import { syncShiftNotices, syncInfoNotices, unreadCount, sortNotices, relativeTime, KIND_SHIFT, currentNoteText } from './notices';
@@ -4666,7 +4667,7 @@ export default class App extends React.Component {
       if(canCopy) mRows.push({key:'copy', label:'コピー', fn:()=>this.openCopy(ev,st.returnTo)});
       mRows.push({key:'del', red:true, fn:()=>this.askDelete(ev.id),
         label: ev.status==='jisseki' ? 'この実績を削除' : 'この予定を削除'});
-      v.menuRows = mRows.map((r,i)=>({ label:r.label,
+      v.menuRows = mRows.map((r,i)=>({ label:r.label, red:!!r.red,
         // 押したらまず閉じる。開いたまま次の画面へ行くと、戻ったとき開いている
         onClick:()=>{ this.setState({detailMenu:false, pressed:null}); r.fn(); },
         onDown:()=>this.setPressed('menu:'+r.key), onUp:()=>this.setPressed(null),
@@ -4990,6 +4991,9 @@ export default class App extends React.Component {
   }
 
   componentDidMount() {
+    // 下のタブ（本物）が押されたら、Web のタブと同じ処理をする
+    onTabTap((tab) => { const v = this._v || {}; const fn = ({ month: v.onNavCal, free: v.onNavFree, report: v.onNavReport, settings: v.onNavSettings, add: v.onFab })[tab]; if (fn) fn(); });
+    setTimeout(() => this._syncTabBar(), 0);
     this._readSystemLook();
     this._applyTheme();
     // 入力欄に入ったらキーボードが出る。出ているあいだナビを隠す（navShown）。
@@ -5245,6 +5249,8 @@ export default class App extends React.Component {
   componentDidUpdate(prevProps, prevState, snap) {
     this._applyTheme();
     if (snap && snap.kind) this._navAnim(snap);
+    this._presentNativeAlert();
+    this._syncTabBar();
     if (snap && snap.skip) { const l=this._liveScreen(); if (l) l.style.visibility=''; }
     // 月の帯は、払っている間だけ指で直接ずらしている（_moveTrack）。描き直しのあとは、
     // 帯の位置を必ず state の位置に戻す。指を離した合図が届かなかったとき（途中でアプリを離れた など）、
@@ -5829,7 +5835,75 @@ export default class App extends React.Component {
 
   render() {
     const { v } = this.renderVals();
+    // iPhone では、確認の小窓は iPhone の本物（UIAlertController）を出す。Web の小窓は描かない
+    this._alertSpec = canNativeAlert() ? this._nativeAlertSpec(v) : null;
+    // iPhone では、下のタブも iPhone の本物（TabBar.swift）。Web のタブは描かない
+    if (nativeTabBar()) { this._navWanted = !!v.navShown; v.navShown = false; }
+    this._v = v;
+    if (this._alertSpec) { v.detailMenuShown = false; v.confirmShown = false; v.candAskShown = false; v.confirmJobShown = false; v.discardShown = false; v.repEditShown = false; }
     return renderApp(v);
+  }
+
+  /**
+   * いま出ている確認を、iPhone の確認画面の形（題・本文・ボタン）にする。無ければ null。
+   * key が変わったときだけ出し直す。ボタンを押したら、Web の小窓と同じ処理を呼ぶ
+   */
+  _nativeAlertSpec(v) {
+    const st = this.state;
+    // 予定の「···」は、iPhone の下から出る選択肢（アクションシート）
+    if (st.detailMenu && st.screen === 'detail' && (v.menuRows || []).length) return { key: 'menu:' + st.detailId, sheet: true, title: v.dTitle || '',
+      buttons: [ ...v.menuRows.map((m) => ({ label: m.label, style: m.red ? 'destructive' : 'default', run: m.onClick })),
+        { label: 'キャンセル', style: 'cancel', run: v.onCloseDetailMenu } ] };
+    if (st.confirmDelete) {
+      const btns = v.repDeleteShown
+        ? [ { label: 'この予定だけ削除', style: 'destructive', run: () => this.setState({ deleteRest: false }, () => this.doDelete()) },
+            { label: v.repDeleteLabel.replace('この日から先のくり返しも消す', 'この日から先も削除'), style: 'destructive', run: () => this.setState({ deleteRest: true }, () => this.doDelete()) } ]
+        : [ { label: '削除', style: 'destructive', run: () => this.doDelete() } ];
+      return { key: 'del:' + st.confirmDelete, title: v.confirmTitle, message: v.confirmBody,
+        buttons: [...btns, { label: 'キャンセル', style: 'cancel', run: v.onCancelDelete }] };
+    }
+    if (st.confirmRestore) {
+      const r = st.confirmRestore;
+      const btns = v.repDeleteShown
+        ? [ { label: '置き換えて戻す', style: 'destructive', run: () => this.setState(s => ({ confirmRestore: { ...s.confirmRestore, merge: false } }), () => this.doRestore()) },
+            { label: '足りない予定だけ足す', style: 'default', run: () => this.setState(s => ({ confirmRestore: { ...s.confirmRestore, merge: true } }), () => this.doRestore()) } ]
+        : [ { label: '戻す', style: 'destructive', run: () => this.doRestore() } ];
+      return { key: 'restore:' + (r.at || '') + ':' + r.count, title: v.confirmTitle, message: v.confirmBody,
+        buttons: [...btns, { label: 'キャンセル', style: 'cancel', run: v.onCancelDelete }] };
+    }
+    if (st.candAsk) return { key: 'cand:' + st.candAsk.title, title: v.candAskTitle, message: v.candAskBody,
+      buttons: [ { label: v.candAskYes, style: 'default', preferred: true, run: v.onCandYes }, { label: '残しておく', style: 'cancel', run: v.onCandNo } ] };
+    if (st.confirmJob) return { key: 'job:' + st.confirmJob, title: v.confirmJobText, message: v.confirmJobBody,
+      buttons: [ { label: '消す', style: 'destructive', run: v.onConfirmJob }, { label: 'キャンセル', style: 'cancel', run: v.onCancelJob } ] };
+    if (st.discardAsk && st.screen === 'new') return { key: 'discard', title: '書きかけの予定を捨てますか？', message: '入れた内容は保存されません。',
+      buttons: [ { label: '捨てる', style: 'destructive', run: v.onDiscardYes }, { label: '書きつづける', style: 'cancel', run: v.onDiscardNo } ] };
+    if (st.repEditAsk && st.screen === 'new') return { key: 'repedit', title: 'くり返しの予定です', message: 'どこまで変えますか？',
+      buttons: [ { label: 'この予定だけ', style: 'default', run: v.onRepEditOne }, { label: v.repEditRest, style: 'default', run: v.onRepEditRest },
+        { label: 'キャンセル', style: 'cancel', run: v.onRepEditCancel } ] };
+    return null;
+  }
+  /** 下のタブ（本物）を、いまの画面に合わせる。Web の覆い（確認・シートなど）が出ているあいだは隠す */
+  _syncTabBar() {
+    if (!nativeTabBar()) return;
+    const root = this._rootEl;
+    const overlay = !!root && [...root.querySelectorAll('[style*="inset: 0"]')].some((el) => (parseInt(el.style.zIndex, 10) || 0) >= 80);
+    const visible = !!this._navWanted && !overlay;
+    const selected = ({ month: 'month', free: 'free', report: 'report', settings: 'settings' })[this.state.screen] || '';
+    const dark = !!this._v && this._v.theme === 'dark';
+    const key = visible + '|' + selected + '|' + dark;
+    if (key === this._tbKey) return;
+    this._tbKey = key;
+    setTabBar({ visible, selected, dark });
+  }
+  async _presentNativeAlert() {
+    const sp = this._alertSpec;
+    if (!sp) { this._alertKey = null; return; }
+    if (this._alertKey === sp.key) return;
+    this._alertKey = sp.key;
+    const i = await nativeAlert({ title: sp.title, message: sp.message, buttons: sp.buttons, sheet: sp.sheet });
+    const b = sp.buttons[i] || sp.buttons.find((x) => x.style === 'cancel');
+    this._alertKey = null;
+    if (b && b.run) b.run();
   }
 }
 

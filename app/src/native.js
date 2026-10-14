@@ -32,6 +32,22 @@ export async function setShield(on) {
   try { await Native.setShield({ on: !!on }); } catch (e) { /* 無くても使える */ }
 }
 
+/** iPhone 標準の確認画面（sheet: true なら下から出る選択肢）を出せるか */
+export const canNativeAlert = () => there();
+
+/**
+ * iPhone 標準の確認画面を出す。押されたボタンの番号を返す（閉じた・出せないときは -1）。
+ * buttons: [{ label, style: 'default' | 'cancel' | 'destructive', preferred }]
+ */
+export async function nativeAlert({ title, message, buttons, sheet }) {
+  if (!there()) return -1;
+  try {
+    const r = await Native.alert({ title: title || '', message: message || '', sheet: !!sheet,
+      buttons: (buttons || []).map((b) => ({ label: b.label, style: b.style || 'default', preferred: !!b.preferred })) });
+    return typeof r.index === 'number' ? r.index : -1;
+  } catch (e) { return -1; }
+}
+
 /** App Store の星の小窓。出すかどうかは iPhone が決める（1年に3回まで） */
 export async function requestReview() {
   if (!there()) return false;
