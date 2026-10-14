@@ -15,3 +15,6 @@ SECRET_*.pem
 app/tools/*.p8
 *.p8
 app/tools/asc.local.json
+native/golden/out/
+native/golden/probe.mjs
+native/LUKKO.xcodeproj/
