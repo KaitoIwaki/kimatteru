@@ -108,6 +108,16 @@ a { color: #534AB7; }
 a:hover { color: #3C3489; }
 input { font-family: inherit; }
 
+/* ---- iPhone と同じ「押した手ごたえ」 ----
+   ボタンや押せる文字は、押しているあいだ薄くなり、離すとふわっと戻る（iOS のボタンと同じ）。
+   一覧の行（.ios-cell）は、薄くする代わりに行の地が沈む（iOS の表の行と同じ）。
+   スイッチは薄くしない。月のマス（指で払う所, data-nopress の中）も薄くしない */
+[role="button"]:not([style*="transition"]), [style*="cursor: pointer"]:not([style*="transition"]) { transition: opacity .22s ease; }
+[role="button"]:active, [style*="cursor: pointer"]:active { opacity: .45 !important; transition: none !important; }
+.ios-cell:active { opacity: 1 !important; background: var(--press) !important; }
+.ios-switch:active, [data-nopress] [style*="cursor: pointer"]:active { opacity: 1 !important; }
+/* 下から出る画面（シート）：iOS と同じ、下から一気に出て、ゆっくり止まる */
+@keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes riseUp { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes dlgIn { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }

@@ -719,6 +719,7 @@ export function renderApp(v) {
             className="month-scroll"
             ref={v.monthAreaRef}
             style={s(`flex:1;overflow-y:auto;overflow-x:hidden;padding:0 0 ${v.monthPadBottom} 0;display:flex;flex-direction:column`)}
+            data-nopress="1"
             onTouchStart={v.onMonthTouchStart}
             onTouchMove={v.onMonthTouchMove}
             onTouchEnd={v.onMonthTouchEnd}
@@ -860,6 +861,7 @@ export function renderApp(v) {
                   </svg>
                 </div>
                 <div
+                  className="ios-cell"
                   style={s(r.cardStyle || r.bodyStyle)}
                   onClick={r.onClick}
                   onTouchStart={r.onTouchStart}

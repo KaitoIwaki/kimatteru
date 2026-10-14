@@ -113,8 +113,9 @@ const APP_MARKETING = typeof __APP_MARKETING__ === 'string' ? __APP_MARKETING__ 
 // スイッチの見た目（設定のものと同じ）
 // スイッチのオンの色。前は墨（黒）で主張が強かった。カレンダーの予定の緑（セージ）にそろえる
 const TOGGLE_ON = '#7FAE85';
-const tgTrackOb = (on) => ({ width: 44, height: 26, borderRadius: 13, background: on ? TOGGLE_ON : 'var(--line)', padding: 2, transition: 'background .28s cubic-bezier(.2,.9,.2,1)', cursor: 'pointer', display: 'flex', flexShrink: 0 });
-const tgKnobOb = (on) => ({ width: 22, height: 22, borderRadius: 11, background: 'var(--card)', boxShadow: '0 1px 2px rgba(0,0,0,.25)', transition: 'transform .28s cubic-bezier(.2,.9,.2,1)', transform: on ? 'translateX(18px)' : 'translateX(0)' });
+// スイッチは iOS と同じ大きさ（51×31、つまみ 27）。色は LUKKO の緑のまま
+const tgTrackOb = (on) => ({ width: 51, height: 31, borderRadius: 16, boxSizing: 'border-box', background: on ? TOGGLE_ON : 'var(--line)', padding: 2, transition: 'background .25s ease', cursor: 'pointer', display: 'flex', flexShrink: 0 });
+const tgKnobOb = (on) => ({ width: 27, height: 27, borderRadius: 14, background: '#fff', boxShadow: '0 3px 8px rgba(0,0,0,.15), 0 1px 1px rgba(0,0,0,.16), 0 3px 1px rgba(0,0,0,.06)', transition: 'transform .35s cubic-bezier(.3,1.25,.55,1)', transform: on ? 'translateX(20px)' : 'translateX(0)' });
 import { shareCanvas, shareText, copyText, shareTextAndFile } from './shareimg';
 import { toIcs, parseIcs } from './ics';
 import { segmentsForDay, layoutColumns, allDayFor, weekStartNo } from './timegrid';
@@ -2215,7 +2216,7 @@ export default class App extends React.Component {
     const tg=(on)=>({track:tgTrackOb(!!on), knob:tgKnobOb(!!on), on:!!on});
     const seg=(items, cur, set)=>items.map(([k,label])=>({ label, sel:cur===k, onClick:()=>{ tapLight(); set(k); },
       style:{flex:1,textAlign:'center',padding:'7px 0',borderRadius:7,fontSize:12.5,whiteSpace:'nowrap',fontWeight:cur===k?700:500,cursor:'pointer',
-        background:cur===k?'var(--card)':'transparent',color:cur===k?'var(--ink)':'var(--ink-mut)',border:cur===k?'1px solid var(--line)':'1px solid transparent'} }));
+        background:cur===k?'var(--card)':'transparent',color:cur===k?'var(--ink)':'var(--ink-mut)',border:'1px solid transparent',boxShadow:cur===k?'0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04)':'none'} }));
     const setS=(k)=>(val)=>this.setSetting(k,val);
     // 時刻えらび（30分きざみ）。iPhone では <select> がホイールで開くので、それを使う
     v.timeOpts = Array.from({length:49},(_,i)=>({ value:i*30, label: i===48 ? '24:00' : this.fmtMin(i*30) }));
@@ -3213,7 +3214,7 @@ export default class App extends React.Component {
     v.settingsShown = st.screen==='settings';
     // 時給の入力は設定から外した。時給はバイト先ごとに決める。
     // settings.hourly は、バイト先を選んでいない昔の予定のための控えとして残してある。
-    const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:7,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',transition:'all .2s cubic-bezier(.2,.9,.2,1)',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+    const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:7,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',transition:'all .2s cubic-bezier(.2,.9,.2,1)',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:'1px solid transparent',boxShadow:sel?'0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04)':'none'});
     v.weekSeg=[[0,'日曜日'],[1,'月曜日']].map(([n,label])=>({ label, sel:cfg.weekStart===n, onClick:()=>this.setSetting('weekStart',n), style:segCell(cfg.weekStart===n) }));
     v.typeRows = st.types.map((t,i)=>({
       name:t.name, open: st.editTypeKey===t.key, hint: st.editTypeKey===t.key?'':'名前と色',
@@ -3355,7 +3356,7 @@ export default class App extends React.Component {
       v.repEmpty = spent.length===0;
       // 月と年でタブを分ける。1枚に全部並べると、バイトの人は 2.5 画面ぶんになる
       v.repTab = st.repTab || 'month';
-      const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:11,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',transition:'all .2s cubic-bezier(.2,.9,.2,1)',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+      const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:11,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',transition:'all .2s cubic-bezier(.2,.9,.2,1)',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:'1px solid transparent',boxShadow:sel?'0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04)':'none'});
       v.repSeg = [['month','月'],['year','年']].map(([key,label])=>({ label, style:segCell(v.repTab===key),
         onClick:()=>{ tapLight(); this.setState({repTab:key}); } }));
       const shiftMonth=(d)=>this.setState(s=>{ let m=s.ym.m+d, y=s.ym.y; if(m<0){m=11;y-=1;} if(m>11){m=0;y+=1;} return {ym:{y,m}}; });
@@ -3463,7 +3464,7 @@ export default class App extends React.Component {
       if(v.listShown){
         const tab = st.listTab || 'upcoming';
         v.listTab = tab;
-        const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:11,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+        const segCell=(sel)=>({flex:1,textAlign:'center',padding:'8px 0',borderRadius:11,fontSize:13,fontWeight:sel?700:500,cursor:'pointer',background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:'1px solid transparent',boxShadow:sel?'0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04)':'none'});
         v.listSeg = [['upcoming','これから'],['undecided','まだ'],['search','探す']].map(([k,label])=>({ label: k==='undecided' && v.undecidedCount ? `まだ ${v.undecidedCount}` : label,
           style:segCell(tab===k), onClick:()=>{ tapLight(); this.setState({listTab:k}); } }));
         v.onListBack = ()=>this.setState({screen:'month'});
@@ -3627,7 +3628,7 @@ export default class App extends React.Component {
             style:{padding:'8px 12px',borderRadius:12,cursor:'pointer',flexShrink:0,display:'flex',flexDirection:'column',alignItems:'center',gap:1,
               background:sel?'var(--ink)':'var(--card)', color:sel?'var(--card)':'var(--ink)', border:'1px solid '+(sel?'var(--ink)':'var(--line)')} }; });
         const segs=(sel)=>({flex:1,textAlign:'center',padding:'6px 0',borderRadius:8,fontSize:12.5,fontWeight:sel?700:500,cursor:'pointer',whiteSpace:'nowrap',
-          background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+          background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:'1px solid transparent',boxShadow:sel?'0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04)':'none'});
         v.stampSeg=[['kakutei','決まってる'],['mikakutei','希望（点線）']].map(([k,label])=>({label, style:segs(st.stamp.status===k), onClick:()=>{ tapLight(); this.setState(s=>({stamp:{...s.stamp,status:k}})); }}));
         v.onConfirmMonthShifts = ()=>this.confirmMonthShifts();
         v.stampMonthLabel = `${st.ym.m+1}月の希望をまとめて確定`;
@@ -3785,7 +3786,7 @@ export default class App extends React.Component {
     v.calView = calView;
     {
       const seg=(sel)=>({padding:'4px 12px',borderRadius:7,fontSize:12,whiteSpace:'nowrap',fontWeight:sel?700:500,cursor:'pointer',
-        background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+        background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:'1px solid transparent',boxShadow:sel?'0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04)':'none'});
       v.viewSeg=[['month','月'],['week','週']].map(([k,label])=>({label, style:seg(calView===k),
         onClick:()=>{ tapLight(); this.setState(s=>({settings:{...s.settings, calView:k}, weekAnchor:null})); }}));
     }
@@ -3985,7 +3986,7 @@ export default class App extends React.Component {
       const dview = st.settings.dayView==='time' ? 'time' : 'list';
       v.dayView = dview;
       const seg=(sel)=>({padding:'4px 12px',borderRadius:7,fontSize:12,whiteSpace:'nowrap',fontWeight:sel?700:500,cursor:'pointer',
-        background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:sel?'1px solid var(--line)':'1px solid transparent'});
+        background:sel?'var(--card)':'transparent',color:sel?'var(--ink)':'var(--ink-mut)',border:'1px solid transparent',boxShadow:sel?'0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04)':'none'});
       v.daySeg=[['list','一覧'],['time','時間']].map(([k,label])=>({label, style:seg(dview===k),
         onClick:()=>{ tapLight(); this.setState(s=>({settings:{...s.settings, dayView:k}})); }}));
       if(dview==='time'){
@@ -4540,7 +4541,7 @@ export default class App extends React.Component {
     v.seg=[['kakutei',dt.cLabel||'決まってる'],['mikakutei',dt.uLabel||'まだ不確定']].map(([k,label])=>{ const sel=dr.status===k;
       return { label, onClick:()=>this.setState(s=>({draft:{...s.draft,status:k}})),
         style:{flex:1,textAlign:'center',padding:'9px 0',borderRadius:11,fontSize:14,fontWeight:sel?700:500,cursor:'pointer',transition:'all .25s cubic-bezier(.2,.9,.2,1)',
-          background:sel?'var(--card)':'transparent', color:sel?'var(--ink)':'var(--ink-mut)', border:sel?'1px solid var(--line)':'1px solid transparent'} }; });
+          background:sel?'var(--card)':'transparent', color:sel?'var(--ink)':'var(--ink-mut)', border:'1px solid transparent',boxShadow:sel?'0 3px 8px rgba(0,0,0,.12), 0 3px 1px rgba(0,0,0,.04)':'none'} }; });
 
     // 3マスのプレビューはやめ、説明の1行だけ残した（作成画面を短くするため）
     v.previewExplain = dr.status==='mikakutei' ? dt.uWord+'として、点線で置かれます' : dt.cWord+'として、塗りで置かれます';

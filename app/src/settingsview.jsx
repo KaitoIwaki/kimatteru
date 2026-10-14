@@ -30,7 +30,7 @@ function Row({ label, sub, right, onClick, last, chevron, value, danger, keep })
   // 値のある行は、名前に半分の幅を残して、長い値のほうを「…」で切る（文字を大きくしたとき、名前が2行に折れていた）
   const hold = keep || (value != null && value !== '');
   return (
-    <div style={s(`position:relative;display:flex;align-items:center;gap:12px;${ROWPAD};${onClick ? 'cursor:pointer;' : ''}`)} onClick={onClick}>
+    <div className={onClick ? 'ios-cell' : undefined} style={s(`position:relative;display:flex;align-items:center;gap:12px;${ROWPAD};${onClick ? 'cursor:pointer;' : ''}`)} onClick={onClick}>
       <span style={s(`display:flex;flex-direction:column;gap:1px;min-width:${hold ? `min(50%, ${String(label).length + 0.5}em)` : '0'};flex:1;padding:10px 0`)}>
         <span style={s(danger ? LABEL + ';color:#A8452B' : LABEL)}>{label}</span>
         {!!sub && <span style={s('font-size:11px;color:var(--ink-mut);text-wrap:pretty;line-height:1.5')}>{sub}</span>}
@@ -43,7 +43,7 @@ function Row({ label, sub, right, onClick, last, chevron, value, danger, keep })
   );
 }
 function Toggle({ t, onClick }) {
-  return <span style={s('flex-shrink:0;display:flex')}><div style={s(t.track)} onClick={(e) => { e.stopPropagation(); onClick(); }}><div style={s(t.knob)} /></div></span>;
+  return <span style={s('flex-shrink:0;display:flex')}><div className="ios-switch" style={s(t.track)} onClick={(e) => { e.stopPropagation(); onClick(); }}><div style={s(t.knob)} /></div></span>;
 }
 /** 押すとメニューが出る行。items は { label, sel, onClick } */
 // 選ぶ行。押すと iPhone 標準の選び方（ホイール）が出る。時刻と同じく、行の上に見えない <select> を重ねてある。
@@ -91,7 +91,7 @@ function LinkRow({ href, label, value, last, blank }) {
 /** 左に小さな絵の付いた行。href があれば外へのリンク */
 function IconRow({ icon, label, onClick, href, last, value }) {
   const body = (
-    <div style={s(`position:relative;display:flex;align-items:center;gap:12px;${ROWPAD};cursor:pointer`)} onClick={onClick}>
+    <div className="ios-cell" style={s(`position:relative;display:flex;align-items:center;gap:12px;${ROWPAD};cursor:pointer`)} onClick={onClick}>
       <span style={s('width:28px;height:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center')}>{icon}</span>
       <span style={s(LABEL + ';flex:1;padding:12px 0')}>{label}</span>
       {value != null && value !== '' && <span style={s(VALUE)}>{value}</span>}
@@ -114,7 +114,9 @@ function TimeSel({ value, onChange, opts }) {
 function Sheet({ title, onClose, children }) {
   return (
     <div style={s('position:absolute;inset:0;z-index:92;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:flex-end;justify-content:center;animation:scrimIn .2s ease')} onClick={onClose}>
-      <div style={s('width:100%;max-height:82%;overflow-y:auto;background:var(--bg);border-radius:20px 20px 0 0;padding:18px 16px 34px;animation:riseUp .26s cubic-bezier(.2,.9,.2,1)')} onClick={(e) => e.stopPropagation()}>
+      <div style={s('width:100%;max-height:82%;overflow-y:auto;background:var(--bg);border-radius:28px 28px 0 0;padding:8px 16px 34px;animation:sheetIn .42s cubic-bezier(.32,.72,0,1)')} onClick={(e) => e.stopPropagation()}>
+        {/* 上のつまみ（iOS のシートと同じ） */}
+        <div style={s('width:36px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 12px')} />
         <div style={s('display:flex;align-items:center;justify-content:space-between;margin:0 4px 14px')}>
           <span style={s('font-size:14px;font-weight:600;color:var(--ink)')}>{title}</span>
           <span role="button" style={s('font-size:14px;color:var(--ink-mut);cursor:pointer;padding:4px')} onClick={onClose}>閉じる</span>
