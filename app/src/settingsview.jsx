@@ -586,7 +586,7 @@ export function Settings({ v }) {
   }, [page]);
   const Page = { support: SupportPage, display: DisplayPage, free: FreePage, notify: NotifyPage, wage: WagePage, iphone: IphonePage, data: DataPage, help: HelpPage, types: TypesPage, work: WorkPage, jobs: JobsPage, leave: LeavePage, overlay: OverlayPage, backup: BackupPage, files: FilesPage }[page];
   return (
-    <div ref={rootRef} style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
+    <div ref={rootRef} data-screen="settings" style={s('position:relative;display:flex;flex-direction:column;height:100%;background:var(--bg)')}>
       {Page ? (
         <div className="scr-head-solo" style={s('padding:0 12px 10px;display:flex;align-items:center;gap:4px;position:relative')}>
           <span role="button" aria-label="設定へ戻る" style={s('display:flex;align-items:center;gap:2px;font-size:14px;color:var(--ink-mut);cursor:pointer;padding:6px 4px;flex-shrink:0')} onClick={v.onSetBack}><span style={s('font-size:24px;line-height:1')}>‹</span>{page === 'support' ? '' : (v.setBackLabel || '設定')}</span>
@@ -600,7 +600,7 @@ export function Settings({ v }) {
       )}
       <div data-set-scroll="1" key={page || 'main'} ref={scRef}
         onScroll={(e) => { if (!Page) SAVED.main = e.currentTarget.scrollTop; }}
-        style={s(`flex:1;overflow-y:auto;padding:12px 16px 110px;${Page ? 'animation:slideFromRight .24s cubic-bezier(.2,.9,.2,1)' : ''}`)}>
+        style={s(`flex:1;overflow-y:auto;padding:12px 16px 110px;`)}>
         {Page ? <Page v={v} /> : <Main v={v} />}
       </div>
 
@@ -610,7 +610,7 @@ export function Settings({ v }) {
         const look = TIP_LOOK[v.tipThanksId] || { title: '応援', icon: 'heart' };
         return (
           <div style={s('position:fixed;inset:0;z-index:400;background:rgba(20,20,22,.36);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .22s ease')} onClick={v.onTipThanksClose}>
-            <div style={s('width:100%;max-width:320px;background:var(--bg);border-radius:22px;padding:26px 22px 18px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28);animation:dlgIn .32s cubic-bezier(.2,.9,.2,1)')} onClick={(e) => e.stopPropagation()}>
+            <div className="ios-alert" style={s('width:100%;max-width:320px;background:var(--bg);border-radius:22px;padding:26px 22px 18px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28);animation:dlgIn .32s cubic-bezier(.2,.9,.2,1)')} onClick={(e) => e.stopPropagation()}>
               <img src={sproutImg} alt="" style={{ display: 'block', width: 96, height: 'auto', margin: '0 auto 14px' }} />
               <div style={s(`font-family:${ROUND};font-size:21px;color:var(--ink);line-height:1.5`)}>応援、<br />ありがとうございます！</div>
               <div style={s('display:inline-flex;align-items:center;gap:8px;margin:14px 0 20px;padding:7px 14px;border-radius:999px;background:var(--card)')}>
@@ -704,7 +704,7 @@ export function Settings({ v }) {
       {/* ===== 勤務先を消す確認 ===== */}
       {v.confirmJobShown && (
         <div style={s('position:absolute;inset:0;z-index:93;background:rgba(20,20,22,.42);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;padding:24px;animation:scrimIn .2s ease')} onClick={v.onCancelJob}>
-          <div style={s('width:100%;max-width:300px;background:var(--card);border-radius:16px;padding:22px 20px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={(e) => e.stopPropagation()}>
+          <div className="ios-alert" style={s('width:100%;max-width:300px;background:var(--card);border-radius:16px;padding:22px 20px 14px;box-shadow:0 24px 60px rgba(0,0,0,.35);animation:dlgIn .28s cubic-bezier(.2,.9,.2,1)')} onClick={(e) => e.stopPropagation()}>
             <div style={s('font-size:16px;color:var(--ink);text-align:center;text-wrap:balance')}>{v.confirmJobText}</div>
             <div style={s('font-size:13px;color:var(--ink-mut);text-align:left;margin:10px 0 18px;line-height:1.7;white-space:pre-line')}>{v.confirmJobBody}</div>
             <div style={s('display:flex;flex-direction:column;gap:8px')}>

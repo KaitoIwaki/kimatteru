@@ -118,6 +118,16 @@ input { font-family: inherit; }
 .ios-switch:active, [data-nopress] [style*="cursor: pointer"]:active { opacity: 1 !important; }
 /* 下から出る画面（シート）：iOS と同じ、下から一気に出て、ゆっくり止まる */
 @keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+/* ---- 確認の小窓（アラート）：iOS 26 の形 ----
+   角の大きい丸、題は太め、ボタンは丸い札（取り消しは灰色の札、削除は赤い字、決めるは墨の札）。出るときは少し大きい所から縮んで止まる */
+@keyframes alertIn { from { transform: scale(1.12); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.ios-alert { border-radius: 30px !important; animation: alertIn .3s cubic-bezier(.32,.72,0,1) !important; box-shadow: 0 30px 80px rgba(0,0,0,.28) !important; }
+.ios-alert > div:first-child { font-size: 17px !important; font-weight: 600 !important; }
+.ios-alert [style*="text-align: center"][style*="cursor: pointer"] { border-radius: 999px !important; }
+.ios-alert [style*="text-align: center"][style*="cursor: pointer"]:not([style*="background"]) { background: var(--bg2); color: var(--ink) !important; padding: 13px !important; font-size: 15px !important; }
+.ios-alert [style*="text-align: center"][style*="cursor: pointer"][style*="rgb(168, 69, 43)"] { background: var(--bg2) !important; border-color: transparent !important; }
+/* メニュー（「···」など）：すりガラスで、押した所の角から広がる */
+@keyframes menuIn { from { transform: scale(.35); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes riseUp { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 @keyframes dlgIn { from { transform: scale(.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }

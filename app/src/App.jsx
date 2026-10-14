@@ -3964,12 +3964,41 @@ export default class App extends React.Component {
         { const moved = !/translateX\(0px\)/.test(r.bodyStyle.transform||'') || !!r.bodyStyle.transition && r.bodyStyle.transition!=='none';
           r.wrapStyle = {...r.wrapStyle, borderRadius:16}; r.delWrapStyle = {...r.delWrapStyle, visibility: moved ? 'visible' : 'hidden'}; }
         r.titlePlain = ev.title;
+       // 長押しで、iPhone と同じメニュー（開く・編集・削除）。指が動いたら（横に払って消す・縦に送る）出さない
+       { const s0=r.onTouchStart, m0=r.onTouchMove, e0=r.onTouchEnd, c0=r.onTouchCancel, k0=r.onClick;
+         const stop=()=>{ const g=this._lp; if(g){ clearTimeout(g.timer); } this._lp=null; return g; };
+         r.onTouchStart=(e)=>{ if(s0) s0(e); const t=e.touches&&e.touches[0]; if(!t) return; stop();
+           const el=e.currentTarget;
+           this._lp={x:t.clientX, y:t.clientY, timer:setTimeout(()=>{ if(!this._lp) return; this._lp.fired=true; stampHeavy();
+             const rc=el.getBoundingClientRect(); this.setState({ctxMenu:{id:ev.id, top:rc.top, bottom:rc.bottom}, swipeRow:null}); }, 450)}; };
+         r.onTouchMove=(e)=>{ if(m0) m0(e); const g=this._lp, t=e.touches&&e.touches[0]; if(g && !g.fired && t && (Math.abs(t.clientX-g.x)>8 || Math.abs(t.clientY-g.y)>8)) stop(); };
+         r.onTouchEnd=(e)=>{ const g=stop(); if(g && g.fired) this._lpAt=Date.now(); if(e0) e0(e); };
+         r.onTouchCancel=(e)=>{ stop(); if(c0) c0(e); };
+         r.onClick=(e)=>{ if(this._lpAt && Date.now()-this._lpAt<600) return; if(k0) k0(e); };
+         r.onOpenPlain=k0; }
         r.cardStyle = {display:'flex',alignItems:'stretch',gap:0,background:'var(--card)',borderRadius:16,
           border: ev.status==='mikakutei' ? '1.5px dashed '+this.softLine(t.color) : '1px solid var(--line)',
           boxShadow:'0 1px 2px rgba(0,0,0,.03)',cursor:'pointer',position:'relative',overflow:'hidden',
           transform:r.bodyStyle.transform, transition:r.bodyStyle.transition, touchAction:'pan-y'};
       });
       v.onDayAdd = ()=>this.openNew(d,'day');
+      // 長押しのメニュー
+      { const cm=st.ctxMenu; const ev=cm && evs.find(e=>e.id===cm.id);
+        v.ctxShown = !!ev;
+        if(ev){ const r=v.dayEvents.find(x=>x.key===ev.id)||{};
+          const H=(typeof window!=='undefined'?window.innerHeight:800);
+          // 予定の札の下にメニュー。下が足りなければ上に出す
+          const below = cm.bottom + 10 + 160 < H - 20;
+          v.ctxPreview = { title: ev.title, time: r.startText ? (r.startText + (r.endText ? '–'+r.endText : '')) : '', accent: r.accent };
+          v.ctxStyle = below ? {top: Math.max(60, cm.top - 4)} : {bottom: Math.max(20, H - cm.bottom - 4)};
+          v.ctxBelow = below;
+          const close=()=>this.setState({ctxMenu:null});
+          v.onCtxClose = close;
+          v.ctxItems = [
+            { key:'open', label:'開く', icon:'open', onClick:()=>{ close(); if(r.onOpenPlain) r.onOpenPlain(); } },
+            { key:'edit', label:'編集', icon:'edit', onClick:()=>{ close(); this.openEdit(ev,'day'); } },
+            { key:'del', label:'削除', icon:'del', red:true, onClick:()=>{ close(); this.askDelete(ev.id); } },
+          ]; } }
       // 時間を決めずに、その日にすること（終日の予定）を入れる
       v.onDayAddAllDay = ()=>this.openNew(d,'day',{allDay:true});
       // 重ねて表示している iPhone のカレンダーの予定（直すのは元のアプリで）
@@ -3980,7 +4009,8 @@ export default class App extends React.Component {
       const stepDay=(k)=>{ tapLight(); const o=fromDayNo(dn+k); this.setState({ym:{y:o.y,m:o.m}, dayNum:o.d, swipeRow:null, dayDir:k}); };
       v.onDayPrev = ()=>stepDay(-1);
       v.onDayNext = ()=>stepDay(1);
-      v.dayAnim = st.dayDir ? (st.dayDir>0?'slideFromRight':'slideFromLeft')+' .22s cubic-bezier(.2,.9,.2,1)' : 'slideIn .28s cubic-bezier(.2,.9,.2,1)';
+      // 日を送ったときだけ滑らせる。日の画面に入るときの動きは、画面の出入り（_navAnim）がやる
+      v.dayAnim = st.dayDir ? (st.dayDir>0?'slideFromRight':'slideFromLeft')+' .22s cubic-bezier(.2,.9,.2,1)' : 'none';
       v.dayKey = String(dn);
       // 一覧｜時間。時間は目盛りの上に箱で置く。何もない時間を押すと、その時刻から予定を作る
       const dview = st.settings.dayView==='time' ? 'time' : 'list';
@@ -4640,15 +4670,16 @@ export default class App extends React.Component {
         // 押したらまず閉じる。開いたまま次の画面へ行くと、戻ったとき開いている
         onClick:()=>{ this.setState({detailMenu:false, pressed:null}); r.fn(); },
         onDown:()=>this.setPressed('menu:'+r.key), onUp:()=>this.setPressed(null),
-        style:{display:'flex',alignItems:'center',padding:'15px 18px',cursor:'pointer',
-          fontSize:14.5, color: r.red ? '#A8452B' : 'var(--ink)',
+        style:{display:'flex',alignItems:'center',padding:'13px 18px',cursor:'pointer',
+          fontSize:16, color: r.red ? '#C4402F' : 'var(--ink)',
           ...(i ? {borderTop:'1px solid var(--line)'} : {}),
           ...(st.pressed==='menu:'+r.key ? {background:'var(--press)'} : {})} }));
       // 「…」の真下から生える。安全域ぶん下げてから、見出しの高さ（52）を足す
       v.menuStyle = {position:'absolute', right:14, top:'calc(env(safe-area-inset-top) + 52px)',
-        minWidth:196, zIndex:90, background:'var(--card)', border:'1px solid var(--line)',
-        borderRadius:13, overflow:'hidden', boxShadow:'0 14px 34px rgba(0,0,0,.16)',
-        transformOrigin:'top right', animation:'dlgIn .16s cubic-bezier(.2,.9,.2,1)'};
+        // iOS のメニューと同じ：すりガラス、角の大きい丸、押した所の角から広がる
+        minWidth:220, zIndex:90, background:'var(--glass-nav)', WebkitBackdropFilter:'blur(30px) saturate(180%)', backdropFilter:'blur(30px) saturate(180%)', border:'1px solid var(--glass-rim)',
+        borderRadius:22, overflow:'hidden', boxShadow:'0 20px 50px rgba(0,0,0,.22)',
+        transformOrigin:'top right', animation:'menuIn .34s cubic-bezier(.32,1.15,.5,1)'};
       v.onEdit=()=>this.openEdit(ev,st.returnTo);
       v.onDelete=()=>this.askDelete(ev.id);
 
@@ -4916,14 +4947,26 @@ export default class App extends React.Component {
     { const back={ day:v.onDayBack, detail:v.onBack, new:v.onCancel, list:v.onListBack, notices:v.onNoticesBack,
         import:v.onImportBack, doc:v.onDocBack, card:v.onCardBack, summary:v.onSummaryClose, share:v.onShareClose,
         settings: st.setPage ? ()=>this.setState(s=>({setPage:SET_PARENT[s.setPage]||null, editTypeKey:null, editJobId:null, typeDelete:null, newType:null})) : undefined }[st.screen];
-      const blocked = !!(st.dialog || st.confirmDelete || st.confirmRestore || st.ymSheet || st.discardAsk || st.repEditAsk || st.somedayPick
+      const blocked = !!((st.screen==='day' && st.ctxMenu) || st.dialog || st.confirmDelete || st.confirmRestore || st.ymSheet || st.discardAsk || st.repEditAsk || st.somedayPick
         || st.confirmJob || st.tplNew || st.backupListOpen || st.trashOpen || st.profileSheet);
-      v.onEdgeStart = (e)=>{ const t=e.touches&&e.touches[0]; if(!t || !back || blocked) { this._edge=null; return; }
+      // 左の端からなぞると、画面が指についてくる。下には前の画面（入ったときに取っておいた写し）が少し遅れて見える。
+      // 3分の1を越えるか、勢いよく払えば戻る。足りなければ元へ戻る（iPhone と同じ）
+      // 新しい予定の画面は下から出る画面なので、指にはつけず、なぞりきったら閉じるだけ（前と同じ）
+      const modal = st.screen==='new';
+      v.onEdgeStart = (e)=>{ const t=e.touches&&e.touches[0]; if(!t || !back || blocked || this._navBusy) { this._edge=null; return; }
         const box=e.currentTarget.getBoundingClientRect(); const x=t.clientX-box.left;
-        this._edge = x<22 ? {x:t.clientX, y:t.clientY} : null; };
+        this._edge = x<22 ? {x:t.clientX, y:t.clientY, t:Date.now(), drag:false} : null; };
+      v.onEdgeMove = (e)=>{ const g=this._edge, t=e.touches&&e.touches[0]; if(!g||!t||modal) return;
+        const dx=t.clientX-g.x, dy=t.clientY-g.y;
+        if(!g.drag){ if(Math.abs(dy)>12 && Math.abs(dy)>Math.abs(dx)) { this._edge=null; return; } if(dx<8) return; g.drag=this._edgeBegin(); if(!g.drag){ this._edge=null; return; } }
+        g.lastX=t.clientX; g.lastT=Date.now(); this._edgeMove(Math.max(0,dx)); };
       v.onEdgeEnd = (e)=>{ const t=e.changedTouches&&e.changedTouches[0]; const g=this._edge; this._edge=null;
         if(!g || !t || !back) return; const dx=t.clientX-g.x, dy=Math.abs(t.clientY-g.y);
-        if(dx>70 && dy<70){ tapLight(); back(); } }; }
+        if(g.drag){ const w=(this._rootEl&&this._rootEl.clientWidth)||375; const dt=Math.max(1,Date.now()-(g.lastT||g.t)); const vel=(t.clientX-(g.lastX||g.x))/dt;
+          this._edgeFinish(dx>w/3 || vel>0.5, ()=>{ tapLight(); back(); }); return; }
+        if(dx>70 && dy<70){ tapLight(); back(); } };
+      v.onEdgeCancel = ()=>{ const g=this._edge; this._edge=null; if(g&&g.drag) this._edgeFinish(false); }; }
+    v.rootRef = (el)=>{ this._rootEl = el; };
     // 月の見出しの詰め方。1行に「‹ 10月 2026 › 今日 🔍 ≡ 🔔」を置くと、375 の幅でちょうど足りない。
     // 前は折り返し禁止も無く、2桁の月や「今日」が出ると「10／月」「今／日」と縦に折れていた。
     // 文字を大きくすると（画面ごと拡大）使える幅が 375→300 に減るので、どの月でも折れていた。
@@ -5099,8 +5142,110 @@ export default class App extends React.Component {
     if (this._settle) clearTimeout(this._settle);
   }
 
-  componentDidUpdate(prevProps, prevState) {
+  // ---------- 画面の出入り（iPhone と同じ動き） ----------
+  // 進む：新しい画面が右から入り、前の画面は少し遅れて左へ（暗くなる）。戻る：その逆。
+  // 新しい予定の画面だけは下から出て、下へ閉じる。下のタブを切り替えたときは動かさない。
+  // React は前の画面をすぐ消すので、消える前に写し（cloneNode）を取り、それを動かす。
+  // 進んだときの写しは取っておき、左の端からなぞって戻るときに下に敷く
+  _navKey(st){ const sc=st.screen; return sc==='settings' ? (st.setPage ? 'settings:'+st.setPage : 'settings') : sc; }
+  _navRoot(k){ return k==='month'||k==='free'||k==='report'||k==='settings'; }
+  getSnapshotBeforeUpdate(prevProps, prevState){
+    const a=this._navKey(prevState), b=this._navKey(this.state);
+    if(a===b) return null;
+    const hist=this._navHist||(this._navHist=[a]);
+    if(hist[hist.length-1]!==a) hist.push(a);
+    let kind=null;
+    if(b==='new') kind='present';
+    else if(a==='new'){ kind='dismiss'; const i=hist.lastIndexOf(b); if(i>=0) hist.length=i+1; else hist.push(b); }
+    else { const i=hist.lastIndexOf(b);
+      if(i>=0){ kind='pop'; hist.length=i+1; }
+      else if(this._navRoot(b)){ kind=null; hist.length=0; hist.push(b); }
+      else { kind='push'; hist.push(b); } }
+    if(this._skipNav){ this._skipNav=false; return {skip:true}; }
+    if(!kind) return null;
+    const scr=this._liveScreen();
+    if(!scr) return null;
+    const scrolls=[]; scr.querySelectorAll('*').forEach((el,i)=>{ if(el.scrollTop||el.scrollLeft) scrolls.push([i,el.scrollTop,el.scrollLeft]); });
+    return { kind, clone:scr.cloneNode(true), scrolls, from:a };
+  }
+  _placeClone(clone, scrolls, z){
+    if(clone.removeAttribute) clone.removeAttribute('data-screen');
+    Object.assign(clone.style,{position:'absolute', left:'0', top:'0', width:'100%', height:'100%', background:'var(--bg)', pointerEvents:'none', zIndex:String(z), transform:'', filter:'', boxShadow:''});
+    this._rootEl.appendChild(clone);
+    const all=clone.querySelectorAll('*'); (scrolls||[]).forEach(([i,t,l])=>{ if(all[i]){ all[i].scrollTop=t; all[i].scrollLeft=l; } });
+  }
+  _liveScreen(){ const r=this._rootEl; return r && r.querySelector(':scope > [data-screen]'); }
+  _liftLive(live, z){ const keep={position:live.style.position, zIndex:live.style.zIndex, background:live.style.background, boxShadow:live.style.boxShadow};
+    Object.assign(live.style,{position:'relative', zIndex:String(z), background:'var(--bg)'}); return keep; }
+  _navAnim(snap){
+    const live=this._liveScreen(); if(!live || !live.animate || !this._rootEl) return;
+    (this._navAnims||[]).forEach(an=>{ try{ an.finish(); }catch(e){} });
+    const {kind, clone, scrolls, from}=snap;
+    const D=(kind==='present'||kind==='dismiss') ? 460 : 420, E='cubic-bezier(.32,.72,0,1)';
+    const over = kind==='pop' || kind==='dismiss';
+    this._placeClone(clone, scrolls, over ? 3 : 1);
+    const keep=this._liftLive(live, over ? 1 : 2);
+    const sh='-8px 0 24px rgba(0,0,0,.12)';
+    const fr={
+      push:   [[{transform:'translateX(100%)',boxShadow:sh},{transform:'translateX(0)',boxShadow:sh}], [{transform:'translateX(0)',filter:'brightness(1)'},{transform:'translateX(-30%)',filter:'brightness(.92)'}]],
+      pop:    [[{transform:'translateX(-30%)',filter:'brightness(.92)'},{transform:'translateX(0)',filter:'brightness(1)'}], [{transform:'translateX(0)',boxShadow:sh},{transform:'translateX(100%)',boxShadow:sh}]],
+      present:[[{transform:'translateY(100%)'},{transform:'translateY(0)'}], [{filter:'brightness(1)'},{filter:'brightness(.9)'}]],
+      dismiss:[[{filter:'brightness(.9)'},{filter:'brightness(1)'}], [{transform:'translateY(0)'},{transform:'translateY(100%)'}]],
+    }[kind];
+    this._navBusy=true;
+    const a1=live.animate(fr[0],{duration:D,easing:E}), a2=clone.animate(fr[1],{duration:D,easing:E});
+    this._navAnims=[a1,a2];
+    const done=()=>{
+      if(done.ran) return; done.ran=true;
+      this._navBusy=false;
+      Object.assign(live.style, keep);
+      clone.remove();
+      // 進んだときの写しは、なぞって戻るときのために取っておく（5枚まで）
+      if(kind==='push'){ const m=this._navSnaps||(this._navSnaps={}); delete m[from]; m[from]={node:clone, scrolls}; const ks=Object.keys(m); if(ks.length>5) delete m[ks[0]]; }
+    };
+    a2.onfinish=done; a2.oncancel=done;
+  }
+  // 左の端からなぞって戻る：指についていく
+  _edgeBegin(){
+    const live=this._liveScreen(); if(!live || !this._rootEl) return false;
+    const hist=this._navHist||[]; const to=hist.length>1 ? hist[hist.length-2] : null;
+    const snap=to && this._navSnaps && this._navSnaps[to];
+    const under = snap ? snap.node : document.createElement('div');
+    this._placeClone(under, snap ? snap.scrolls : null, 1);
+    const keep=this._liftLive(live, 2); live.style.boxShadow='-8px 0 24px rgba(0,0,0,.12)';
+    this._edgeDrag={live, under, keep, w:this._rootEl.clientWidth||375};
+    this._edgeMove(0);
+    return true;
+  }
+  _edgeMove(dx){ const d=this._edgeDrag; if(!d) return; const p=Math.min(1,dx/d.w);
+    d.live.style.transform=`translateX(${dx}px)`;
+    d.under.style.transform=`translateX(${-30*(1-p)}%)`; d.under.style.filter=`brightness(${.92+.08*p})`; }
+  _edgeFinish(go, onBack){
+    const d=this._edgeDrag; this._edgeDrag=null; if(!d) return;
+    const E='cubic-bezier(.2,.8,.3,1)', D=go?240:260;
+    const fromL=d.live.style.transform||'translateX(0)', fromU=d.under.style.transform||'translateX(-30%)';
+    const a1=d.live.animate([{transform:fromL},{transform:go?`translateX(${d.w}px)`:'translateX(0)'}],{duration:D,easing:E,fill:'forwards'});
+    d.under.animate([{transform:fromU},{transform:go?'translateX(0)':'translateX(-30%)'}],{duration:D,easing:E,fill:'forwards'});
+    this._navBusy=true;
+    a1.onfinish=()=>{
+      this._navBusy=false;
+      const clear=(el)=>{ el.getAnimations().forEach(an=>an.cancel()); el.style.transform=''; el.style.filter=''; };
+      if(go){
+        // 戻る。描き直したあとの新しい画面が出たら、写しを外す
+        this._skipNav=true;
+        clear(d.live); Object.assign(d.live.style, d.keep); d.live.style.visibility='hidden';
+        if(onBack) onBack();
+        setTimeout(()=>{ this._skipNav=false; clear(d.under); d.under.remove(); const l=this._liveScreen(); if(l) l.style.visibility=''; }, 50);
+      } else {
+        clear(d.live); Object.assign(d.live.style, d.keep); clear(d.under); d.under.remove();
+      }
+    };
+  }
+
+  componentDidUpdate(prevProps, prevState, snap) {
     this._applyTheme();
+    if (snap && snap.kind) this._navAnim(snap);
+    if (snap && snap.skip) { const l=this._liveScreen(); if (l) l.style.visibility=''; }
     // 月の帯は、払っている間だけ指で直接ずらしている（_moveTrack）。描き直しのあとは、
     // 帯の位置を必ず state の位置に戻す。指を離した合図が届かなかったとき（途中でアプリを離れた など）、
     // 帯が隣の月を見せたままになり、見えている月と選んでいる月がずれていた
