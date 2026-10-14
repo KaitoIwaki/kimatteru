@@ -21,3 +21,4 @@ export * as widgetdata from '../../app/src/widgetdata.js';
 export * as sync from '../../app/src/sync.js';
 export * as notices from '../../app/src/notices.js';
 export * as eventctx from '../../app/src/eventctx.js';
+export * as iphonecal from '../../app/src/iphonecal.js';

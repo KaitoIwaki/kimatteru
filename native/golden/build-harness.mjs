@@ -10,10 +10,12 @@ const stub = { name: 'stub', setup(b) {
   b.onResolve({ filter: /^@capacitor\/|^@capgo\/|native-purchases|capacitor-/ }, (a) => ({ path: a.path, namespace: 'stub' }));
   b.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({ contents: `
     const plug = new Proxy({}, { get: (t, k) => k === 'then' ? undefined : (async () => ({})) });
-    export const Capacitor = { isNativePlatform: () => false, isPluginAvailable: () => false, getPlatform: () => 'web' };
+    export const Capacitor = { isNativePlatform: () => globalThis.__native === true, isPluginAvailable: () => false, getPlatform: () => 'web' };
     export const registerPlugin = () => plug;
     export class WebPlugin {};
-    export const NativePurchases = plug; export const PURCHASE_TYPE = {}; export const CapacitorCalendar = plug;
+    export const NativePurchases = plug; export const PURCHASE_TYPE = {};
+    // 正解表では、iPhone のカレンダーの代わりを globalThis.__cal に置ける（無ければ何もしない置き物）
+    export const CapacitorCalendar = new Proxy({}, { get: (t, k) => globalThis.__cal ? globalThis.__cal[k] : (k === 'then' ? undefined : (async () => ({}))) });
     export const App = { addListener: () => ({ remove(){} }) };
     export const Filesystem = plug; export const Directory = {}; export const Encoding = {};
     export const Haptics = plug; export const ImpactStyle = {}; export const NotificationType = {};

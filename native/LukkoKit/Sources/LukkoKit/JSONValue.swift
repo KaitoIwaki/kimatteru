@@ -52,3 +52,14 @@ public extension JSONValue {
     var array: [JSONValue]? { if case .array(let a) = self { return a }; return nil }
     var object: [String: JSONValue]? { if case .object(let o) = self { return o }; return nil }
 }
+
+/// 試験や既定の値を、JSON の見た目のまま書けるように
+extension JSONValue: ExpressibleByStringLiteral, ExpressibleByIntegerLiteral, ExpressibleByFloatLiteral, ExpressibleByBooleanLiteral,
+    ExpressibleByArrayLiteral, ExpressibleByDictionaryLiteral {
+    public init(stringLiteral v: String) { self = .string(v) }
+    public init(integerLiteral v: Int) { self = .number(Double(v)) }
+    public init(floatLiteral v: Double) { self = .number(v) }
+    public init(booleanLiteral v: Bool) { self = .bool(v) }
+    public init(arrayLiteral a: JSONValue...) { self = .array(a) }
+    public init(dictionaryLiteral d: (String, JSONValue)...) { self = .object(Dictionary(d, uniquingKeysWith: { _, b in b })) }
+}

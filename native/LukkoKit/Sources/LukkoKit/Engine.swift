@@ -22,6 +22,8 @@ public final class Engine {
     public var onBackup: (String) -> Void = { _ in }
     /// iPhone のカレンダーを読む許可を聞く（Web 版の _askImportNow）
     public var onAskImport: () -> Void = {}
+    /// iPhone のカレンダー（無い端末・試験では nil か、代わりのもの）
+    public var phone: PhoneCalendar? = nil
 
     struct Timer { let id: Int; let at: Double; let fn: () -> Void }
     private var timers: [Timer] = []
