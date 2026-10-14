@@ -227,3 +227,41 @@ const mkEvent = (id, y, m) => {
   }
   write('free', cases);
 }
+
+// ---- 通知の予約（notify.js の buildSchedule・dayDigest・whenText・numericId）----
+// 「いま」を決めて、その時刻から見た予約の並びを書き出す。時刻は地元の年・月・日・時・分で比べる（タイムゾーンに左右されない）
+{
+  const RealDate = Date;
+  const cases = [];
+  for (let k = 0; k < 120; k++) {
+    const nowParts = [2026, int(0, 11), int(1, 28), int(0, 23), pick([0, 15, 30, 59])];
+    const NOW = new RealDate(...nowParts).getTime();
+    class FakeDate extends RealDate { constructor(...a) { if (!a.length) super(NOW); else super(...a); } static now() { return NOW; } }
+    globalThis.Date = FakeDate;
+    const HH = () => String(int(0, 23)).padStart(2, '0') + ':' + pick(['00', '15', '30', '45']);
+    const events = [];
+    for (let i = 0; i < int(0, 50); i++) {
+      const base = new RealDate(nowParts[0], nowParts[1], nowParts[2] + int(-2, 9));
+      const e = { id: pick(['e' + k + '-' + i, 'x' + i, '予定' + i, 12345 + i]), y: base.getFullYear(), m: base.getMonth(), day: base.getDate(), start: HH(), end: HH(),
+        title: pick(['定例', '歯医者', 'バイト', '飲み会', '']), type: pick(['baito', 'baito', 'yoji', 'work']), status: pick(['kakutei', 'kakutei', 'mikakutei', 'jisseki', 'nakunatta']) };
+      if (rnd() < 0.6) e.remindMin = pick([0, 5, 10, 30, 60, 90, 180, 1440, 2880, 10080, -5, '30']);
+      if (rnd() < 0.15) { e.allDay = true; if (rnd() < 0.4) e.days = int(2, 3); }
+      if (rnd() < 0.15) e.secret = true;
+      if (rnd() < 0.3) e.place = pick(['会議室A', '品川', '']);
+      if (rnd() < 0.2 && e.status === 'jisseki') e.actualEnd = HH();
+      events.push(e);
+    }
+    const settings = { remind: rnd() < 0.6, morning: rnd() < 0.5, evening: rnd() < 0.5, weekly: rnd() < 0.5, hideTitles: rnd() < 0.2, notifyOff: rnd() < 0.08 };
+    if (rnd() < 0.5) settings.morningAt = pick([360, 450, 480, 1439, '450']);
+    const list = H.notify.buildSchedule(events, settings).map((n) => {
+      const a = n.schedule.at;
+      return { ...n, schedule: undefined, at: [a.getFullYear(), a.getMonth(), a.getDate(), a.getHours(), a.getMinutes()] };
+    });
+    const digests = [];
+    for (let i = -1; i < 9; i++) { const d = new RealDate(nowParts[0], nowParts[1], nowParts[2] + i); digests.push([d.getFullYear(), d.getMonth(), d.getDate(), H.notify.dayDigest(events, d.getFullYear(), d.getMonth(), d.getDate(), false), H.notify.dayDigest(events, d.getFullYear(), d.getMonth(), d.getDate(), true)]); }
+    cases.push({ now: nowParts, events, settings, schedule: JSON.parse(JSON.stringify(list)), digests: JSON.parse(JSON.stringify(digests)) });
+    globalThis.Date = RealDate;
+  }
+  const ids = ['a', 'w' + 'e1', 'r12345', '予定', 'm' + 'Wed Oct 14 2026', '', 'x'.repeat(200), '😀絵文字'].map((s) => [s, H.notify.numericId(s)]);
+  write('notify', { cases, ids });
+}

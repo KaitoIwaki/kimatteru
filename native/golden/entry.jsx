@@ -10,6 +10,7 @@ globalThis.requestAnimationFrame = (f) => setTimeout(f, 0);
 globalThis.location = { search: '', href: 'http://localhost/' };
 if (!globalThis.navigator) globalThis.navigator = { userAgent: 'node' };
 export { default as App } from '../../app/src/App.jsx';
+export * as AppMod from '../../app/src/App.jsx';
 export * as whenlib from '../../app/src/whenlib.js';
 export * as timegrid from '../../app/src/timegrid.js';
 export * as holidays from '../../app/src/holidays.js';

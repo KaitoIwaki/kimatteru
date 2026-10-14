@@ -20,11 +20,24 @@ const stub = { name: 'stub', setup(b) {
     export const LocalNotifications = plug; export const Share = plug; export const StatusBar = plug; export const Style = {};
     export default plug;`, loader: 'js' }));
 } };
+// 外に出していない関数も、正解表のために出す（元のファイルは変えない。束ねるときに末尾へ export を足すだけ）
+const EXPOSE = {
+  'notify.js': ['buildSchedule', 'whenText', 'numericId'],
+  'App.jsx': ['sanitizeEvents', 'typesOk', 'mergeTypes', 'PROFILES', 'EXTRA_TYPES', 'evSpan', 'evFrom', 'evTo', 'evCovers', 'dayNo', 'fromDayNo'],
+};
+import fs from 'node:fs';
+const expose = { name: 'expose', setup(b) {
+  b.onLoad({ filter: /[\\/](notify\.js|App\.jsx)$/ }, (a) => {
+    const name = path.basename(a.path);
+    const src = fs.readFileSync(a.path, 'utf8');
+    return { contents: src + `\nexport { ${EXPOSE[name].join(', ')} };\n`, loader: name.endsWith('.jsx') ? 'jsx' : 'js' };
+  });
+} };
 await esbuild.build({
   entryPoints: [path.join(here, 'entry.jsx')],
   bundle: true, platform: 'node', format: 'esm', outfile: path.join(here, 'out', 'harness.mjs'),
   jsx: 'automatic', loader: { '.png': 'dataurl', '.woff2': 'dataurl', '.jpg': 'dataurl', '.svg': 'dataurl', '.txt': 'text', '.css': 'empty' },
   define: { __APP_VERSION__: '"0.0.0"', __APP_MARKETING__: '"0"' },
-  nodePaths: [NM], plugins: [stub], logLevel: 'warning',
+  nodePaths: [NM], plugins: [stub, expose], logLevel: 'warning',
 });
 console.log('built');
