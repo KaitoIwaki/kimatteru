@@ -185,3 +185,45 @@ const mkEvent = (id, y, m) => {
   }
   write('calc', cases);
 }
+
+// ---- 空き状況（dayFree・freeText・freeCells・freeTextBlock）----
+{
+  const HH = () => { const h = int(0, 23), m = pick([0, 15, 30, 45]); return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); };
+  const TYPES_A = [{ key: 'yoji', name: '用事', color: '#8B7AB8' }, { key: 'baito', name: 'バイト', color: '#7FAE85' }, { key: 'asobi', name: '遊び', color: '#D2916A' }, { key: 'other', name: 'その他', color: '#8A8A8A' }];
+  const TYPES_B = [{ key: 'work', name: '仕事', color: '#6E85BE' }, { key: 'off', name: '休み', color: '#5FA8A2', free: true }, { key: 'yoji', name: '用事', color: '#8B7AB8' }, { key: 'baito', name: '勤務', color: '#7FAE85' }];
+  const cases = [];
+  for (let k = 0; k < 150; k++) {
+    const app = new H.App({});
+    const Y = 2026, M = int(0, 11);
+    const types = rnd() < 0.5 ? TYPES_A : TYPES_B;
+    const settings = { ...app.state.settings, weekStart: int(0, 1) };
+    if (rnd() < 0.7) settings.freeWd = pick([[540, 1320], [1140, 1380], [600, 1320], [540, 1260], [0, 1440]]);
+    if (rnd() < 0.7) settings.freeHd = pick([[540, 1320], [600, 1320], [540, 1260]]);
+    if (rnd() < 0.4) settings.workHours = { days: pick([[1, 2, 3, 4, 5], [1, 3, 5], []]), from: pick([540, 600]), to: pick([1080, 1140]) };
+    if (rnd() < 0.3) settings.profile = pick(['work', 'student', 'shift', 'free', 'family']);
+    const events = [];
+    for (let i = 0; i < int(5, 40); i++) {
+      const e = { id: 'e' + k + '-' + i, y: Y, m: pick([M, M, M, (M + 11) % 12, (M + 1) % 12]), day: int(1, 28), start: HH(), end: HH(),
+        type: pick(['yoji', 'baito', 'asobi', 'work', 'off', 'family', 'other', 'zzz']), status: pick(['kakutei', 'kakutei', 'mikakutei', 'jisseki', 'nakunatta']) };
+      if (e.status === 'jisseki' && rnd() < 0.5) e.actualEnd = HH();
+      if (rnd() < 0.12) { e.allDay = true; if (rnd() < 0.5) e.days = int(2, 4); }
+      events.push(e);
+    }
+    const overrides = {};
+    for (let i = 0; i < int(0, 4); i++) overrides[Y + '-' + M + '-' + int(1, 28)] = pick(['○', '△', '×']);
+    const today = { y: Y, m: M, d: int(1, 28) };
+    const freeYM = { y: Y, m: pick([M, (M + 1) % 12]) };
+    app.state = { ...app.state, types, settings, events, overrides, today, freeYM };
+    const st = { types, settings, events, overrides, today, freeYM };
+    const days = {};
+    const dim = new Date(Y, M + 1, 0).getDate();
+    for (let d = 1; d <= dim; d++) days[d] = { free: app.dayFree(Y, M, d), text: app.freeText(Y, M, d, false), polite: app.freeText(Y, M, d, true) };
+    const blocks = [];
+    for (const range of ['2w', 'week', 'next', 'month']) for (const only of ['all', 'wd', 'hd']) for (const polite of [false, true]) {
+      const so = { range, only, polite, name: rnd() < 0.3 ? 'Aさん' : '', sign: false };
+      blocks.push({ so, out: app.freeTextBlock(so) });
+    }
+    cases.push({ st, Y, M, days: JSON.parse(JSON.stringify(days)), cells: JSON.parse(JSON.stringify(app.freeCells(Y, M))), blocks });
+  }
+  write('free', cases);
+}
