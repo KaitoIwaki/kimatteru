@@ -93,7 +93,8 @@ public enum IcsCore {
 
     static func blocks(_ text: String) -> [[Prop]] {
         var t = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-        t = t.replacingOccurrences(of: "\n ", with: "").replacingOccurrences(of: "\n\t", with: "")
+        // 折り返しを戻す（JS の /\n[ \t]/g と同じく、元の文字列の上で一度だけ置き換える）
+        t = t.replacingOccurrences(of: "\n[ \t]", with: "", options: .regularExpression)
         var out: [[Prop]] = []
         var cur: [Prop]? = nil
         for line in t.components(separatedBy: "\n") {
