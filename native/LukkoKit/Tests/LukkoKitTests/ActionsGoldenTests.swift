@@ -40,9 +40,9 @@ final class ActionsGoldenTests: XCTestCase {
             let eng = Engine(state: sc["init"]?.object ?? [:], now: sc["now0"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
             var mapW: [String: String] = [:], mapG: [String: String] = [:]
             for (ti, st) in (sc["steps"]?.array ?? []).enumerated() {
-                let op = st["op"]?.object ?? [:]
-                eng.advance(op.isEmpty ? 0 : (st["gap"]?.number ?? 0))
-                let call = op["call"]?.string ?? ""
+                let opIn = st["op"]?.object ?? [:]
+                eng.advance(opIn.isEmpty ? 0 : (st["gap"]?.number ?? 0))
+                let call = opIn["call"]?.string ?? ""
                 // 記録の中の番号（Web 版が乱数で作ったもの）を、Swift 版の同じ番号に置き換える。
                 // どちらも、出てきた順に付けた名前（ID1, ID2…）が同じものどうしが対応する
                 func tr(_ v: JSONValue?) -> JSONValue? {
@@ -61,8 +61,8 @@ final class ActionsGoldenTests: XCTestCase {
                     default: return v
                     }
                 }
-                let opRaw = op
-                var op = op
+                let opRaw = opIn
+                var op = opIn
                 for (k, x) in op { op[k] = tr(x)! }
                 func ev(_ id: JSONValue?) -> [String: JSONValue]? { (eng.state["events"]?.array ?? []).compactMap { $0.object }.first { $0["id"] == id } }
                 var draftCheck: (JSONValue?, JSONValue?)? = nil
