@@ -43,18 +43,39 @@ final class ActionsGoldenTests: XCTestCase {
                 let op = st["op"]?.object ?? [:]
                 eng.advance(op.isEmpty ? 0 : (st["gap"]?.number ?? 0))
                 let call = op["call"]?.string ?? ""
+                // 記録の中の番号（Web 版が乱数で作ったもの）を、Swift 版の同じ番号に置き換える。
+                // どちらも、出てきた順に付けた名前（ID1, ID2…）が同じものどうしが対応する
+                func tr(_ v: JSONValue?) -> JSONValue? {
+                    guard let v else { return nil }
+                    switch v {
+                    case .string(let s):
+                        let ns = s as NSString
+                        guard let m = Self.generated.firstMatch(in: s, range: NSRange(location: 0, length: ns.length)) else { return v }
+                        let sr = m.range(at: 1)
+                        let suffix = sr.location == NSNotFound ? "" : ns.substring(with: sr)
+                        let base = String(s.dropLast(suffix.count))
+                        guard let token = mapW[base], let mine = mapG.first(where: { $0.value == token })?.key else { return v }
+                        return .string(mine + suffix)
+                    case .array(let a): return .array(a.map { tr($0)! })
+                    case .object(let o): var r: [String: JSONValue] = [:]; for (k, x) in o { r[k] = tr(x)! }; return .object(r)
+                    default: return v
+                    }
+                }
+                let opRaw = op
+                var op = op
+                for (k, x) in op { op[k] = tr(x)! }
                 func ev(_ id: JSONValue?) -> [String: JSONValue]? { (eng.state["events"]?.array ?? []).compactMap { $0.object }.first { $0["id"] == id } }
                 var draftCheck: (JSONValue?, JSONValue?)? = nil
                 switch call {
                 case "new":
                     eng.openNew(op["day"]!.int!, op["ret"], op["opts"]?.object)
-                    draftCheck = (eng.state["draft"], op["draft0"])
+                    draftCheck = (eng.state["draft"], opRaw["draft0"])
                     eng.set(["draft": op["draft"]])
                     eng.save()
                 case "edit":
                     guard let e = ev(op["id"]) else { XCTFail("#\(si).\(ti) 直す予定が無い"); continue }
                     eng.openEdit(e, op["ret"])
-                    draftCheck = (eng.state["draft"], op["draft0"])
+                    draftCheck = (eng.state["draft"], opRaw["draft0"])
                     eng.set(["draft": op["draft"]])
                     eng.save()
                     if let scope = op["scope"]?.string { eng.save(scope) }

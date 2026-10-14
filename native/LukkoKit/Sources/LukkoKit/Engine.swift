@@ -99,7 +99,7 @@ public final class Engine {
     func showUndo(_ text: String, _ data: JSONValue) {
         cancel(named["undo"])
         set(["undo": .object(["text": str(text), "data": data, "key": num(now)])])
-        named["undo"] = later(5000) { [weak self] in self?.set(["undo": nil]) }
+        named["undo"] = later(5000) { [weak self] in self?.set(["undo": .null]) }  // JS は null を入れる（undefined ではない）
     }
 
     // MARK: 評価の小窓（うれしい瞬間にだけ、控えめに）
