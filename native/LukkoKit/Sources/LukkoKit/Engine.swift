@@ -24,7 +24,7 @@ public final class Engine {
     public var makeUid: (String, Double) -> String = { p, n in Loader.uid(p, now: n) }
     /// iPhone の部品を呼ぶところ（評価の小窓など）。画面の側から差し込む
     public var onRequestReview: () -> Void = {}
-    /// 手ごたえ（"light" ＝ tapLight、"heavy" ＝ stampHeavy）
+    /// 手ごたえ（"light" ＝ tapLight、"heavy" ＝ stampHeavy、"tick" ＝ penTick、"success" ＝ settleSuccess）
     public var haptic: (String) -> Void = { _ in }
     /// 中身がまとめて入れ替わる前に、控えを 1 つ残す（Web 版の writeBackup('before', …)）
     public var onBackup: (String) -> Void = { _ in }
