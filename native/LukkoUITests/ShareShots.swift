@@ -92,7 +92,7 @@ final class ShareShots: XCTestCase {
         sleep(1)
 
         // まとめカード（年）
-        let yearSeg = app.buttons["年"].firstMatch
+        let yearSeg = app.buttons["report.tab.year"]
         yearSeg.tap()
         // 払いの止まり際だと押したことにならないことがあるので、年の行が出るまで押し直す
         if !app.buttons["前の年"].waitForExistence(timeout: 3) { yearSeg.tap() }

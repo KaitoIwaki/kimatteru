@@ -12,10 +12,31 @@ struct ReportScreen: View {
             VStack(spacing: 0) {
                 // 月｜年 の切り替えは一覧の外に置く（一覧の行に入れると、中身が入れ替わるときに選んだほうが戻ることがある）
                 if !v.empty {
-                    Picker("期間", selection: Binding(get: { v.tab }, set: { k in model.act { $0.setRepTab(k) } })) {
-                        Text("月").tag("month"); Text("年").tag("year")
+                    // Web 版の repSeg と同じ形（地の上に、選んだほうだけカードの色）
+                    HStack(spacing: 0) {
+                        ForEach([("month", "月"), ("year", "年")], id: \.0) { item in
+                            let key = item.0, label = item.1
+                            let sel = v.tab == key
+                            Button { if !sel { model.act { $0.setRepTab(key) } } } label: {
+                                Text(label).font(.system(size: 13, weight: sel ? .bold : .medium))
+                                    .foregroundStyle(sel ? ink("ink") : ink("ink-mut"))
+                                    .frame(maxWidth: .infinity).padding(.vertical, 8)
+                                    .background {
+                                        if sel {
+                                            RoundedRectangle(cornerRadius: 11).fill(ink("card"))
+                                                .shadow(color: .black.opacity(0.12), radius: 4, y: 3)
+                                        }
+                                    }
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("report.tab.\(key)")
+                            .accessibilityAddTraits(sel ? .isSelected : [])
+                        }
                     }
-                    .pickerStyle(.segmented)
+                    .padding(2)
+                    .background(ink("bg2"), in: RoundedRectangle(cornerRadius: 13))
+                    .animation(.snappy(duration: 0.2), value: v.tab)
                     .padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 8)
                 }
                 List {
