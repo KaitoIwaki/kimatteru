@@ -222,6 +222,25 @@ struct SettingsMain: View {
                         Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(ink("ink-faint"))
                     }
                 }
+                // ご意見・機能のリクエスト（フォーム）と、みんなの要望の一覧（公開のページ）。どちらも外のページを開くだけで、アプリからは何も送らない
+                Link(destination: URL(string: SettingsHelp.formHref(kind: "機能のリクエスト"))!) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "bubble.left.and.text.bubble.right").font(.system(size: 16)).foregroundStyle(SupportFont.teal).frame(width: 28, height: 28)
+                        Text("ご意見・機能のリクエスト").font(.system(size: 14)).foregroundStyle(ink("ink"))
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(ink("ink-faint"))
+                    }
+                }
+                .accessibilityIdentifier("settings.request")
+                Link(destination: SettingsHelp.requestsURL) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "list.bullet.rectangle").font(.system(size: 16)).foregroundStyle(ink("ink-soft")).frame(width: 28, height: 28)
+                        Text("みんなの要望を見る").font(.system(size: 14)).foregroundStyle(ink("ink"))
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(ink("ink-faint"))
+                    }
+                }
+                .accessibilityIdentifier("settings.requests")
             }
             .listRowBackground(ink("card"))
             Section {
@@ -480,6 +499,7 @@ struct SettingsPage: View {
                 Link(destination: URL(string: SupportCore.supportHref)!) { SettingsLinkLabel(label: "よくある質問") }
                 SettingsButtonRow(action: { model.act { $0.replayGuide() } }) { SettingsValueRow(label: "使い方をもう一度見る") }
                 Link(destination: URL(string: SettingsHelp.formHref(kind: "機能のリクエスト"))!) { SettingsLinkLabel(label: "機能をリクエストする") }
+                Link(destination: SettingsHelp.requestsURL) { SettingsLinkLabel(label: "みんなの要望を見る") }
                 Link(destination: URL(string: SettingsHelp.formHref(kind: ""))!) { SettingsLinkLabel(label: "お問い合わせ") }
                 SettingsButtonRow(action: { model.act { $0.openDoc("terms") } }) { SettingsValueRow(label: "利用規約") }
                     .accessibilityIdentifier("help.terms")
@@ -508,6 +528,8 @@ struct SettingsLinkLabel: View {
 
 /// お問い合わせ・機能のリクエストのフォーム（事前入力：種類・端末・版）
 enum SettingsHelp {
+    /// みんなの要望と、いまの状況（サポートのページと同じ所。原稿は app/tools/build-legal.mjs）
+    static let requestsURL = URL(string: "https://kaitoiwaki.github.io/kimatteru/legal/requests.html")!
     @MainActor
     static func formHref(kind: String) -> String {
         let d = UIDevice.current

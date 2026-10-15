@@ -161,7 +161,7 @@ final class PhoneGoldenTests: XCTestCase {
             check(.array(NoticesCore.syncShiftNotices(c["notices"]?.array ?? [], c["events"]?.array ?? [], now: c["now"]?.number ?? 0, tz: tz)), c["out"], "shift #\(i)")
         }
         for (i, c) in (nt["info"]?.array ?? []).enumerated() {
-            check(.array(NoticesCore.syncInfoNotices(c["notices"]?.array ?? [], current: c["cur"]?.string ?? "", lastSeen: c["last"], now: c["now"]?.number ?? 0)), c["out"], "info #\(i)")
+            check(.array(NoticesCore.syncInfoNotices(c["notices"]?.array ?? [], current: c["cur"]?.string ?? "", lastSeen: c["last"], now: c["now"]?.number ?? 0, notes: NoticesCore.webReleaseNotes)), c["out"], "info #\(i)")
         }
         for (i, c) in (nt["current"]?.array ?? []).enumerated() {
             check(NoticesCore.currentNoteText(c["n"]), c["out"], "current #\(i)")
@@ -170,7 +170,7 @@ final class PhoneGoldenTests: XCTestCase {
             let a = c.array ?? []
             check(.string(NoticesCore.relativeTime(a[0].number ?? 0, now: a[1].number ?? 0, tz: tz)), a[2], "relative \(a[0])")
         }
-        let notes: [JSONValue] = NoticesCore.releaseNotes.map { .object(["version": .string($0.version), "title": .string($0.title), "body": .string($0.body)]) }
+        let notes: [JSONValue] = NoticesCore.webReleaseNotes.map { .object(["version": .string($0.version), "title": .string($0.title), "body": .string($0.body)]) }
         check(.array(notes), nt["releaseNotes"], "お知らせの文")
         XCTAssertEqual(fails, 0)
     }

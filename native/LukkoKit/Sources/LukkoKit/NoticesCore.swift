@@ -6,10 +6,16 @@ public enum NoticesCore {
     public static let kindShift = "shift"
     public static let kindInfo = "info"
 
-    /// アップデートのお知らせ。新しい版を出すときは、ここに上から足していく（version はお知らせを出し始めた版）。
+    /// アップデートのお知らせ。新しい版を出すときは、nativeReleaseNotes に上から足していく（version はお知らせを出し始めた版）。
     /// 書き方：短く・内容が 2 つ以上なら「・」の箇条書き・理由や経緯は書かない。
-    /// ここまでの分は Web 版（notices.js）の文をそのまま写したもの（golden/phone.json で 1 文字ずつ確かめる）
-    public static let releaseNotes: [(version: String, title: String, body: String)] = [
+    /// SwiftUI 版から足したお知らせ。0.40.0 は SwiftUI 版（App Store の 2.0）
+    public static let nativeReleaseNotes: [(version: String, title: String, body: String)] = [
+        ("0.40.0", "iPhone の部品で作り直しました",
+         "・画面の動きを iPhone と同じにしました\n・右下の「＋」から、すぐ予定を足せます\n・ほしい機能は、設定の「ご意見・機能のリクエスト」から送ってください\n・みんなの要望と、いまの状況は「みんなの要望を見る」で見られます"),
+    ]
+    public static let releaseNotes = nativeReleaseNotes + webReleaseNotes
+    /// ここからは Web 版（notices.js）の文をそのまま写したもの（golden/phone.json で 1 文字ずつ確かめる）
+    public static let webReleaseNotes: [(version: String, title: String, body: String)] = [
         ("0.32.2", "時間を決めない予定を入れやすくしました",
          "・日の画面の「時間を決めずに入れる」から、その日にすることを入れられます\n・設定を項目ごとに分けて、すっきりさせました\n・設定のいちばん上から、応援とレビューができます"),
         ("0.32.1", "不具合を直しました",
@@ -112,11 +118,11 @@ public enum NoticesCore {
     }
 
     /// 版が上がったときに、アップデートのお知らせを足す（初めて使う人には出さない）
-    public static func syncInfoNotices(_ notices: [JSONValue], current: String, lastSeen: JSONValue?, now: Double) -> [JSONValue] {
+    public static func syncInfoNotices(_ notices: [JSONValue], current: String, lastSeen: JSONValue?, now: Double, notes: [(version: String, title: String, body: String)] = releaseNotes) -> [JSONValue] {
         guard let lastSeen, JS.truthy(lastSeen) else { return notices }
         if lastSeen == .string(current) { return notices }
         var out = notices
-        for r in releaseNotes {
+        for r in notes {
             if cmpVersion(.string(r.version), lastSeen) <= 0 { continue }
             if cmpVersion(.string(r.version), .string(current)) > 0 { continue }
             let id = "info-" + r.version
