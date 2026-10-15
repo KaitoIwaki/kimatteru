@@ -25,7 +25,7 @@ extension AppCore {
         return JS.string(ev["title"])
     }
 
-    public func freeView(_ fY: Int, _ fm: Int, dark: Bool) -> FreeView {
+    public func freeView(_ fY: Int, _ fm: Int, dark: Bool, overlay: [[String: JSONValue]] = []) -> FreeView {
         var v = FreeView()
         v.monthLabel = fm + 1
         let dim = Civil.daysInMonth(fY, fm)
@@ -36,7 +36,7 @@ extension AppCore {
             let dow = (fdow + d - 1) % 7
             let n = Civil.dayNo(fY, fm, d)
             let evs = events.filter { covers($0, n) && $0["status"] != "nakunatta" }
-            let j = dayFree(fY, fm, d)
+            let j = dayFree(fY, fm, d, overlay: overlay)
             let hol = Holidays.name(fY, fm, d)
             let key = "\(fY)-\(fm)-\(d)"
             let manual = JS.truthy(ov[key])

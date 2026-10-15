@@ -79,7 +79,7 @@ extension AppCore {
         let today = events.filter { e in
             JS.string(e["status"]) != "nakunatta" && (covers(e, n) || (!JS.truthy(e["allDay"]) && Self.evFrom(e) == n - 1 && WhenLib.spillsNextDay(e)))
         }
-        let over = JS.truthy(cfg["overlayFree"]) ? overlay : []
+        let over = JS.truthy(cfg["overlayFree"]) ? Self.overlayOnDay(overlay, n) : []
         let stat = { (e: [String: JSONValue]) -> String in JS.string(e["status"]) }
         let offToday = today.contains { isFreeType($0) && (stat($0) == "kakutei" || stat($0) == "jisseki") }
         let conf = today.filter { (stat($0) == "kakutei" || stat($0) == "jisseki") && !isFreeType($0) }
