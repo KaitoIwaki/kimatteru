@@ -229,6 +229,7 @@ struct SupporterCardFace: View {
     let tilt: Double
     let time: Double
     let back: Bool
+    static let shadowInk = Color(.sRGB, red: 38.0 / 255.0, green: 37.0 / 255.0, blue: 31.0 / 255.0, opacity: 1)
 
     var body: some View {
         let tier = v.tier
@@ -236,7 +237,7 @@ struct SupporterCardFace: View {
         let sh = SupporterFlip.shadow(angle, back: back)
         ZStack(alignment: .topLeading) {
             // 紙（斜め 150° のグラデーション）
-            shape.fill(LinearGradient(stops: tier.paperStops.map { .init(color: Palette.color($0.color, dark: false), location: $0.at / 100) },
+            shape.fill(LinearGradient(stops: SupporterLights.stops(tier.paperStops),
                                       startPoint: UnitPoint(x: 0.25, y: 0.067), endPoint: UnitPoint(x: 0.75, y: 0.933)))
             SupporterTextureView(width: size.width, height: size.height).clipShape(shape)
             if !back { lights(tier).clipShape(shape) }
@@ -250,43 +251,31 @@ struct SupporterCardFace: View {
                                               startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.5)
                 .blur(radius: 0.6)
         )
-        .shadow(color: Color(.sRGB, red: 38 / 255, green: 37 / 255, blue: 31 / 255, opacity: sh.nearAlpha), radius: sh.nearBlur / 2, x: sh.nearX, y: sh.nearY)
-        .shadow(color: Color(.sRGB, red: 38 / 255, green: 37 / 255, blue: 31 / 255, opacity: sh.alpha), radius: sh.blur / 2, x: sh.x, y: sh.y)
+        .shadow(color: Self.shadowInk.opacity(sh.nearAlpha), radius: CGFloat(sh.nearBlur / 2), x: CGFloat(sh.nearX), y: CGFloat(sh.nearY))
+        .shadow(color: Self.shadowInk.opacity(sh.alpha), radius: CGFloat(sh.blur / 2), x: CGFloat(sh.x), y: CGFloat(sh.y))
     }
 
     /// 斜めに流れる光（4.6 秒で一定に）・向きに連れて動く光・箔の粒
     @ViewBuilder func lights(_ tier: SupporterTier) -> some View {
-        let w = size.width, h = size.height
+        let L = SupporterLights(w: Double(size.width), h: Double(size.height), angle: angle, tilt: tilt, time: time)
         ZStack(alignment: .topLeading) {
             // 流れる光：幅 42%・高さ 220%、-120% → 220% を 4.6 秒で
-            let ph = (time.truncatingRemainder(dividingBy: 4.6)) / 4.6
-            let bw = w * 0.42
             LinearGradient(colors: [.clear, Palette.color(tier.sheen, dark: false), .clear], startPoint: .leading, endPoint: .trailing)
-                .frame(width: bw, height: h * 2.2)
+                .frame(width: L.bw, height: L.bh)
                 .rotationEffect(.degrees(18))
-                .offset(x: bw * (-1.2 + 3.4 * ph), y: -h * 0.6)
+                .offset(x: L.sx, y: L.sy)
             // 向きに連れて動く光（250% の帯を、角度と傾きでずらす）
-            let gx = sin(angle * .pi / 180), gy = sin(tilt * .pi / 180) * 3
-            let deg = 112 - tilt * 2
-            let rad = deg * .pi / 180
-            let dir = CGPoint(x: sin(rad), y: -cos(rad))
-            LinearGradient(stops: tier.glint.map { .init(color: Palette.color($0.color, dark: false), location: $0.at / 100) },
-                           startPoint: UnitPoint(x: 0.5 - dir.x / 2, y: 0.5 - dir.y / 2), endPoint: UnitPoint(x: 0.5 + dir.x / 2, y: 0.5 + dir.y / 2))
-                .frame(width: w * 2.5, height: h * 2.5)
-                .offset(x: -1.5 * w * (50 - gx * 42) / 100, y: -1.5 * h * (50 - gy * 42) / 100)
+            LinearGradient(stops: SupporterLights.stops(tier.glint), startPoint: L.gStart, endPoint: L.gEnd)
+                .frame(width: L.gw, height: L.gh)
+                .offset(x: L.gx, y: L.gy)
             // 箔の粒（ゴールド・ブラックだけ）。下から昇って、ちらついて消える
             if let fl = tier.fleck {
-                ForEach(Array(SupporterTier.flecks.enumerated()), id: \.offset) { i, f in
-                    let k = SupporterCardFace.fleckFrame(time: time, index: i, delay: f.delay)
-                    let d: CGFloat = i % 3 == 0 ? 3 : 2
-                    Circle().fill(Palette.color(fl, dark: false)).frame(width: d, height: d)
-                        .scaleEffect(k.scale)
-                        .opacity(k.opacity)
-                        .offset(x: w * f.x / 100, y: h * f.y / 100 + k.dy)
+                ForEach(0..<SupporterTier.flecks.count, id: \.self) { i in
+                    SupporterFleck(index: i, color: Palette.color(fl, dark: false), lights: L)
                 }
             }
         }
-        .frame(width: w, height: h, alignment: .topLeading)
+        .frame(width: size.width, height: size.height, alignment: .topLeading)
         .allowsHitTesting(false)
     }
 
@@ -388,20 +377,20 @@ struct SupporterTextureView: View, Equatable {
             let sx = size.width / 335, sy = size.height / 211
             for l in Self.lines {
                 var p = Path()
-                p.move(to: CGPoint(x: l.x1 * sx, y: l.y1 * sy)); p.addLine(to: CGPoint(x: l.x2 * sx, y: l.y2 * sy))
+                p.move(to: CGPoint(x: CGFloat(l.x1) * sx, y: CGFloat(l.y1) * sy)); p.addLine(to: CGPoint(x: CGFloat(l.x2) * sx, y: CGFloat(l.y2) * sy))
                 let c = l.light ? SupporterTexture.brushLight : SupporterTexture.brushDark
-                ctx.stroke(p, with: .color(Color(.sRGB, red: c.0 / 255, green: c.1 / 255, blue: c.2 / 255, opacity: Double(String(format: "%.3f", l.op)) ?? l.op)), lineWidth: l.width * sx)
+                ctx.stroke(p, with: .color(SupporterTexturePaint.rgb(c, l.op)), lineWidth: CGFloat(l.width) * sx)
             }
             // 粒子は 64px の型を繰り返す
-            let t = SupporterTexture.tile
-            var y0 = 0.0
+            let t = CGFloat(SupporterTexture.tile)
+            var y0: CGFloat = 0
             while y0 < size.height {
-                var x0 = 0.0
+                var x0: CGFloat = 0
                 while x0 < size.width {
                     for d in Self.dots {
                         let c = d.light ? SupporterTexture.grainLight : SupporterTexture.grainDark
-                        ctx.fill(Path(CGRect(x: x0 + d.x, y: y0 + d.y, width: d.s, height: d.s)),
-                                 with: .color(Color(.sRGB, red: c.0 / 255, green: c.1 / 255, blue: c.2 / 255, opacity: SupporterTexture.grainAlpha(d.light))))
+                        ctx.fill(Path(CGRect(x: x0 + CGFloat(d.x), y: y0 + CGFloat(d.y), width: CGFloat(d.s), height: CGFloat(d.s))),
+                                 with: .color(SupporterTexturePaint.rgb(c, SupporterTexture.grainAlpha(d.light))))
                     }
                     x0 += t
                 }
@@ -432,11 +421,11 @@ struct SupporterCardDraw: View {
             for l in SupporterTexture.brushLines(W, H) {
                 var p = Path(); p.move(to: CGPoint(x: l.x1, y: l.y1)); p.addLine(to: CGPoint(x: l.x2, y: l.y2))
                 let c = l.light ? SupporterTexture.brushLight : SupporterTexture.brushDark
-                ctx.stroke(p, with: .color(Color(.sRGB, red: c.0 / 255, green: c.1 / 255, blue: c.2 / 255, opacity: l.op)), lineWidth: l.width)
+                ctx.stroke(p, with: .color(SupporterTexturePaint.rgb(c, l.op)), lineWidth: CGFloat(l.width))
             }
             for d in SupporterTexture.grainDots(W, H) {
                 let c = d.light ? SupporterTexture.grainLight : SupporterTexture.grainDark
-                ctx.fill(Path(CGRect(x: d.x, y: d.y, width: d.s, height: d.s)), with: .color(Color(.sRGB, red: c.0 / 255, green: c.1 / 255, blue: c.2 / 255, opacity: SupporterTexture.grainAlpha(d.light))))
+                ctx.fill(Path(CGRect(x: d.x, y: d.y, width: d.s, height: d.s)), with: .color(SupporterTexturePaint.rgb(c, SupporterTexture.grainAlpha(d.light))))
             }
             // 向きに連れて動く光（正面＝真ん中に 1 本）
             var gl: [Gradient.Stop] = [.init(color: C("rgba(255,255,255,0)"), location: 0.3)]
@@ -454,7 +443,8 @@ struct SupporterCardDraw: View {
             if let fl = tier.fleck {
                 for (i, f) in SupporterTier.flecks.enumerated() {
                     let r: CGFloat = i % 3 == 0 ? 2.3 : 1.6
-                    ctx.fill(Path(ellipseIn: CGRect(x: f.x / 100 * W - r, y: f.y / 100 * H - r, width: r * 2, height: r * 2)), with: .color(C(fl).opacity(i % 3 == 0 ? 0.85 : 0.5)))
+                    let cx = CGFloat(f.x) / 100 * W, cy = CGFloat(f.y) / 100 * H
+                    ctx.fill(Path(ellipseIn: CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)), with: .color(C(fl).opacity(i % 3 == 0 ? 0.85 : 0.5)))
                 }
             }
             // 縁の面取り
@@ -517,5 +507,56 @@ extension Font.Weight {
         case .light: return .light
         default: return .regular
         }
+    }
+}
+
+/// 光の位置（角度・傾き・時刻から。式を分けて、型の推論を軽くする）
+struct SupporterLights {
+    let bw: CGFloat, bh: CGFloat, sx: CGFloat, sy: CGFloat
+    let gw: CGFloat, gh: CGFloat, gx: CGFloat, gy: CGFloat
+    let gStart: UnitPoint, gEnd: UnitPoint
+    let w: CGFloat, h: CGFloat, time: Double
+    init(w: Double, h: Double, angle: Double, tilt: Double, time: Double) {
+        self.w = CGFloat(w); self.h = CGFloat(h); self.time = time
+        let ph: Double = time.truncatingRemainder(dividingBy: 4.6) / 4.6
+        let bw: Double = w * 0.42
+        self.bw = CGFloat(bw); bh = CGFloat(h * 2.2)
+        sx = CGFloat(bw * (-1.2 + 3.4 * ph)); sy = CGFloat(-h * 0.6)
+        let gxv: Double = sin(angle * Double.pi / 180)
+        let gyv: Double = sin(tilt * Double.pi / 180) * 3
+        let rad: Double = (112 - tilt * 2) * Double.pi / 180
+        let dx: Double = sin(rad) / 2, dy: Double = -cos(rad) / 2
+        gStart = UnitPoint(x: 0.5 - dx, y: 0.5 - dy); gEnd = UnitPoint(x: 0.5 + dx, y: 0.5 + dy)
+        gw = CGFloat(w * 2.5); gh = CGFloat(h * 2.5)
+        let px: Double = (50 - gxv * 42) / 100, py: Double = (50 - gyv * 42) / 100
+        gx = CGFloat(-1.5 * w * px); gy = CGFloat(-1.5 * h * py)
+    }
+    static func stops(_ g: [(color: String, at: Double)]) -> [Gradient.Stop] {
+        g.map { Gradient.Stop(color: Palette.color($0.color, dark: false), location: CGFloat($0.at / 100)) }
+    }
+}
+
+/// 箔の粒 1 つ
+struct SupporterFleck: View {
+    let index: Int
+    let color: Color
+    let lights: SupporterLights
+    var body: some View {
+        let f = SupporterTier.flecks[index]
+        let k = SupporterCardFace.fleckFrame(time: lights.time, index: index, delay: f.delay)
+        let d: CGFloat = index % 3 == 0 ? 3 : 2
+        let x: CGFloat = lights.w * CGFloat(f.x) / 100
+        let y: CGFloat = lights.h * CGFloat(f.y) / 100 + CGFloat(k.dy)
+        Circle().fill(color).frame(width: d, height: d)
+            .scaleEffect(CGFloat(k.scale))
+            .opacity(k.opacity)
+            .offset(x: x, y: y)
+    }
+}
+
+enum SupporterTexturePaint {
+    static func rgb(_ c: (Double, Double, Double), _ a: Double) -> Color {
+        let r: Double = c.0 / 255, g: Double = c.1 / 255, b: Double = c.2 / 255
+        return Color(.sRGB, red: r, green: g, blue: b, opacity: a)
     }
 }

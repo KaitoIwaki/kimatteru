@@ -204,20 +204,37 @@ public enum SupporterTexture {
     public struct Dot: Equatable { public var x, y, s: Double; public var light: Bool }
     /// 刷り目。左下から右上へ
     public static func brushLines(_ w: Double, _ h: Double) -> [Line] {
-        (0..<brushN).map { i in
-            let j = rnd(Double(i + 1))
-            let x = -h + (Double(i) * (w + h)) / Double(brushN)
-            return Line(x1: x, y1: h, x2: x + h, y2: 0, width: 0.35 + j * 0.5, op: 0.020 + j * 0.030, light: i % 3 == 0)
+        var out: [Line] = []
+        for i in 0..<brushN {
+            let j: Double = rnd(Double(i + 1))
+            let step: Double = (Double(i) * (w + h)) / Double(brushN)
+            let x: Double = -h + step
+            let width: Double = 0.35 + j * 0.5
+            let op: Double = 0.020 + j * 0.030
+            out.append(Line(x1: x, y1: h, x2: x + h, y2: 0, width: width, op: op, light: i % 3 == 0))
         }
+        return out
     }
     /// 粒子。明暗を半々に
     public static func grainDots(_ w: Double, _ h: Double) -> [Dot] {
-        (0..<grainN).map { i in Dot(x: rnd(Double(i * 2 + 1)) * w, y: rnd(Double(i * 2 + 2)) * h, s: 0.8, light: i % 2 == 1) }
+        var out: [Dot] = []
+        for i in 0..<grainN { out.append(dot(i, w, h)) }
+        return out
     }
     /// 画面用の粒の型（64px 四方。全面と同じ密度）
     public static func tileDots(_ w: Double = 335, _ h: Double = 211) -> [Dot] {
-        let n = Int(JS.round((Double(grainN) * tile * tile) / (w * h)))
-        return (0..<n).map { i in Dot(x: rnd(Double(i * 2 + 1)) * tile, y: rnd(Double(i * 2 + 2)) * tile, s: 0.8, light: i % 2 == 1) }
+        let area: Double = w * h
+        let dense: Double = Double(grainN) * tile * tile
+        let n = Int(JS.round(dense / area))
+        var out: [Dot] = []
+        for i in 0..<max(0, n) { out.append(dot(i, tile, tile)) }
+        return out
+    }
+    static func dot(_ i: Int, _ w: Double, _ h: Double) -> Dot {
+        let a: Double = Double(i * 2 + 1), b: Double = Double(i * 2 + 2)
+        let x: Double = rnd(a) * w
+        let y: Double = rnd(b) * h
+        return Dot(x: x, y: y, s: 0.8, light: i % 2 == 1)
     }
     /// 粒の濃さ（明るい粒 5%・暗い粒 3.5%）
     public static func grainAlpha(_ light: Bool) -> Double { light ? 0.05 : 0.035 }
