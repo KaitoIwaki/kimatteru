@@ -75,3 +75,78 @@ for (let k = 0; k < 120; k++) {
 }
 fs.writeFileSync(path.join(OUT, 'view-month.json'), JSON.stringify(cases));
 console.log('view-month', cases.length, cases.reduce((a, c) => a + c.weeks.reduce((b, w) => b + w.bars.length, 0), 0), 'bars');
+
+// ---- 日の画面：見出し・一覧の行・空き時間・日付の帯・時間の目盛りの箱 ----
+const pickKeys = (o, ks) => { const r = {}; for (const k of ks) if (o && o[k] !== undefined) r[k] = o[k]; return r; };
+const dayCases = [];
+for (let k = 0; k < 150; k++) {
+  NOW = new RealDate(2026, int(0, 11), int(1, 28), int(7, 22), int(0, 59)).getTime();
+  const now = new RealDate(NOW);
+  const types = J(mkApp({}).state.types);
+  if (rnd() < 0.3) types.push({ key: 'off', name: '休み', color: '#5FA8A2', paper: 'rgba(192,224,221,.72)', dark: 'rgb(48,84,81)', free: true, gone: '通らなかった', uWord: '希望休', cWord: '休み' });
+  const keys = types.map((t) => t.key).concat(['zzz']);
+  const ym = { y: now.getFullYear(), m: now.getMonth() };
+  const day = int(1, 28);
+  const events = [];
+  for (let i = 0; i < pick([0, 2, 6, 12]); i++) {
+    const e = { id: 'e' + String(i).padStart(2, '0'), type: pick(keys), title: pick(['定例', '歯医者', 'とても長い名前の予定です', '飲み会', 'カフェ']), y: ym.y, m: ym.m, day: day + pick([0, 0, 0, -1, 1]),
+      start: HH(), end: HH(), status: pick(['kakutei', 'kakutei', 'mikakutei', 'jisseki', 'nakunatta']), updatedAt: i };
+    if (e.day < 1) e.day = 1;
+    if (rnd() < 0.2) { e.allDay = true; e.start = '00:00'; e.end = '23:59'; if (rnd() < 0.5) e.days = int(2, 4); }
+    if (e.status === 'jisseki' && rnd() < 0.5) e.actualEnd = HH();
+    if (rnd() < 0.3) e.place = pick(['渋谷', '本社 5F']);
+    if (rnd() < 0.2) e.link = 'https://zoom.us/j/1';
+    events.push(e);
+  }
+  const settings = { ...mkApp({}).state.settings, onboarded: true, weekStart: pick([0, 1]), hideCanceled: rnd() < 0.3, theme: pick([undefined, 'dark']), dayView: pick(['list', 'time', undefined]), fontScale: pick([undefined, 1, 1.2]) };
+  const app = mkApp({ events, types, settings, ym, today: { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() }, screen: 'day', dayNum: day, swipeRow: null });
+  const { v } = app.renderVals();
+  const head = pickKeys(v, ['dayTitle', 'dayHoliday', 'dayBigDate', 'dayDowFull', 'dayDateColor', 'daySummary', 'dayEmpty', 'dayView']);
+  head.dayTitleColor = v.dayTitleStyle.color;
+  const rows = v.dayEvents.map((r) => ({ ...pickKeys(r, ['key', 'startText', 'endText', 'timeText', 'accent', 'dashed', 'titleText', 'titlePlain', 'place', 'statusWord', 'durText', 'gapBefore']),
+    chip: pickKeys(r.chipStyle2, ['border', 'color', 'background']), cardBorder: r.cardStyle.border, titleColor: r.titleStyle.color, titleDeco: r.titleStyle.textDecoration,
+    titleSize: r.titleStyle.fontSize, bar: r.dashed ? null : r.barStyle.background }));
+  const dn = H.AppMod.dayNo(ym.y, ym.m, day);
+  const strip = [];
+  for (let n = dn - 9; n <= dn + 9; n++) strip.push(pickKeys(v.dayStripCell(n), ['key', 'dow', 'date', 'sel', 'today', 'has', 'monthHead', 'monthFull', 'dowColor', 'numColor']));
+  let time = null;
+  if (v.dayView === 'time') {
+    const c = v.dayCols[0];
+    time = { isToday: c.isToday, more: c.allDay.more,
+      pills: c.allDay.pills.map((p) => ({ key: p.key, title: p.title, style: pickKeys(p.style, ['background', 'color', 'border', 'lineHeight', 'height', 'fontSize']) })),
+      boxes: c.boxes.map((b) => ({ key: b.key, a: b.a, b: b.b, title: b.title, time: b.time,
+        style: pickKeys(b.style, ['top', 'height', 'left', 'width', 'background', 'color', 'border', 'borderLeft', 'textDecoration', 'fontSize', 'lineHeight']) })) };
+  }
+  dayCases.push({ now: NOW, state: J({ events, types, settings, ym, today: app.state.today, screen: 'day', dayNum: day }), head, rows, strip, time });
+}
+fs.writeFileSync(path.join(OUT, 'view-day.json'), JSON.stringify(dayCases));
+console.log('view-day', dayCases.length, dayCases.reduce((a, c) => a + c.rows.length, 0), 'rows', dayCases.filter((c) => c.time).length, 'time');
+
+// ---- iPhone 標準の確認（_nativeAlertSpec）と、ボタンを押したあと ----
+const alertCases = [];
+const AK = ['events', 'trash', 'confirmDelete', 'deleteRest', 'confirmRestore', 'candAsk', 'confirmJob', 'jobs', 'discardAsk', 'repEditAsk', 'screen', 'undo', 'shareMsg', 'shareToast', 'gone', 'detailId', 'returnTo', 'dialog'];
+const asnap = (app) => { const o = {}; for (const k of AK) o[k] = app.state[k]; return J(o); };
+for (let k = 0; k < 160; k++) {
+  NOW = new RealDate(2026, 9, int(1, 28), int(7, 22), int(0, 59)).getTime();
+  const events = [];
+  for (let i = 0; i < int(0, 6); i++) events.push({ id: 'e' + i, type: pick(['yoji', 'baito']), title: pick(['定例', '歯医者', '']), y: 2026, m: 9, day: int(1, 28), start: '10:00', end: '11:00', status: pick(['kakutei', 'mikakutei', 'jisseki']), jobId: pick([undefined, 'j1']), updatedAt: 1 });
+  const rep = rnd() < 0.4;
+  if (rep) for (let i = 0; i < int(1, 4); i++) events.push({ id: 'r' + i, type: 'yoji', title: 'ジム', y: 2026, m: 9, day: 3 + i * 7, start: '19:00', end: '20:00', status: 'kakutei', repId: 'R1', updatedAt: 1 });
+  const jobs = rnd() < 0.6 ? [{ id: 'j1', name: pick(['カフェ', '']), hourly: 1100 }] : [];
+  const st = { events, jobs, screen: pick(['month', 'new', 'detail']), returnTo: pick(['month', 'day', undefined]), settings: { ...mkApp({}).state.settings, onboarded: true, profile: pick(['student', 'work']) } };
+  const kind = pick(['del', 'del', 'restore', 'cand', 'job', 'discard', 'rep']);
+  if (kind === 'del') st.confirmDelete = events.length && rnd() < 0.9 ? pick(events).id : 'none';
+  if (kind === 'restore') st.confirmRestore = { data: { events: [{ id: 'z', y: 2026, m: 0, day: 1, start: '10:00', end: '11:00', title: 'z', type: 'yoji', status: 'kakutei' }] }, count: int(1, 9), dropped: pick([0, 2]), at: pick([undefined, '2026-01-02T03:04:05.000Z', '2026-12-31T16:30:00.000Z']), merge: rnd() < 0.3 };
+  if (kind === 'cand') st.candAsk = { title: '飲み会', ids: events.slice(0, int(1, 3)).map((e) => e.id) };
+  if (kind === 'job') st.confirmJob = pick(['j1', 'jx']);
+  if (kind === 'discard') { st.discardAsk = true; }
+  if (kind === 'rep') { st.repEditAsk = { rest: int(1, 5) }; st.draft = { ...(events[0] || {}), editingId: events[0] ? events[0].id : null, title: '直した' }; }
+  const app = mkApp(J(st));
+  const { v } = app.renderVals();
+  const spec = app._nativeAlertSpec(v);
+  const out = { now: NOW, state: J(st), spec: spec ? J({ key: spec.key, title: spec.title, message: spec.message, sheet: !!spec.sheet, buttons: spec.buttons.map((b) => ({ label: b.label, style: b.style, preferred: !!b.preferred })) }) : null };
+  if (spec && kind !== 'rep') { const bi = int(0, spec.buttons.length - 1); if (typeof spec.buttons[bi].run === 'function') { spec.buttons[bi].run(); out.pressed = bi; out.after = asnap(app); } else out.noRun = bi; }
+  alertCases.push(out);
+}
+fs.writeFileSync(path.join(OUT, 'view-alert.json'), JSON.stringify(alertCases));
+console.log('view-alert', alertCases.length, alertCases.filter((c) => c.spec).length, 'specs');

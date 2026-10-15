@@ -117,6 +117,7 @@ struct MainTabs: View {
                 .tabItem { Label("設定", systemImage: "gearshape") }
                 .tag("settings")
         }
+        .modifier(AlertPresenter())
     }
 }
 

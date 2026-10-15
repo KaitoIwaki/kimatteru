@@ -16,7 +16,7 @@ struct MonthScreen: View {
             .background(ink("bg"))
             .toolbar { MonthToolbar() }
             .navigationBarTitleDisplayMode(.inline)
-            .navigationDestination(isPresented: dayShown) { PlaceholderScreen(title: "日の画面") }
+            .navigationDestination(isPresented: dayShown) { DayScreen() }
         }
     }
 
@@ -235,6 +235,10 @@ struct WeekRow: View {
                         .overlay(alignment: .trailing) { if i < 6 { Rectangle().fill(ink("line-faint")).frame(width: 1) } }
                         .contentShape(Rectangle())
                         .onTapGesture { tapDay(sl) }
+                        .accessibilityElement()
+                        .accessibilityLabel(sl.blank ? "" : "\(sl.day)日")
+                        .accessibilityIdentifier(sl.blank ? "" : "month.day.\(sl.day)")
+                        .accessibilityAddTraits(sl.blank ? [] : .isButton)
                 }
             }
             // 日付

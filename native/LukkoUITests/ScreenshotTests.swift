@@ -24,18 +24,26 @@ final class ScreenshotTests: XCTestCase {
             ev("l", 20, "勉強会", "yoji", "kakutei", "20:00", "21:00"),
             ev("n", 20, "電話", "other", "kakutei", "21:00", "21:30"),
         ]
-        return "{\"savedAt\":1,\"events\":[\(evs.joined(separator: ","))],\"settings\":{\"hourly\":1100,\"weekStart\":0,\"onboarded\":true}}"
+        return "{\"savedAt\":9000000000000,\"events\":[\(evs.joined(separator: ","))],\"settings\":{\"hourly\":1100,\"weekStart\":0,\"onboarded\":true}}"
     }
 
     func testScreens() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedFile", Data(sample().utf8).base64EncodedString()]
+        // 引っ越しの試験が残した localStorage より新しい見本にする（いまの版の普通の状態と同じく localStorage から入る）
+        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", Data(sample().utf8).base64EncodedString()]
         app.launch()
         XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 30))
         snap(app, "01-month")
         app.swipeLeft()
         sleep(1)
         snap(app, "02-month-next")
+        app.swipeRight()
+        sleep(1)
+        let day = app.buttons["month.day.20"]
+        XCTAssertTrue(day.waitForExistence(timeout: 10))
+        day.tap()
+        sleep(1)
+        snap(app, "03-day")
     }
 
     private func snap(_ app: XCUIApplication, _ name: String) {
