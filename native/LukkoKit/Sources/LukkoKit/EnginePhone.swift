@@ -1,23 +1,24 @@
 import Foundation
 
 /// iPhone のカレンダー・.ics からの取り込みの流れ（Web 版 App.jsx の runScan・runRead・runIcs の写し）
+/// 待ち（await）をはさむ処理は @MainActor にする。付けないと、待ちのあとが裏のスレッドで動き、画面と同時に中身（state）を書き換えて落ちる（許可のあとに落ちていた）
 extension Engine {
     func setImp(_ patch: [String: JSONValue?]) { set(["imp": .object(Self.with(impObj, patch))]) }
 
     /// まだ許可を聞いていない人には、説明を挟まずにすぐ iPhone の許可の画面を出す（5.1.1(iv)）
-    public func askImportNow() async {
+    @MainActor public func askImportNow() async {
         guard phone != nil else { return }
         let st = await PhoneCal.checkAccess(phone)
         if st == "prompt" && state["screen"] == str("import") { await runScan() }
     }
 
-    public func openImport() async {
+    @MainActor public func openImport() async {
         set(["screen": str("import"), "imp": .object(["phase": str("idle"), "found": .array([]), "type": str("yoji"), "error": str("")])])
         await askImportNow()
     }
 
     /// 許可をもらって、読むカレンダーを選んでもらう（選び方は覚えておく）
-    public func runScan() async {
+    @MainActor public func runScan() async {
         haptic("light")
         setImp(["phase": str("scanning"), "error": str("")])
         let perm = await PhoneCal.askAccess(phone)
@@ -39,7 +40,7 @@ extension Engine {
     }
 
     /// 選んだカレンダーを読む。2 回目からは、前に取り込んだ予定と突き合わせて「直った」「元で消えた」を分ける
-    public func runRead(_ calIds: [JSONValue]?) async {
+    @MainActor public func runRead(_ calIds: [JSONValue]?) async {
         haptic("light")
         let im = impObj
         setImp(["phase": str("scanning"), "error": str("")])
