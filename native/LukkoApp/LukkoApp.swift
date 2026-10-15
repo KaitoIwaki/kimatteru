@@ -1,8 +1,18 @@
 import SwiftUI
+import StoreKit
 import LukkoKit
+
+/// 起動のいちばん初め。通知を押してアプリが開いたときの知らせは、ここで受け取る役を決めておかないと届かない
+final class LukkoAppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        Notifier.shared.attach()
+        return true
+    }
+}
 
 @main
 struct LukkoApp: App {
+    @UIApplicationDelegateAdaptor(LukkoAppDelegate.self) private var appDelegate
     @State private var model = AppModel(data: AppData())
     @Environment(\.scenePhase) private var scenePhase
 
@@ -22,6 +32,7 @@ struct LukkoApp: App {
         let data = model.data
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-lukkoTestReset") { data.resetForTest() }
+        if args.contains("-lukkoClearLocalStorage") { _ = await LocalStorageReader.clear() }
         if let i = args.firstIndex(of: "-lukkoSeedLocalStorage"), i + 1 < args.count,
            let raw = Data(base64Encoded: args[i + 1]), let json = String(data: raw, encoding: .utf8) {
             _ = await LocalStorageReader.write(["kimatteru.v2": json])
@@ -30,6 +41,11 @@ struct LukkoApp: App {
             try? SafeFile.write(raw, to: data.fileURL)
         }
         await model.start()
+        if let i = args.firstIndex(of: "-lukkoTestState"), i + 1 < args.count,
+           let raw = Data(base64Encoded: args[i + 1]), case .object(let patch)? = try? JSONDecoder().decode(JSONValue.self, from: raw) {
+            // 試験用：画面の状態（保存しないもの）を直に入れる（保存の知らせ・ロックの画面などの写真のため）
+            model.act { e in e.set(patch.mapValues { Optional($0) }) }
+        }
     }
 }
 
@@ -38,6 +54,8 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.colorScheme) private var scheme
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.requestReview) private var requestReview
     static let debug = ProcessInfo.processInfo.arguments.contains("-lukkoDebug")
 
     var body: some View {
@@ -48,16 +66,29 @@ struct RootView: View {
                 Color(.systemBackground).ignoresSafeArea()
             }
             if Self.debug { DebugBadge() }
+            // 保存についての知らせ（いちばん上に、必ず出す）
+            if model.ready { SystemSaveBanner() }
             LockedCover()
-            // ロックを入れている人は、アプリの切り替え画面に中身を見せない
+            // ロックを入れている人は、アプリの切り替え画面に中身を見せない（いまの版の lukko.shield と同じ）
             if JS.truthy(model.state["settings"]?["lock"]) && scenePhase != .active {
-                Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
+                Rectangle().fill(.regularMaterial).ignoresSafeArea()
             }
         }
         .environment(\.ink, Ink(dark: model.dark))
         .preferredColorScheme(forcedScheme)
-        .onAppear { model.sysDark = scheme == .dark }
+        .onAppear {
+            model.sysDark = scheme == .dark
+            readSystemZoom()
+        }
         .onChange(of: scheme) { _, s in model.sysDark = s == .dark }
+        .onChange(of: typeSize) { _, _ in readSystemZoom() }
+        // うれしい瞬間にだけ、控えめに（Engine.maybeAskReview が 1.2 秒待ってから合図する）
+        .onChange(of: model.reviewAsks) { _, _ in requestReview() }
+    }
+
+    /// iPhone の文字の大きさ（本文の pt）を、予定の字の倍率にする
+    private func readSystemZoom() {
+        model.sysZoom = SystemCore.sysZoom(bodyPointSize: Double(UIFont.preferredFont(forTextStyle: .body).pointSize))
     }
 
     /// 設定で「明るい／暗い」を選んでいるときだけ、アプリ全体をそちらにする（iPhone に合わせるときは何もしない）
@@ -72,40 +103,32 @@ struct RootView: View {
 /// 引っ越しの確かめ（試験のときだけ）
 struct DebugBadge: View {
     @Environment(AppData.self) private var data
+    @Environment(AppModel.self) private var model
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(data.loaded ? "予定 \(data.events.count) 件" : "読み込み中").accessibilityIdentifier("debug.eventCount")
             Text("使った中身：\(data.chosenSource)").accessibilityIdentifier("debug.source")
+            Text(widgetText).accessibilityIdentifier("debug.widget")
         }
         .font(.caption2)
         .padding(6)
         .background(.yellow.opacity(0.85), in: RoundedRectangle(cornerRadius: 6))
         .padding(.leading, 8).padding(.bottom, 100)
     }
+    /// 設定の診断と同じ言い方（渡せた（N日ぶん・N文字）／渡せなかった：理由／まだ渡していない）
+    private var widgetText: String {
+        guard let r = model.widgetLast else { return "ウィジェット：（まだ渡していない）" }
+        return r.ok ? "ウィジェット：渡せた（\(r.days)日ぶん・\(r.size)文字）" : "ウィジェット：渡せなかった：\(r.why)"
+    }
 }
 
-/// 下のタブ（iPhone 標準の TabView）。カレンダー・空き状況・まとめ・設定
+/// 下のタブ（iPhone 標準の TabView）。カレンダー・空き状況・まとめ・設定と、右に「＋」
 struct MainTabs: View {
     @Environment(AppModel.self) private var model
 
+    /// 押されたタブ。同じタブをもう一度押したときも呼ばれる（カレンダーなら今日へ・設定なら最初の画面へ）
     private var tab: Binding<String> {
-        Binding(get: {
-            switch model.state["screen"]?.string {
-            case "free": return "free"
-            case "report": return "report"
-            case "settings": return "settings"
-            default: return "month"
-            }
-        }, set: { new in
-            model.act { e in
-                switch new {
-                case "month": e.set(["screen": "month", "dayNum": .null, "detailId": .null])
-                case "free": e.set(["screen": "free"])
-                case "report": e.set(["screen": "report"])
-                default: e.set(["screen": "settings", "editTypeKey": .null, "setPage": .null])
-                }
-            }
-        })
+        Binding(get: { model.tab }, set: { new in model.tapTab(new) })
     }
 
     var body: some View {
@@ -122,6 +145,10 @@ struct MainTabs: View {
             SettingsScreen()
                 .tabItem { Label("設定", systemImage: "gearshape") }
                 .tag("settings")
+            // 「＋」：今月を見ていれば今日、別の月ならその月の 1 日で新しい予定（このタブには移らない）
+            Color.clear
+                .tabItem { Label("追加", systemImage: "plus.circle.fill") }
+                .tag("add")
         }
         .sheet(isPresented: Binding(get: { model.state["screen"] == "new" }, set: { on in
             // 下へ払って閉じた（書きかけが無いときだけ払える）

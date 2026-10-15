@@ -28,6 +28,11 @@ final class LocalStorageReader: NSObject, WKURLSchemeHandler, WKScriptMessageHan
         return await LocalStorageReader().run(js: js, timeout: timeout) != nil
     }
 
+    /// 試験用：中身を空にする（いまの版の localStorage が消えていたときを作る）
+    static func clear(timeout: TimeInterval = 8) async -> Bool {
+        await LocalStorageReader().run(js: "localStorage.clear();window.webkit.messageHandlers.lukko.postMessage('{}');", timeout: timeout) != nil
+    }
+
     private static func quote(_ s: String) -> String {
         let data = try! JSONSerialization.data(withJSONObject: [s])
         let arr = String(data: data, encoding: .utf8)!
