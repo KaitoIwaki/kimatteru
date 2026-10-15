@@ -8,7 +8,7 @@ final class MonthShots: XCTestCase {
     }
 
     /// 見本：今月の予定（決まった・まだ・記録・何日も続く・無くなった）、シフトの型のある勤務先、日にち未定の棚
-    private func sample(theme: String? = nil, empty: Bool = false) -> String {
+    private func sample(theme: String? = nil, empty: Bool = false, dayView: String? = nil) -> String {
         let (y, m, today) = ymd()
         func ev(_ id: String, _ d: Int, _ title: String, _ type: String, _ status: String, _ s: String = "10:00", _ e: String = "11:00", extra: String = "") -> String {
             "{\"id\":\"\(id)\",\"y\":\(y),\"m\":\(m),\"day\":\(d),\"start\":\"\(s)\",\"end\":\"\(e)\",\"title\":\"\(title)\",\"type\":\"\(type)\",\"status\":\"\(status)\",\"updatedAt\":1\(extra)}"
@@ -31,7 +31,7 @@ final class MonthShots: XCTestCase {
         ]
         let jobs = "[{\"id\":\"j1\",\"name\":\"カフェ\",\"hourly\":1200,\"templates\":[{\"name\":\"早番\",\"from\":540,\"to\":1020,\"sym\":\"早\"},{\"name\":\"遅番\",\"from\":1020,\"to\":1380,\"sym\":\"遅\"},{\"name\":\"\",\"from\":0,\"to\":1439,\"sym\":\"休\",\"allDay\":true}]}]"
         let someday = empty ? "[]" : "[{\"id\":\"s1\",\"title\":\"髪を切る\",\"type\":\"yoji\",\"when\":\"month\",\"y\":\(y),\"m\":\(m),\"day\":1,\"at\":1}]"
-        let th = theme.map { ",\"theme\":\"\($0)\"" } ?? ""
+        let th = (theme.map { ",\"theme\":\"\($0)\"" } ?? "") + (dayView.map { ",\"dayView\":\"\($0)\"" } ?? "")
         // 0 件の見本は、前の試験の中身に負けないよう少しだけ新しくする
         return "{\"savedAt\":\(empty ? "9000000000001" : "9000000000000"),\"events\":[\(evs.joined(separator: ","))],\"jobs\":\(empty ? "[]" : jobs),\"someday\":\(someday),\"settings\":{\"hourly\":1100,\"weekStart\":0,\"onboarded\":true\(th)}}"
     }
@@ -171,9 +171,6 @@ final class MonthShots: XCTestCase {
             app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.06)).tap()
             sleep(1)
         }
-        seg(app, "day.viewSeg", "時間")
-        snap(app, "M13-day-time")
-        seg(app, "day.viewSeg", "一覧")
         back(app)
 
         // 「決まった」の瞬間：今日のまだの予定を開いて「確定した」
@@ -206,6 +203,16 @@ final class MonthShots: XCTestCase {
         let close = app.buttons["この案内を閉じる"]
         if close.exists { close.tap(); sleep(1) }
         snap(app, "M21-first-run-closed")
+    }
+
+    /// 日の画面の「時間」（設定に入っているほうで開く）
+    func testDayTime() throws {
+        let app = launch(sample(dayView: "time"))
+        let day = app.buttons["month.day.20"]
+        XCTAssertTrue(day.waitForExistence(timeout: 10))
+        day.tap()
+        sleep(2)
+        snap(app, "M13-day-time")
     }
 
     func testDark() throws {
