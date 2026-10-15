@@ -17,7 +17,10 @@ struct MonthScreen: View {
             .toolbar { MonthToolbar() }
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: dayShown) { DayScreen() }
-            .navigationDestination(isPresented: Binding(get: { model.state["screen"] == "detail" && model.state["returnTo"] != "day" },
+            // 一覧（その上に詳細・新しい予定が重なっているあいだも残す）
+            .navigationDestination(isPresented: Binding(get: { model.state["screen"] == "list" || (["detail", "new"].contains(model.state["screen"]?.string ?? "") && model.state["returnTo"] == "list") },
+                                                        set: { on in if !on && model.state["screen"] == "list" { model.act { $0.set(["screen": "month"]) } } })) { ListScreen() }
+            .navigationDestination(isPresented: Binding(get: { model.state["screen"] == "detail" && !["day", "list"].contains(model.state["returnTo"]?.string ?? "") },
                                                         set: { on in if !on && model.state["screen"] == "detail" { model.act { $0.detailBack() } } })) { DetailScreen() }
         }
     }

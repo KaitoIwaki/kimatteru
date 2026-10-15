@@ -180,3 +180,84 @@ for (let k = 0; k < 120; k++) {
 }
 fs.writeFileSync(path.join(OUT, 'view-free.json'), JSON.stringify(freeCases));
 console.log('view-free', freeCases.length);
+
+// ---- これから・まだ・探す ----
+const listCases = [];
+for (let k = 0; k < 150; k++) {
+  NOW = new RealDate(2026, int(0, 11), int(1, 28), int(7, 22), int(0, 59)).getTime();
+  const now = new RealDate(NOW);
+  const today = { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() };
+  const types = J(mkApp({}).state.types);
+  if (rnd() < 0.3) types.push({ key: 'work', name: '仕事', color: '#6E85BE', paper: 'p', dark: 'd', uWord: '仮押さえ', cWord: '確定', gone: '流れた' });
+  const events = [];
+  for (let i = 0; i < pick([0, 4, 12, 30]); i++) {
+    const n = H.AppMod.dayNo(today.y, today.m, today.d) + int(-20, 60);
+    const o = H.AppMod.fromDayNo(n);
+    const e = { id: 'e' + String(i).padStart(2, '0'), type: pick(['yoji', 'baito', 'asobi', 'work']), title: pick(['定例', 'カフェ', '歯医者', 'Meeting ABC', '飲み会']), y: o.y, m: o.m, day: o.d,
+      start: HH(), end: HH(), status: pick(['kakutei', 'mikakutei', 'mikakutei', 'jisseki', 'nakunatta']), updatedAt: i };
+    if (rnd() < 0.2) { e.allDay = true; if (rnd() < 0.5) e.days = int(2, 4); }
+    if (rnd() < 0.3) e.place = pick(['渋谷', '本社']);
+    if (rnd() < 0.2) e.memo = pick(['持ち物 ABC', 'メモ']);
+    if (e.status === 'jisseki' && rnd() < 0.5) e.actualEnd = HH();
+    events.push(e);
+  }
+  const someday = [];
+  for (let i = 0; i < pick([0, 0, 2]); i++) someday.push({ id: 's' + i, title: pick(['旅行', '髪を切る']), when: pick(['week', 'month', 'next', 'someday']), type: pick(['yoji', 'asobi']), y: today.y, m: today.m, day: 1, at: 1, ev: rnd() < 0.5 ? { id: 'se' + i, type: 'yoji', title: '旅行', start: '10:00', end: '11:00', allDay: false, status: 'mikakutei' } : undefined });
+  const settings = { ...mkApp({}).state.settings, onboarded: true, weekStart: pick([0, 1]), theme: pick([undefined, 'dark']) };
+  const tab = pick(['upcoming', 'undecided', 'search', undefined]);
+  const st0 = { events, types, someday, settings, today, ym: { y: today.y, m: today.m }, screen: 'list', listTab: tab, listDashOnly: rnd() < 0.3, searchQ: pick(['', 'abc', '渋谷', ' カフェ ', 'メモ', 'zzz']), returnTo: 'month' };
+  const app = mkApp(J(st0));
+  const { v } = app.renderVals();
+  const out = { seg: v.listSeg.map((s) => s.label), groups: (v.listGroups || []).map((g) => ({ head: g.head, rows: g.rows.map((r) => ({ key: r.key, title: r.title, place: r.place, date: r.date, dow: r.dow, time: r.time, dashed: r.dashed, word: r.word, goneLabel: r.goneLabel, pill: pickKeys(r.pillStyle, ['background', 'color', 'border']) })) })),
+    empty: v.listEmpty || '', shelf: (v.listShelf || []).map((s) => ({ key: s.key, title: s.title, when: s.when, dot: s.dot })) };
+  // 押すもの：流れた／日を決める（小窓を開いて日を押す）
+  let op = null;
+  const rows = (v.listGroups || []).flatMap((g) => g.rows).filter((r) => r.onGone);
+  if (rows.length && rnd() < 0.4) { const r = pick(rows); r.onGone(); op = { h: 'gone', id: r.key }; }
+  else if ((v.listShelf || []).length && rnd() < 0.6) {
+    const s = pick(v.listShelf); s.onPick(); op = { h: 'pick', id: s.key };
+    if (rnd() < 0.5) { app.renderVals().v.onSomedayPickNext(); op.next = true; }
+    const pv = app.renderVals().v;
+    out.pick = { title: pv.somedayPickTitle, label: pv.somedayPickLabel, weekdays: pv.somedayPickWeekdays.map((w) => w.label), cells: pv.somedayPickCells.map((c) => (c.label === '' ? null : { day: c.label, color: c.style.color, busy: c.style.background === 'var(--bg2)' })) };
+    const cs = pv.somedayPickCells.filter((c) => c.label !== ''); const c = pick(cs); c.onClick(); op.d = c.label;
+  }
+  listCases.push({ now: NOW, state: J(st0), out, op, after: op ? J({ events: app.state.events, someday: app.state.someday, undo: app.state.undo, somedayPick: app.state.somedayPick, ym: app.state.ym, gone: app.state.gone, shareMsg: app.state.shareMsg }) : null });
+}
+fs.writeFileSync(path.join(OUT, 'view-list.json'), JSON.stringify(listCases));
+console.log('view-list', listCases.length, listCases.filter((c) => c.op).length, 'ops');
+
+// ---- まとめ ----
+const repCases = [];
+for (let k = 0; k < 120; k++) {
+  NOW = new RealDate(2026, int(0, 11), int(1, 28), int(7, 22), int(0, 59)).getTime();
+  const now = new RealDate(NOW);
+  const today = { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() };
+  const types = J(mkApp({}).state.types);
+  if (rnd() < 0.3) types.push({ key: 'work', name: '仕事', color: '#6E85BE', paper: 'p', dark: 'd' });
+  const jobs = rnd() < 0.7 ? [{ id: 'j1', name: pick(['カフェ', '']), hourly: 1100, closeDay: pick([undefined, 15, 31, 20]), payDay: pick([undefined, 25, 31, 10]) },
+    ...(rnd() < 0.5 ? [{ id: 'j2', name: '塾', hourly: 1500, closeDay: pick([undefined, 31]) }] : [])] : [];
+  const events = [];
+  for (let i = 0; i < pick([0, 10, 40]); i++) {
+    const e = { id: 'e' + i, type: pick(['yoji', 'baito', 'asobi', 'work', 'baito']), title: pick(['定例', 'カフェ', 'ジム', '飲み会']), y: today.y + pick([0, 0, 0, -1]), m: int(0, 11), day: int(1, 28),
+      start: HH(), end: HH(), status: pick(['kakutei', 'jisseki', 'jisseki', 'mikakutei', 'nakunatta']), updatedAt: i };
+    if (rnd() < 0.15) { e.allDay = true; if (rnd() < 0.5) e.days = int(2, 3); }
+    if (e.type === 'baito') e.jobId = pick(['j1', 'j2', undefined, 'gone']);
+    if (e.status === 'jisseki' && rnd() < 0.5) { e.actualEnd = HH(); e.breakMin = pick([0, 30, 60]); }
+    if (e.status === 'jisseki' && rnd() < 0.3) e.hourly = pick([1000, 1300]);
+    if (rnd() < 0.1) e.noReport = true;
+    if (rnd() < 0.05) e.jobName = '前の店';
+    events.push(e);
+  }
+  const settings = { ...mkApp({}).state.settings, onboarded: true, hourly: 1120, priorWage: rnd() < 0.3 ? { [today.y]: 50000 } : {}, paidLeave: rnd() < 0.3 ? { start: 3, grant: 10 } : undefined, profile: pick(['student', 'work']) };
+  const st0 = { events, types, jobs, settings, today, ym: { y: today.y, m: (today.m + pick([0, -1, 1]) + 12) % 12 }, screen: 'report', repTab: pick(['month', 'year', undefined]), priorOpen: rnd() < 0.3 };
+  const app = mkApp(J(st0));
+  const { v } = app.renderVals();
+  repCases.push({ now: NOW, state: J(st0), out: J({ monthLabel: v.repMonthLabel, yearLabel: v.repYearLabel, empty: v.repEmpty, tab: v.repTab, monthKinds: v.repMonthKinds, yearKinds: v.repYearKinds,
+    monthNone: v.repMonthNone, monthHead: v.repMonthHead, monthSub: v.repMonthSub, yearHead: v.repYearHead, yearSub: v.repYearSub,
+    bars: v.repBars.map((b) => ({ label: b.label, hours: b.hours, isCur: b.isCur, height: parseInt(b.barStyle.height, 10), color: b.barStyle.background })),
+    wageShown: v.repWageShown, monthHours: v.repMonthHours, monthWage: v.repMonthWage, monthDays: v.repMonthDays, yearHours: v.repYearHours, yearWage: v.repYearWage, yearDays: v.repYearDays,
+    priorText: v.repPriorText, priorLabel: v.repPriorLabel, priorHint: v.repPriorHint, priorValue: v.repPriorValue, priorOpen: v.repPriorOpen,
+    monthJobs: v.repMonthJobs, yearJobs: v.repYearJobs, overMonth: v.repOverMonth, overYear: v.repOverYear, leave: v.repLeave, payRows: v.repPayRows }) });
+}
+fs.writeFileSync(path.join(OUT, 'view-report.json'), JSON.stringify(repCases));
+console.log('view-report', repCases.length);

@@ -110,7 +110,7 @@ struct MainTabs: View {
             FreeScreen()
                 .tabItem { Label("空き状況", systemImage: "circle.grid.2x2") }
                 .tag("free")
-            PlaceholderScreen(title: "まとめ")
+            ReportScreen()
                 .tabItem { Label("まとめ", systemImage: "chart.bar") }
                 .tag("report")
             PlaceholderScreen(title: "設定")

@@ -5,7 +5,8 @@ public enum JSDate {
     public struct Parts: Equatable { public var y: Int, m: Int, d: Int, h: Int, min: Int, s: Int, ms: Int }
     /// new Date(ms) の getFullYear() など（地元の時刻）
     public static func local(_ ms: Double, _ tz: TimeZone) -> Parts {
-        let t = ms.rounded(.towardZero)
+        // 範囲外（Invalid Date）は 1970-01-01 として落ちずに返す（呼ぶ側で NaN を先に除いている）
+        let t = ms.isFinite && abs(ms) <= 8.64e15 ? ms.rounded(.towardZero) : 0
         let off = Double(tz.secondsFromGMT(for: Date(timeIntervalSince1970: t / 1000))) * 1000
         let lm = t + off
         let dn = (lm / 86_400_000).rounded(.down)
@@ -24,7 +25,7 @@ public enum JSDate {
     /// new Date(v) の時刻（数でなければ NaN。null は 0）
     public static func ms(_ v: JSONValue?) -> Double {
         switch v {
-        case .number(let n)?: return n.isFinite ? n.rounded(.towardZero) : .nan
+        case .number(let n)?: return n.isFinite && abs(n) <= 8.64e15 ? n.rounded(.towardZero) : .nan   // JS の Date の範囲を超えたら Invalid Date
         case .null?: return 0
         case .bool(let b)?: return b ? 1 : 0
         default: return .nan
@@ -219,7 +220,7 @@ public enum PhoneCal {
         func parts(_ v: JSONValue?) -> (Int, Int) {
             let p = JS.string(JS.or(v, .string("0:0"))).components(separatedBy: ":").map { JS.number($0) }
             let a = p.count > 0 ? JS.orZero(p[0]) : 0, b = p.count > 1 ? JS.orZero(p[1]) : 0
-            return (Int(a), Int(b))
+            return (JS.int(.number(a)), JS.int(.number(b)))
         }
         let (sh, sm) = parts(ev["start"])
         let (eh, em) = parts(ev["status"] == .string("jisseki") ? JS.or(ev["actualEnd"], ev["end"]) : ev["end"])

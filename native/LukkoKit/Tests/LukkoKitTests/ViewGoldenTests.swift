@@ -158,4 +158,73 @@ final class ViewGoldenTests: XCTestCase {
         }
         XCTAssertEqual(fails, 0, "合わなかった数")
     }
+
+    func testList() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "Fixtures/golden/view-list", withExtension: "json"))
+        let cases = try XCTUnwrap(JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url)).array)
+        var fails = 0
+        func check(_ got: JSONValue, _ want: JSONValue?, _ what: @autoclosure () -> String) {
+            if got != (want ?? .null) { fails += 1; if fails <= 15 { XCTFail("\(what())：\n\(got)\n≠\n\(String(describing: want))") } }
+        }
+        for (i, c) in cases.enumerated() {
+            let eng = Engine(state: c["state"]?.object ?? [:], now: c["now"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+            let dark = AppCore(state: eng.state).isDark(sysDark: false)
+            let v = eng.listView(dark: dark)
+            let out = c["out"] ?? .null
+            check(.array(v.seg.map { .string($0.label) }), out["seg"], "#\(i) 切り替え")
+            check(.array(v.groups.map { g in ["head": .string(g.head), "rows": .array(g.rows.map { r in
+                ["key": r.key, "title": .string(r.title), "place": .string(r.place), "date": .string(r.date), "dow": .string(r.dow), "time": .string(r.time),
+                 "dashed": .bool(r.dashed), "word": .string(r.word), "goneLabel": .string(r.goneLabel), "pill": .object(r.pill)] })] }), out["groups"], "#\(i) 一覧")
+            check(.string(v.empty), out["empty"], "#\(i) 空のとき")
+            check(.array(v.shelf.map { ["key": $0.key, "title": .string($0.title), "when": .string($0.when), "dot": .string($0.dot)] }), out["shelf"], "#\(i) 棚")
+            guard let op = c["op"], op != .null else { continue }
+            if op["h"] == "gone" { eng.listGone(op["id"]) }
+            else {
+                eng.openSomedayPick(op["id"])
+                if op["next"] == .bool(true) { eng.shiftSomedayPick(1) }
+                if let pv = eng.somedayPickView() {
+                    check(["title": .string(pv.title), "label": .string(pv.label), "weekdays": .array(pv.weekdays.map { .string($0) }),
+                           "cells": .array(pv.cells.map { x in x.day == nil ? .null : ["day": .number(Double(x.day!)), "color": .string(x.color), "busy": .bool(x.busy)] })], out["pick"], "#\(i) 日を決める小窓")
+                }
+                eng.pickSomedayDay(op["d"]?.int ?? 1)
+            }
+            var o: [String: JSONValue] = [:]
+            for k in ["events", "someday", "undo", "somedayPick", "ym", "gone", "shareMsg"] { if let x = eng.state[k] { o[k] = x } }
+            var m1: [String: String] = [:], m2: [String: String] = [:]
+            check(ActionsGoldenTests.normalize(.object(o), &m1), ActionsGoldenTests.normalize(c["after"] ?? .null, &m2), "#\(i) \(op) のあと")
+        }
+        XCTAssertEqual(fails, 0, "合わなかった数")
+    }
+
+    func testReport() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "Fixtures/golden/view-report", withExtension: "json"))
+        let cases = try XCTUnwrap(JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url)).array)
+        var fails = 0
+        for (i, c) in cases.enumerated() {
+            let eng = Engine(state: c["state"]?.object ?? [:], now: c["now"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+            let v = eng.reportView()
+            func head(_ h: ReportView.Head) -> JSONValue { ["num": .string(h.num), "unit": .string(h.unit), "rest": .string(h.rest)] }
+            let got: JSONValue = [
+                "monthLabel": .string(v.monthLabel), "yearLabel": .string(v.yearLabel), "empty": .bool(v.empty), "tab": .string(v.tab),
+                "monthKinds": .array(v.monthKinds), "yearKinds": .array(v.yearKinds), "monthNone": .bool(v.monthNone),
+                "monthHead": head(v.monthHead), "monthSub": .string(v.monthSub), "yearHead": head(v.yearHead), "yearSub": .string(v.yearSub),
+                "bars": .array(v.bars.map { ["label": .number(Double($0.label)), "hours": .number($0.hours), "isCur": .bool($0.isCur), "height": .number(Double($0.height)), "color": .string($0.color)] }),
+                "wageShown": .bool(v.wageShown), "monthHours": .string(v.monthHours), "monthWage": .string(v.monthWage), "monthDays": .string(v.monthDays),
+                "yearHours": .string(v.yearHours), "yearWage": .string(v.yearWage), "yearDays": .string(v.yearDays),
+                "priorText": .string(v.priorText), "priorLabel": .string(v.priorLabel), "priorHint": .string(v.priorHint), "priorValue": .string(v.priorValue), "priorOpen": .bool(v.priorOpen),
+                "monthJobs": .array(v.monthJobs), "yearJobs": .array(v.yearJobs), "overMonth": .string(v.overMonth), "overYear": .string(v.overYear), "leave": .string(v.leave),
+                "payRows": .array(v.payRows.map { ["name": .string($0.name), "head": .string($0.head), "range": .string($0.range), "wage": .string($0.wage), "times": .number(Double($0.times))] }),
+            ]
+            let want = c["out"] ?? .null
+            if got != want {
+                fails += 1
+                if fails <= 10 {
+                    let go = got.object ?? [:], wo = want.object ?? [:]
+                    let diff = Set(go.keys).union(wo.keys).filter { go[$0] != wo[$0] }.sorted()
+                    XCTFail("#\(i) まとめが違う \(diff)：\n" + diff.map { "\($0)：\(String(describing: go[$0]))\n   ≠ \(String(describing: wo[$0]))" }.joined(separator: "\n"))
+                }
+            }
+        }
+        XCTAssertEqual(fails, 0, "合わなかった数")
+    }
 }

@@ -33,7 +33,7 @@ final class DetailGoldenTests: XCTestCase {
     func testDetail() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "Fixtures/golden/detail", withExtension: "json"))
         let cases = try XCTUnwrap(JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url)).array)
-        let keys = ["events", "screen", "returnTo", "detailId", "detailMenu", "dialog", "draft", "confirmDelete", "undo", "shareMsg", "shareToast", "someday", "ym", "candAsk", "settings", "trash", "today"]
+        let keys = ["events", "screen", "returnTo", "detailId", "detailMenu", "dialog", "draft", "confirmDelete", "undo", "shareMsg", "shareToast", "someday", "ym", "candAsk", "settings", "trash", "today", "types", "jobs"]
         var fails = 0
         func fail(_ s: @autoclosure () -> String) { fails += 1; if fails <= 15 { XCTFail(s()) } }
         for (ci, c) in cases.enumerated() {

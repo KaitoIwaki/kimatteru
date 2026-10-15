@@ -136,7 +136,7 @@ extension AppCore {
         let wFirst = Civil.weekday(Y, M, 1), dim = Civil.daysInMonth(Y, M)
         let t = state["today"]
         let today = (t?["y"] == .number(Double(Y)) && t?["m"] == .number(Double(M))) ? JS.int(t?["d"]) : 0
-        let first = ((wFirst - Int(ws)) % 7 + 7 + 7) % 7
+        let first = ((wFirst - JS.int(.number(ws))) % 7 + 7 + 7) % 7
         let weekCount = Int((Double(first + dim) / 7).rounded(.up))
         let monthA = Civil.dayNo(Y, M, 1), monthB = Civil.dayNo(Y, M, dim)
         let hideCanceled = JS.truthy(settings["hideCanceled"])

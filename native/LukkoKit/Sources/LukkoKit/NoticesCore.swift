@@ -134,7 +134,7 @@ public enum NoticesCore {
     /// 「たった今」「3時間前」のような言い方
     public static func relativeTime(_ ms: Double, now: Double, tz: TimeZone) -> String {
         let diff = max(0, now - ms)
-        let min = Int((diff / 60000).rounded(.down))
+        let min = JS.int(.number((diff / 60000).rounded(.down)))
         if min < 1 { return "たった今" }
         if min < 60 { return "\(min)分前" }
         let hour = min / 60

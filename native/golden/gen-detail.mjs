@@ -55,7 +55,7 @@ const dialogOf = (v, st) => !st.dialog ? null : {
   moveCells: v.dlgMoving ? v.dlgMoveCells.map((c) => (c.label === '' ? null : { day: c.label, color: c.style.color, bg: c.style.background, weight: c.style.fontWeight, orig: c.style.textDecoration === 'line-through' })) : [],
   editLabel: v.dlgEditLabel,
 };
-const KEYS = ['events', 'screen', 'returnTo', 'detailId', 'detailMenu', 'dialog', 'draft', 'confirmDelete', 'undo', 'shareMsg', 'shareToast', 'someday', 'ym', 'candAsk', 'settings', 'trash', 'today'];
+const KEYS = ['events', 'screen', 'returnTo', 'detailId', 'detailMenu', 'dialog', 'draft', 'confirmDelete', 'undo', 'shareMsg', 'shareToast', 'someday', 'ym', 'candAsk', 'settings', 'trash', 'today', 'types', 'jobs'];
 const snap = (app) => { const o = {}; for (const k of KEYS) o[k] = app.state[k]; return J(o); };
 const HH = () => String(int(0, 23)).padStart(2, '0') + ':' + pick(['00', '30']);
 

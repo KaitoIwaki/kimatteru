@@ -7,7 +7,10 @@ public struct Words: Equatable {
 
 /// 新しい予定／予定を編集の画面の中身（Web 版 renderVals の NEW の写し）
 public struct FormView {
-    public struct Chip: Equatable { public var key: JSONValue; public var label: String; public var sel: Bool }
+    public struct Chip: Equatable {
+        public var key: JSONValue; public var label: String; public var sel: Bool
+        public init(key: JSONValue, label: String, sel: Bool) { self.key = key; self.label = label; self.sel = sel }
+    }
     public struct Cell: Equatable {
         public var day: Int?, isMain: Bool, isExtra: Bool, isToday: Bool, color: String, weight: Int
         public var bg: String, border: String

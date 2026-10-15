@@ -165,7 +165,7 @@ public enum IcsCore {
         }
         let freq = r["FREQ"] ?? ""
         let iv = JS.truthy(r["INTERVAL"].map { .string($0) }) ? JS.number(r["INTERVAL"]!) : 1
-        let interval = iv.isNaN ? 1 : max(1, Int(iv))
+        let interval = iv.isNaN ? 1 : max(1, JS.int(.number(iv)))
         guard ["DAILY", "WEEKLY", "MONTHLY", "YEARLY"].contains(freq) else { return [(start.y, start.m, start.d)] }
         let count: Double = JS.truthy(r["COUNT"].map { .string($0) }) ? JS.number(r["COUNT"]!) : .infinity
         let until = JS.truthy(r["UNTIL"].map { .string($0) }) ? parseDt(r["UNTIL"]!, [:], tz: tz) : nil

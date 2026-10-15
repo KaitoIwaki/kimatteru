@@ -511,7 +511,7 @@ extension Engine {
         // 始まりの月が壊れていると、Web 版は「NaN日」と出す。こちらは落ちないように何も出さない
         if !start.isFinite { return nil }
         let y0 = Double(t.m) >= start ? t.y : t.y - 1
-        let a = Civil.dayNo(y0, Int(start), 1), b = Civil.dayNo(y0 + 1, Int(start), 1) - 1
+        let a = Civil.dayNo(y0, JS.int(.number(start)), 1), b = Civil.dayNo(y0 + 1, JS.int(.number(start)), 1) - 1
         var used = 0.0, planned = 0.0
         let c = core()
         let halfRe = try! NSRegularExpression(pattern: "半休|午前休|午後休|半日"), fullRe = try! NSRegularExpression(pattern: "有給|有休|年休")

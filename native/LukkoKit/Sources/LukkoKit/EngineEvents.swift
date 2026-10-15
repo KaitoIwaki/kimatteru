@@ -51,9 +51,9 @@ extension Engine {
                 if ev == "monthEnd" { days.append(dim) }
                 else {
                     for w in want {
-                        let first = 1 + Int((w - Double(Civil.weekday(Y, M, 1)) + 7).truncatingRemainder(dividingBy: 7))
+                        let first = 1 + JS.int(.number((w - Double(Civil.weekday(Y, M, 1)) + 7).truncatingRemainder(dividingBy: 7)))
                         for k in ks {
-                            let dd = k == 5 ? first + 7 * ((dim - first) / 7) : first + 7 * (Int(k) - 1)
+                            let dd = k == 5 ? first + 7 * ((dim - first) / 7) : first + 7 * (JS.int(.number(k)) - 1)
                             if dd <= dim { days.append(dd) }
                         }
                     }
