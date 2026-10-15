@@ -900,7 +900,11 @@ struct FormDismissGuard: UIViewControllerRepresentable {
         override func viewDidLoad() { super.viewDidLoad(); view.isUserInteractionEnabled = false; view.backgroundColor = .clear }
         override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); hook() }
         func hook() {
-            guard let pc = presentationController else { return }
+            // シートそのもの（いちばん上の親で、出されている側）の presentationController。
+            // 自分の presentationController を読むと、出されていない VC では新しく作られてしまう
+            var top: UIViewController = self
+            while let p = top.parent { top = p }
+            guard top.presentingViewController != nil, let pc = top.presentationController else { return }
             if let p = proxy, pc.delegate === p { return }
             let p = Proxy(original: pc.delegate) { [weak self] in self?.onAttempt() }
             proxy = p

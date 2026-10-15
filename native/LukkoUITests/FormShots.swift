@@ -21,6 +21,7 @@ final class FormShots: XCTestCase {
             ev("k", 20, "映画", "asobi", "kakutei", "18:00", "20:00"),
             ev("r1", 20, "ジム", "yoji", "kakutei", "07:00", "08:00", extra: ",\"repId\":\"R\""),
             ev("r2", 27, "ジム", "yoji", "kakutei", "07:00", "08:00", extra: ",\"repId\":\"R\""),
+            ev("q", 20, "打ち合わせ", "yoji", "mikakutei", "13:00", "14:00"),
         ]
         return "{\"savedAt\":9900000000000,\"events\":[\(evs.joined(separator: ","))],\"jobs\":[{\"id\":\"j1\",\"name\":\"カフェ\",\"hourly\":1100}],\"settings\":{\"hourly\":1100,\"weekStart\":0,\"onboarded\":true}}"
     }
@@ -63,7 +64,8 @@ final class FormShots: XCTestCase {
         if rep.waitForExistence(timeout: 3) { rep.tap(); sleep(1) }
         snap(app, "23-form-repeat")
         // 書きかけがあるので、下へ払っても閉じず、捨てるか聞く
-        app.navigationBars.firstMatch.swipeDown(velocity: .fast)
+        let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.085))
+        top.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.85)))
         sleep(1)
         snap(app, "24-form-swipe-ask")
         if app.alerts.buttons["書きつづける"].waitForExistence(timeout: 3) { app.alerts.buttons["書きつづける"].tap(); sleep(1) }
@@ -126,28 +128,20 @@ final class FormShots: XCTestCase {
                 }
             }
         }
-        // 「まだ」の予定 →「どうなった？」
-        app.tabBars.buttons["カレンダー"].tap()
-        sleep(1)
-        let c = Calendar(identifier: .gregorian).component(.day, from: Date())
-        let d = app.buttons["month.day.\(min(c, 28))"]
-        if d.waitForExistence(timeout: 5) {
-            d.tap()
+        // 「まだ」の予定 →「どうなった？」（日の画面は 20 日のまま。今日より後なら詳細の主ボタンから、今日か前ならすぐ小窓）
+        let mk = app.descendants(matching: .any).matching(identifier: "day.row.q").firstMatch
+        if mk.waitForExistence(timeout: 5) {
+            mk.tap()
             sleep(1)
-            let mk = app.descendants(matching: .any).matching(identifier: "day.row.h").firstMatch
-            if mk.waitForExistence(timeout: 5) {
-                mk.tap()
+            if app.buttons["detail.primary"].waitForExistence(timeout: 2) { app.buttons["detail.primary"].tap(); sleep(1) }
+            snap(app, "31-dialog")
+            let t = app.buttons["dialog.time.end"]
+            if t.waitForExistence(timeout: 3) { t.tap(); sleep(1) }
+            snap(app, "32-dialog-wheel")
+            if app.buttons["別の日になった"].waitForExistence(timeout: 2) {
+                app.buttons["別の日になった"].tap()
                 sleep(1)
-                if app.buttons["detail.primary"].waitForExistence(timeout: 2) { app.buttons["detail.primary"].tap(); sleep(1) }
-                snap(app, "31-dialog")
-                let t = app.buttons["dialog.time.end"]
-                if t.waitForExistence(timeout: 3) { t.tap(); sleep(1) }
-                snap(app, "32-dialog-wheel")
-                if app.buttons["別の日になった"].waitForExistence(timeout: 2) {
-                    app.buttons["別の日になった"].tap()
-                    sleep(1)
-                    snap(app, "33-dialog-move")
-                }
+                snap(app, "33-dialog-move")
             }
         }
     }
