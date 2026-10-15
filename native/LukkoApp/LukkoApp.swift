@@ -136,27 +136,44 @@ struct MainTabs: View {
         Binding(get: { model.tab }, set: { new in model.tapTab(new) })
     }
 
-    var body: some View {
-        TabView(selection: tab) {
-            MonthScreen()
-                .tabItem { Label("カレンダー", systemImage: "calendar") }
-                .tag("month")
-            FreeScreen()
-                .tabItem {
+    /// 下のタブ。iOS 18 からは Tab で組み、「＋」を役割 .search にする（iOS 26 では Apple Music の検索のように、右に独立した丸いボタンになる）
+    @ViewBuilder private var tabs: some View {
+        if #available(iOS 18.0, *) {
+            TabView(selection: tab) {
+                Tab("カレンダー", systemImage: "calendar", value: "month") { MonthScreen() }
+                Tab(value: "free") { FreeScreen() } label: {
                     Label { Text("空き状況") } icon: { Image(uiImage: SystemTabIcon.free).renderingMode(.original) }
                 }
-                .tag("free")
-            ReportScreen()
-                .tabItem { Label("まとめ", systemImage: "chart.bar") }
-                .tag("report")
-            SettingsScreen()
-                .tabItem { Label("設定", systemImage: "gearshape") }
-                .tag("settings")
-            // 「＋」：今月を見ていれば今日、別の月ならその月の 1 日で新しい予定（このタブには移らない）
-            Color.clear
-                .tabItem { Label("追加", systemImage: "plus.circle.fill") }
-                .tag("add")
+                Tab("まとめ", systemImage: "chart.bar", value: "report") { ReportScreen() }
+                Tab("設定", systemImage: "gearshape", value: "settings") { SettingsScreen() }
+                // 「＋」：今月を見ていれば今日、別の月ならその月の 1 日で新しい予定（このタブには移らない）
+                Tab("追加", systemImage: "plus", value: "add", role: .search) { Color.clear }
+            }
+        } else {
+            TabView(selection: tab) {
+                MonthScreen()
+                    .tabItem { Label("カレンダー", systemImage: "calendar") }
+                    .tag("month")
+                FreeScreen()
+                    .tabItem {
+                        Label { Text("空き状況") } icon: { Image(uiImage: SystemTabIcon.free).renderingMode(.original) }
+                    }
+                    .tag("free")
+                ReportScreen()
+                    .tabItem { Label("まとめ", systemImage: "chart.bar") }
+                    .tag("report")
+                SettingsScreen()
+                    .tabItem { Label("設定", systemImage: "gearshape") }
+                    .tag("settings")
+                Color.clear
+                    .tabItem { Label("追加", systemImage: "plus.circle.fill") }
+                    .tag("add")
+            }
         }
+    }
+
+    var body: some View {
+        tabs
         .sheet(isPresented: Binding(get: { model.state["screen"] == "new" }, set: { on in
             // 下へ払って閉じた（書きかけが無いときだけ払える）
             if !on && model.state["screen"] == "new" { model.act { $0.cancelForm() } }
