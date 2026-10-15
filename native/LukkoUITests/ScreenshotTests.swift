@@ -51,7 +51,7 @@ final class ScreenshotTests: XCTestCase {
         if app.buttons["Continue"].waitForExistence(timeout: 2) { app.buttons["Continue"].tap(); sleep(1) }
         app.buttons["閉じる"].firstMatch.tap()
         sleep(1)
-        let row = app.buttons["day.row.j"]
+        let row = app.descendants(matching: .any).matching(identifier: "day.row.j").firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))
         row.tap()
         sleep(1)

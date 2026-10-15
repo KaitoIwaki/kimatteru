@@ -176,7 +176,10 @@ public struct AppCore {
             let y = b.wage - a.wage; if y != 0 { return y < 0 ? -1 : 1 }
             return 0
         }
-        return rows.map { r in
+        // 色はバイトの色の濃淡（「色＝種類」を崩さずに、内訳の中では見分けられる）
+        let base = JS.string(JS.or(T("baito")?["color"], "#7FAE85"))
+        return rows.enumerated().map { i, r in
+            let l = TypeDefs.mixHex(base, "#ffffff", i == 0 ? 0 : min(0.62, 0.22 + Double(i - 1) * 0.2))
             let job = jobs.first { $0["id"] == .string(r.key) }
             let name: String = job.map { JS.truthy($0["name"]) ? JS.string($0["name"]) : "（名前なし）" }
                 ?? (JS.truthy(r.jobName) ? JS.string(r.jobName) : jobNone())
@@ -186,6 +189,7 @@ public struct AppCore {
                 "times": .number(r.times),
                 "hours": .string(fmtHours(r.hours)),
                 "wage": .string(fmtWage(JS.round(r.wage))),
+                "color": .string("rgb(\(l[0]),\(l[1]),\(l[2]))"),
             ])
         }
     }

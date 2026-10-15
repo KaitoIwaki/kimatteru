@@ -239,7 +239,7 @@ struct DayTimeView: View {
         let hide = JS.truthy(model.state["settings"]?["hideCanceled"])
         let pool = (model.state["events"]?.array ?? []).compactMap { $0.object }.filter { !(hide && $0["status"] == "nakunatta") }
         let allDay = core.timeGridAllDay(pool, y, m, d, dark: model.dark)
-        let boxes = core.timeGridBoxes(pool, over: [], y, m, d, dark: model.dark)
+        let boxes = core.timeGridBoxes(pool, over: model.overlayFor(Civil.dayNo(y, m, d), Civil.dayNo(y, m, d) + 1), y, m, d, dark: model.dark)
         let H = CGFloat(DayCore.hourH)
         let t = model.state["today"] ?? .null
         let isToday = Civil.dayNo(y, m, d) == Civil.dayNo(JS.int(t["y"]), JS.int(t["m"]), JS.int(t["d"]))

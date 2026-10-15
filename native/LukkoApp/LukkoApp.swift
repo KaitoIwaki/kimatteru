@@ -37,6 +37,7 @@ struct LukkoApp: App {
 struct RootView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.scenePhase) private var scenePhase
     static let debug = ProcessInfo.processInfo.arguments.contains("-lukkoDebug")
 
     var body: some View {
@@ -47,6 +48,11 @@ struct RootView: View {
                 Color(.systemBackground).ignoresSafeArea()
             }
             if Self.debug { DebugBadge() }
+            LockedCover()
+            // ロックを入れている人は、アプリの切り替え画面に中身を見せない
+            if JS.truthy(model.state["settings"]?["lock"]) && scenePhase != .active {
+                Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
+            }
         }
         .environment(\.ink, Ink(dark: model.dark))
         .preferredColorScheme(forcedScheme)

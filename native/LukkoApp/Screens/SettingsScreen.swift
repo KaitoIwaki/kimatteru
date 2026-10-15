@@ -197,7 +197,30 @@ struct SettingsPage: View {
             }
         case "types":
             TypesPage(v: v)
+        case "iphone":
+            Section {
+                NavigationLink(value: "overlay") { HStack { Text("重ねて表示"); Spacer(); Text(v.overlayLabel).foregroundStyle(.secondary) } }
+                Toggle("決まった予定を iPhone のカレンダーにも入れる", isOn: Binding(get: { v.exportCal }, set: { _ in model.toggleExportCal() }))
+            } footer: { Text("「LUKKO」という名前のカレンダーにだけ書きます") }
+        case "overlay":
+            Section {
+                Toggle("重ねて表示", isOn: Binding(get: { v.overlayOn }, set: { _ in model.toggleOverlay() }))
+                if v.overlayOn {
+                    ForEach(Array((model.state["overlayCals"]?.array ?? []).enumerated()), id: \.offset) { _, c in
+                        let id = c["id"] ?? .null
+                        let on = (model.state["settings"]?["overlayIds"]?.array ?? []).contains(id)
+                        Button { model.toggleOverlayCal(id) } label: {
+                            HStack { Circle().fill(ink.css(JS.string(c["color"]))).frame(width: 10, height: 10); Text(JS.string(c["title"])).foregroundStyle(.primary); Spacer(); if on { Image(systemName: "checkmark") } }
+                        }
+                    }
+                }
+            } footer: { Text("会社や家族のカレンダーを、灰色の帯で重ねて見られます。LUKKO には保存しません") }
         case "data":
+            Section {
+                if model.lockAvailable { Toggle("開くときに\(model.lockLabel)", isOn: Binding(get: { v.lock }, set: { _ in model.toggleLock() })) }
+                Toggle("iCloud で同期", isOn: Binding(get: { v.sync }, set: { _ in model.toggleSync() }))
+                if !v.syncSub.isEmpty { Text(v.syncSub).font(.footnote).foregroundStyle(.secondary) }
+            }
             Section {
                 Text(v.lastBackupText).font(.footnote)
                 Text(v.lastExportText).font(.footnote)

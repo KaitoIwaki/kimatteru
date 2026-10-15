@@ -26,7 +26,7 @@ final class CalcGoldenTests: XCTestCase {
             case "spanLabel": got = .string(core.spanLabel(ev(0)))
             case "fmtHours": got = .string(core.fmtHours(num(0)))
             case "_timeBreakdown": got = .array(core.timeBreakdown((arg(0)?.array ?? []).compactMap { $0.object }))
-            case "_jobBreakdownNoColor": got = .array(core.jobBreakdown((arg(0)?.array ?? []).compactMap { $0.object }))
+            case "_jobBreakdownNoColor": got = .array(core.jobBreakdown((arg(0)?.array ?? []).compactMap { $0.object }).map { .object(($0.object ?? [:]).filter { $0.key != "color" }) })
             case "priorFor": got = .number(core.priorFor(Int(num(0))))
             case "mins": got = .number(core.mins(JS.string(arg(0))))
             case "addMin": got = .string(core.addMin(JS.string(arg(0)), num(1)))

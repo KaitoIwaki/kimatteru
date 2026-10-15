@@ -210,7 +210,8 @@ struct MonthGrid: View {
             // 入るぶんだけ積む（2〜7 段）。入らない予定は「+N件」
             let lanes = max(2, min(7, Int(((rowH - 22 - 14) / laneH).rounded(.down))))
             let wageOn = JS.truthy(model.state["wageOn"]) && model.engine.wageFeatureOn()
-            let weeks = core.buildWeeks(y, m, lanes: lanes, wageOn: wageOn, dark: model.dark)
+            let monthA = Civil.dayNo(y, m, 1)
+            let weeks = core.buildWeeks(y, m, lanes: lanes, overlay: model.overlayFor(monthA, monthA + Civil.daysInMonth(y, m)), wageOn: wageOn, dark: model.dark)
             VStack(spacing: 0) {
                 ForEach(Array(weeks.enumerated()), id: \.offset) { w, week in
                     WeekRow(y: y, m: m, week: week, colW: geo.size.width / 7, laneH: laneH, barH: barH, scale: es)

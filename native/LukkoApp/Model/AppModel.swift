@@ -16,6 +16,15 @@ final class AppModel {
     private(set) var ready = false
     /// iPhone の「暗い表示」
     var sysDark = false
+    /// 開くときのロック
+    var lockAvailable = false
+    var lockLabel = "Face ID"
+    var unlocking = false
+    /// 重ねて表示している iPhone のカレンダーの予定（保存しない）
+    var overlay: [[String: JSONValue]] = []
+    @ObservationIgnored var exporting = false
+    @ObservationIgnored private var exportTask: Task<Void, Never>?
+    @ObservationIgnored private var lastExportSig: JSONValue = .null
 
     @ObservationIgnored private(set) var engine: Engine!
     @ObservationIgnored private var lastSaved: [String: JSONValue] = [:]
@@ -26,6 +35,8 @@ final class AppModel {
     @ObservationIgnored private var syncTask: Task<Void, Never>?
     @ObservationIgnored private var lastSyncSig: JSONValue = .null
     @ObservationIgnored private var fromSync = false
+    @ObservationIgnored private var lastEventsSig: JSONValue = .null
+    @ObservationIgnored private var backupTask: Task<Void, Never>?
     static let syncKeys = ["events", "types", "jobs", "someday", "trash"]
     @ObservationIgnored private var lastRemindSig: JSONValue = .null
     /// 通知の貼り直しを決める設定（Web 版の componentDidUpdate の NK と同じ）
@@ -54,6 +65,11 @@ final class AppModel {
             }
         }
         eng.phone = EventKitCalendar()
+        // 中身がまとめて入れ替わる前（控えから戻す・取り込む）に、いまの状態を控えに残す
+        eng.onBackup = { [weak eng] kind in
+            guard let eng else { return }
+            BackupFiles.write(kind, eng.backupText(appVersion: AppModel.version))
+        }
         engine = eng
         lastSaved = Self.persisted(st)
         state = eng.state
@@ -65,6 +81,12 @@ final class AppModel {
         ready = true
         scheduleReminders()
         lastSyncSig = syncSig()
+        lastEventsSig = state["events"] ?? .null
+        autoBackup()
+        initLock()
+        lastExportSig = exportSig()
+        if JS.truthy(state["settings"]?["overlayOn"]) { Task { await loadOverlay() } }
+        if JS.truthy(state["settings"]?["exportCal"]) { Task { await syncExport() } }
         // iCloud で同期している人：開いたら向こうの変更を取り込み、こちらの変更を書く
         NotificationCenter.default.addObserver(forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: NSUbiquitousKeyValueStore.default, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.pullSync(pushAfter: false) }
@@ -90,6 +112,28 @@ final class AppModel {
         state = engine.state
         if Self.persisted(state) != lastSaved { scheduleSave() }
         if remindSig() != lastRemindSig { scheduleReminders() }
+        // 今日の控えがまだなら、予定が変わって少したったらとる（初めての日にも控えが残るように）
+        if (state["events"] ?? .null) != lastEventsSig {
+            lastEventsSig = state["events"] ?? .null
+            backupTask?.cancel()
+            backupTask = Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                guard let self, !Task.isCancelled else { return }
+                self.autoBackup()
+            }
+        }
+        // 決まった予定を iPhone のカレンダーにも入れている人：変わったら少し待ってそろえる
+        if exportSig() != lastExportSig {
+            lastExportSig = exportSig()
+            if JS.truthy(state["settings"]?["exportCal"]) {
+                exportTask?.cancel()
+                exportTask = Task { [weak self] in
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
+                    guard let self, !Task.isCancelled else { return }
+                    await self.syncExport()
+                }
+            }
+        }
         if syncSig() != lastSyncSig {
             lastSyncSig = syncSig()
             // 向こうから来た変更を、そのまま書き戻さない
@@ -97,6 +141,7 @@ final class AppModel {
         }
     }
 
+    private func exportSig() -> JSONValue { .array([state["events"] ?? .null, state["settings"]?["hideTitles"] ?? .null]) }
     private func syncSig() -> JSONValue { .array(Self.syncKeys.map { state[$0] ?? .null }) }
     private func schedulePush() {
         syncTask?.cancel()
@@ -182,8 +227,11 @@ final class AppModel {
         case .active:
             let away = hiddenAt.map { Date().timeIntervalSince($0) * 1000 } ?? 0
             hiddenAt = nil
-            engine.onReturn(awayMs: away, lockAvailable: false)
+            // 30 秒以上ほかのアプリにいたら、確かめ直す
+            if engine.onReturn(awayMs: away, lockAvailable: lockAvailable) { unlock() }
             pullSync(pushAfter: true)
+            autoBackup()
+            Task { await loadOverlay() }
         default: break
         }
     }
@@ -193,4 +241,13 @@ final class AppModel {
     var core: AppCore { AppCore(state: state) }
     var dark: Bool { core.isDark(sysDark: sysDark) }
     func s(_ k: String) -> JSONValue? { state[k] }
+
+    /// 1 日に 1 回、端末の中に控えを書く（予定が 1 件も無いうちは書かない）
+    func autoBackup() {
+        guard ready, !(state["events"]?.array ?? []).isEmpty, !BackupFiles.hasToday() else { return }
+        if BackupFiles.write("auto", engine.backupText(appVersion: Self.version)) != nil {
+            engine.setSetting("lastAutoBackup", .number(Self.nowMs()))
+            BackupFiles.prune()
+        }
+    }
 }
