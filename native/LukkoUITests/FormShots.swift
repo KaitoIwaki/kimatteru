@@ -38,10 +38,7 @@ final class FormShots: XCTestCase {
     func testForm() throws {
         let app = launch(seed: sample())
         XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 30))
-        let day = app.buttons["month.day.20"]
-        XCTAssertTrue(day.waitForExistence(timeout: 10))
-        day.tap()
-        sleep(1)
+        openDay(app, 20)
         app.buttons["予定を追加"].firstMatch.tap()
         sleep(1)
         if app.buttons["Continue"].waitForExistence(timeout: 2) { app.buttons["Continue"].tap(); sleep(1) }
@@ -81,7 +78,7 @@ final class FormShots: XCTestCase {
     func testDetail() throws {
         let app = launch(seed: sample())
         XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 30))
-        app.buttons["month.day.20"].tap()
+        openDay(app, 20)
         sleep(1)
         let row = app.descendants(matching: .any).matching(identifier: "day.row.j").firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))
@@ -158,7 +155,7 @@ final class FormShots: XCTestCase {
     func testWorkedAndNotices() throws {
         let app = launch(seed: sample())
         XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 30))
-        app.buttons["month.day.2"].tap()
+        openDay(app, 2)
         sleep(1)
         let row = app.descendants(matching: .any).matching(identifier: "day.row.c").firstMatch
         if row.waitForExistence(timeout: 5) {
@@ -191,7 +188,8 @@ final class FormShots: XCTestCase {
 
     /// はじめての案内（5 枚）と、そこからの取り込み
     func testOnboarding() throws {
-        let app = launch(seed: nil)
+        // 予定も設定も無い人（案内を出す）。前の試験が残した中身より新しくして入れる
+        let app = launch(seed: "{\"savedAt\":9100000000000,\"events\":[],\"settings\":{\"onboarded\":false}}")
         let pick = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "学校とバイト")).firstMatch
         XCTAssertTrue(pick.waitForExistence(timeout: 30))
         sleep(2)
@@ -242,6 +240,18 @@ final class FormShots: XCTestCase {
             }
             snap(app, "49-import-found")
         }
+    }
+
+    /// 月表示の日を押して、日の画面を開く（起きたばかりで押し損ねたら、もう一度押す）
+    private func openDay(_ app: XCUIApplication, _ d: Int) {
+        let cell = app.buttons["month.day.\(d)"]
+        guard cell.waitForExistence(timeout: 10) else { return }
+        sleep(1)
+        for _ in 0..<3 {
+            cell.tap()
+            if app.buttons["予定を追加"].firstMatch.waitForExistence(timeout: 3) { break }
+        }
+        sleep(1)
     }
 
     private func snap(_ app: XCUIApplication, _ name: String) {

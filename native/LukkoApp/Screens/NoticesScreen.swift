@@ -28,10 +28,12 @@ struct NoticesScreen: View {
         .navigationTitle("お知らせ")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("すべて既読") { model.act { $0.markAllRead() } }
-                    .font(.system(size: 13)).foregroundStyle(unread > 0 ? ink("ink-mut") : Color.clear)
-                    .disabled(unread == 0)
+            // 未読があるときだけ出す
+            if unread > 0 {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("すべて既読") { model.act { $0.markAllRead() } }
+                        .font(.system(size: 13)).foregroundStyle(ink("ink-mut"))
+                }
             }
         }
         .overlay {
@@ -113,7 +115,7 @@ struct NoticeCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 8) {
                         NoticeKindTag(n: n)
-                        Text("\(p.y)年\(p.m + 1)月\(p.d)日").font(.system(size: 11)).monospacedDigit().foregroundStyle(ink("ink-faint"))
+                        Text(verbatim: "\(p.y)年\(p.m + 1)月\(p.d)日").font(.system(size: 11)).monospacedDigit().foregroundStyle(ink("ink-faint"))
                         Spacer()
                         Text(NoticesCore.relativeTime(JS.number(n["at"]), now: now, tz: .current)).font(.system(size: 11)).foregroundStyle(ink("ink-faint"))
                     }

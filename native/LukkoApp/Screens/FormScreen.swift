@@ -743,24 +743,24 @@ struct MiniCalendar: View {
                         .buttonStyle(.borderless).foregroundStyle(ink("ink-mut")).accessibilityLabel("次の年")
                 }
                 .padding(.bottom, 6)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 4), spacing: 7) {
-                    ForEach(Array(months.enumerated()), id: \.offset) { i, mo in
-                        Button { model.act { $0.pickMonth(i) } } label: {
-                            Text(mo.label).font(.system(size: 14, weight: mo.sel ? .bold : .medium)).frame(maxWidth: .infinity).padding(.vertical, 11)
-                                .foregroundStyle(mo.sel ? ink("card") : ink("ink-soft"))
-                                .background(mo.sel ? ink("ink") : ink("card"), in: RoundedRectangle(cornerRadius: 11))
-                                .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(mo.sel ? ink("ink") : ink("line")))
-                        }
-                        .buttonStyle(.borderless)
+                FormGrid(count: months.count, columns: 4, hSpacing: 7, vSpacing: 7) { i in
+                    let mo = months[i]
+                    Button { model.act { $0.pickMonth(i) } } label: {
+                        Text(mo.label).font(.system(size: 14, weight: mo.sel ? .bold : .medium)).frame(maxWidth: .infinity).padding(.vertical, 11)
+                            .foregroundStyle(mo.sel ? ink("card") : ink("ink-soft"))
+                            .background(mo.sel ? ink("ink") : ink("card"), in: RoundedRectangle(cornerRadius: 11))
+                            .overlay(RoundedRectangle(cornerRadius: 11).strokeBorder(mo.sel ? ink("ink") : ink("line")))
                     }
+                    .buttonStyle(.borderless)
                 }
             } else {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 2) {
-                    ForEach(Array(weekdays.enumerated()), id: \.offset) { _, w in
-                        Text(w.label).font(.system(size: 10, weight: .semibold)).foregroundStyle(ink.css(w.color)).padding(.bottom, 2)
-                    }
-                    ForEach(Array(cells.enumerated()), id: \.offset) { _, c in
-                        if let d = c.day {
+                // List の中なので、Lazy の格子は使わない（行の高さの計算が終わらず落ちる）
+                FormGrid(count: weekdays.count, columns: 7, hSpacing: 0, vSpacing: 0) { i in
+                    Text(weekdays[i].label).font(.system(size: 10, weight: .semibold)).foregroundStyle(ink.css(weekdays[i].color)).padding(.bottom, 2)
+                }
+                FormGrid(count: cells.count, columns: 7, hSpacing: 0, vSpacing: 2) { i in
+                    let c = cells[i]
+                    if let d = c.day {
                             Text("\(d)").font(.system(size: 14, weight: c.weight >= 700 ? .bold : .medium)).monospacedDigit()
                                 .foregroundStyle(ink.css(c.color))
                                 .frame(maxWidth: .infinity).frame(height: 36)
@@ -787,9 +787,26 @@ struct MiniCalendar: View {
                                 }
                                 .accessibilityAddTraits(.isButton)
                                 .accessibilityIdentifier(multi ? "form.multi.\(d)" : "form.day.\(d)")
-                        } else {
-                            Color.clear.frame(height: 36)
-                        }
+                    } else {
+                        Color.clear.frame(height: 36)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// 格子（List の中でも落ちないように、Lazy でない行と列で並べる）
+struct FormGrid<Cell: View>: View {
+    let count: Int, columns: Int, hSpacing: CGFloat, vSpacing: CGFloat
+    @ViewBuilder let cell: (Int) -> Cell
+    var body: some View {
+        VStack(spacing: vSpacing) {
+            ForEach(0..<((count + columns - 1) / columns), id: \.self) { r in
+                HStack(spacing: hSpacing) {
+                    ForEach(0..<columns, id: \.self) { c in
+                        if r * columns + c < count { cell(r * columns + c).frame(maxWidth: .infinity) }
+                        else { Color.clear.frame(maxWidth: .infinity, maxHeight: 1) }
                     }
                 }
             }
