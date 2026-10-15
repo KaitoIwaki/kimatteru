@@ -79,9 +79,10 @@ final class MonthShots: XCTestCase {
         // 週表示
         seg(app, "month.viewSeg", "週")
         snap(app, "M03-week")
-        let strip = app.descendants(matching: .any).matching(identifier: "week.strip").firstMatch
-        if strip.waitForExistence(timeout: 5) {
-            strip.swipeLeft()
+        if app.buttons["次の週"].waitForExistence(timeout: 5) {
+            // 週の本体を指で左へ流す
+            app.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.6))
+                .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.6)))
             sleep(2)
             snap(app, "M04-week-swiped")
             if app.buttons["今日"].waitForExistence(timeout: 3) { app.buttons["今日"].tap(); sleep(2) }

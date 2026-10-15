@@ -484,6 +484,12 @@ struct DayTimeView: View {
             }
             ScrollViewReader { proxy in
                 ScrollView {
+                    ZStack(alignment: .topLeading) {
+                    // 最初に見せる高さ：8 時か、その日いちばん早い予定から（-12px）
+                    VStack(spacing: 0) {
+                        Color.clear.frame(width: 1, height: CGFloat(Swift.max(0, startMin / 60 * DayCore.hourH - 12)))
+                        Color.clear.frame(width: 1, height: 1).id("day.top")
+                    }
                     HStack(alignment: .top, spacing: 0) {
                         ZStack(alignment: .topTrailing) {
                             ForEach(1..<24, id: \.self) { h in
@@ -509,12 +515,9 @@ struct DayTimeView: View {
                         .frame(height: H * 24)
                         .overlay(alignment: .leading) { Rectangle().fill(ink("line-faint")).frame(width: 1).allowsHitTesting(false) }
                     }
-                    // 最初に見せる高さ：8 時か、その日いちばん早い予定から（-12px）
-                    .overlay(alignment: .topLeading) {
-                        Color.clear.frame(width: 1, height: 1).padding(.top, CGFloat(Swift.max(0, startMin / 60 * DayCore.hourH - 12))).id("day.top")
                     }
                 }
-                .onAppear { DispatchQueue.main.async { proxy.scrollTo("day.top", anchor: .top) } }
+                .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { proxy.scrollTo("day.top", anchor: .top) } }
             }
         }
     }

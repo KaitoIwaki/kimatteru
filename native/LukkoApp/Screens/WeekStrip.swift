@@ -62,6 +62,12 @@ struct WeekStripBody: View {
                                 anyMore: near.contains { $0.more > 0 }, scroll: scroll)
                 ScrollViewReader { proxy in
                     ScrollView(.vertical, showsIndicators: false) {
+                        ZStack(alignment: .topLeading) {
+                        // 最初に見せる高さ（朝 7 時あたり。見えている 7 日にもっと早い予定があればそこから）
+                        VStack(spacing: 0) {
+                            Color.clear.frame(width: 1, height: startTop(first))
+                            Color.clear.frame(width: 1, height: 1).id("week.top")
+                        }
                         HStack(alignment: .top, spacing: 0) {
                             WeekHourGutter()
                                 .frame(width: Self.gutter, height: Self.hourH * 24)
@@ -82,13 +88,10 @@ struct WeekStripBody: View {
                             .scrollPosition(id: $leading, anchor: .leading)
                             .modifier(WeekScrollTrack { x in scroll.x = x })
                         }
-                        // 最初に見せる高さ（朝 7 時あたり。見えている 7 日にもっと早い予定があればそこから）
-                        .overlay(alignment: .topLeading) {
-                            Color.clear.frame(width: 1, height: 1).padding(.top, startTop(first)).id("week.top")
                         }
                     }
                     .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                             proxy.scrollTo("week.top", anchor: .top)
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { placed = true }
                         }
