@@ -60,18 +60,23 @@ struct YMSheet: View {
     }
 
     private func grid(_ v: YMSheetView) -> some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-            ForEach(v.months, id: \.m) { mo in
-                Button { model.act { $0.ymSheetPick(mo.m) } } label: {
-                    Text(mo.label).font(.system(size: 15, weight: mo.sel ? .bold : .medium))
-                        .foregroundStyle(mo.sel ? ink("card") : ink("ink-soft"))
-                        .frame(maxWidth: .infinity).padding(.vertical, 13)
-                        .background(mo.sel ? ink("ink") : ink("card"), in: RoundedRectangle(cornerRadius: 12))
-                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(mo.sel ? ink("ink") : mo.isThis ? ink("ink-faint") : ink("line")))
+        // 12 か月を 4 列×3 行（Lazy でない Grid）
+        Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+            ForEach(0..<3, id: \.self) { r in
+                GridRow {
+                    ForEach(v.months[(r * 4)..<(r * 4 + 4)], id: \.m) { mo in
+                        Button { model.act { $0.ymSheetPick(mo.m) } } label: {
+                            Text(mo.label).font(.system(size: 15, weight: mo.sel ? .bold : .medium))
+                                .foregroundStyle(mo.sel ? ink("card") : ink("ink-soft"))
+                                .frame(maxWidth: .infinity).padding(.vertical, 13)
+                                .background(mo.sel ? ink("ink") : ink("card"), in: RoundedRectangle(cornerRadius: 12))
+                                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(mo.sel ? ink("ink") : mo.isThis ? ink("ink-faint") : ink("line")))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("ym.month.\(mo.m + 1)")
+                        .accessibilityAddTraits(mo.sel ? .isSelected : [])
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("ym.month.\(mo.m + 1)")
-                .accessibilityAddTraits(mo.sel ? .isSelected : [])
             }
         }
     }

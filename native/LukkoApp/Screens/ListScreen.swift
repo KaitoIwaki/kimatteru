@@ -158,21 +158,34 @@ struct SomedayPickSheet: View {
                         .accessibilityLabel("次の月")
                 }
                 .foregroundStyle(ink("ink-mut"))
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 2) {
-                    ForEach(Array(v.weekdays.enumerated()), id: \.offset) { _, w in
-                        Text(w).font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(w == "日" ? ink("sun") : w == "土" ? ink("sat") : ink("ink-mut"))
+                // 曜日と日付（並べ替えのいらない小さな表なので、Lazy でない Grid。行ごとに別の番号）
+                let rows: [[SomedayPickView.Cell?]] = stride(from: 0, to: v.cells.count, by: 7).map { i in
+                    (0..<7).map { j in i + j < v.cells.count ? v.cells[i + j] : nil }
+                }
+                Grid(horizontalSpacing: 2, verticalSpacing: 2) {
+                    GridRow {
+                        ForEach(0..<7, id: \.self) { j in
+                            let w = j < v.weekdays.count ? v.weekdays[j] : ""
+                            Text(w).font(.system(size: 10, weight: .semibold)).frame(maxWidth: .infinity)
+                                .foregroundStyle(w == "日" ? ink("sun") : w == "土" ? ink("sat") : ink("ink-mut"))
+                        }
                     }
-                    ForEach(Array(v.cells.enumerated()), id: \.offset) { _, c in
-                        if let d = c.day {
-                            Button { model.act { $0.pickSomedayDay(d) } } label: {
-                                Text("\(d)").font(.system(size: 14)).monospacedDigit().foregroundStyle(ink.css(c.color))
-                                    .frame(maxWidth: .infinity).frame(height: 34)
-                                    .background(c.busy ? ink("bg2") : .clear, in: RoundedRectangle(cornerRadius: 11))
-                                    .contentShape(Rectangle())
+                    ForEach(0..<rows.count, id: \.self) { r in
+                        GridRow {
+                            ForEach(0..<7, id: \.self) { j in
+                                if let c = rows[r][j], let d = c.day {
+                                    Button { model.act { $0.pickSomedayDay(d) } } label: {
+                                        Text("\(d)").font(.system(size: 14)).monospacedDigit().foregroundStyle(ink.css(c.color))
+                                            .frame(maxWidth: .infinity).frame(height: 34)
+                                            .background(c.busy ? ink("bg2") : .clear, in: RoundedRectangle(cornerRadius: 11))
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                } else {
+                                    Color.clear.frame(maxWidth: .infinity).frame(height: 34)
+                                }
                             }
-                            .buttonStyle(.plain)
-                        } else { Color.clear.frame(height: 34) }
+                        }
                     }
                 }
                 Text("灰色の日は、ほかの予定が入っています。点線で置きます").font(.system(size: 11)).foregroundStyle(ink("ink-faint")).multilineTextAlignment(.center)

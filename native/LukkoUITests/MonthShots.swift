@@ -32,12 +32,14 @@ final class MonthShots: XCTestCase {
         let jobs = "[{\"id\":\"j1\",\"name\":\"カフェ\",\"hourly\":1200,\"templates\":[{\"name\":\"早番\",\"from\":540,\"to\":1020,\"sym\":\"早\"},{\"name\":\"遅番\",\"from\":1020,\"to\":1380,\"sym\":\"遅\"},{\"name\":\"\",\"from\":0,\"to\":1439,\"sym\":\"休\",\"allDay\":true}]}]"
         let someday = empty ? "[]" : "[{\"id\":\"s1\",\"title\":\"髪を切る\",\"type\":\"yoji\",\"when\":\"month\",\"y\":\(y),\"m\":\(m),\"day\":1,\"at\":1}]"
         let th = theme.map { ",\"theme\":\"\($0)\"" } ?? ""
-        return "{\"savedAt\":9000000000000,\"events\":[\(evs.joined(separator: ","))],\"jobs\":\(empty ? "[]" : jobs),\"someday\":\(someday),\"settings\":{\"hourly\":1100,\"weekStart\":0,\"onboarded\":true\(th)}}"
+        // 0 件の見本は、前の試験の中身に負けないよう少しだけ新しくする
+        return "{\"savedAt\":\(empty ? "9000000000001" : "9000000000000"),\"events\":[\(evs.joined(separator: ","))],\"jobs\":\(empty ? "[]" : jobs),\"someday\":\(someday),\"settings\":{\"hourly\":1100,\"weekStart\":0,\"onboarded\":true\(th)}}"
     }
 
-    private func launch(_ seed: String) -> XCUIApplication {
+    private func launch(_ seed: String, file: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", Data(seed.utf8).base64EncodedString()]
+        let b64 = Data(seed.utf8).base64EncodedString()
+        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", b64] + (file ? ["-lukkoSeedFile", b64] : [])
         app.launch()
         XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 30))
         allowSystemAlert()
@@ -70,7 +72,12 @@ final class MonthShots: XCTestCase {
     private func seg(_ app: XCUIApplication, _ id: String, _ label: String) {
         let s = app.segmentedControls[id].buttons[label]
         let any = app.segmentedControls.buttons[label].firstMatch
-        if s.waitForExistence(timeout: 3) { s.tap() } else if any.exists { any.tap() } else if app.buttons[label].exists { app.buttons[label].firstMatch.tap() }
+        let el = s.waitForExistence(timeout: 3) ? s : any.exists ? any : app.buttons[label].firstMatch
+        // 見出しの中の切替は、要素を押すと当たり所が出ないことがある（iOS 26）ので、枠の真ん中を押す
+        let f = el.frame
+        if !f.isEmpty {
+            app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: f.midX, dy: f.midY)).tap()
+        } else if el.exists { el.tap() }
         sleep(1)
     }
 
@@ -191,7 +198,7 @@ final class MonthShots: XCTestCase {
     }
 
     func testFirstRunHint() throws {
-        let app = launch(sample(empty: true))
+        let app = launch(sample(empty: true), file: true)
         let hint = app.descendants(matching: .any).matching(identifier: "month.firstRunHint").firstMatch
         XCTAssertTrue(hint.waitForExistence(timeout: 10))
         sleep(1)
