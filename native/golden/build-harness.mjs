@@ -25,7 +25,7 @@ const stub = { name: 'stub', setup(b) {
 // 外に出していない関数も、正解表のために出す（元のファイルは変えない。束ねるときに末尾へ export を足すだけ）
 const EXPOSE = {
   'notify.js': ['buildSchedule', 'whenText', 'numericId'],
-  'App.jsx': ['sanitizeEvents', 'typesOk', 'mergeTypes', 'PROFILES', 'EXTRA_TYPES', 'evSpan', 'evFrom', 'evTo', 'evCovers', 'dayNo', 'fromDayNo'],
+  'App.jsx': ['sanitizeEvents', 'typesOk', 'mergeTypes', 'PROFILES', 'EXTRA_TYPES', 'evSpan', 'evFrom', 'evTo', 'evCovers', 'dayNo', 'fromDayNo', 'CARD_TIERS', 'FLECKS', 'tierFor', 'nextTier', 'formHref'],
 };
 import fs from 'node:fs';
 const expose = { name: 'expose', setup(b) {

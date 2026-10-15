@@ -22,3 +22,7 @@ export * as sync from '../../app/src/sync.js';
 export * as notices from '../../app/src/notices.js';
 export * as eventctx from '../../app/src/eventctx.js';
 export * as iphonecal from '../../app/src/iphonecal.js';
+export * as cardflip from '../../app/src/cardflip.js';
+export * as cardtexture from '../../app/src/cardtexture.js';
+export * as docs from '../../app/src/docs.js';
+export * as tipjar from '../../app/src/tipjar.js';
