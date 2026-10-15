@@ -35,7 +35,12 @@ final class SettingsShots: XCTestCase {
     }
     private func open(_ app: XCUIApplication, _ text: String) {
         let e = app.staticTexts[text].firstMatch
-        XCTAssertTrue(e.waitForExistence(timeout: 10), "\(text) が出ない")
+        // 画面の外にある行は、払って探す（上の行が増えると、下の行は最初の画面に入らない）
+        _ = e.waitForExistence(timeout: 5)
+        var tries = 0
+        while !(e.exists && e.isHittable) && tries < 4 { app.swipeUp(); sleep(1); tries += 1 }
+        while !(e.exists && e.isHittable) && tries < 9 { app.swipeDown(); sleep(1); tries += 1 }
+        XCTAssertTrue(e.waitForExistence(timeout: 5), "\(text) が出ない")
         e.tap()
         sleep(1)
     }
