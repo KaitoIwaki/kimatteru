@@ -986,7 +986,19 @@ async function subinfo() {
   if (b) console.log(`ビルド ${b.attributes.version}  ${b.attributes.processingState}  暗号の答え=${b.attributes.usesNonExemptEncryption}`);
 }
 
+/** 届いたビルドの中身を確かめる（読むだけ）。版の番号と、動く iOS の下限。SwiftUI 版は iOS 17 から */
+async function builds() {
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const bs = await get(`/v1/builds?filter[app]=${app.id}&limit=6&sort=-uploadedDate&include=preReleaseVersion`);
+  const ver = Object.fromEntries((bs.included || []).map((x) => [x.id, x.attributes.version]));
+  head('■ 届いたビルド（新しい順）');
+  for (const b of bs.data) {
+    const pv = ver[b.relationships?.preReleaseVersion?.data?.id] || '?';
+    line(`ビルド ${b.attributes.version}`, `版 ${pv}   iOS ${b.attributes.minOsVersion} 以上   ${b.attributes.processingState}   ${stamp(b.attributes.uploadedDate)}`);
+  }
+}
+
 const cmd = process.argv[2] || 'status';
-const jobs = { release, status, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps, subinfo, stats };
+const jobs = { release, status, builds, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps, subinfo, stats };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
