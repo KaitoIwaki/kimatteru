@@ -51,8 +51,13 @@ extension AppModel {
 
 /// 共有シートとファイルの読み書き（設定の書き出し・カードの画像で使う）
 enum SettingsFileShare {
-    static let icsTypes: [UTType] = [UTType(filenameExtension: "ics") ?? .calendarEvent, .calendarEvent, .plainText].reduce(into: []) { if !$0.contains($1) { $0.append($1) } }
-    static let backupTypes: [UTType] = [.json, .plainText, .data].reduce(into: []) { if !$0.contains($1) { $0.append($1) } }
+    static let icsTypes: [UTType] = {
+        var out: [UTType] = []
+        if let ics = UTType(filenameExtension: "ics") { out.append(ics) }
+        for t in [UTType.calendarEvent, UTType.plainText] where !out.contains(t) { out.append(t) }
+        return out
+    }()
+    static let backupTypes: [UTType] = [UTType.json, UTType.plainText, UTType.data]
 
     /// 一時の置き場に名前どおりに書いて、iPhone の共有シートを出す。done は閉じたとき（共有しなくても）
     @MainActor
