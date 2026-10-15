@@ -182,16 +182,7 @@ struct MainTabs: View {
         }
         .overlay { BottomOverlays() }
         .modifier(AlertPresenter())
-    }
-}
-
-/// まだ作っていない画面（作り終えたら消す）
-struct PlaceholderScreen: View {
-    let title: String
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView(title, systemImage: "hammer", description: Text("SwiftUI 版で作っているところです"))
-                .navigationTitle(title)
-        }
+        // 応援（消耗型）の、あとで届く購入を受け取る（承認待ちのあとで通ったもの など）
+        .task { SupportStore.shared.listen(model) }
     }
 }

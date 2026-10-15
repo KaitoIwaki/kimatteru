@@ -41,6 +41,15 @@ public struct SettingsView: Equatable {
     public var overlayOn = false, overlayLabel = "", exportCal = false, backupLabel = "", lastExportLabel = ""
     public var sync = false, syncSub = "", lock = false
     public var typeCount = 0, typeDots: [String] = []
+    // 設定の中の画面で使う残り（Web 版 _settingsVals・renderVals のうち、ここまでに無かったもの）
+    public var weekSeg: [Opt] = []
+    public var remindRowShown = false, overlayFree = false, overlayCalsShown = false, syncShown = true
+    public var newTypeShown = false, newTypeName = "", newTypeEg = "", newTypeColor = ""
+    public var tplNewShown = false, tplSym = "", tplName = "", tplFrom = 0.0, tplTo = 0.0, tplBrk = 0.0, tplAllDay = false
+    public var tidyCount = 0
+    public var backupListShown = false, backupRows: [Engine.BackupRow] = []
+    public var pasteOpen = false, backupText = "", backupError = "", restoreDisabled = true
+    public var trashShown = false
 }
 
 extension Engine {
@@ -172,6 +181,29 @@ extension Engine {
             } else { v.syncSub = "合わせています…" }
         }
         v.lock = JS.truthy(cfg["lock"])
+        let ws = cfg["weekStart"]
+        v.weekSeg = [(0, "日曜日"), (1, "月曜日")].map { .init(key: .number(Double($0.0)), label: $0.1, sel: ws == .number(Double($0.0))) }
+        // 「働いたあとに記録を聞く」：勤務先が 1 つでもある（辞めたも含む）。通知はいつも使える（iPhone）
+        v.remindRowShown = !jobsList.isEmpty
+        v.overlayFree = JS.truthy(cfg["overlayFree"])
+        v.overlayCalsShown = !(state["overlayCals"]?.array ?? []).isEmpty
+        if let nt = state["newType"], JS.truthy(nt) {
+            v.newTypeShown = true
+            v.newTypeName = JS.string(nt["name"]); v.newTypeEg = W.typeEg; v.newTypeColor = JS.string(nt["color"])
+        }
+        if let t = state["tplNew"], JS.truthy(t) {
+            v.tplNewShown = true
+            v.tplSym = JS.string(t["sym"]); v.tplName = JS.string(t["name"])
+            v.tplFrom = JS.number(t["from"]); v.tplTo = JS.number(t["to"]); v.tplBrk = JS.number(t["brk"]); v.tplAllDay = JS.truthy(t["allDay"])
+        }
+        v.tidyCount = tidyTargets().count
+        v.backupListShown = JS.truthy(state["backupListOpen"])
+        v.backupRows = backupRows()
+        v.pasteOpen = JS.truthy(state["pasteOpen"])
+        v.backupText = JS.string(JS.or(state["backupText"], ""))
+        v.backupError = JS.string(JS.or(state["backupError"], ""))
+        v.restoreDisabled = JS.trim(v.backupText).isEmpty
+        v.trashShown = JS.truthy(state["trashOpen"])
         return v
     }
 
