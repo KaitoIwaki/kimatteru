@@ -69,7 +69,8 @@ final class MonthShots: XCTestCase {
 
     private func seg(_ app: XCUIApplication, _ id: String, _ label: String) {
         let s = app.segmentedControls[id].buttons[label]
-        if s.waitForExistence(timeout: 3) { s.tap() } else if app.buttons[label].exists { app.buttons[label].firstMatch.tap() }
+        let any = app.segmentedControls.buttons[label].firstMatch
+        if s.waitForExistence(timeout: 3) { s.tap() } else if any.exists { any.tap() } else if app.buttons[label].exists { app.buttons[label].firstMatch.tap() }
         sleep(1)
     }
 
