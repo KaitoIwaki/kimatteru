@@ -9,6 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const { PRIVACY, TERMS, APP_NAME, EFFECTIVE, CONTACT, FORM_URL } = await import(pathToFileURL(join(root, 'src', 'docs.js')).href);
+const { REQUESTS, REQUESTS_UPDATED } = await import(pathToFileURL(join(here, 'requests.mjs')).href);
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -158,9 +159,68 @@ const supportPage = () => `<!doctype html>
   <h2>作っている人・お問い合わせ</h2>
   <p>${esc(SUPPORT.maker)}</p>
   <p><a href="${esc(FORM_URL)}">お問い合わせ・機能のリクエスト（フォーム）</a></p>
+  <p><a href="./requests.html">みんなの要望と、いまの状況</a></p>
   <p><a href="mailto:${esc(CONTACT)}">${esc(CONTACT)}</a></p>
   <p><a href="./privacy.html">プライバシーポリシー</a>　<a href="./terms.html">利用規約</a></p>
   <p class="meta">最終更新：${esc(EFFECTIVE)}</p>
+</main>
+</body>
+</html>
+`;
+
+// ---- みんなの要望 ----
+// アプリの 設定 →「みんなの要望を見る」の行き先。届いた声と、いまの状況（受付中／作っている／できた）
+const REQ_GROUPS = [
+  ['open', '受付中', 'いただいた要望です。似たものはまとめています。'],
+  ['doing', '作っている', 'いま作っているものです。'],
+  ['done', 'できた', 'アプリに入ったものです。'],
+];
+const requestsPage = () => `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>みんなの要望 — ${esc(APP_NAME)}</title>
+<style>
+  :root{--bg:#FAF9F4;--card:#FFFDF8;--line:#E6E2D6;--ink:#26251F;--ink-soft:#55524A;--ink-mut:#8C887C;--ink-faint:#B7B3A6}
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#1A1A17;--card:#26251F;--line:#3A392F;--ink:#EDEBE1;--ink-soft:#B6B2A6;--ink-mut:#8C887C;--ink-faint:#5E5C51}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.85}
+  main{max-width:40rem;margin:0 auto;padding:3.5rem 1.4rem 5rem}
+  .mark{display:inline-flex;align-items:center;gap:.15em;font-size:1rem;font-weight:700;letter-spacing:-.08em;margin-bottom:1.4rem}
+  .mark .c{color:#1D9E75}.mark .q{color:#C1C5CC}
+  h1{font-size:1.5rem;font-weight:700;margin:0 0 .6rem}
+  .lead{font-size:.92rem;color:var(--ink-soft);margin:0 0 1.2rem}
+  h2{font-size:1rem;font-weight:700;margin:2.2rem 0 .2rem;display:flex;align-items:center;gap:.5rem}
+  h2 .n{font-size:.78rem;font-weight:600;color:var(--ink-mut)}
+  .sub{font-size:.8rem;color:var(--ink-mut);margin:0 0 .6rem}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:.75rem 1rem;margin:.5rem 0}
+  .item b{display:block;font-size:.95rem;font-weight:600;color:var(--ink)}
+  .item span{display:block;font-size:.82rem;color:var(--ink-mut);margin-top:.15rem}
+  .dot{width:.55rem;height:.55rem;border-radius:50%;display:inline-block}
+  .open .dot{border:1.5px dashed #8C887C}.doing .dot{background:#D2916A}.done .dot{background:#1D9E75}
+  .none{font-size:.85rem;color:var(--ink-faint);margin:.4rem 0}
+  .badge{display:inline-block;margin:.4rem 0 0;padding:.6rem 1rem;border-radius:12px;background:var(--ink);color:var(--bg);text-decoration:none;font-weight:700;font-size:.92rem}
+  a{color:var(--ink-soft)}
+  .meta{font-size:.78rem;color:var(--ink-faint);margin-top:2.4rem}
+</style>
+</head>
+<body>
+<main>
+  <div class="mark"><span class="c">✓</span><span class="q">？</span></div>
+  <h1>みんなの要望</h1>
+  <p class="lead">「ご意見・機能のリクエスト」に届いた声と、いまの状況です。名前やメールアドレスは載せません。</p>
+  <a class="badge" href="${esc(FORM_URL)}">要望を送る</a>
+  ${REQ_GROUPS.map(([key, label, sub]) => {
+    const list = REQUESTS.filter((r) => r.status === key);
+    const rows = list.length
+      ? list.map((r) => `<div class="item"><b>${esc(r.title)}</b>${r.note || r.ver ? `<span>${esc([r.ver ? r.ver + ' で入りました' : '', r.note || ''].filter(Boolean).join('・'))}</span>` : ''}</div>`).join('\n  ')
+      : '<p class="none">いまはありません</p>';
+    return `<section class="${key}"><h2><span class="dot"></span>${esc(label)}<span class="n">${list.length}件</span></h2>\n  <p class="sub">${esc(sub)}</p>\n  ${rows}</section>`;
+  }).join('\n  ')}
+  <p class="meta">最終更新：${esc(REQUESTS_UPDATED)}　<a href="./support.html">サポート</a></p>
 </main>
 </body>
 </html>
@@ -171,6 +231,7 @@ mkdirSync(out, { recursive: true });
 writeFileSync(join(out, 'privacy.html'), page(PRIVACY, TERMS));
 writeFileSync(join(out, 'terms.html'), page(TERMS, PRIVACY));
 writeFileSync(join(out, 'support.html'), supportPage());
+writeFileSync(join(out, 'requests.html'), requestsPage());
 // サポート URL（legal/index.html）はサポートページへ。前はプライバシーポリシーへ飛ぶだけだった
 writeFileSync(
   join(out, 'index.html'),
