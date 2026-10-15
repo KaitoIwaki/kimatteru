@@ -3,7 +3,7 @@
 name: native
 on:
   push:
-    branches: [swiftui]
+    branches: [swiftui, 'sw-*']
     paths: ['native/**', '.github/workflows/native.yml']
   workflow_dispatch:
 
