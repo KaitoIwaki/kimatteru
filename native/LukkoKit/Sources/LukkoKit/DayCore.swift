@@ -145,7 +145,7 @@ extension AppCore {
         let dw = Civil.weekday(o.y, o.m, o.d)
         let hol = Holidays.name(o.y, o.m, o.d)
         let t = state["today"]
-        let tN = Civil.dayNo(Int(JS.number(t?["y"])), Int(JS.number(t?["m"])), Int(JS.number(t?["d"])))
+        let tN = Civil.dayNo(JS.int(t?["y"]), JS.int(t?["m"]), JS.int(t?["d"]))
         let has = events.contains { covers($0, n) && $0["status"] != "nakunatta" }
         let sel = n == dn
         let red = hol != nil || dw == 0

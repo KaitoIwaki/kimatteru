@@ -91,7 +91,7 @@ public struct AppCore {
         let v = Int(JS.toInt32(e["days"]))
         return max(1, min(60, v != 0 ? v : 1))
     }
-    public static func evFrom(_ e: Obj) -> Int { Civil.dayNo(Int(JS.number(e["y"])), Int(JS.number(e["m"])), Int(JS.number(e["day"]))) }
+    public static func evFrom(_ e: Obj) -> Int { Civil.dayNo(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"])) }
     public static func evTo(_ e: Obj) -> Int { evFrom(e) + evSpan(e) - 1 }
     public func spanLabel(_ ev: Obj) -> String {
         let a = Civil.fromDayNo(Self.evFrom(ev)), b = Civil.fromDayNo(Self.evTo(ev))

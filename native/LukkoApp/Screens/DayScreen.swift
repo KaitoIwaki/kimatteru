@@ -8,8 +8,8 @@ struct DayScreen: View {
 
     var body: some View {
         let ym = model.state["ym"] ?? .null
-        let Y = Int(JS.number(ym["y"])), M = Int(JS.number(ym["m"]))
-        let d = Int(JS.number(model.state["dayNum"]))
+        let Y = JS.int(ym["y"]), M = JS.int(ym["m"])
+        let d = JS.int(model.state["dayNum"])
         let v = model.core.dayView(Y, M, max(1, d), dark: model.dark)
         VStack(spacing: 0) {
             DayStrip(selected: Civil.dayNo(Y, M, max(1, d)))
@@ -237,7 +237,7 @@ struct DayTimeView: View {
         let boxes = core.timeGridBoxes(pool, over: [], y, m, d, dark: model.dark)
         let H = CGFloat(DayCore.hourH)
         let t = model.state["today"] ?? .null
-        let isToday = Civil.dayNo(y, m, d) == Civil.dayNo(Int(JS.number(t["y"])), Int(JS.number(t["m"])), Int(JS.number(t["d"])))
+        let isToday = Civil.dayNo(y, m, d) == Civil.dayNo(JS.int(t["y"]), JS.int(t["m"]), JS.int(t["d"]))
         VStack(spacing: 0) {
             if !allDay.pills.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {

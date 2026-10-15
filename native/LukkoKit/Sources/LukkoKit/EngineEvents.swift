@@ -154,7 +154,7 @@ extension Engine {
             if case .string(let s)? = r, ["day", "list", "detail", "free", "month"].contains(s) { return str(s == "detail" ? "month" : s) }
             return str("month")
         }
-        let dy = Int(JS.number(dr["y"])), dm = Int(JS.number(dr["m"])), dd = Int(JS.number(dr["day"]))
+        let dy = JS.int(dr["y"]), dm = JS.int(dr["m"]), dd = JS.int(dr["day"])
 
         if JS.truthy(dr["editingId"]) {
             let eid = dr["editingId"]

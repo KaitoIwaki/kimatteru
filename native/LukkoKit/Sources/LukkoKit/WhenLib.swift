@@ -31,9 +31,9 @@ public enum WhenLib {
     public static func endMoment(_ ev: Ev) -> (y: Int, m: Int, d: Int, h: Int, min: Int) {
         let end = JS.or(ev["actualEnd"], ev["end"])
         let parts = JS.string(end).components(separatedBy: ":")
-        let h = Int(JS.orZero(JS.number(parts[0])).rounded(.towardZero))
-        let mi = parts.count > 1 ? Int(JS.orZero(JS.number(parts[1])).rounded(.towardZero)) : 0
-        let y = Int(JS.number(ev["y"])), m = Int(JS.number(ev["m"])), d = Int(JS.number(ev["day"]))
+        let h = JS.int(.number(JS.orZero(JS.number(parts[0]))))
+        let mi = parts.count > 1 ? JS.int(.number(JS.orZero(JS.number(parts[1])))) : 0
+        let y = JS.int(ev["y"]), m = JS.int(ev["m"]), d = JS.int(ev["day"])
         let total = (Civil.dayNo(y, m, d + (endsNextDay(ev) ? 1 : 0))) * 1440 + h * 60 + mi
         let dn = Int((Double(total) / 1440).rounded(.down))
         let rest = total - dn * 1440

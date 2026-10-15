@@ -226,3 +226,17 @@ public enum Civil {
         dayNo(y, m + 1, 1) - dayNo(y, m, 1)
     }
 }
+
+extension JS {
+    /// 数を整数にする（JS では NaN のまま計算が進むところ。Swift は NaN を整数にすると落ちるので、落ちずに 0 にする）。
+    /// 正しく保存された中身では NaN は出ない。壊れた中身でもアプリを落とさないためのもの
+    public static func int(_ v: JSONValue?) -> Int {
+        let d = number(v)
+        guard d.isFinite else { return 0 }
+        return Int(max(-9.0e15, min(9.0e15, d.rounded(.towardZero))))
+    }
+}
+
+extension JS {
+    public static func int(_ s: String) -> Int { int(.string(s)) }
+}

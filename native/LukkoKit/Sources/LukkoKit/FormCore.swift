@@ -108,7 +108,7 @@ extension AppCore {
 
     /// 小さなカレンダーのマス（日にちえらび・複数日えらび）
     func pickCells(_ pY: Int, _ pM: Int, _ dr: [String: JSONValue], multi: Bool) -> [FormView.Cell] {
-        let ws = Int(JS.number(settings["weekStart"]))
+        let ws = JS.int(settings["weekStart"])
         let first = ((Civil.weekday(pY, pM, 1) - ws) % 7 + 7) % 7
         let dim = Civil.daysInMonth(pY, pM)
         let extras = (dr["extraDays"]?.array ?? [])
@@ -158,7 +158,7 @@ extension Engine {
         if st["screen"] == "new" && !allDay && !JS.truthy(dr["someday"]) {
             let a = c.mins(JS.string(dr["start"])), b0 = c.mins(JS.string(dr["end"]))
             let b = b0 <= a ? 1440 : b0
-            let n = Civil.dayNo(Int(JS.number(dr["y"])), Int(JS.number(dr["m"])), Int(JS.number(dr["day"])))
+            let n = Civil.dayNo(JS.int(dr["y"]), JS.int(dr["m"]), JS.int(dr["day"]))
             let hit = events.filter { e in e["id"] != dr["editingId"] && e["status"] != "nakunatta" && !JS.truthy(e["allDay"]) && AppCore.evFrom(e) == n }
                 .filter { e in let x = c.mins(JS.string(e["start"])), y0 = WhenLib.busyEndMin(e); return x < b && y0 > a }
             if let h = hit.first {
@@ -173,19 +173,19 @@ extension Engine {
         v.somedayText = JS.truthy(dr["someday"]) ? (MonthCore.somedayLabel[JS.string(dr["someday"])] ?? "undefined") + "（日が決まったら、棚からカレンダーへ移せます）" : ""
         v.secretOn = JS.truthy(dr["secret"])
         // 日にち
-        let y = Int(JS.number(dr["y"])), m = Int(JS.number(dr["m"])), day = Int(JS.number(dr["day"]))
+        let y = JS.int(dr["y"]), m = JS.int(dr["m"]), day = JS.int(dr["day"])
         v.dateLabel = "\(JS.string(dr["y"]))年\(JS.string(.number(JS.number(dr["m"]) + 1)))月\(JS.string(dr["day"]))日（\(FormCore.dow[Civil.weekday(y, m, day)])）"
         v.dateOpen = dr["picking"] == "date"
         v.dateExtraCount = extras
         v.dateSummary = extras > 0 ? "ほか\(extras)日" : ""
         v.dateHint = v.dateOpen ? "日をえらんでください" : ""
-        let pY = (dr["pickY"] == nil || dr["pickY"] == .null) ? y : Int(JS.number(dr["pickY"]))
-        let pM = (dr["pickM"] == nil || dr["pickM"] == .null) ? m : Int(JS.number(dr["pickM"]))
+        let pY = (dr["pickY"] == nil || dr["pickY"] == .null) ? y : JS.int(dr["pickY"])
+        let pM = (dr["pickM"] == nil || dr["pickM"] == .null) ? m : JS.int(dr["pickM"])
         v.datePickLabel = "\(pY)年\(pM + 1)月"
         v.ymPickOpen = JS.truthy(dr["pickYM"])
         v.ymYearLabel = String(pY)
         v.ymMonths = (0..<12).map { .init(key: .number(Double($0)), label: "\($0 + 1)月", sel: $0 == pM) }
-        let ws = Int(JS.number(settings["weekStart"]))
+        let ws = JS.int(settings["weekStart"])
         v.dateWeekdays = (0..<7).map { i in let dw = (i + ws) % 7; return (FormCore.dow[dw], dw == 0 ? "var(--sun)" : dw == 6 ? "var(--sat)" : "var(--ink-faint)") }
         v.dateCells = c.pickCells(pY, pM, dr, multi: false)
         // 勤務先
@@ -241,9 +241,9 @@ extension Engine {
         // くり返し
         v.rowRepOpen = picking == "rep"
         let myDow = Civil.weekday(y, m, day)
-        let dows = (dr["repDows"]?.array ?? []).map { Int(JS.number($0)) }
+        let dows = (dr["repDows"]?.array ?? []).map { JS.int($0) }
         let span = Int(JS.toInt32(dr["repSpan"])) != 0 ? Int(JS.toInt32(dr["repSpan"])) : 3
-        let nth = (dr["repNth"]?.array ?? []).map { Int(JS.number($0)) }
+        let nth = (dr["repNth"]?.array ?? []).map { JS.int($0) }
         let made = Engine.repeatAfter(y, m, day, dr["repEvery"], span, dr["repDows"], dr["repNth"])
         let dowText = dows.isEmpty ? FormCore.dow[myDow] : dows.sorted { String($0) < String($1) }.map { FormCore.dow[$0] }.joined(separator: "・")
         let myNth = min(5, (day - 1) / 7 + 1)

@@ -47,7 +47,8 @@ public extension JSONValue {
     }
     var string: String? { if case .string(let s) = self { return s }; return nil }
     var number: Double? { if case .number(let n) = self { return n }; return nil }
-    var int: Int? { number.map { Int($0) } }
+    /// 整数（NaN・とても大きい数は nil。落ちないように）
+    var int: Int? { number.flatMap { $0.isFinite && abs($0) < 9.0e15 ? Int($0) : nil } }
     var bool: Bool? { if case .bool(let b) = self { return b }; return nil }
     var array: [JSONValue]? { if case .array(let a) = self { return a }; return nil }
     var object: [String: JSONValue]? { if case .object(let o) = self { return o }; return nil }

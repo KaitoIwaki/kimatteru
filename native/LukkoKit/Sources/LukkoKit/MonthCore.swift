@@ -135,7 +135,7 @@ extension AppCore {
         guard ws.isFinite else { return [] }
         let wFirst = Civil.weekday(Y, M, 1), dim = Civil.daysInMonth(Y, M)
         let t = state["today"]
-        let today = (t?["y"] == .number(Double(Y)) && t?["m"] == .number(Double(M))) ? Int(JS.number(t?["d"])) : 0
+        let today = (t?["y"] == .number(Double(Y)) && t?["m"] == .number(Double(M))) ? JS.int(t?["d"]) : 0
         let first = ((wFirst - Int(ws)) % 7 + 7 + 7) % 7
         let weekCount = Int((Double(first + dim) / 7).rounded(.up))
         let monthA = Civil.dayNo(Y, M, 1), monthB = Civil.dayNo(Y, M, dim)
@@ -221,7 +221,7 @@ extension Engine {
 
     public func monthHead() -> MonthHead {
         let ym = state["ym"]?.object ?? [:], t = today
-        let ymY = Int(JS.number(ym["y"])), ymM = Int(JS.number(ym["m"]))
+        let ymY = JS.int(ym["y"]), ymM = JS.int(ym["m"])
         let todayN = Civil.dayNo(t.y, t.m, t.d)
         let und = events.filter { $0["status"] != "nakunatta" && $0["status"] == "mikakutei" }
         let someday = (state["someday"]?.array ?? []).compactMap { $0.object }
@@ -233,7 +233,7 @@ extension Engine {
         }
         let shelfLabel = shelf.isEmpty ? "" : (shelf.count == 1 ? "\(MonthCore.somedayLabel[JS.string(shelf[0]["when"])] ?? "undefined")：\(JS.string(shelf[0]["title"]))" : "日にち未定 \(shelf.count)件")
         let unread = NoticesCore.unreadCount(state["notices"]?.array ?? [])
-        let ws = Int(JS.number(settings["weekStart"]))
+        let ws = JS.int(settings["weekStart"])
         let wl = ["日", "月", "火", "水", "木", "金", "土"]
         let weekdays: [(String, String)] = (0..<7).map { i in
             let dw = (i + ws) % 7

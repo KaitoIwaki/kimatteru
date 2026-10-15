@@ -3,10 +3,10 @@ import Foundation
 /// 新しい予定／予定を編集の画面で押すもの（Web 版 renderVals の NEW の on〜 の写し）
 extension Engine {
     func patchDraft(_ p: [String: JSONValue?]) { set(["draft": .object(Self.with(draftObj, p))]) }
-    var pickYM: (y: Int, m: Int) {
+    public var pickYM: (y: Int, m: Int) {
         let dr = draftObj
-        let y = (dr["pickY"] == nil || dr["pickY"] == .null) ? Int(JS.number(dr["y"])) : Int(JS.number(dr["pickY"]))
-        let m = (dr["pickM"] == nil || dr["pickM"] == .null) ? Int(JS.number(dr["m"])) : Int(JS.number(dr["pickM"]))
+        let y = (dr["pickY"] == nil || dr["pickY"] == .null) ? JS.int(dr["y"]) : JS.int(dr["pickY"])
+        let m = (dr["pickM"] == nil || dr["pickM"] == .null) ? JS.int(dr["m"]) : JS.int(dr["pickM"])
         return (y, m)
     }
 
@@ -137,7 +137,7 @@ extension Engine {
     public func toggleRepNth(_ k: Int) {
         haptic("light")
         let dr = draftObj
-        let myNth = min(5, (Int(JS.number(dr["day"])) - 1) / 7 + 1)
+        let myNth = min(5, (JS.int(dr["day"]) - 1) / 7 + 1)
         let cur = (dr["repNth"]?.array ?? [])
         let base: [JSONValue] = cur.isEmpty ? [.number(Double(myNth))] : cur
         let kk = JSONValue.number(Double(k))
@@ -147,7 +147,7 @@ extension Engine {
     public func toggleRepDow(_ i: Int) {
         haptic("light")
         let dr = draftObj
-        let myDow = Civil.weekday(Int(JS.number(dr["y"])), Int(JS.number(dr["m"])), Int(JS.number(dr["day"])))
+        let myDow = Civil.weekday(JS.int(dr["y"]), JS.int(dr["m"]), JS.int(dr["day"]))
         let cur = dr["repDows"]?.array ?? []
         let base: [JSONValue] = cur.isEmpty ? [.number(Double(myDow))] : cur
         let ii = JSONValue.number(Double(i))

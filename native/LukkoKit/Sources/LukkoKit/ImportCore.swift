@@ -7,7 +7,7 @@ public enum ImportCore {
     static func key(_ e: Ev) -> String {
         [e["y"], e["m"], e["day"], e["start"], e["title"]].map { JS.string($0) }.joined(separator: "-")
     }
-    static func dayNo0(_ e: Ev) -> Int { Civil.dayNo(Int(JS.number(e["y"])), Int(JS.number(e["m"])), Int(JS.number(e["day"]))) }
+    static func dayNo0(_ e: Ev) -> Int { Civil.dayNo(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"])) }
 
     public struct Diff: Equatable {
         public var fresh: [Int]          // incoming の番号

@@ -223,7 +223,7 @@ public enum PhoneCal {
         }
         let (sh, sm) = parts(ev["start"])
         let (eh, em) = parts(ev["status"] == .string("jisseki") ? JS.or(ev["actualEnd"], ev["end"]) : ev["end"])
-        let y = Int(JS.number(ev["y"])), m = Int(JS.number(ev["m"])), d = Int(JS.number(ev["day"]))
+        let y = JS.int(ev["y"]), m = JS.int(ev["m"]), d = JS.int(ev["day"])
         if JS.truthy(ev["allDay"]) {
             let di = Int(JS.toInt32(ev["days"]))
             let days = max(1, min(60, di != 0 ? di : 1))

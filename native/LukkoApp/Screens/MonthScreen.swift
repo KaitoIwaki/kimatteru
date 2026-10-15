@@ -22,7 +22,8 @@ struct MonthScreen: View {
 
     /// 日の画面（screen が "day" のとき）。戻ると、来たところ（月か空き状況）へ
     private var dayShown: Binding<Bool> {
-        Binding(get: { model.state["screen"] == "day" }, set: { on in
+        // 日の画面の上に、予定の画面（新しい予定・詳細）が重なっているあいだも、日の画面は残す
+        Binding(get: { JS.truthy(model.state["dayNum"]) && (model.state["screen"] == "day" || model.state["returnTo"] == "day") }, set: { on in
             if !on && model.state["screen"] == "day" {
                 let back: JSONValue = model.state["dayFrom"] == "free" ? .string("free") : .string("month")
                 model.act { $0.set(["screen": back, "dayNum": .null]) }
@@ -164,7 +165,7 @@ struct MonthPager: View {
 
     var body: some View {
         let ym = model.state["ym"] ?? .null
-        let cur = Self.index(Int(JS.number(ym["y"])), Int(JS.number(ym["m"])))
+        let cur = Self.index(JS.int(ym["y"]), JS.int(ym["m"]))
         TabView(selection: $page) {
             ForEach((cur - 2)...(cur + 2), id: \.self) { i in
                 MonthGrid(y: 2000 + Int((Double(i) / 12).rounded(.down)), m: ((i % 12) + 12) % 12)
@@ -194,7 +195,7 @@ struct MonthGrid: View {
     var body: some View {
         GeometryReader { geo in
             let core = model.core
-            let ws = Int(JS.number(core.state["settings"]?["weekStart"]))
+            let ws = JS.int(core.state["settings"]?["weekStart"])
             let first = ((Civil.weekday(y, m, 1) - ws) % 7 + 7) % 7
             let weekCount = Int((Double(first + Civil.daysInMonth(y, m)) / 7).rounded(.up))
             let es = core.evScale()

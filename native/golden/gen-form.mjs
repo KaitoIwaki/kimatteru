@@ -69,7 +69,7 @@ const formOf = (v) => ({
   seg: v.seg.map((c) => ({ label: c.label, sel: sel(c.style, 'var(--card)') })),
   previewExplain: v.previewExplain, previewBg: v.previewDotStyle.background, previewBorder: v.previewDotStyle.border || '',
 });
-const KEYS = ['draft', 'newJob', 'newType', 'jobs', 'types', 'discardAsk', 'screen', 'returnTo', 'events', 'someday', 'settings', 'repEditAsk', 'ym', 'dayNum', 'detailId'];
+const KEYS = ['draft', 'newJob', 'newType', 'jobs', 'types', 'discardAsk', 'screen', 'returnTo', 'events', 'someday', 'settings', 'repEditAsk', 'ym', 'dayNum', 'detailId', 'today'];
 const snap = (app) => { const o = {}; for (const k of KEYS) o[k] = app.state[k]; return J(o); };
 const HH = () => String(int(0, 23)).padStart(2, '0') + ':' + pick(['00', '30', '15']);
 

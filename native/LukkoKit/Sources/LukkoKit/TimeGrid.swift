@@ -24,7 +24,7 @@ public enum TimeGrid {
     }
 
     private static func dayNoOf(_ e: Ev) -> Int {
-        Civil.dayNo(Int(JS.number(e["y"])), Int(JS.number(e["m"])), Int(JS.number(e["day"])))
+        Civil.dayNo(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"]))
     }
     private static func span(_ e: Ev) -> Int {
         let v = Int(JS.toInt32(e["days"]))

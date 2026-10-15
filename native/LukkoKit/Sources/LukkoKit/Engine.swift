@@ -93,7 +93,7 @@ public final class Engine {
     var settings: Obj { state["settings"]?.object ?? [:] }
     var today: (y: Int, m: Int, d: Int) {
         let t = state["today"]?.object ?? [:]
-        return (Int(JS.number(t["y"])), Int(JS.number(t["m"])), Int(JS.number(t["d"])))
+        return (JS.int(t["y"]), JS.int(t["m"]), JS.int(t["d"]))
     }
     func num(_ v: Double) -> JSONValue { .number(v) }
     func str(_ s: String) -> JSONValue { .string(s) }

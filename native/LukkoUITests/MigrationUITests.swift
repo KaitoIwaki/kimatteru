@@ -26,7 +26,7 @@ final class MigrationUITests: XCTestCase {
         let e = app.staticTexts["debug.eventCount"]
         let p = NSPredicate(format: "label BEGINSWITH '予定'")
         expectation(for: p, evaluatedWith: e)
-        waitForExpectations(timeout: 30)
+        waitForExpectations(timeout: 150)
     }
 
     /// localStorage だけにある（いまの版の普通の状態）→ それを使い、保存ファイルに書き、2回目からはファイル

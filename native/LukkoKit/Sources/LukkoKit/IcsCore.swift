@@ -57,7 +57,7 @@ public enum IcsCore {
         for item in events {
             guard JS.truthy(item), case .object(let e) = item else { continue }
             if JS.string(e["status"]) == "nakunatta" && e["status"]?.string != nil { continue }
-            let y = Int(JS.number(e["y"])), m = Int(JS.number(e["m"])), d = Int(JS.number(e["day"]))
+            let y = JS.int(e["y"]), m = JS.int(e["m"]), d = JS.int(e["day"])
             lines.append("BEGIN:VEVENT")
             lines.append("UID:" + esc(JS.or(e["id"], .string("x"))) + "@lukko")
             lines.append("DTSTAMP:" + stamp)

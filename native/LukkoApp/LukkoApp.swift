@@ -117,6 +117,12 @@ struct MainTabs: View {
                 .tabItem { Label("設定", systemImage: "gearshape") }
                 .tag("settings")
         }
+        .sheet(isPresented: Binding(get: { model.state["screen"] == "new" }, set: { on in
+            // 下へ払って閉じた（書きかけが無いときだけ払える）
+            if !on && model.state["screen"] == "new" { model.act { $0.cancelForm() } }
+        })) {
+            FormScreen().environment(\.ink, Ink(dark: model.dark))
+        }
         .modifier(AlertPresenter())
     }
 }

@@ -43,7 +43,7 @@ final class FormGoldenTests: XCTestCase {
     func testForm() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "Fixtures/golden/form", withExtension: "json"))
         let cases = try XCTUnwrap(JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url)).array)
-        let keys = ["draft", "newJob", "newType", "jobs", "types", "discardAsk", "screen", "returnTo", "events", "someday", "settings", "repEditAsk", "ym", "dayNum", "detailId"]
+        let keys = ["draft", "newJob", "newType", "jobs", "types", "discardAsk", "screen", "returnTo", "events", "someday", "settings", "repEditAsk", "ym", "dayNum", "detailId", "today"]
         var fails = 0
         for (ci, c) in cases.enumerated() {
             let eng = Engine(state: c["init"]?.object ?? [:], now: c["now"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)

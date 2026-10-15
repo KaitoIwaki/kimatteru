@@ -75,7 +75,7 @@ public enum NotifyCore {
     static func span(_ e: Ev) -> Int { let v = Int(JS.toInt32(e["days"])); return max(1, min(60, v != 0 ? v : 1)) }
     static func covers(_ e: Ev, _ y: Int, _ m: Int, _ d: Int) -> Bool {
         let n = Civil.dayNo(y, m, d)
-        let f = Civil.dayNo(Int(JS.number(e["y"])), Int(JS.number(e["m"])), Int(JS.number(e["day"])))
+        let f = Civil.dayNo(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"]))
         return n >= f && n <= f + span(e) - 1
     }
     static func toMin(_ t: JSONValue?) -> Double { TimeGrid.toMin(t) }
@@ -121,9 +121,9 @@ public enum NotifyCore {
                 var hh = alldayAnchorH, mm = 0
                 if !JS.truthy(e["allDay"]) {
                     let p = JS.string(e["start"]).components(separatedBy: ":")
-                    hh = Int(JS.number(p[0])); mm = p.count > 1 ? Int(JS.number(p[1])) : 0
+                    hh = JS.int(p[0]); mm = p.count > 1 ? JS.int(p[1]) : 0
                 }
-                let at = LocalTime(Int(JS.number(e["y"])), Int(JS.number(e["m"])), Int(JS.number(e["day"])), hh, Int((Double(mm) - rm).rounded(.towardZero)))
+                let at = LocalTime(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"]), hh, Int((Double(mm) - rm).rounded(.towardZero)))
                 if at > now {
                     let place = (!JS.truthy(e["secret"]) && !hideAll && JS.truthy(e["place"])) ? "・" + JS.string(e["place"]) : ""
                     out.append(Notif(id: numericId("r" + idStr),

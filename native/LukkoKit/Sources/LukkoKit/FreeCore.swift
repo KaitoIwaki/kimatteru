@@ -155,12 +155,12 @@ extension AppCore {
 
     var todayParts: (y: Int, m: Int, d: Int) {
         let t = state["today"]?.object ?? [:]
-        return (Int(JS.number(t["y"])), Int(JS.number(t["m"])), Int(JS.number(t["d"])))
+        return (JS.int(t["y"]), JS.int(t["m"]), JS.int(t["d"]))
     }
 
     /// 空いてる日の画像のマス（level：free ○ / part △ / busy × / past 過ぎた日 / none 前の空き）
     public func freeCells(_ Y: Int, _ M: Int, overlay: [[String: JSONValue]] = []) -> [JSONValue] {
-        let ws = Int(JS.number(settings["weekStart"]))
+        let ws = JS.int(settings["weekStart"])
         let first = ((Civil.weekday(Y, M, 1) - ws + 7) % 7 + 7) % 7
         let dim = Civil.daysInMonth(Y, M)
         let t = todayParts
@@ -183,7 +183,7 @@ extension AppCore {
 
     /// 文字で送る空いてる日。範囲・平日休日で絞り、ていねい版は前後に一言を添える
     public func freeTextBlock(_ so: [String: JSONValue], overlay: [[String: JSONValue]] = []) -> String {
-        let t = todayParts, ws = Int(JS.number(settings["weekStart"]))
+        let t = todayParts, ws = JS.int(settings["weekStart"])
         let todayN = Civil.dayNo(t.y, t.m, t.d)
         var a = todayN, b = todayN + 13
         let wk0 = TimeGrid.weekStartNo(t.y, t.m, t.d, ws)
@@ -192,7 +192,7 @@ extension AppCore {
         else if range == "next" { a = wk0 + 7; b = wk0 + 13 }
         else if range == "month" {
             let fy = state["freeYM"]?.object ?? [:]
-            let Y = Int(JS.number(fy["y"])), M = Int(JS.number(fy["m"]))
+            let Y = JS.int(fy["y"]), M = JS.int(fy["m"])
             a = max(todayN, Civil.dayNo(Y, M, 1)); b = Civil.dayNo(Y, M + 1, 0)
         }
         let polite = JS.truthy(so["polite"]), only = JS.string(so["only"])

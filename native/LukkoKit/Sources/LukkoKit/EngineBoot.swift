@@ -9,7 +9,7 @@ extension Engine {
     }
     /// 月を n ヶ月ずらす
     public static func shiftMonth(_ ym: JSONValue?, _ n: Int) -> JSONValue {
-        let y = Int(JS.number(ym?["y"])), m = Int(JS.number(ym?["m"]))
+        let y = JS.int(ym?["y"]), m = JS.int(ym?["m"])
         let total = y * 12 + m + n
         let ny = Int((Double(total) / 12).rounded(.down))
         return ["y": .number(Double(ny)), "m": .number(Double(total - ny * 12))]
@@ -94,7 +94,7 @@ extension Engine {
     public func openFor(_ ev: Obj, _ from: JSONValue? = nil) {
         let ret = JS.or(from, state["returnTo"])
         let t = today
-        let future = Civil.dayNo(Int(JS.number(ev["y"])), Int(JS.number(ev["m"])), Int(JS.number(ev["day"]))) > Civil.dayNo(t.y, t.m, t.d)
+        let future = Civil.dayNo(JS.int(ev["y"]), JS.int(ev["m"]), JS.int(ev["day"])) > Civil.dayNo(t.y, t.m, t.d)
         if ev["status"] == str("mikakutei") && !future { openDialog(ev, "confirm", ret); return }
         set(["screen": "detail", "detailId": ev["id"] ?? .null, "returnTo": ret])
     }
@@ -128,7 +128,7 @@ extension Engine {
     /// 予定を人に送る文（「10/3（金）19:00〜21:00 歓迎会 @渋谷」）。共有シートには、この文とその 1 件の .ics を渡す
     public func shareText(_ ev: Obj) -> String {
         let dw = ["日", "月", "火", "水", "木", "金", "土"]
-        let y = Int(JS.number(ev["y"])), m = Int(JS.number(ev["m"])), d = Int(JS.number(ev["day"]))
+        let y = JS.int(ev["y"]), m = JS.int(ev["m"]), d = JS.int(ev["day"])
         let span = AppCore.evSpan(ev)
         let when = "\(m + 1)/\(d)（\(dw[Civil.weekday(y, m, d)])）" + (JS.truthy(ev["allDay"]) ? (span > 1 ? "から\(span)日間" : " 終日") : " \(JS.string(ev["start"]))〜\(JS.string(ev["end"]))")
         let place = JS.string(ev["place"])
