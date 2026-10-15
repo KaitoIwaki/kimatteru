@@ -192,7 +192,7 @@ extension Engine {
             let hex = JS.string(ot["color"])
             let pill: [String: JSONValue] = o["status"] == "mikakutei"
                 ? ["background": c.paperShow(ot["paper"], dark: dark), "color": .string(c.inkDash(hex, dark: dark)), "lineHeight": "21px", "border": .string("1.5px dashed " + c.softLine(hex, dark: dark))]
-                : ["background": .string(c.softFill(hex, dark: dark)), "color": .string(c.inkOn(hex, dark: dark))]
+                : ["background": .string(c.softFill(hex, dark: dark)), "color": .string(c.inkOn(hex, dark: dark)), "lineHeight": "24px"]
             return .init(id: o["id"] ?? .null, title: JS.string(o["title"]), when: JS.truthy(o["allDay"]) ? "終日" : JS.string(JS.or(o["start"], "")), pill: pill)
         }
         v.histLabel = "これまでの「\(JS.string(ev["title"]))」"
@@ -267,7 +267,7 @@ extension Engine {
             let pM = (d["pickM"] == nil || d["pickM"] == .null) ? m : JS.int(d["pickM"])
             v.moveLabel = "\(pY)年\(pM + 1)月"
             let ws = JS.int(settings["weekStart"])
-            v.moveWeekdays = (0..<7).map { i in let dw = (i + ws) % 7; return (Self.dw[dw], dw == 0 ? "var(--sun)" : dw == 6 ? "var(--sat)" : "var(--ink-faint)") }
+            v.moveWeekdays = (0..<7).map { i in let dw = ((i + ws) % 7 + 7) % 7; return (Self.dw[dw], dw == 0 ? "var(--sun)" : dw == 6 ? "var(--sat)" : "var(--ink-faint)") }
             let first = ((Civil.weekday(pY, pM, 1) - ws) % 7 + 7) % 7, dim = Civil.daysInMonth(pY, pM)
             let to = d["moveTo"]?.object
             var cells: [DialogView.Cell] = Array(repeating: .init(day: nil, orig: false, sel: false, color: "", bg: "", weight: 0), count: first)

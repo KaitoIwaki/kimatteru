@@ -227,4 +227,44 @@ final class ViewGoldenTests: XCTestCase {
         }
         XCTAssertEqual(fails, 0, "合わなかった数")
     }
+
+    func testSettings() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "Fixtures/golden/view-settings", withExtension: "json"))
+        let cases = try XCTUnwrap(JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url)).array)
+        var fails = 0
+        func seg(_ o: [SettingsView.Opt]) -> JSONValue { .array(o.map { ["label": .string($0.label), "sel": .bool($0.sel)] }) }
+        for (i, c) in cases.enumerated() {
+            let eng = Engine(state: c["state"]?.object ?? [:], now: c["now"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+            let v = eng.settingsView()
+            let got: JSONValue = [
+                "backLabel": .string(v.backLabel), "pageTitle": .string(v.pageTitle), "notifyOn": .bool(v.notifyOn), "profileLabel": .string(v.profileLabel),
+                "profileOpts": seg(v.profileOpts), "profileRetireShown": .bool(v.profileRetireShown), "profileRetireOn": .bool(v.profileRetireOn),
+                "typeRows": .array(v.typeRows.map { t in ["name": .string(t.name), "hidden": .bool(t.hidden), "open": .bool(t.open), "hint": .string(t.hint), "usedCount": .number(Double(t.usedCount)),
+                    "uWord": .string(t.uWord), "cWord": .string(t.cWord), "hideLabel": .string(t.hideLabel), "canUp": .bool(t.canUp), "canDown": .bool(t.canDown), "canDelete": .bool(t.canDelete),
+                    "deleting": .bool(t.deleting), "moveTo": .array(t.moveTo.map { .string($0.label) })] }),
+                "themeSeg": seg(v.themeSeg), "fontSeg": seg(v.fontSeg), "themeLabel": .string(v.themeLabel), "fontLabel": .string(v.fontLabel),
+                "freeWdLabel": .string(v.freeWdLabel), "freeHdLabel": .string(v.freeHdLabel), "workLabel": .string(v.workLabel), "workDays": .array(v.workDays.map { .bool($0) }),
+                "remindTimedSeg": seg(v.remindTimedSeg), "remindAllDaySeg": seg(v.remindAllDaySeg), "remindTimedLabel": .string(v.remindTimedLabel), "remindAllDayLabel": .string(v.remindAllDayLabel),
+                "wageFeatureSeg": seg(v.wageFeatureSeg), "wageFeatureLabel": .string(v.wageFeatureLabel),
+                "jobRows": .array(v.jobRows.map { j in ["name": .string(j.name), "hourly": .string(j.hourly), "open": .bool(j.open), "retired": .bool(j.retired), "retireLabel": .string(j.retireLabel),
+                    "rateNote": .bool(j.rateNote), "closeDay": .number(Double(j.closeDay)), "payDay": .number(Double(j.payDay)), "templates": .array(j.templates.map { .string($0) }), "usedCount": .number(Double(j.usedCount))] }),
+                "retiredCount": .number(Double(v.retiredCount)), "jobsEmpty": .bool(v.jobsEmpty), "jobsLabel": .string(v.jobsLabel), "leaveShown": .bool(v.leaveShown),
+                "leaveGrant": .string(v.leaveGrant), "leaveText": .string(v.leaveText), "leaveLabel": .string(v.leaveLabel),
+                "lastBackupText": .string(v.lastBackupText), "lastExportText": .string(v.lastExportText), "trashCount": .number(Double(v.trashCount)),
+                "trashRows": .array(v.trashRows.map { ["title": .string($0.title), "when": .string($0.when), "gone": .string($0.gone)] }),
+                "undoImportShown": .bool(v.undoImportShown), "undoImportLabel": .string(v.undoImportLabel), "overlayLabel": .string(v.overlayLabel), "backupLabel": .string(v.backupLabel),
+                "lastExportLabel": .string(v.lastExportLabel), "syncSub": .string(v.syncSub),
+            ]
+            let want = c["out"] ?? .null
+            if got != want {
+                fails += 1
+                if fails <= 10 {
+                    let go = got.object ?? [:], wo = want.object ?? [:]
+                    let diff = Set(go.keys).union(wo.keys).filter { go[$0] != wo[$0] }.sorted()
+                    XCTFail("#\(i) 設定が違う \(diff)：\n" + diff.map { "\($0)：\(String(describing: go[$0]))\n   ≠ \(String(describing: wo[$0]))" }.joined(separator: "\n"))
+                }
+            }
+        }
+        XCTAssertEqual(fails, 0, "合わなかった数")
+    }
 }

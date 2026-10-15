@@ -189,7 +189,7 @@ extension Engine {
         v.ymYearLabel = String(pY)
         v.ymMonths = (0..<12).map { .init(key: .number(Double($0)), label: "\($0 + 1)月", sel: $0 == pM) }
         let ws = JS.int(settings["weekStart"])
-        v.dateWeekdays = (0..<7).map { i in let dw = (i + ws) % 7; return (FormCore.dow[dw], dw == 0 ? "var(--sun)" : dw == 6 ? "var(--sat)" : "var(--ink-faint)") }
+        v.dateWeekdays = (0..<7).map { i in let dw = ((i + ws) % 7 + 7) % 7; return (FormCore.dow[dw], dw == 0 ? "var(--sun)" : dw == 6 ? "var(--sat)" : "var(--ink-faint)") }
         v.dateCells = c.pickCells(pY, pM, dr, multi: false)
         // 勤務先
         v.jobPickerShown = dr["type"] == "baito"

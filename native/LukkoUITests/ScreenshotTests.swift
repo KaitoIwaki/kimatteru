@@ -47,6 +47,8 @@ final class ScreenshotTests: XCTestCase {
         app.buttons["予定を追加"].firstMatch.tap()
         sleep(1)
         snap(app, "04-form")
+        // シミュレーターのキーボードの初回の案内（なぞって入力）が出ていたら閉じる
+        if app.buttons["Continue"].waitForExistence(timeout: 2) { app.buttons["Continue"].tap(); sleep(1) }
         app.buttons["閉じる"].firstMatch.tap()
         sleep(1)
         let row = app.buttons["day.row.j"]
@@ -54,6 +56,15 @@ final class ScreenshotTests: XCTestCase {
         row.tap()
         sleep(1)
         snap(app, "05-detail")
+        app.tabBars.buttons["設定"].tap()
+        sleep(1)
+        snap(app, "06-settings")
+        app.tabBars.buttons["まとめ"].tap()
+        sleep(1)
+        snap(app, "07-report")
+        app.tabBars.buttons["空き状況"].tap()
+        sleep(1)
+        snap(app, "08-free")
     }
 
     private func snap(_ app: XCUIApplication, _ name: String) {

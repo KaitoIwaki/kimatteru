@@ -143,7 +143,7 @@ extension Engine {
         let y = JS.int(sp["y"]), m = JS.int(sp["m"])
         v.label = "\(y)年\(m + 1)月"
         let ws = JS.int(settings["weekStart"])
-        v.weekdays = (0..<7).map { Self.dw[($0 + ws) % 7] }
+        v.weekdays = (0..<7).map { Self.dw[(($0 + ws) % 7 + 7) % 7] }
         let first = ((Civil.weekday(y, m, 1) - ws) % 7 + 7) % 7
         v.cells = Array(repeating: .init(day: nil, color: "", busy: false), count: first)
         for d in 1...Civil.daysInMonth(y, m) {

@@ -261,3 +261,48 @@ for (let k = 0; k < 120; k++) {
 }
 fs.writeFileSync(path.join(OUT, 'view-report.json'), JSON.stringify(repCases));
 console.log('view-report', repCases.length);
+
+// ---- 設定 ----
+const setCases = [];
+for (let k = 0; k < 150; k++) {
+  NOW = new RealDate(2026, int(0, 11), int(1, 28), int(7, 22), int(0, 59)).getTime();
+  const now = new RealDate(NOW);
+  const today = { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() };
+  const types = J(mkApp({}).state.types);
+  if (rnd() < 0.3) types.push({ key: 'c1', name: 'ジム', color: '#C77D8E', paper: 'p', dark: 'd', uWord: '未確定のジム', cWord: 'ジム', hidden: rnd() < 0.5 });
+  if (rnd() < 0.3) types[1].hidden = true;
+  const jobs = [];
+  for (let i = 0; i < pick([0, 1, 3]); i++) jobs.push({ id: 'j' + i, name: pick(['カフェ', '', '塾']), hourly: pick([1100, 1250]), retired: rnd() < 0.3, closeDay: pick([undefined, 15, 31]), payDay: pick([undefined, 25]),
+    templates: rnd() < 0.5 ? [{ sym: '早', name: '早番', from: 540, to: 1020 }, { sym: '休', allDay: true }, { id: 'tx', sym: '遅', from: 780, to: 1320 }] : undefined });
+  const events = [];
+  for (let i = 0; i < pick([0, 10]); i++) events.push({ id: (rnd() < 0.3 ? 'iT-' : 'e') + i, type: pick(['yoji', 'baito', 'c1', 'off']), title: pick(['有給', '半休', 'カフェ']), y: today.y, m: today.m, day: int(1, 28), start: '10:00', end: '11:00', status: pick(['kakutei', 'jisseki', 'mikakutei']), jobId: pick([undefined, 'j0', 'j1']) });
+  const trash = [];
+  for (let i = 0; i < pick([0, 3]); i++) trash.push({ ev: { id: 't' + i, title: '消した', m: int(0, 11), day: int(1, 28), y: today.y }, at: NOW - int(1, 20) * 86400000, someday: rnd() < 0.2 ? { id: 's' } : undefined });
+  const settings = { ...mkApp({}).state.settings, onboarded: true, profile: pick(['student', 'work', 'shift', 'zzz']), notifyOff: rnd() < 0.2, theme: pick([undefined, 'auto', 'light', 'dark']), dark: rnd() < 0.2,
+    fontScale: pick([undefined, 1, 1.12, 1.25, 1.3]), barTime: rnd() < 0.5, kariMark: rnd() < 0.5, freeWd: pick([undefined, [600, 1320], [0, 1440]]), freeHd: pick([undefined, [540, 1260]]),
+    workHours: pick([null, undefined, { days: [1, 2, 3, 4, 5], from: 540, to: 1080 }, { days: [0, 3, 6], from: 600, to: 960 }, { days: [], from: 540, to: 1080 }, { days: [2, 3], from: 540, to: 1080 }]),
+    morning: rnd() < 0.5, morningAt: pick([undefined, 420]), remindTimed: pick([undefined, 10, 60]), remindAllDay: pick([undefined, 0, 1440]), wageFeature: pick([undefined, 'on', 'off']),
+    paidLeave: pick([null, undefined, { grant: 10, start: 3 }, { grant: 15.5, start: 0 }]), lastAutoBackup: pick([undefined, NOW - 86400000]), lastExportAt: pick([undefined, NOW - 5 * 86400000]),
+    lastImport: rnd() < 0.3 ? { tag: 'iT', at: 1 } : undefined, overlayOn: rnd() < 0.3, overlayIds: ['a', 'b'], exportCal: rnd() < 0.3, sync: rnd() < 0.3, lastSyncAt: pick([undefined, NOW - 3600000]), lock: rnd() < 0.3 };
+  const st0 = { events, types, jobs, trash, settings, today, ym: { y: today.y, m: today.m }, screen: 'settings',
+    setPage: pick([null, 'display', 'free', 'work', 'notify', 'wage', 'jobs', 'leave', 'types', 'data', 'backup', 'overlay', 'help', 'support']),
+    editTypeKey: pick([null, 'yoji']), typeDelete: pick([null, 'yoji']), editJobId: pick([null, 'j0']), rateNote: pick([undefined, 'j0']), showRetired: rnd() < 0.5,
+    profileSheet: rnd() < 0.3 ? { retire: rnd() < 0.5 } : null, trashOpen: rnd() < 0.4 };
+  const app = mkApp(J(st0));
+  const { v } = app.renderVals();
+  const pkSel = (seg) => (seg || []).map((x) => ({ label: x.label, sel: !!x.sel }));
+  const out = J({ backLabel: v.setBackLabel, pageTitle: v.setPageTitle, notifyOn: v.notifyOn, profileLabel: v.profileLabel,
+    profileOpts: v.profileSheetShown ? v.profileOpts.map((o) => ({ label: o.label, sel: o.sel })) : [], profileRetireShown: !!v.profileRetireShown, profileRetireOn: !!v.profileRetireOn,
+    typeRows: v.typeRows.map((t) => ({ name: t.name, hidden: t.hidden, open: t.open, hint: t.hint, usedCount: t.usedCount, uWord: t.uWord, cWord: t.cWord, hideLabel: t.hideLabel,
+      canUp: !!t.onUp, canDown: !!t.onDown, canDelete: !!t.onAskDelete, deleting: t.deleting, moveTo: t.moveChips.map((m) => m.label) })),
+    themeSeg: pkSel(v.themeSeg), fontSeg: pkSel(v.fontSeg), themeLabel: v.themeLabel, fontLabel: v.fontLabel, freeWdLabel: v.freeWdLabel, freeHdLabel: v.freeHdLabel, workLabel: v.workLabel,
+    workDays: v.workDays ? v.workDays.map((d) => d.style.background === 'var(--ink)') : [], remindTimedSeg: pkSel(v.remindTimedSeg), remindAllDaySeg: pkSel(v.remindAllDaySeg),
+    remindTimedLabel: v.remindTimedLabel, remindAllDayLabel: v.remindAllDayLabel, wageFeatureSeg: pkSel(v.wageFeatureSeg), wageFeatureLabel: v.wageFeatureLabel,
+    jobRows: v.jobRows.map((j) => ({ name: j.name, hourly: j.hourly, open: j.open, retired: j.retired, retireLabel: j.retireLabel, rateNote: j.rateNote, closeDay: j.closeDay, payDay: j.payDay, templates: j.templates.map((t) => t.text), usedCount: j.usedCount })),
+    retiredCount: v.retiredCount, jobsEmpty: v.jobsEmpty, jobsLabel: v.jobsLabel, leaveShown: v.leaveShown, leaveGrant: v.leaveShown ? v.leaveGrant : '', leaveText: v.leaveShown ? v.leaveText : '', leaveLabel: v.leaveLabel,
+    lastBackupText: v.lastBackupText, lastExportText: v.lastExportText, trashCount: v.trashCount, trashRows: v.trashShown ? v.trashRows.map((r) => ({ title: r.title, when: r.when, gone: r.gone })) : [],
+    undoImportShown: v.undoImportShown, undoImportLabel: v.undoImportShown ? v.undoImportLabel : '', overlayLabel: v.overlayLabel, backupLabel: v.backupLabel, lastExportLabel: v.lastExportLabel, syncSub: v.syncSub });
+  setCases.push({ now: NOW, state: J(st0), out });
+}
+fs.writeFileSync(path.join(OUT, 'view-settings.json'), JSON.stringify(setCases));
+console.log('view-settings', setCases.length);

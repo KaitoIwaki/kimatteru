@@ -113,7 +113,7 @@ struct MainTabs: View {
             ReportScreen()
                 .tabItem { Label("まとめ", systemImage: "chart.bar") }
                 .tag("report")
-            PlaceholderScreen(title: "設定")
+            SettingsScreen()
                 .tabItem { Label("設定", systemImage: "gearshape") }
                 .tag("settings")
         }

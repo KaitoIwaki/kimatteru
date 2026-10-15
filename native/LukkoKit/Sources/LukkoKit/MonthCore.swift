@@ -236,7 +236,7 @@ extension Engine {
         let ws = JS.int(settings["weekStart"])
         let wl = ["日", "月", "火", "水", "木", "金", "土"]
         let weekdays: [(String, String)] = (0..<7).map { i in
-            let dw = (i + ws) % 7
+            let dw = ((i + ws) % 7 + 7) % 7
             return (wl[dw], dw == 0 ? MonthCore.holidayRed : dw == 6 ? MonthCore.saturdayBlue : "#9AA0A6")
         }
         return MonthHead(monthLabel: JS.string(.number(JS.number(ym["m"]) + 1)), year: JS.string(ym["y"]),
