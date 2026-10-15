@@ -128,6 +128,7 @@ struct MainTabs: View {
         })) {
             DialogSheet().environment(\.ink, Ink(dark: model.dark))
         }
+        .overlay { BottomOverlays() }
         .modifier(AlertPresenter())
     }
 }

@@ -3,6 +3,14 @@ import XCTest
 
 /// 画面に出す中身が、Web 版の renderVals と同じか（golden/view-*.json）
 final class ViewGoldenTests: XCTestCase {
+    /// Web 版の App と同じく、はじめの状態（state = {...}）の上に、その場の状態を重ねて作る
+    static func engine(_ c: JSONValue) -> Engine {
+        let tz = TimeZone(identifier: "Asia/Tokyo")!
+        let now = c["now"]?.number ?? 0
+        var st = Engine.defaultState(now: now, tz: tz)
+        for (k, v) in c["state"]?.object ?? [:] { st[k] = v }
+        return Engine(state: st, now: now, timeZone: tz)
+    }
     func testMonth() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "Fixtures/golden/view-month", withExtension: "json"))
         let cases = try XCTUnwrap(JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url)).array)
@@ -11,7 +19,7 @@ final class ViewGoldenTests: XCTestCase {
             if got != (want ?? .null) { fails += 1; if fails <= 15 { XCTFail("\(what())：\n\(got)\n≠\n\(String(describing: want))") } }
         }
         for (i, c) in cases.enumerated() {
-            let eng = Engine(state: c["state"]?.object ?? [:], now: c["now"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+            let eng = Self.engine(c)
             let core = AppCore(state: eng.state)
             let dark = core.isDark(sysDark: false)
             let wageOn = JS.truthy(eng.state["wageOn"]) && eng.wageFeatureOn()
@@ -109,7 +117,7 @@ final class ViewGoldenTests: XCTestCase {
             if got != (want ?? .null) { fails += 1; if fails <= 15 { XCTFail("\(what())：\n\(got)\n≠\n\(String(describing: want))") } }
         }
         for (i, c) in cases.enumerated() {
-            let eng = Engine(state: c["state"]?.object ?? [:], now: c["now"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+            let eng = Self.engine(c)
             let spec = eng.alertSpec()
             let got: JSONValue = spec.map { sp in
                 var o: [String: JSONValue] = ["key": .string(sp.key), "title": .string(sp.title), "sheet": .bool(sp.sheet),
@@ -167,7 +175,7 @@ final class ViewGoldenTests: XCTestCase {
             if got != (want ?? .null) { fails += 1; if fails <= 15 { XCTFail("\(what())：\n\(got)\n≠\n\(String(describing: want))") } }
         }
         for (i, c) in cases.enumerated() {
-            let eng = Engine(state: c["state"]?.object ?? [:], now: c["now"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+            let eng = Self.engine(c)
             let dark = AppCore(state: eng.state).isDark(sysDark: false)
             let v = eng.listView(dark: dark)
             let out = c["out"] ?? .null
@@ -201,7 +209,7 @@ final class ViewGoldenTests: XCTestCase {
         let cases = try XCTUnwrap(JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url)).array)
         var fails = 0
         for (i, c) in cases.enumerated() {
-            let eng = Engine(state: c["state"]?.object ?? [:], now: c["now"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+            let eng = Self.engine(c)
             let v = eng.reportView()
             func head(_ h: ReportView.Head) -> JSONValue { ["num": .string(h.num), "unit": .string(h.unit), "rest": .string(h.rest)] }
             let got: JSONValue = [
@@ -234,7 +242,7 @@ final class ViewGoldenTests: XCTestCase {
         var fails = 0
         func seg(_ o: [SettingsView.Opt]) -> JSONValue { .array(o.map { ["label": .string($0.label), "sel": .bool($0.sel)] }) }
         for (i, c) in cases.enumerated() {
-            let eng = Engine(state: c["state"]?.object ?? [:], now: c["now"]?.number ?? 0, timeZone: TimeZone(identifier: "Asia/Tokyo")!)
+            let eng = Self.engine(c)
             let v = eng.settingsView()
             let got: JSONValue = [
                 "backLabel": .string(v.backLabel), "pageTitle": .string(v.pageTitle), "notifyOn": .bool(v.notifyOn), "profileLabel": .string(v.profileLabel),

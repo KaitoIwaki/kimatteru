@@ -138,7 +138,7 @@ for (let k = 0; k < 160; k++) {
   if (kind === 'del') st.confirmDelete = events.length && rnd() < 0.9 ? pick(events).id : 'none';
   if (kind === 'restore') st.confirmRestore = { data: { events: [{ id: 'z', y: 2026, m: 0, day: 1, start: '10:00', end: '11:00', title: 'z', type: 'yoji', status: 'kakutei' }] }, count: int(1, 9), dropped: pick([0, 2]), at: pick([undefined, '2026-01-02T03:04:05.000Z', '2026-12-31T16:30:00.000Z']), merge: rnd() < 0.3 };
   if (kind === 'cand') st.candAsk = { title: '飲み会', ids: events.slice(0, int(1, 3)).map((e) => e.id) };
-  if (kind === 'job') st.confirmJob = pick(['j1', 'jx']);
+  if (kind === 'job') { st.confirmJob = pick(['j1', 'jx']); st.screen = 'settings'; st.setPage = 'jobs'; }
   if (kind === 'discard') { st.discardAsk = true; }
   if (kind === 'rep') { st.repEditAsk = { rest: int(1, 5) }; st.draft = { ...(events[0] || {}), editingId: events[0] ? events[0].id : null, title: '直した' }; }
   const app = mkApp(J(st));

@@ -26,6 +26,10 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: LUKKO
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        # 許可の説明は、いまの版（app/ios/App/App/Info.plist）と同じ文
+        INFOPLIST_KEY_NSCalendarsUsageDescription: "いま使っているカレンダーの予定を、取り込みと「重ねて表示」のために読み込みます。書き込むのは、設定で「決まった予定を iPhone のカレンダーにも入れる」をオンにしたときだけで、「LUKKO」という名前のカレンダーにだけ書きます。外部への送信は行いません。"
+        INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription: "いま使っているカレンダーの予定を、取り込みと「重ねて表示」のために読み込みます。書き込むのは、設定で「決まった予定を iPhone のカレンダーにも入れる」をオンにしたときだけで、「LUKKO」という名前のカレンダーにだけ書きます。外部への送信は行いません。"
+        INFOPLIST_KEY_NSFaceIDUsageDescription: "アプリを開くときに、本人かどうかを確かめるために使います。"
         TARGETED_DEVICE_FAMILY: "1"
         SWIFT_VERSION: "5.0"
         CODE_SIGNING_ALLOWED: NO

@@ -159,3 +159,50 @@ extension JS {
         return s.addingPercentEncoding(withAllowedCharacters: allowed) ?? s
     }
 }
+
+extension Engine {
+    /// 通知を押して開いたとき（Web 版 componentDidMount の onNotificationTap の写し）。
+    /// actionId はふつうに押したとき "tap"。ボタンなら "yes" "no" "asplanned" "open"
+    public func handleNotificationTap(eventId: String?, kind: String, actionId: String, extra: [String: JSONValue]) {
+        // まとめのお知らせ：その日の一覧を開く
+        if kind == "morning", let day = extra["day"], JS.truthy(day) {
+            let p = JS.string(day).components(separatedBy: "-").map { JS.number($0) }
+            let y = JS.int(.number(p.count > 0 ? p[0] : .nan)), m = JS.int(.number(p.count > 1 ? p[1] : .nan)), d = JS.int(.number(p.count > 2 ? p[2] : .nan))
+            set(["screen": "day", "dayNum": .number(Double(d)), "ym": ["y": .number(Double(y)), "m": .number(Double(m))], "returnTo": "month", "dayFrom": "month", "swipeRow": .null])
+            return
+        }
+        // 日曜の見直し：まだの予定の一覧を開く
+        if kind == "weekly" { set(["screen": "list", "listTab": "undecided", "returnTo": "month"]); return }
+        guard let ev = events.first(where: { JS.string($0["id"]) == (eventId ?? "undefined") }) else { return }
+        let ym: JSONValue = ["y": ev["y"] ?? .null, "m": ev["m"] ?? .null]
+        if actionId == "yes" && ev["status"] == "mikakutei" {
+            undoPrevKeys = ["status"]
+            updateEvent(ev["id"], ["status": "kakutei"])
+            set(["screen": "month", "ym": ym])
+            showUndo("「\(JS.string(ev["title"]))」を確定にしました", ["kind": "status", "id": ev["id"] ?? .null, "prev": ["status": ev["status"] ?? .null]])
+            return
+        }
+        if actionId == "no" && ev["status"] == "mikakutei" {
+            undoPrevKeys = ["status"]
+            updateEvent(ev["id"], ["status": "nakunatta"])
+            set(["screen": "month", "ym": ym])
+            let gone = JS.string(JS.or(core().T(ev["type"])?["gone"], "無くなった"))
+            showUndo("「\(JS.string(ev["title"]))」を\(gone)にしました", ["kind": "status", "id": ev["id"] ?? .null, "prev": ["status": ev["status"] ?? .null]])
+            return
+        }
+        if actionId == "asplanned" && ev["status"] == "kakutei" {
+            var prev: Obj = [:]
+            for k in ["status", "actualEnd", "hourly"] { if let v = ev[k] { prev[k] = v } }
+            undoPrevKeys = ["status", "actualEnd", "hourly"]
+            updateEvent(ev["id"], ["status": "jisseki", "actualEnd": ev["end"], "hourly": ev["type"] == "baito" ? core().hourlyFor(ev) : nil])
+            showUndo("「\(JS.string(ev["title"]))」を予定どおりで記録しました", ["kind": "status", "id": ev["id"] ?? .null, "prev": .object(prev)])
+            return
+        }
+        if kind == "remind" {
+            set(["ym": ym])
+            openFor(ev, "month")
+            return
+        }
+        openDialog(ev, "worked", "month")
+    }
+}

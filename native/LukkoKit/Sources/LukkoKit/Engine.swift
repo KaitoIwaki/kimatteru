@@ -129,7 +129,7 @@ public final class Engine {
     }
 
     // MARK: 知らせのひとこと
-    func toast(_ msg: String, _ ms: Double = 2400) {
+    public func toast(_ msg: String, _ ms: Double = 2400) {
         set(["shareToast": .bool(true), "shareMsg": str(msg)])
         cancel(named["toast"])
         named["toast"] = later(ms) { [weak self] in self?.set(["shareToast": .bool(false)]) }
