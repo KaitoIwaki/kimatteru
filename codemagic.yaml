@@ -111,3 +111,64 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
     # 配信は上のステップで行うので publishing は使わない
     # （publishing にすると失敗理由が post-processing に隠れて読めない）
+
+  # SwiftUI 版（native/）。いまの版と同じ bundle ID で、TestFlight に上げる。
+  # プロジェクトは native/project.yml から XcodeGen で組み立てる（Mac が無いので Xcode の画面では作らない）。
+  # ウィジェットはまだ入っていない（本体だけ）。
+  native-testflight:
+    name: SwiftUI 版 TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    integrations:
+      app_store_connect: App Store Connect API key
+    environment:
+      xcode: latest
+      groups:
+        - signing
+      vars:
+        XCODE_PROJECT: "native/LUKKO.xcodeproj"
+        XCODE_SCHEME: "LUKKO"
+        BUNDLE_ID: "com.kimatteru.app"
+    scripts:
+      - name: 署名ファイルを取得（無ければ作成）
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID"             --type IOS_APP_STORE             --certificate-key=@env:CERTIFICATE_PRIVATE_KEY             --create
+          keychain add-certificates
+      - name: プロジェクトを組み立てる（XcodeGen）
+        script: |
+          brew install xcodegen
+          cd native
+          xcodegen generate
+      # 採番の決まりは上の ios-testflight と同じ。番号を必ずログに残し、ずれていたら止める
+      - name: ビルド番号を採番
+        script: |
+          cd native
+          if [ -z "$PROJECT_BUILD_NUMBER" ]; then
+            echo "✗ PROJECT_BUILD_NUMBER が空。採番できないので止める。"
+            exit 1
+          fi
+          agvtool new-version -all "$PROJECT_BUILD_NUMBER"
+          STAMPED=$(agvtool what-version -terse | tr -d '[:space:]')
+          MARKETING=$(agvtool what-marketing-version -terse1 | tr -d '[:space:]')
+          echo "▶ 振ったビルド番号: $STAMPED（期待値 $PROJECT_BUILD_NUMBER）"
+          echo "▶ 表示バージョン:   $MARKETING"
+          if [ "$STAMPED" != "$PROJECT_BUILD_NUMBER" ]; then
+            echo "✗ 採番に失敗している。ここで止める。"
+            exit 1
+          fi
+      - name: 署名プロファイルを適用
+        script: xcode-project use-profiles --project "$XCODE_PROJECT"
+      - name: IPA をビルド
+        script: |
+          xcode-project build-ipa             --project "$XCODE_PROJECT"             --scheme "$XCODE_SCHEME"
+      - name: App Store Connect へアップロード
+        script: |
+          set -e
+          IPA=$(ls build/ios/ipa/*.ipa | head -1)
+          echo "▶ アップロードするIPA: $IPA"
+          app-store-connect publish --path "$IPA"
+          echo "▶ アップロード完了。処理が終わりしだい TestFlight に現れる。"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log

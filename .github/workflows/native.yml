@@ -47,13 +47,19 @@ jobs:
         run: |
           brew install xcodegen
           xcodegen generate
+      # TestFlight と同じ「実機向け・リリース」の形で通るか（署名はしない）
+      - name: 実機向けのリリースビルド
+        working-directory: native
+        run: |
+          set -o pipefail
+          xcodebuild build -project LUKKO.xcodeproj -scheme LUKKO -configuration Release -sdk iphoneos -destination "generic/platform=iOS" CODE_SIGNING_ALLOWED=NO 2>&1 | tee ../release-build.log | tail -30
       - name: 画面の試験と写真（シミュレーター）
         working-directory: native
         run: |
           DEV=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(|iPhone 1[6-9] \(" | grep -v Max | head -1 | sed -E 's/^ *([^(]+) \(.*/\1/' | sed 's/ *$//')
           echo "device: $DEV"
           set -o pipefail
-          xcodebuild test -project LUKKO.xcodeproj -scheme LUKKO -destination "platform=iOS Simulator,name=$DEV" -resultBundlePath ../ui.xcresult 2>&1 | tee ../ui-test.log | tail -60
+          xcodebuild test -project LUKKO.xcodeproj -scheme LUKKO -destination "platform=iOS Simulator,name=$DEV" -resultBundlePath ../ui.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tee ../ui-test.log | tail -60
       - name: 写真を取り出す
         if: always()
         run: |
@@ -69,3 +75,4 @@ jobs:
           path: |
             shots
             ui-test.log
+            release-build.log
