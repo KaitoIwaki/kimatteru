@@ -72,7 +72,10 @@ final class SystemShots: XCTestCase {
         sleep(1)
         XCTAssertFalse(app.buttons["今日"].exists, "カレンダーをもう一度押すと今日の月へ戻る")
         snap(app, "s05-tab-retap-today")
-        app.tabBars.buttons["追加"].tap()
+        // iOS 26 では「＋」はタブの並びから離れた丸いボタン（役割 .search）。タブの中に無ければ画面全体から探す
+        let add = app.tabBars.buttons["追加"].exists ? app.tabBars.buttons["追加"] : app.buttons["追加"].firstMatch
+        XCTAssertTrue(add.waitForExistence(timeout: 5), "「＋」がある")
+        add.tap()
         sleep(2)
         snap(app, "s06-tab-add")
         if app.buttons["Continue"].waitForExistence(timeout: 2) { app.buttons["Continue"].tap(); sleep(1) }
