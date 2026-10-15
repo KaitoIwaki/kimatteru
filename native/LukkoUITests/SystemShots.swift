@@ -39,8 +39,8 @@ final class SystemShots: XCTestCase {
 
     /// 保存できていないとき：上に濃い赤の帯。押すと 設定 > 控えと機種変更
     func testSaveFailedNotice() {
-        let app = launch(["-lukkoTestReset", "-lukkoSeedLocalStorage", b64(store(savedAt: 6000, n: 2)),
-                          "-lukkoTestState", b64("{\"saveFailed\":true}")])
+        // 保存ファイルに書けないようにして、本当に保存に失敗させる
+        let app = launch(["-lukkoTestReset", "-lukkoSeedLocalStorage", b64(store(savedAt: 6000, n: 2)), "-lukkoTestBlockWrites"])
         let banner = element(app, "system.saveFailed")
         XCTAssertTrue(banner.waitForExistence(timeout: 60), "保存できていない知らせが出ない")
         snap(app, "s02-save-failed")

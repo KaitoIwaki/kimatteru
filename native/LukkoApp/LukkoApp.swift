@@ -32,10 +32,15 @@ struct LukkoApp: App {
         let data = model.data
         let args = ProcessInfo.processInfo.arguments
         if args.contains("-lukkoTestReset") { data.resetForTest() }
+        if args.contains("-lukkoTestBlockWrites") { data.blockWritesForTest() }
         if args.contains("-lukkoClearLocalStorage") { _ = await LocalStorageReader.clear() }
         if let i = args.firstIndex(of: "-lukkoSeedLocalStorage"), i + 1 < args.count,
            let raw = Data(base64Encoded: args[i + 1]), let json = String(data: raw, encoding: .utf8) {
-            _ = await LocalStorageReader.write(["kimatteru.v2": json])
+            // シミュレーターが重いと書き込みが間に合わないことがある。読み返して同じになるまで、やり直す
+            for _ in 0..<4 {
+                _ = await LocalStorageReader.write(["kimatteru.v2": json], timeout: 20)
+                if await LocalStorageReader.read(keys: ["kimatteru.v2"], timeout: 20)?["kimatteru.v2"] == json { break }
+            }
         }
         if let i = args.firstIndex(of: "-lukkoSeedFile"), i + 1 < args.count, let raw = Data(base64Encoded: args[i + 1]) {
             try? SafeFile.write(raw, to: data.fileURL)

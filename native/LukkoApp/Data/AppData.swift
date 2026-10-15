@@ -177,6 +177,9 @@ final class AppData {
     }
 
     // MARK: 試験のためだけ（GitHub の Mac の試験から、起動の引数で使う）
+    /// 試験用：保存ファイルに書けないときを作る（「予定を保存できていません」の確かめ）
+    func blockWritesForTest() { writeBlocked = true }
+
     func resetForTest() {
         try? FileManager.default.removeItem(at: fileURL)
         try? FileManager.default.removeItem(at: migrationDir)
