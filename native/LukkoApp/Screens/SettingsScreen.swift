@@ -51,6 +51,7 @@ struct SettingsMain: View {
                 Button { model.act { $0.openProfileSheet() } } label: {
                     HStack { Text("使い方").foregroundStyle(.primary); Spacer(); Text(v.profileLabel).foregroundStyle(.secondary) }
                 }
+                .tint(.primary)
                 NavigationLink(value: "types") {
                     HStack {
                         Text("予定の種類")
@@ -200,6 +201,8 @@ struct SettingsPage: View {
         case "iphone":
             Section {
                 NavigationLink(value: "overlay") { HStack { Text("重ねて表示"); Spacer(); Text(v.overlayLabel).foregroundStyle(.secondary) } }
+                Button("iPhone のカレンダーから取り込む") { Task { await model.engine.openImport() } }
+                if !(model.engine.tidyTargets().isEmpty) { Button("取り込んだ予定を整理する") { model.act { $0.openTidy() } } }
                 Toggle("決まった予定を iPhone のカレンダーにも入れる", isOn: Binding(get: { v.exportCal }, set: { _ in model.toggleExportCal() }))
             } footer: { Text("「LUKKO」という名前のカレンダーにだけ書きます") }
         case "overlay":

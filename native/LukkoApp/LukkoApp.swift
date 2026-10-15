@@ -134,6 +134,18 @@ struct MainTabs: View {
         })) {
             DialogSheet().environment(\.ink, Ink(dark: model.dark))
         }
+        .sheet(isPresented: Binding(get: { model.state["screen"] == "import" }, set: { on in
+            if !on && model.state["screen"] == "import" { model.act { $0.set(["screen": "settings"]) } }
+        })) {
+            NavigationStack {
+                ImportScreen()
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { model.act { $0.set(["screen": "settings"]) } } } }
+            }
+            .environment(\.ink, Ink(dark: model.dark))
+        }
+        .fullScreenCover(isPresented: Binding(get: { !JS.truthy(model.state["settings"]?["onboarded"]) }, set: { _ in })) {
+            OnboardingView().environment(\.ink, Ink(dark: model.dark))
+        }
         .overlay { BottomOverlays() }
         .modifier(AlertPresenter())
     }

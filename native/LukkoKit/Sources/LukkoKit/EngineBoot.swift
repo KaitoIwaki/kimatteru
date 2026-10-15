@@ -206,3 +206,26 @@ extension Engine {
         openDialog(ev, "worked", "month")
     }
 }
+
+extension Engine {
+    // MARK: はじめての案内（Web 版 onboardNext・onboardBack・onboardDemoTap・onboardDemoConfirm の写し）
+    func patchOnboard(_ p: [String: JSONValue?]) { set(["onboard": .object(Self.with(state["onboard"]?.object ?? [:], p))]) }
+    public func onboardNext() { haptic("light"); patchOnboard(["step": .number(JS.number(state["onboard"]?["step"]) + 1), "fast": false]) }
+    public func onboardBack() { patchOnboard(["step": .number(max(0, JS.number(state["onboard"]?["step"]) - 1)), "fast": false]) }
+    /// 点線を押す：「どうなりました？」と聞く
+    public func onboardDemoTap() {
+        guard state["onboard"]?["demo"] == "dash" else { return }
+        haptic("light")
+        patchOnboard(["demo": "asking"])
+    }
+    /// 「確定した」：左から塗りが走り、少しして跳ねる
+    public func onboardDemoConfirm() {
+        guard state["onboard"]?["demo"] == "asking" else { return }
+        haptic("light")
+        patchOnboard(["demo": "fill"])
+        later(120) { [weak self] in self?.haptic("light") }
+        later(430) { [weak self] in self?.haptic("heavy"); self?.patchOnboard(["demo": "done"]) }
+    }
+    public func onboardResetDemo() { patchOnboard(["demo": "dash"]) }
+    public func onboardToggleMorning() { haptic("light"); patchOnboard(["morning": .bool(!JS.truthy(state["onboard"]?["morning"]))]) }
+}

@@ -105,3 +105,32 @@ extension Engine {
         set(["screen": str("import"), "imp": .object(Self.with(impObj, ["phase": str("found"), "found": .array(picked), "error": str(""), "source": str("ics"), "otherOpen": .bool(false)]))])
     }
 }
+
+extension Engine {
+    /// 取り込むカレンダーを選ぶ段（Web 版 renderVals の impCals の on〜）
+    public func toggleImportCal(_ id: JSONValue?) {
+        haptic("light")
+        setImp(["cals": .array((impObj["cals"]?.array ?? []).map { c in c["id"] == id ? .object(Self.with(c.object ?? [:], ["on": .bool(!JS.truthy(c["on"]))])) : c })])
+    }
+    /// カレンダーごとの種類を、名前から当てる → 見えている種類の順に回す
+    public func cycleImportCalType(_ id: JSONValue?) {
+        haptic("light")
+        let keys: [JSONValue] = [""] + visibleTypes().map { $0["key"] ?? .null }
+        setImp(["cals": .array((impObj["cals"]?.array ?? []).map { c in
+            guard c["id"] == id else { return c }
+            let cur = JS.or(c["type"], "") ?? ""
+            let i = keys.firstIndex(of: cur) ?? -1
+            return .object(Self.with(c.object ?? [:], ["type": keys[(i + 1) % keys.count]]))
+        })])
+    }
+    public func setImportRange(_ k: String) { haptic("light"); setImp(["range": .string(k)]) }
+    /// 1 件ごとの種類の札：押すと次の種類に
+    public func cycleImportRowType(_ key: JSONValue?) {
+        haptic("light")
+        guard let e = (impObj["found"]?.array ?? []).first(where: { $0["key"] == key }) else { return }
+        let keys = visibleTypes().map { $0["key"] ?? .null }
+        guard !keys.isEmpty else { return }
+        let i = keys.firstIndex(of: e["type"] ?? .null) ?? -1
+        setImportRowType(key, keys[(i + 1) % keys.count])
+    }
+}

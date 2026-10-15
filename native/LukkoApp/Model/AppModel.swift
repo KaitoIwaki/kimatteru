@@ -65,6 +65,7 @@ final class AppModel {
             }
         }
         eng.phone = EventKitCalendar()
+        eng.onAskImport = { [weak eng] in Task { @MainActor in await eng?.askImportNow() } }
         // 中身がまとめて入れ替わる前（控えから戻す・取り込む）に、いまの状態を控えに残す
         eng.onBackup = { [weak eng] kind in
             guard let eng else { return }
