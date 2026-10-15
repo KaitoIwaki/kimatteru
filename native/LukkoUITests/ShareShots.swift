@@ -95,8 +95,9 @@ final class ShareShots: XCTestCase {
         let yearSeg = app.buttons["report.tab.year"]
         yearSeg.tap()
         // 払いの止まり際だと押したことにならないことがあるので、年の行が出るまで押し直す
-        if !app.staticTexts["押すと、その月へ"].waitForExistence(timeout: 3) { yearSeg.tap() }
-        XCTAssertTrue(app.staticTexts["押すと、その月へ"].waitForExistence(timeout: 5))
+        let selected = NSPredicate(format: "isSelected == true")
+        if XCTWaiter.wait(for: [expectation(for: selected, evaluatedWith: yearSeg)], timeout: 3) != .completed { yearSeg.tap() }
+        XCTAssertTrue(yearSeg.isSelected)
         sleep(1)
         snap(app, "S08-report-year")
         let yearCard = app.buttons["report.yearCard"]
