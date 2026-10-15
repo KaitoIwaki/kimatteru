@@ -191,4 +191,16 @@ enum ShareSheet {
         vc.popoverPresentationController?.sourceView = top.view
         top.present(vc, animated: true)
     }
+
+    /// 文字と、文字のファイル（.ics など）を一緒に渡す（Web 版 shareimg.js の shareTextAndFile）
+    static func presentText(_ text: String, fileName: String? = nil, fileText: String? = nil, done: @escaping () -> Void = {}) {
+        var items: [Any] = [text]
+        if let fileName, let fileText, let data = fileText.data(using: .utf8) {
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("share", isDirectory: true)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let url = dir.appendingPathComponent(fileName)
+            if (try? data.write(to: url, options: .atomic)) != nil { items.append(url) }
+        }
+        present(items, done: done)
+    }
 }

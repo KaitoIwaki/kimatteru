@@ -93,8 +93,6 @@ final class ShareShots: XCTestCase {
 
         // まとめカード（年）
         let yearSeg = app.buttons["年"].firstMatch
-        for _ in 0..<5 where !(yearSeg.exists && yearSeg.isHittable) { app.swipeDown() }
-        sleep(1)
         yearSeg.tap()
         // 払いの止まり際だと押したことにならないことがあるので、年の行が出るまで押し直す
         if !app.buttons["前の年"].waitForExistence(timeout: 3) { yearSeg.tap() }
@@ -102,7 +100,10 @@ final class ShareShots: XCTestCase {
         sleep(1)
         snap(app, "S08-report-year")
         let yearCard = app.buttons["report.yearCard"]
-        for _ in 0..<6 where !(yearCard.exists && yearCard.isHittable) { app.swipeUp() }
+        for _ in 0..<6 where !(yearCard.exists && yearCard.isHittable) {
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)), to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            from.press(forDuration: 0.05, thenDragTo: to)
+        }
         snap(app, "S09-report-year-bottom")
         yearCard.tap()
         XCTAssertTrue(app.images["summary.card"].waitForExistence(timeout: 10))

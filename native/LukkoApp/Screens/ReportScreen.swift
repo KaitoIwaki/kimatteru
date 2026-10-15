@@ -9,18 +9,23 @@ struct ReportScreen: View {
     var body: some View {
         let v = model.engine.reportView()
         NavigationStack {
-            List {
-                if v.empty {
-                    Text("まだ何もありません。予定を確定すると、何にどれだけ時間を使ったかが、ここに積み上がっていきます。")
-                        .foregroundStyle(.secondary).listRowBackground(Color.clear)
-                } else {
+            VStack(spacing: 0) {
+                // 月｜年 の切り替えは一覧の外に置く（一覧の行に入れると、中身が入れ替わるときに選んだほうが戻ることがある）
+                if !v.empty {
                     Picker("期間", selection: Binding(get: { v.tab }, set: { k in model.act { $0.setRepTab(k) } })) {
                         Text("月").tag("month"); Text("年").tag("year")
                     }
-                    .pickerStyle(.segmented).listRowBackground(Color.clear)
-                    if v.tab == "year" { yearBody(v) } else { monthBody(v) }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 8)
+                }
+                List {
+                    if v.empty {
+                        Text("まだ何もありません。予定を確定すると、何にどれだけ時間を使ったかが、ここに積み上がっていきます。")
+                            .foregroundStyle(.secondary).listRowBackground(Color.clear)
+                    } else if v.tab == "year" { yearBody(v) } else { monthBody(v) }
                 }
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("まとめ")
         }
         .shareCovers(from: "report")
