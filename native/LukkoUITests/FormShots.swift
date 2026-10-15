@@ -22,13 +22,14 @@ final class FormShots: XCTestCase {
             ev("r1", 20, "ジム", "yoji", "kakutei", "07:00", "08:00", extra: ",\"repId\":\"R\""),
             ev("r2", 27, "ジム", "yoji", "kakutei", "07:00", "08:00", extra: ",\"repId\":\"R\""),
         ]
-        return "{\"savedAt\":9000000000000,\"events\":[\(evs.joined(separator: ","))],\"jobs\":[{\"id\":\"j1\",\"name\":\"カフェ\",\"hourly\":1100}],\"settings\":{\"hourly\":1100,\"weekStart\":0,\"onboarded\":true}}"
+        return "{\"savedAt\":9900000000000,\"events\":[\(evs.joined(separator: ","))],\"jobs\":[{\"id\":\"j1\",\"name\":\"カフェ\",\"hourly\":1100}],\"settings\":{\"hourly\":1100,\"weekStart\":0,\"onboarded\":true}}"
     }
 
     private func launch(seed: String?) -> XCUIApplication {
         let app = XCUIApplication()
         var args = ["-lukkoTestReset"]
-        if let seed { args += ["-lukkoSeedLocalStorage", Data(seed.utf8).base64EncodedString()] }
+        // 保存ファイルに直に入れる（localStorage は前の試験の中身と競うことがある）。savedAt はどれより新しく
+        if let seed { args += ["-lukkoSeedFile", Data(seed.utf8).base64EncodedString()] }
         app.launchArguments = args
         app.launch()
         return app
@@ -188,8 +189,8 @@ final class FormShots: XCTestCase {
 
     /// はじめての案内（5 枚）と、そこからの取り込み
     func testOnboarding() throws {
-        // 予定も設定も無い人（案内を出す）。前の試験が残した中身より新しくして入れる
-        let app = launch(seed: "{\"savedAt\":9100000000000,\"events\":[],\"settings\":{\"onboarded\":false}}")
+        // 案内がまだの人。保存ファイルが前の試験の localStorage に勝つよう、予定を 1 件入れて新しくしておく
+        let app = launch(seed: "{\"savedAt\":9900000000000,\"events\":[{\"id\":\"z\",\"y\":2020,\"m\":0,\"day\":1,\"start\":\"10:00\",\"end\":\"11:00\",\"title\":\"old\",\"type\":\"yoji\",\"status\":\"kakutei\"}],\"settings\":{\"onboarded\":false}}")
         let pick = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "学校とバイト")).firstMatch
         XCTAssertTrue(pick.waitForExistence(timeout: 30))
         sleep(2)

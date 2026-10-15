@@ -67,6 +67,10 @@ struct FormScreen: View {
             }
         }
         .interactiveDismissDisabled(model.engine.draftDirty())
+        // 日付・時刻・種類などの行を開いたら、キーボードはしまう（Web 版で入力欄の外を押したのと同じ）
+        .onChange(of: JS.string(JS.or(dr["picking"], ""))) { _, p in
+            if !p.isEmpty && !["link", "place", "memo"].contains(p) { focus = nil }
+        }
         .background(FormDismissGuard { cancel() })
         .modifier(AlertPresenter(scope: .form))
     }

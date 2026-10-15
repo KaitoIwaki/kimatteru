@@ -385,11 +385,12 @@ struct DialogSheet: View {
                 .buttonStyle(.plain).foregroundStyle(ink("ink-mut")).accessibilityLabel("次の月")
         }
         .padding(.bottom, 6)
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 2) {
-            ForEach(Array(v.moveWeekdays.enumerated()), id: \.offset) { _, w in
-                Text(w.label).font(.system(size: 10, weight: .semibold)).foregroundStyle(ink.css(w.color)).padding(.bottom, 2)
-            }
-            ForEach(Array(v.moveCells.enumerated()), id: \.offset) { _, c in
+        FormGrid(count: v.moveWeekdays.count, columns: 7, hSpacing: 0, vSpacing: 0) { i in
+            Text(v.moveWeekdays[i].label).font(.system(size: 10, weight: .semibold)).foregroundStyle(ink.css(v.moveWeekdays[i].color)).padding(.bottom, 2)
+        }
+        FormGrid(count: v.moveCells.count, columns: 7, hSpacing: 0, vSpacing: 2) { i in
+            let c = v.moveCells[i]
+            Group {
                 if let d = c.day {
                     Text("\(d)").font(.system(size: 14, weight: c.weight >= 700 ? .bold : .medium)).monospacedDigit()
                         .strikethrough(c.orig)

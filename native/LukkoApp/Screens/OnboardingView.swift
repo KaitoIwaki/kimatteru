@@ -233,7 +233,6 @@ struct OnboardingView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .disabled(v.filled)
             .accessibilityIdentifier("onboard.demo")
             // 着地したら少し跳ねる
             .keyframeAnimator(initialValue: 1.0, trigger: settleCount) { c, s in c.scaleEffect(s) } keyframes: { _ in
@@ -279,18 +278,18 @@ struct OnboardingView: View {
     @ViewBuilder private func shareCard(_ k: ObClock) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("わたしの空いてる日").font(.system(size: 12, weight: .bold)).foregroundStyle(Palette.hex("#D85A30")).padding(.bottom, 9)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: 7), spacing: 5) {
-                ForEach(Array(["日", "月", "火", "水", "木", "金", "土"].enumerated()), id: \.offset) { i, d in
-                    Text(d).font(.system(size: 9, weight: .semibold)).foregroundStyle(Palette.hex(i == 0 || i == 6 ? "#8C887C" : "#B0B4BB"))
-                }
-                ForEach(Array(ObSample.sharePattern.enumerated()), id: \.offset) { i, f in
-                    Text("\(i + 1)").font(.system(size: 12, weight: f ? .bold : .regular)).monospacedDigit()
-                        .foregroundStyle(Palette.hex(f ? "#712B13" : "#C1C5CC"))
-                        .frame(maxWidth: .infinity).frame(height: 27)
-                        .background(Palette.hex(f ? "#FAECE7" : "#EDEEF0"), in: RoundedRectangle(cornerRadius: 6))
-                        .overlay { if f { RoundedRectangle(cornerRadius: 6).strokeBorder(Palette.hex("#D85A30"), lineWidth: 1.5) } }
-                        .modifier(ObLift(p: k.p(1.7 + Double(i) * 0.022, 0.4)))
-                }
+            FormGrid(count: 7, columns: 7, hSpacing: 5, vSpacing: 0) { i in
+                Text(["日", "月", "火", "水", "木", "金", "土"][i]).font(.system(size: 9, weight: .semibold)).foregroundStyle(Palette.hex(i == 0 || i == 6 ? "#8C887C" : "#B0B4BB"))
+                    .padding(.bottom, 3)
+            }
+            FormGrid(count: ObSample.sharePattern.count, columns: 7, hSpacing: 5, vSpacing: 5) { i in
+                let f = ObSample.sharePattern[i]
+                Text("\(i + 1)").font(.system(size: 12, weight: f ? .bold : .regular)).monospacedDigit()
+                    .foregroundStyle(Palette.hex(f ? "#712B13" : "#C1C5CC"))
+                    .frame(maxWidth: .infinity).frame(height: 27)
+                    .background(Palette.hex(f ? "#FAECE7" : "#EDEEF0"), in: RoundedRectangle(cornerRadius: 6))
+                    .overlay { if f { RoundedRectangle(cornerRadius: 6).strokeBorder(Palette.hex("#D85A30"), lineWidth: 1.5) } }
+                    .modifier(ObLift(p: k.p(1.7 + Double(i) * 0.022, 0.4)))
             }
             HStack(spacing: 14) {
                 HStack(spacing: 6) {
