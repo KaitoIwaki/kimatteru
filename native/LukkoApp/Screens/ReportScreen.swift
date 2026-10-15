@@ -7,6 +7,8 @@ struct ReportScreen: View {
     @Environment(\.ink) private var ink
 
     var body: some View {
+        // engine は見張っていないので、state を読んで「中身が変わったら描き直す」ようにする（読まないと、押しても画面が変わらない）
+        let _ = model.state
         let v = model.engine.reportView()
         NavigationStack {
             VStack(spacing: 0) {
