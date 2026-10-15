@@ -37,7 +37,8 @@ final class ScreenshotTests: XCTestCase {
         app.swipeLeft()
         sleep(1)
         snap(app, "02-month-next")
-        app.swipeRight()
+        // 今月へ戻る（払いは取りこぼすことがあるので、「今日」で戻す）
+        if app.buttons["今日"].waitForExistence(timeout: 3) { app.buttons["今日"].tap() }
         sleep(1)
         let day = app.buttons["month.day.20"]
         XCTAssertTrue(day.waitForExistence(timeout: 10))
