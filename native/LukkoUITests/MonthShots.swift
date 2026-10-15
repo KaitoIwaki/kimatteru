@@ -40,7 +40,18 @@ final class MonthShots: XCTestCase {
         app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", Data(seed.utf8).base64EncodedString()]
         app.launch()
         XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 30))
+        allowSystemAlert()
         return app
+    }
+
+    /// 起動時の通知の許可（iPhone の確認）が出ていたら閉じる（写真と押す操作の邪魔になる）
+    private func allowSystemAlert() {
+        let sb = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "許可"] where sb.buttons[label].waitForExistence(timeout: 3) {
+            sb.buttons[label].tap()
+            sleep(1)
+            return
+        }
     }
 
     private func snap(_ app: XCUIApplication, _ name: String) {
@@ -129,7 +140,12 @@ final class MonthShots: XCTestCase {
         app.buttons["予定を探す"].tap()
         sleep(1)
         let field = app.textFields["list.search"]
-        if field.waitForExistence(timeout: 3) { field.typeText("カフェ"); sleep(1) }
+        if field.waitForExistence(timeout: 3) {
+            field.typeText("カフェ")
+            sleep(1)
+            // キーボードの初回の案内（なぞって入力）が出ていたら閉じる
+            if app.buttons["Continue"].waitForExistence(timeout: 2) { app.buttons["Continue"].tap(); sleep(1) }
+        }
         snap(app, "M10-search")
         back(app)
 

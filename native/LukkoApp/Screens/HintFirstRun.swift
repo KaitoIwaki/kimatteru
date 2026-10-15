@@ -36,6 +36,7 @@ struct HintFirstRun: View {
             }
             .accessibilityHidden(true)
             Text("決まっている予定は塗り、まだ分からない予定は点線で並びます。")
+                .accessibilityIdentifier("month.firstRunHint")
                 .font(.system(size: 13)).foregroundStyle(ink("ink-soft")).lineSpacing(4)
                 .multilineTextAlignment(.center)
             Text("下の ＋ から、最初の予定を置いてみてください")
@@ -66,6 +67,6 @@ struct HintFirstRun: View {
             .padding(4)
             .accessibilityLabel("この案内を閉じる")
         }
-        .accessibilityIdentifier("month.firstRunHint")
+
     }
 }

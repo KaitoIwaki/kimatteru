@@ -75,7 +75,6 @@ struct StampPalette: View {
         .padding(.top, 10).padding(.bottom, 12)
         .background(.regularMaterial)
         .overlay(alignment: .top) { Rectangle().fill(ink("line")).frame(height: 1) }
-        .accessibilityIdentifier("stamp.palette")
     }
 }
 

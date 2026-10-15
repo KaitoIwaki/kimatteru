@@ -99,7 +99,6 @@ struct WeekStripBody: View {
                 }
             }
         }
-        .accessibilityIdentifier("week.strip")
         // ‹ ›・今日などで、いちばん左の日が変わった：そこまで滑らかに流す。範囲の外なら並べ直す
         .onChange(of: first) { _, f in
             guard leading != f else { return }
