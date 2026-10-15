@@ -94,6 +94,8 @@ struct MainTabs: View {
             case "free": return "free"
             case "report": return "report"
             case "settings": return "settings"
+            // 空いてる日をシェア・まとめカードは、開いた画面のタブの上に出す
+            case "share", "summary": return ShareCovers.tab(model.state)
             default: return "month"
             }
         }, set: { new in
@@ -111,6 +113,7 @@ struct MainTabs: View {
     var body: some View {
         TabView(selection: tab) {
             MonthScreen()
+                .shareCovers(from: "month")
                 .tabItem { Label("カレンダー", systemImage: "calendar") }
                 .tag("month")
             FreeScreen()

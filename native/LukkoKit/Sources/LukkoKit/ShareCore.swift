@@ -86,7 +86,7 @@ extension AppCore {
     public func shareCells(_ Y: Int, _ M: Int, overlay: [[String: JSONValue]] = []) -> [ShareView.Cell] {
         freeCells(Y, M, overlay: overlay).map { c in
             let label: Int? = JS.truthy(c["label"]) ? JS.int(c["label"]) : nil
-            return .init(label: label, level: JS.string(c["level"]), note: JS.string(c["note"]))
+            return .init(label: label, level: JS.string(c["level"]), note: JS.truthy(c["note"]) ? JS.string(c["note"]) : "")
         }
     }
 
