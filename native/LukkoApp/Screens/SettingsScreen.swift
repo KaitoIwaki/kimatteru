@@ -41,6 +41,7 @@ struct SettingsScreen: View {
     }
 
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let v = model.engine.settingsView()
         let sv = model.engine.supportView()
         NavigationStack(path: path) {
@@ -277,6 +278,7 @@ struct SettingsPage: View {
     @Environment(\.ink) private var ink
 
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let v = model.engine.settingsView()
         Group {
             switch page {
@@ -947,6 +949,7 @@ struct ProfileSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let v = model.engine.settingsView()
         SettingsSheetFrame(title: "ふだんの予定に近いのは？", close: { model.act { $0.set(["profileSheet": .null]) } }) {
             VStack(spacing: 8) {
@@ -1050,6 +1053,7 @@ struct SettingsTrashSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let v = model.engine.settingsView()
         SettingsSheetFrame(title: "最近消した予定", close: { model.act { $0.closeTrash() } }) {
             if v.trashRows.isEmpty {
@@ -1084,6 +1088,7 @@ struct SettingsBackupListSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let v = model.engine.settingsView()
         SettingsSheetFrame(title: "端末の中の控え", close: { model.act { $0.closeBackupList() } }) {
             if v.backupRows.isEmpty {
@@ -1116,6 +1121,7 @@ struct SettingsTemplateSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let v = model.engine.settingsView()
         let ready = !v.tplSym.isEmpty
         SettingsSheetFrame(title: "シフトの型を足す", close: { model.act { $0.closeTemplateNew() } }) {

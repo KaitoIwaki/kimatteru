@@ -46,17 +46,24 @@ final class SupportGoldenTests: XCTestCase {
                               && Self.close(l.width, x["width"]?.number) && Self.close(l.op, x["op"]?.number) && JSONValue.bool(l.light) == x["light"], "\(what) #\(i)")
             }
         }
-        func dots(_ got: [SupporterTexture.Dot], _ want: JSONValue?, _ what: String) {
+        // 粒の位置は sin の最後の桁しだいで、小数の部分が 0.9999… と 0.0000… に分かれることがある（端から端へ回り込む）。
+        // V8 と Apple の sin は最後の 1 桁が違うことがあるので、その回り込みだけは同じと見る（絵としては同じ点）
+        func near(_ a: Double, _ b: Double?, _ span: Double) -> Bool {
+            guard let b else { return false }
+            return Self.close(a, b) || abs(abs(a - b) - span) <= 1e-6 * span
+        }
+        func dots(_ got: [SupporterTexture.Dot], _ want: JSONValue?, _ what: String, _ w0: Double, _ h0: Double) {
             let w = want?.array ?? []
             XCTAssertEqual(got.count, w.count, what)
             for (i, (d, x)) in zip(got, w).enumerated() {
-                XCTAssertTrue(Self.close(d.x, x["x"]?.number) && Self.close(d.y, x["y"]?.number) && Self.close(d.s, x["s"]?.number) && JSONValue.bool(d.light) == x["light"], "\(what) #\(i)")
+                XCTAssertTrue(near(d.x, x["x"]?.number, w0) && near(d.y, x["y"]?.number, h0) && Self.close(d.s, x["s"]?.number) && JSONValue.bool(d.light) == x["light"],
+                              "\(what) #\(i) \(d) ≠ \(x)")
             }
         }
         lines(SupporterTexture.brushLines(335, 211), tx["brush"], "刷り目")
         lines(SupporterTexture.brushLines(1080, (1080 / 1.586).rounded()), tx["brushBig"], "刷り目（書き出し）")
-        dots(SupporterTexture.grainDots(335, 211), tx["grain"], "粒子")
-        dots(SupporterTexture.tileDots(), tx["tile"], "粒の型")
+        dots(SupporterTexture.grainDots(335, 211), tx["grain"], "粒子", 335, 211)
+        dots(SupporterTexture.tileDots(), tx["tile"], "粒の型", 64, 64)
         XCTAssertEqual(SupporterTexture.tileDots().count, tx["tileN"]?.int)
         let consts = tx["consts"]?.array ?? []
         XCTAssertEqual(consts.first?.number, Double(SupporterTexture.brushN))

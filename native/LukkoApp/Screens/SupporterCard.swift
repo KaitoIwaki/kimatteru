@@ -40,6 +40,7 @@ struct SupporterCardScreen: View {
     struct Drag { var axis: Character?; var base: Double; var lastDeg: Double; var lastAt: Date; var vel: Double; var moved: Bool; var width: Double }
 
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let v = model.engine.supportView()
         ScrollView {
             VStack(spacing: 0) {

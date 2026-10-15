@@ -8,6 +8,7 @@ struct SupportPage: View {
     @Environment(\.ink) private var ink
 
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let sv = model.engine.supportView()
         ScrollView {
             VStack(spacing: 0) {
@@ -100,6 +101,7 @@ struct SupportThanksSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let sv = model.engine.supportView()
         VStack(spacing: 0) {
             SupportSprout(width: 96).padding(.bottom, 14)
@@ -138,6 +140,7 @@ struct SupportProbeSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
     var body: some View {
+        let _ = model.state  // 中身が変わったら描き直す（engine は見張られていない）
         let sv = model.engine.supportView()
         VStack(alignment: .leading, spacing: 0) {
             Text("課金の状態").font(.system(size: 14.5)).foregroundStyle(ink("ink")).padding(.bottom, 12)
