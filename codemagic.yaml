@@ -114,7 +114,7 @@ workflows:
 
   # SwiftUI 版（native/）。いまの版と同じ bundle ID で、TestFlight に上げる。
   # プロジェクトは native/project.yml から XcodeGen で組み立てる（Mac が無いので Xcode の画面では作らない）。
-  # ウィジェットはまだ入っていない（本体だけ）。
+  # ウィジェットも入っている（いまの版と同じ com.kimatteru.app.widget。本体と拡張で署名ファイルが別々に要る）。
   native-testflight:
     name: SwiftUI 版 TestFlight
     instance_type: mac_mini_m2
@@ -129,11 +129,19 @@ workflows:
         XCODE_PROJECT: "native/LUKKO.xcodeproj"
         XCODE_SCHEME: "LUKKO"
         BUNDLE_ID: "com.kimatteru.app"
+        WIDGET_BUNDLE_ID: "com.kimatteru.app.widget"
     scripts:
+      # 本体とウィジェットで、署名ファイルが別々に要る（拡張のぶんを忘れると「プロファイルが無い」で止まる）
       - name: 署名ファイルを取得（無ければ作成）
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID"             --type IOS_APP_STORE             --certificate-key=@env:CERTIFICATE_PRIVATE_KEY             --create
+          for ID in "$BUNDLE_ID" "$WIDGET_BUNDLE_ID"; do
+            echo "▶ 署名ファイル: $ID"
+            app-store-connect fetch-signing-files "$ID" \
+              --type IOS_APP_STORE \
+              --certificate-key=@env:CERTIFICATE_PRIVATE_KEY \
+              --create
+          done
           keychain add-certificates
       - name: プロジェクトを組み立てる（XcodeGen）
         script: |
@@ -157,6 +165,7 @@ workflows:
             echo "✗ 採番に失敗している。ここで止める。"
             exit 1
           fi
+      # 本体（LUKKO）とウィジェット（KimatteruWidget）の両方に、bundle ID の合うプロファイルを当てる
       - name: 署名プロファイルを適用
         script: xcode-project use-profiles --project "$XCODE_PROJECT"
       - name: IPA をビルド
