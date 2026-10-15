@@ -47,10 +47,10 @@ final class SupportGoldenTests: XCTestCase {
             }
         }
         // 粒の位置は sin の最後の桁しだいで、小数の部分が 0.9999… と 0.0000… に分かれることがある（端から端へ回り込む）。
-        // V8 と Apple の sin は最後の 1 桁が違うことがあるので、その回り込みだけは同じと見る（絵としては同じ点）
+        // V8 と Apple の sin は最後の 1 桁が違うことがある（大きな数の sin で 1e-9 ほど）。点の大きさに比べてごく小さい差と、回り込みは同じと見る
         func near(_ a: Double, _ b: Double?, _ span: Double) -> Bool {
             guard let b else { return false }
-            return Self.close(a, b) || abs(abs(a - b) - span) <= 1e-6 * span
+            return abs(a - b) <= 1e-6 * span || abs(abs(a - b) - span) <= 1e-6 * span
         }
         func dots(_ got: [SupporterTexture.Dot], _ want: JSONValue?, _ what: String, _ w0: Double, _ h0: Double) {
             let w = want?.array ?? []
