@@ -195,9 +195,9 @@ struct ReportScreen: View {
         Section("\(v.yearLabel)の合計") { headView(v.yearHead, v.yearSub, size: 32); kinds(v.yearKinds) }
         if v.wageShown {
             Section {
-                HStack { Text("働いた時間").foregroundStyle(ink("ink-mut")); Spacer(); Text(v.yearHours).font(.system(size: 16)).monospacedDigit() }
-                HStack { Text("働いた日数").foregroundStyle(ink("ink-mut")); Spacer(); Text("\(v.yearDays)日").font(.system(size: 16)).monospacedDigit() }
-                HStack { Text("稼いだ額").foregroundStyle(ink("ink-mut")); Spacer(); Text("およそ \(v.yearWage)").font(.system(size: 16)).monospacedDigit() }
+                HStack { Text("働いた時間").font(.system(size: 14)).foregroundStyle(ink("ink-mut")); Spacer(); Text(v.yearHours).font(.system(size: 16)).monospacedDigit() }
+                HStack { Text("働いた日数").font(.system(size: 14)).foregroundStyle(ink("ink-mut")); Spacer(); Text("\(v.yearDays)日").font(.system(size: 16)).monospacedDigit() }
+                HStack { Text("稼いだ額").font(.system(size: 14)).foregroundStyle(ink("ink-mut")); Spacer(); Text("およそ \(v.yearWage)").font(.system(size: 16)).monospacedDigit() }
                 if v.yearJobs.count >= 2 { jobRows(v.yearJobs, soft: true) }
             } header: {
                 Text("給料")
