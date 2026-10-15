@@ -57,6 +57,8 @@ final class AppModel {
         eng.didChange = { [weak self] in self?.engineChanged() }
         eng.haptic = { kind in
             if kind == "heavy" { UIImpactFeedbackGenerator(style: .rigid).impactOccurred(intensity: 0.9) }
+            else if kind == "tick" { UIImpactFeedbackGenerator(style: .rigid).impactOccurred() }
+            else if kind == "success" { UINotificationFeedbackGenerator().notificationOccurred(.success) }
             else { UIImpactFeedbackGenerator(style: .light).impactOccurred() }
         }
         eng.onRequestReview = {

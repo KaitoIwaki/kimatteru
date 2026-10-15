@@ -1,20 +1,30 @@
 import SwiftUI
 import LukkoKit
 
-/// 月表示（Web 版の MONTH）。見出し・細い段・曜日・月のマス（横に払って月を送る）
+/// 月表示（Web 版の MONTH）。見出し・細い段・曜日・月のマス（横に払って月を送る）。
+/// 週表示（月｜週の「週」）のときは、マスの代わりに週の帯（WeekStripView）
 struct MonthScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
 
     var body: some View {
+        let h = model.engine.monthHead()
         NavigationStack {
             VStack(spacing: 0) {
-                MonthSubBar()
-                WeekdayHeader()
-                MonthPager()
+                MonthSubBar(h: h)
+                if h.calView == "week" {
+                    WeekStripView()
+                } else {
+                    WeekdayHeader(h: h)
+                    MonthPager()
+                }
             }
             .background(ink("bg"))
-            .toolbar { MonthToolbar() }
+            // シフト入力のパレットか、給料バー（下に浮かせる。マスの最終週が隠れないよう、そのぶん上に詰める）
+            .safeAreaInset(edge: .bottom, spacing: 0) { MonthBottomBar() }
+            // 予定がまだ 0 件のときの案内（浮かせて出す）
+            .overlay(alignment: .top) { HintFirstRun() }
+            .toolbar { MonthToolbar(h: h) }
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: dayShown) { DayScreen() }
             .navigationDestination(isPresented: Binding(get: { model.state["screen"] == "notices" },
@@ -24,6 +34,11 @@ struct MonthScreen: View {
                                                         set: { on in if !on && model.state["screen"] == "list" { model.act { $0.set(["screen": "month"]) } } })) { ListScreen() }
             .navigationDestination(isPresented: Binding(get: { model.state["screen"] == "detail" && !["day", "list"].contains(model.state["returnTo"]?.string ?? "") },
                                                         set: { on in if !on && model.state["screen"] == "detail" { model.act { $0.detailBack() } } })) { DetailScreen() }
+            // 年月えらび（月名を押す）
+            .sheet(isPresented: Binding(get: { JS.truthy(model.state["ymSheet"]) },
+                                        set: { on in if !on && JS.truthy(model.state["ymSheet"]) { model.act { $0.ymSheetClose() } } })) {
+                YMSheet().environment(\.ink, ink)
+            }
         }
     }
 
@@ -39,34 +54,33 @@ struct MonthScreen: View {
     }
 }
 
-/// 見出し：‹ 10月 2026 ›・今日・探す・一覧・お知らせ・＋
+/// 見出し：‹ 10月 2026 ›・今日・探す・一覧・お知らせ。週表示のときは ‹ › が 7 日ずつ
 struct MonthToolbar: ToolbarContent {
+    let h: MonthHead
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
 
     var body: some ToolbarContent {
-        let h = model.engine.monthHead()
         ToolbarItem(placement: .topBarLeading) {
             HStack(spacing: 2) {
-                Button { model.act { $0.shiftMonthBy(-1) } } label: { Image(systemName: "chevron.left") }
-                    .accessibilityLabel("前の月")
-                Button {
-                    model.act { e in e.haptic("light"); e.set(["ymSheet": JS.truthy(e.state["ymSheet"]) ? JSONValue.null : JSONValue.object(["y": e.state["ym"]?["y"] ?? .null])]) }
-                } label: {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("\(h.monthLabel)月").font(.system(size: 26, weight: .light)).foregroundStyle(ink("ink"))
+                Button { model.act { $0.headPrev() } } label: { Image(systemName: "chevron.left").frame(width: 28, height: 38) }
+                    .accessibilityLabel(h.calView == "week" ? "前の週" : "前の月")
+                Button { model.act { $0.tapMonthHead() } } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        Text("\(h.monthLabel)月").font(.system(size: 26, weight: .light)).tracking(-0.5).foregroundStyle(ink("ink"))
                         Text(h.year).font(.system(size: 14, weight: .medium)).foregroundStyle(ink("ink-mut"))
                     }
+                    .lineLimit(1)
                 }
                 .accessibilityLabel("年と月をえらぶ")
-                Button { model.act { $0.shiftMonthBy(1) } } label: { Image(systemName: "chevron.right") }
-                    .accessibilityLabel("次の月")
+                Button { model.act { $0.headNext() } } label: { Image(systemName: "chevron.right").frame(width: 28, height: 38) }
+                    .accessibilityLabel(h.calView == "week" ? "次の週" : "次の月")
             }
             .fixedSize()
         }
         ToolbarItemGroup(placement: .topBarTrailing) {
             if h.todayBtnShown {
-                Button("今日") { model.act { $0.goToday() } }
+                Button("今日") { model.act { $0.headToday() } }
             }
             Button { model.act { e in e.haptic("light"); e.set(["screen": "list", "listTab": "search", "returnTo": "month"]) } } label: { Image(systemName: "magnifyingglass") }
                 .accessibilityLabel("予定を探す")
@@ -76,9 +90,10 @@ struct MonthToolbar: ToolbarContent {
                 Image(systemName: "bell")
                     .overlay(alignment: .topTrailing) {
                         if h.bellCount > 0 {
-                            Text(h.bellBadge).font(.system(size: 10, weight: .bold)).foregroundStyle(.white)
+                            Text(h.bellBadge).font(.system(size: 10, weight: .bold)).monospacedDigit().foregroundStyle(.white)
                                 .padding(.horizontal, 4).frame(minWidth: 16, minHeight: 16)
                                 .background(Color(red: 0x1D / 255, green: 0x9E / 255, blue: 0x75 / 255), in: Capsule())
+                                .overlay(Capsule().strokeBorder(ink("bg"), lineWidth: 1.5))
                                 .offset(x: 8, y: -6)
                         }
                     }
@@ -90,32 +105,32 @@ struct MonthToolbar: ToolbarContent {
 
 /// 見出しの下の細い段：月｜週・まだ N・日にち未定・シフト入力・給料
 struct MonthSubBar: View {
+    let h: MonthHead
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
 
     var body: some View {
-        let h = model.engine.monthHead()
         HStack(spacing: 8) {
-            Picker("表示", selection: Binding(get: { h.calView }, set: { k in
-                model.act { e in e.haptic("light"); e.set(["settings": .object(Engine.with(e.state["settings"]?.object ?? [:], ["calView": .string(k)])), "weekAnchor": .null]) }
-            })) {
+            Picker("表示", selection: Binding(get: { h.calView }, set: { k in model.act { $0.setCalView(k) } })) {
                 Text("月").tag("month")
                 Text("週").tag("week")
             }
             .pickerStyle(.segmented)
             .frame(width: 92)
+            .accessibilityIdentifier("month.viewSeg")
             if h.undecidedCount > 0 {
                 Button { model.act { e in e.haptic("light"); e.set(["screen": "list", "listTab": "undecided", "returnTo": "month"]) } } label: {
                     HStack(spacing: 5) { Text("まだ \(h.undecidedCount)"); Text("›").foregroundStyle(ink("ink-faint")) }
                         .font(.system(size: 12)).foregroundStyle(ink("ink-soft"))
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .overlay(Capsule().strokeBorder(ink("ink-faint"), style: StrokeStyle(lineWidth: 1.3, dash: [3, 2])))
+                        .fixedSize()
                 }
                 .buttonStyle(.plain)
             }
             if h.shelfCount > 0 {
                 Button { model.act { e in e.haptic("light"); e.set(["screen": "list", "listTab": "undecided", "returnTo": "month"]) } } label: {
-                    Text(h.shelfLabel).font(.system(size: 12)).foregroundStyle(ink("ink-soft")).lineLimit(1)
+                    Text(h.shelfLabel).font(.system(size: 12)).foregroundStyle(ink("ink-soft")).lineLimit(1).truncationMode(.tail)
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .background(ink("bg2"), in: Capsule())
                 }
@@ -130,52 +145,56 @@ struct MonthSubBar: View {
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .background(on ? ink("ink") : .clear, in: Capsule())
                         .overlay(Capsule().strokeBorder(on ? .clear : ink("line")))
+                        .fixedSize()
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("month.stampChip")
             }
             if h.wageToggleShown {
-                Toggle(isOn: Binding(get: { JS.truthy(model.state["wageOn"]) }, set: { v in model.act { $0.set(["wageOn": .bool(v)]) } })) {
+                Toggle(isOn: Binding(get: { JS.truthy(model.state["wageOn"]) }, set: { _ in model.act { $0.toggleWage() } })) {
                     Text("給料").font(.system(size: 12)).foregroundStyle(JS.truthy(model.state["wageOn"]) ? ink("ink") : ink("ink-mut"))
                 }
                 .toggleStyle(.switch)
+                .tint(Color(red: 0x1D / 255, green: 0x9E / 255, blue: 0x75 / 255))
                 .controlSize(.mini)
                 .fixedSize()
+                .accessibilityIdentifier("month.wageToggle")
             }
         }
-        .padding(.horizontal, 12).padding(.bottom, 8).padding(.top, 2)
+        .padding(.leading, 14).padding(.trailing, 12).padding(.bottom, 8).padding(.top, 2)
         .frame(minHeight: 30)
     }
 }
 
 /// 曜日の見出し（週のはじまりに合わせて並べる。日曜は赤、土曜は青）
 struct WeekdayHeader: View {
-    @Environment(AppModel.self) private var model
+    let h: MonthHead
     @Environment(\.ink) private var ink
     var body: some View {
-        let h = model.engine.monthHead()
         HStack(spacing: 0) {
             ForEach(Array(h.weekdays.enumerated()), id: \.offset) { _, w in
                 Text(w.label).font(.system(size: 11, weight: .semibold)).foregroundStyle(ink.css(w.color)).frame(maxWidth: .infinity)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.top, 6).padding(.bottom, 5)
         .overlay(alignment: .bottom) { Rectangle().fill(ink("line")).frame(height: 1) }
     }
 }
 
-/// 月のマス。横に払うと隣の月へ（iPhone 標準のページ送り）
+/// 月のマス。横に払うと隣の月へ（iPhone 標準のページ送り。指についてきて、離すと隣の月に収まるか戻る）
 struct MonthPager: View {
     @Environment(AppModel.self) private var model
     /// 何か月目か（2000 年 1 月からの通し番号）
     @State private var page = 0
     static func index(_ y: Int, _ m: Int) -> Int { (y - 2000) * 12 + m }
+    static func ym(_ i: Int) -> (y: Int, m: Int) { (2000 + Int((Double(i) / 12).rounded(.down)), ((i % 12) + 12) % 12) }
 
     var body: some View {
         let ym = model.state["ym"] ?? .null
         let cur = Self.index(JS.int(ym["y"]), JS.int(ym["m"]))
         TabView(selection: $page) {
             ForEach((cur - 2)...(cur + 2), id: \.self) { i in
-                MonthGrid(y: 2000 + Int((Double(i) / 12).rounded(.down)), m: ((i % 12) + 12) % 12)
+                MonthGrid(y: Self.ym(i).y, m: Self.ym(i).m)
                     .tag(i)
             }
         }
@@ -185,9 +204,10 @@ struct MonthPager: View {
         .onChange(of: page) { _, p in
             guard p != cur else { return }
             model.act { e in
+                // 払ったときに日付が変わっていないか確かめる（Web 版の _checkToday）
                 e.checkToday()
-                let ny = 2000 + Int((Double(p) / 12).rounded(.down)), nm = ((p % 12) + 12) % 12
-                e.set(["ym": JSONValue.object(["y": .number(Double(ny)), "m": .number(Double(nm))]), "dayNum": .null])
+                let n = Self.ym(p)
+                e.set(["ym": JSONValue.object(["y": .number(Double(n.y)), "m": .number(Double(n.m))]), "dayNum": .null])
             }
         }
     }
@@ -206,7 +226,7 @@ struct MonthGrid: View {
             let first = ((Civil.weekday(y, m, 1) - ws) % 7 + 7) % 7
             let weekCount = Int((Double(first + Civil.daysInMonth(y, m)) / 7).rounded(.up))
             let es = core.evScale()
-            let barH = (MonthCore.barH * es).rounded()
+            let barH = CGFloat(JS.round(MonthCore.barH * es))
             let laneH = barH + 2
             let rowH = geo.size.height / CGFloat(max(1, weekCount))
             // 入るぶんだけ積む（2〜7 段）。入らない予定は「+N件」
@@ -214,9 +234,11 @@ struct MonthGrid: View {
             let wageOn = JS.truthy(model.state["wageOn"]) && model.engine.wageFeatureOn()
             let monthA = Civil.dayNo(y, m, 1)
             let weeks = core.buildWeeks(y, m, lanes: lanes, overlay: model.overlayFor(monthA, monthA + Civil.daysInMonth(y, m)), wageOn: wageOn, dark: model.dark)
+            let mo = model.state["morph"].flatMap { JS.truthy($0) ? $0 : nil }
+            let morph: (id: JSONValue, phase: String)? = mo.map { (id: $0["id"] ?? .null, phase: JS.string($0["phase"])) }
             VStack(spacing: 0) {
                 ForEach(Array(weeks.enumerated()), id: \.offset) { w, week in
-                    WeekRow(y: y, m: m, week: week, colW: geo.size.width / 7, laneH: laneH, barH: barH, scale: es)
+                    WeekRow(y: y, m: m, week: week, colW: geo.size.width / 7, laneH: laneH, barH: barH, scale: es, morph: morph)
                         .frame(height: rowH)
                         .overlay(alignment: .top) { if w > 0 { Rectangle().fill(ink("line")).frame(height: 1) } }
                 }
@@ -231,6 +253,7 @@ struct WeekRow: View {
     let y: Int, m: Int
     let week: MonthCore.Week
     let colW: CGFloat, laneH: CGFloat, barH: CGFloat, scale: Double
+    var morph: (id: JSONValue, phase: String)? = nil
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
 
@@ -241,6 +264,7 @@ struct WeekRow: View {
                 ForEach(0..<7, id: \.self) { i in
                     let sl = week.slots[i]
                     Rectangle().fill(ink.css(sl.bg))
+                        .overlay { if sl.today { TodayFlash(at: model.state["flashToday"]?.number ?? 0) } }
                         .overlay(alignment: .trailing) { if i < 6 { Rectangle().fill(ink("line-faint")).frame(width: 1) } }
                         .contentShape(Rectangle())
                         .onTapGesture { tapDay(sl) }
@@ -261,22 +285,30 @@ struct WeekRow: View {
                                 .padding(.horizontal, 3).frame(minWidth: 18, minHeight: 18)
                                 .background(ink.css(sl.todayBg), in: Capsule())
                         } else {
-                            Text("\(sl.day)").font(.system(size: 11, weight: sl.weight >= 600 ? .semibold : .medium))
+                            Text("\(sl.day)").font(.system(size: 11, weight: sl.weight >= 600 ? .semibold : .medium)).monospacedDigit()
                                 .foregroundStyle(ink.css(sl.color))
                         }
                         Spacer(minLength: 0)
                     }
-                    .padding(.leading, sl.blank ? 3 : 2)
+                    .padding(.leading, sl.today ? 2 : 4)
                     .frame(width: colW, height: 22, alignment: .leading)
                 }
             }
             .allowsHitTesting(false)
             // 帯
             ForEach(week.bars, id: \.key) { b in
-                BarView(bar: b, height: barH, scale: scale)
-                    .frame(width: max(0, colW * CGFloat(b.span) - margin(b, "marginLeft") - margin(b, "marginRight")), height: barH)
-                    .offset(x: colW * CGFloat(b.c0) + margin(b, "marginLeft"), y: 22 + CGFloat(b.lane) * laneH)
-                    .allowsHitTesting(false)
+                let L = margin(b, "marginLeft") > 0, R = margin(b, "marginRight") > 0
+                Group {
+                    if let mo = morph, mo.id == b.id, let ev = event(b.id) {
+                        CelebrateMorphBar(m: model.core.morphBar(ev, phase: mo.phase, startsHere: L, endsHere: R, dark: model.dark),
+                                          height: barH, scale: scale, left: L, right: R)
+                    } else {
+                        BarView(bar: b, height: barH, scale: scale)
+                    }
+                }
+                .frame(width: max(0, colW * CGFloat(b.span) - margin(b, "marginLeft") - margin(b, "marginRight")), height: barH)
+                .offset(x: colW * CGFloat(b.c0) + margin(b, "marginLeft"), y: 22 + CGFloat(b.lane) * laneH)
+                .allowsHitTesting(false)
             }
             // 入らなかった数
             ForEach(week.more, id: \.col) { mo in
@@ -291,6 +323,9 @@ struct WeekRow: View {
     }
 
     private func margin(_ b: MonthCore.Bar, _ k: String) -> CGFloat { CGFloat(b.style[k]?.number ?? 0) }
+    private func event(_ id: JSONValue) -> [String: JSONValue]? {
+        (model.state["events"]?.array ?? []).lazy.compactMap { $0.object }.first { $0["id"] == id }
+    }
 
     private func tapDay(_ sl: MonthCore.Slot) {
         guard !sl.blank else { return }
@@ -299,6 +334,23 @@ struct WeekRow: View {
             if JS.truthy(e.state["stamp"]) { e.stampDay(y, m, sl.day) }
             else { e.set(["ym": JSONValue.object(["y": .number(Double(y)), "m": .number(Double(m))])]); e.openDay(sl.day) }
         }
+    }
+}
+
+/// 今日へ戻ったとき、今日のマスを一度だけ光らせる（1.2 秒。押してから 1.5 秒以内のときだけ）
+struct TodayFlash: View {
+    let at: Double
+    @State private var on = false
+    var body: some View {
+        Rectangle().fill(Color(red: 29 / 255, green: 158 / 255, blue: 117 / 255).opacity(on ? 0.28 : 0))
+            .allowsHitTesting(false)
+            .onAppear { fire() }
+            .onChange(of: at) { _, _ in fire() }
+    }
+    private func fire() {
+        guard at > 0, AppModel.nowMs() - at < 1500 else { return }
+        on = true
+        DispatchQueue.main.async { withAnimation(.easeOut(duration: 1.2)) { on = false } }
     }
 }
 
@@ -336,6 +388,10 @@ struct BarView: View {
             }
             if let left = st["borderLeft"]?.string, left.hasPrefix("2px") {
                 HStack { Rectangle().fill(ink("ink-faint")).frame(width: 2); Spacer() }
+            }
+            // 夜勤の「明け」は下線だけ
+            if let bottom = st["borderBottom"]?.string, bottom.hasPrefix("2px") {
+                VStack { Spacer(); Rectangle().fill(ink.css(String(bottom.split(separator: " ", maxSplits: 2).last ?? ""))).frame(height: 2) }
             }
         }
         .clipShape(shape)
