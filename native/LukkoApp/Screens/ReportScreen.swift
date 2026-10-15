@@ -50,6 +50,7 @@ struct ReportScreen: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("まとめ")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 

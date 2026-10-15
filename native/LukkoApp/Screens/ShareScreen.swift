@@ -89,15 +89,22 @@ struct ShareScreen: View {
         .presentationBackground(ShareColors.bg)
     }
 
+    /// 札の 1 行。左に小さな見出し（期間・曜日・言い方）
+    @ViewBuilder func shareOptRow<C: View>(_ label: String, @ViewBuilder _ chips: () -> C) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(label).font(.system(size: 11)).foregroundStyle(.white.opacity(0.45)).frame(width: 36, alignment: .leading)
+            chips()
+        }
+    }
+
     // 送り方。範囲・平日休日・言い回し・名前・送る文の見本・署名
     @ViewBuilder func options(_ v: ShareView) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            ShareChipRow(chips: v.rangeChips) { c in model.act { $0.setShareOpt("range", c.value) } }
-            ShareFlow(spacing: 6) {
-                ShareChipRow.chips(v.onlyChips) { c in model.act { $0.setShareOpt("only", c.value) } }
-                Color.clear.frame(width: 8, height: 1)
-                ShareChipRow.chips(v.toneChips) { c in model.act { $0.setShareOpt("polite", c.value) } }
-            }
+            // 何を選ぶ札かが分かるように、ひとことと、行ごとの小さな見出しを付ける（言い回しは 1 行にそろえる）
+            Text("選ぶと、送る文面が変わります").font(.system(size: 11)).foregroundStyle(.white.opacity(0.45))
+            shareOptRow("期間") { ShareChipRow(chips: v.rangeChips) { c in model.act { $0.setShareOpt("range", c.value) } } }
+            shareOptRow("曜日") { ShareChipRow(chips: v.onlyChips) { c in model.act { $0.setShareOpt("only", c.value) } } }
+            shareOptRow("言い方") { ShareChipRow(chips: v.toneChips) { c in model.act { $0.setShareOpt("polite", c.value) } } }
             TextField("", text: Binding(get: { v.name }, set: { s in model.act { $0.setShareName(s) } }),
                       prompt: Text("名前を入れる（例：山田）").foregroundStyle(.white.opacity(0.35)))
                 .font(.system(size: 14)).foregroundStyle(.white)
