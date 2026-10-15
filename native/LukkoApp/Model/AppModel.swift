@@ -38,7 +38,9 @@ final class AppModel {
     @ObservationIgnored private var exportTask: Task<Void, Never>?
     @ObservationIgnored private var lastExportSig: JSONValue = .null
 
-    @ObservationIgnored private(set) var engine: Engine!
+    @ObservationIgnored private var engineRef: Engine!
+    /// 中身（Engine）。画面から engine.xxxView() を読んだときも、中身が変わったら描き直されるように、state を読んだことにする
+    var engine: Engine! { _ = state; return engineRef }
     @ObservationIgnored private var lastSaved: [String: JSONValue] = [:]
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var tick: Timer?
@@ -78,7 +80,7 @@ final class AppModel {
             guard let eng else { return }
             BackupFiles.write(kind, eng.backupText(appVersion: AppModel.version))
         }
-        engine = eng
+        engineRef = eng
         lastSaved = Self.persisted(st)
         state = eng.state
         tab = SystemCore.rootTab(state["screen"]) ?? "month"

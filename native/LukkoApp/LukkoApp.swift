@@ -137,7 +137,9 @@ struct MainTabs: View {
                 .tabItem { Label("カレンダー", systemImage: "calendar") }
                 .tag("month")
             FreeScreen()
-                .tabItem { Label("空き状況", systemImage: "circle.grid.2x2") }
+                .tabItem {
+                    Label { Text("空き状況") } icon: { Image(uiImage: SystemTabIcon.free).renderingMode(.original) }
+                }
                 .tag("free")
             ReportScreen()
                 .tabItem { Label("まとめ", systemImage: "chart.bar") }
