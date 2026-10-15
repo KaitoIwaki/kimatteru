@@ -17,6 +17,8 @@ struct MonthScreen: View {
             .toolbar { MonthToolbar() }
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: dayShown) { DayScreen() }
+            .navigationDestination(isPresented: Binding(get: { model.state["screen"] == "detail" && model.state["returnTo"] != "day" },
+                                                        set: { on in if !on && model.state["screen"] == "detail" { model.act { $0.detailBack() } } })) { DetailScreen() }
         }
     }
 

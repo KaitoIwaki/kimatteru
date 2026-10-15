@@ -123,8 +123,10 @@ public enum NotifyCore {
                     let p = JS.string(e["start"]).components(separatedBy: ":")
                     hh = JS.int(p[0]); mm = p.count > 1 ? JS.int(p[1]) : 0
                 }
-                let at = LocalTime(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"]), hh, Int((Double(mm) - rm).rounded(.towardZero)))
-                if at > now {
+                // JS では、ありえないほど前のお知らせは日付が作れず（Invalid Date）、出さない
+                let off = (Double(mm) - rm).rounded(.towardZero)
+                let at = LocalTime(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"]), hh, Int(max(-1.0e12, min(1.0e12, off))))
+                if abs(off) < 1.4e11 && at > now {
                     let place = (!JS.truthy(e["secret"]) && !hideAll && JS.truthy(e["place"])) ? "・" + JS.string(e["place"]) : ""
                     out.append(Notif(id: numericId("r" + idStr),
                                      title: .string(JS.string(title(e)) + (status == "mikakutei" ? "（まだ）" : "")),
@@ -138,8 +140,9 @@ public enum NotifyCore {
             let d = LocalTime(now.y, now.m, now.d + i, 0, 0)
             if JS.truthy(settings["morning"]) {
                 let mAt: Double = { if case .number(let n)? = settings["morningAt"] { return n }; return 450 }()
-                let at = LocalTime(d.y, d.m, d.d, Int((mAt / 60).rounded(.down)), Int(mAt.truncatingRemainder(dividingBy: 60)))
-                if let g = dayDigest(events, d.y, d.m, d.d, hideAll), at > now {
+                let okAt = mAt.isFinite && abs(mAt) < 1.4e11
+                let at = okAt ? LocalTime(d.y, d.m, d.d, Int((mAt / 60).rounded(.down)), Int(mAt.truncatingRemainder(dividingBy: 60))) : d
+                if okAt, let g = dayDigest(events, d.y, d.m, d.d, hideAll), at > now {
                     out.append(Notif(id: numericId("m" + d.dateString), title: .string("今日 \(g.count)件" + (g.und != 0 ? "（うち まだ\(g.und)件）" : "")),
                                      body: g.text, at: at, extra: ["kind": .string("morning"), "day": .string("\(d.y)-\(d.m)-\(d.d)")]))
                 }

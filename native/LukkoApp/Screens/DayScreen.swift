@@ -39,6 +39,8 @@ struct DayScreen: View {
             }
         }
         .background(ink("bg"))
+        .navigationDestination(isPresented: Binding(get: { model.state["screen"] == "detail" && model.state["returnTo"] == "day" },
+                                                    set: { on in if !on && model.state["screen"] == "detail" { model.act { $0.detailBack() } } })) { DetailScreen() }
         .navigationTitle(v.head.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -123,6 +125,9 @@ struct DayList: View {
                 DayCard(row: r)
                     .contentShape(Rectangle())
                     .onTapGesture { open(r) }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityIdentifier("day.row.\(JS.string(r.key))")
                     .listRowBackground(Color.clear).listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 5, trailing: 16))
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {

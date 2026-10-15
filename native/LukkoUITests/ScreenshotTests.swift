@@ -44,6 +44,16 @@ final class ScreenshotTests: XCTestCase {
         day.tap()
         sleep(1)
         snap(app, "03-day")
+        app.buttons["予定を追加"].firstMatch.tap()
+        sleep(1)
+        snap(app, "04-form")
+        app.buttons["閉じる"].firstMatch.tap()
+        sleep(1)
+        let row = app.buttons["day.row.j"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        sleep(1)
+        snap(app, "05-detail")
     }
 
     private func snap(_ app: XCUIApplication, _ name: String) {

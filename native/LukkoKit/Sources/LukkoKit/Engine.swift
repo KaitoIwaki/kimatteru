@@ -75,6 +75,12 @@ public final class Engine {
         timers.removeAll { $0.id == id }
         live.removeValue(forKey: id)?.cancel()
     }
+    /// 試験用：いま待っているものを、時計を進めずに、入れた順にすべて動かす（動かした先で足された待ちは残す）
+    func flushTimersNow() {
+        let list = timers.sorted { $0.id < $1.id }
+        timers.removeAll()
+        for t in list { t.fn() }
+    }
     /// 時計を ms だけ進め、そのあいだに来る待ちを時刻の順に動かす
     public func advance(_ ms: Double) {
         let end = now + ms

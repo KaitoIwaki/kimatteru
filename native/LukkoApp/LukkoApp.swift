@@ -123,6 +123,11 @@ struct MainTabs: View {
         })) {
             FormScreen().environment(\.ink, Ink(dark: model.dark))
         }
+        .sheet(isPresented: Binding(get: { JS.truthy(model.state["dialog"]) && !JS.truthy(model.state["dialog"]?["phase"]) }, set: { on in
+            if !on && JS.truthy(model.state["dialog"]) { model.act { $0.dlgDismiss() } }
+        })) {
+            DialogSheet().environment(\.ink, Ink(dark: model.dark))
+        }
         .modifier(AlertPresenter())
     }
 }

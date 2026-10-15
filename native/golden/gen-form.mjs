@@ -23,7 +23,8 @@ class FakeDate extends RealDate { constructor(...a) { if (!a.length) super(NOW);
 globalThis.Date = FakeDate;
 globalThis.setTimeout = () => 0;
 globalThis.clearTimeout = () => {};
-globalThis.requestAnimationFrame = (f) => { f(); return 1; };
+// 0 を返す（Web 版は「待ち中」の印に返り値を入れる。その場で動かすので、印は残さない）
+globalThis.requestAnimationFrame = (f) => { f(); return 0; };
 
 const mkApp = (st) => {
   const app = new H.App({});

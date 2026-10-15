@@ -245,7 +245,7 @@ extension Engine {
         let span = Int(JS.toInt32(dr["repSpan"])) != 0 ? Int(JS.toInt32(dr["repSpan"])) : 3
         let nth = (dr["repNth"]?.array ?? []).map { JS.int($0) }
         let made = Engine.repeatAfter(y, m, day, dr["repEvery"], span, dr["repDows"], dr["repNth"])
-        let dowText = dows.isEmpty ? FormCore.dow[myDow] : dows.sorted { String($0) < String($1) }.map { FormCore.dow[$0] }.joined(separator: "・")
+        let dowText = dows.isEmpty ? FormCore.dow[myDow] : dows.sorted { String($0) < String($1) }.map { FormCore.dow.indices.contains($0) ? FormCore.dow[$0] : "" }.joined(separator: "・")
         let myNth = min(5, (day - 1) / 7 + 1)
         let every = dr["repEvery"]
         switch every?.string {
@@ -255,7 +255,7 @@ extension Engine {
         case "week": v.repValue = "毎週" + dowText
         case "biweek": v.repValue = "2週ごと " + dowText
         case "month": v.repValue = "毎月\(day)日"
-        case "nth": v.repValue = "毎月 \((nth.isEmpty ? [myNth] : nth).sorted { String($0) < String($1) }.map { FormCore.nthLabel[$0] ?? "undefined" }.joined(separator: "・")) \(dowText)曜"
+        case "nth": v.repValue = "毎月 \((nth.isEmpty ? [myNth] : nth).sorted { String($0) < String($1) }.map { FormCore.nthLabel[$0] ?? "" }.joined(separator: "・")) \(dowText)曜"
         case "monthEnd": v.repValue = "毎月 月末"
         default: v.repValue = JS.truthy(every) ? "毎年\(m + 1)月\(day)日" : "なし"
         }

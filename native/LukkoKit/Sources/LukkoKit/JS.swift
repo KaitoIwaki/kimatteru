@@ -233,7 +233,8 @@ extension JS {
     public static func int(_ v: JSONValue?) -> Int {
         let d = number(v)
         guard d.isFinite else { return 0 }
-        return Int(max(-9.0e15, min(9.0e15, d.rounded(.towardZero))))
+        // 年や日にちとして使うので、計算が桁あふれしない範囲（±10億）に収める
+        return Int(max(-1.0e9, min(1.0e9, d.rounded(.towardZero))))
     }
 }
 
