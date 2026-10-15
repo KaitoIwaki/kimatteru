@@ -128,4 +128,34 @@ final class ViewGoldenTests: XCTestCase {
         }
         XCTAssertEqual(fails, 0, "合わなかった数")
     }
+
+    func testFree() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "Fixtures/golden/view-free", withExtension: "json"))
+        let cases = try XCTUnwrap(JSONDecoder().decode(JSONValue.self, from: Data(contentsOf: url)).array)
+        var fails = 0
+        for (i, c) in cases.enumerated() {
+            let st = c["state"]?.object ?? [:]
+            let core = AppCore(state: st)
+            let fy = st["freeYM"] ?? .null
+            let v = core.freeView(fy["y"]?.int ?? 0, fy["m"]?.int ?? 0, dark: core.isDark(sysDark: false))
+            let keys = ["background", "color", "border", "textDecoration", "opacity"]
+            let rows: [JSONValue] = v.rows.map { r in
+                ["day": .number(Double(r.day)), "dow": .string(r.dow), "dowColor": .string(r.dowColor), "hol": .string(r.hol), "dayColor": .string(r.dayColor),
+                 "tags": .array(r.tags.map { t in ["text": .string(t.text), "time": .string(t.time), "style": .object(t.style.filter { keys.contains($0.key) })] }),
+                 "note": .string(r.note), "noteColor": .string(r.noteColor), "mark": .string(r.mark), "markColor": .string(r.markColor),
+                 "markBorder": .string(r.markBorder), "markBg": .string(r.markBg), "manual": .bool(r.manual), "dim": .bool(r.dim)]
+            }
+            let got: JSONValue = ["monthLabel": .number(Double(v.monthLabel)), "cO": .number(Double(v.cO)), "cA": .number(Double(v.cA)), "cX": .number(Double(v.cX)), "rows": .array(rows)]
+            let want: JSONValue = ["monthLabel": c["monthLabel"] ?? .null, "cO": c["cO"] ?? .null, "cA": c["cA"] ?? .null, "cX": c["cX"] ?? .null, "rows": c["rows"] ?? .null]
+            if got != want {
+                fails += 1
+                if fails <= 10 {
+                    let gr = rows, wr = c["rows"]?.array ?? []
+                    let bad = zip(gr, wr).enumerated().first { $0.element.0 != $0.element.1 }
+                    XCTFail("#\(i) 空き状況が違う：\(bad.map { "\($0.offset + 1)日：\n\($0.element.0)\n≠\n\($0.element.1)" } ?? "数 \(got["cO"]!) \(got["cA"]!) \(got["cX"]!) ≠ \(want["cO"]!) \(want["cA"]!) \(want["cX"]!)")")
+                }
+            }
+        }
+        XCTAssertEqual(fails, 0, "合わなかった数")
+    }
 }

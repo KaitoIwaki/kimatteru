@@ -107,7 +107,7 @@ struct MainTabs: View {
             MonthScreen()
                 .tabItem { Label("カレンダー", systemImage: "calendar") }
                 .tag("month")
-            PlaceholderScreen(title: "空き状況")
+            FreeScreen()
                 .tabItem { Label("空き状況", systemImage: "circle.grid.2x2") }
                 .tag("free")
             PlaceholderScreen(title: "まとめ")

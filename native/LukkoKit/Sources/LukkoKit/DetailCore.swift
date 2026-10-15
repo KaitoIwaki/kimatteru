@@ -46,7 +46,7 @@ public struct DialogView: Equatable {
 }
 
 public enum EventCtx {
-    typealias Ev = [String: JSONValue]
+    public typealias Ev = [String: JSONValue]
     static func norm(_ v: JSONValue?) -> String { (v == nil || v == .null) ? "" : JS.string(v).jsTrimmed }
     public static func sameKind(_ a: Ev?, _ b: Ev?) -> Bool { guard let a, let b else { return false }; return a["type"] == b["type"] && norm(a["title"]) == norm(b["title"]) }
     static func alive(_ e: Ev) -> Bool { e["status"] != "nakunatta" }

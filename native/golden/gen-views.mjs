@@ -150,3 +150,33 @@ for (let k = 0; k < 160; k++) {
 }
 fs.writeFileSync(path.join(OUT, 'view-alert.json'), JSON.stringify(alertCases));
 console.log('view-alert', alertCases.length, alertCases.filter((c) => c.spec).length, 'specs');
+
+// ---- いつ空いてる？（空き状況）----
+const freeCases = [];
+for (let k = 0; k < 120; k++) {
+  NOW = new RealDate(2026, int(0, 11), int(1, 28), int(7, 22), int(0, 59)).getTime();
+  const now = new RealDate(NOW);
+  const types = J(mkApp({}).state.types);
+  if (rnd() < 0.4) types.push({ key: 'off', name: '休み', color: '#5FA8A2', paper: 'rgba(192,224,221,.72)', dark: 'rgb(48,84,81)', free: true });
+  const fY = now.getFullYear(), fm = (now.getMonth() + pick([0, 1, -1]) + 12) % 12;
+  const events = [];
+  for (let i = 0; i < pick([0, 5, 15, 30]); i++) {
+    const e = { id: 'e' + i, type: pick(['yoji', 'baito', 'asobi', 'off']), title: pick(['定例', 'カフェ', '飲み会']), y: fY, m: fm, day: int(1, 28),
+      start: HH(), end: HH(), status: pick(['kakutei', 'kakutei', 'mikakutei', 'jisseki', 'nakunatta']), updatedAt: i };
+    if (rnd() < 0.2) { e.allDay = true; if (rnd() < 0.4) e.days = int(2, 3); }
+    events.push(e);
+  }
+  const overrides = {};
+  for (let i = 0; i < pick([0, 3]); i++) overrides[`${fY}-${fm}-${int(1, 28)}`] = pick(['○', '△', '×']);
+  const settings = { ...mkApp({}).state.settings, onboarded: true, weekStart: pick([0, 1]), theme: pick([undefined, 'dark']),
+    freeWd: pick([undefined, [1140, 1380], [540, 1320]]), freeHd: pick([undefined, [600, 1320]]), workHours: pick([null, { days: [1, 2, 3, 4, 5], from: 540, to: 1080 }]) };
+  const app = mkApp({ events, types, overrides, settings, freeYM: { y: fY, m: fm }, today: { y: now.getFullYear(), m: now.getMonth(), d: now.getDate() }, screen: 'free' });
+  const { v } = app.renderVals();
+  const rows = v.freeRows.map((r) => ({ day: r.day, dow: r.dow, dowColor: r.dowStyle.color, hol: r.hol, dayColor: r.dayStyle.color,
+    tags: r.tags.map((t) => ({ text: t.text, time: t.time, style: pickKeys(t.style, ['background', 'color', 'border', 'textDecoration', 'opacity']) })),
+    note: r.note, noteColor: r.noteStyle.color, mark: r.mark, markColor: r.markStyle.color, markBorder: r.markStyle.border || '', markBg: r.markStyle.background || '',
+    manual: !!r.markStyle.boxShadow, dim: r.rowStyle.opacity === 0.5 }));
+  freeCases.push({ now: NOW, state: J({ events, types, overrides, settings, freeYM: { y: fY, m: fm }, today: app.state.today }), monthLabel: v.freeMonthLabel, cO: v.cO, cA: v.cA, cX: v.cX, rows });
+}
+fs.writeFileSync(path.join(OUT, 'view-free.json'), JSON.stringify(freeCases));
+console.log('view-free', freeCases.length);
