@@ -240,8 +240,20 @@ struct ShareFlow: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let w = proposal.width ?? .infinity
         let rs = rows(w, subviews)
-        let h = rs.reduce(CGFloat(0)) { $0 + ($1.map { $0.1.height }.max() ?? 0) } + spacing * CGFloat(max(0, rs.count - 1))
-        let used = rs.map { r in r.reduce(CGFloat(0)) { $0 + $1.1.width } + spacing * CGFloat(max(0, r.count - 1)) }.max() ?? 0
+        var h: CGFloat = 0
+        var used: CGFloat = 0
+        for (k, r) in rs.enumerated() {
+            var rh: CGFloat = 0
+            var rw: CGFloat = 0
+            for (j, item) in r.enumerated() {
+                rh = Swift.max(rh, item.1.height)
+                rw += item.1.width
+                if j > 0 { rw += spacing }
+            }
+            h += rh
+            if k > 0 { h += spacing }
+            used = Swift.max(used, rw)
+        }
         return CGSize(width: proposal.width ?? used, height: h)
     }
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
