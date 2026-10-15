@@ -333,8 +333,8 @@ extension Engine {
         set(["dialog": .null, "screen": str("month"), "dayNum": .null, "detailId": .null, "morph": .object(["id": did ?? .null, "phase": str("dash")]),
              "ym": ev0.map { .object(["y": $0["y"] ?? .null, "m": $0["m"] ?? .null]) } ?? state["ym"]])
         let morphIs = { [weak self] () -> Bool in guard let m = self?.state["morph"], JS.truthy(m) else { return false }; return m["id"] == did }
-        later(150) { [weak self] in if morphIs() { self?.set(["morph": .object(["id": did ?? .null, "phase": .string("fill")])]) } }
-        later(470) { [weak self] in if morphIs() { self?.set(["morph": .object(["id": did ?? .null, "phase": .string("settle")])]) } }
+        later(150) { [weak self] in if morphIs() { self?.set(["morph": .object(["id": did ?? .null, "phase": .string("fill")])]); self?.haptic("pen") } }
+        later(470) { [weak self] in if morphIs() { self?.set(["morph": .object(["id": did ?? .null, "phase": .string("settle")])]); self?.haptic("success") } }
         later(760) { [weak self] in
             guard let self, morphIs() else { return }
             self.updateEvent(did, ["status": self.str("kakutei")])

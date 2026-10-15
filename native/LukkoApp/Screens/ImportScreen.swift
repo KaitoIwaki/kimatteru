@@ -9,9 +9,6 @@ struct ImportScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
     @Environment(\.openURL) private var openURL
-    @Environment(\.scenePhase) private var scenePhase
-    /// 設定アプリを開いた。戻ってきたら、そのまま読み込みを続ける
-    @State private var retryOnReturn = false
 
     var body: some View {
         _ = model.state["imp"]
@@ -34,14 +31,6 @@ struct ImportScreen: View {
         .background(ink("bg"))
         .navigationTitle("予定の取り込み")
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: scenePhase) { _, p in
-            guard p == .active, retryOnReturn else { return }
-            retryOnReturn = false
-            guard model.state["screen"] == "import" else { return }
-            Task { @MainActor in
-                if await PhoneCal.checkAccess(model.engine.phone) == "granted" { await model.engine.runScan() }
-            }
-        }
     }
 
     /// いまどの段か（選ぶ＝0・確かめる＝1・入れた＝2）。最初の画面では出さない
@@ -66,7 +55,7 @@ struct ImportScreen: View {
                 if v.denied {
                     Button {
                         model.act { $0.haptic("light") }
-                        retryOnReturn = true
+                        model.retryImportOnReturn = true  // 戻ってきたら、許可を確かめて読み込みを続ける（AppModel.onReturn）
                         if let u = URL(string: UIApplication.openSettingsURLString) { openURL(u) }
                     } label: {
                         Text("設定アプリを開く").font(.system(size: 14.5, weight: .bold)).foregroundStyle(ink("ink")).frame(maxWidth: .infinity).padding(14)
