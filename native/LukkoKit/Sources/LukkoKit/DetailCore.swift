@@ -114,14 +114,14 @@ extension Engine {
 
     public func detailEvent() -> Obj? { events.first { $0["id"] == state["detailId"] } }
 
-    public func detailView() -> DetailView {
+    public func detailView(sysDark: Bool = false) -> DetailView {
         var v = DetailView()
         guard let ev = detailEvent() else { return v }
         let c = core()
         let t = c.T(ev["type"]) ?? [:]
         let tt = today
         v.title = JS.string(ev["title"])
-        v.typeDark = JS.string(c.typeInk(t, dark: c.isDark(sysDark: false)))
+        v.typeDark = JS.string(c.typeInk(t, dark: c.isDark(sysDark: sysDark)))
         func one(_ y: Int, _ m: Int, _ d: Int) -> String { "\(y != tt.y ? "\(y)年" : "")\(m + 1)月\(d)日（\(Self.dw[Civil.weekday(y, m, d)])）" }
         let y = JS.int(ev["y"]), m = JS.int(ev["m"]), d = JS.int(ev["day"])
         let b = Civil.fromDayNo(AppCore.evTo(ev))
@@ -183,7 +183,7 @@ extension Engine {
         if st == "kakutei" || st == "mikakutei" { rows.append(.init(key: "copy", label: "コピー", red: false)) }
         rows.append(.init(key: "del", label: st == "jisseki" ? "この実績を削除" : "この予定を削除", red: true))
         v.menuRows = rows
-        let dark = c.isDark(sysDark: false)
+        let dark = c.isDark(sysDark: sysDark)
         let oth = EventCtx.othersOnDay(events, ev, limit: 3)
         v.othersLabel = "\(m + 1)月\(d)日の、ほかの予定"
         v.othersRest = oth.rest
