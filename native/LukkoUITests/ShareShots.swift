@@ -92,8 +92,13 @@ final class ShareShots: XCTestCase {
         sleep(1)
 
         // まとめカード（年）
-        for _ in 0..<5 where !app.segmentedControls.buttons["年"].isHittable { app.swipeDown() }
-        app.segmentedControls.buttons["年"].tap()
+        let yearSeg = app.buttons["年"].firstMatch
+        for _ in 0..<5 where !(yearSeg.exists && yearSeg.isHittable) { app.swipeDown() }
+        sleep(1)
+        yearSeg.tap()
+        // 払いの止まり際だと押したことにならないことがあるので、年の行が出るまで押し直す
+        if !app.buttons["前の年"].waitForExistence(timeout: 3) { yearSeg.tap() }
+        XCTAssertTrue(app.buttons["前の年"].waitForExistence(timeout: 5))
         sleep(1)
         snap(app, "S08-report-year")
         let yearCard = app.buttons["report.yearCard"]

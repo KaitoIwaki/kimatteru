@@ -111,12 +111,11 @@ struct FreeRowView: View {
                     HStack(spacing: 4) {
                         ForEach(Array(row.tags.enumerated()), id: \.offset) { _, t in
                             HStack(spacing: 5) {
-                                Text(t.text).font(.system(size: 10)).lineLimit(1).padding(.horizontal, 6).frame(height: 15).frame(maxWidth: 130)
+                                FreeCapWidth(max: 130) { Text(t.text).font(.system(size: 10)).lineLimit(1).padding(.horizontal, 6).frame(height: 15) }
                                     .foregroundStyle(ink.css(t.style["color"]?.string))
                                     .background(ink.css(t.style["background"]?.string), in: RoundedRectangle(cornerRadius: 4))
                                     .strikethrough(t.style["textDecoration"] == "line-through")
                                     .opacity(t.style["opacity"]?.number ?? 1)
-                                    .layoutPriority(1)
                                 Text(t.time).font(.system(size: 10, weight: .semibold)).monospacedDigit().lineLimit(1).fixedSize()
                                     .foregroundStyle(Color(red: 0x9A / 255, green: 0xA0 / 255, blue: 0xA6 / 255))
                             }
@@ -142,5 +141,17 @@ struct FreeRowView: View {
         }
         .opacity(row.dim ? 0.5 : 1)
         .animation(.snappy(duration: 0.2), value: row.mark)
+    }
+}
+
+/// 中身の幅に合わせ、max より広くはしない（Web 版の display:inline-block; max-width）
+struct FreeCapWidth: Layout {
+    var max: CGFloat
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard let v = subviews.first else { return .zero }
+        return v.sizeThatFits(ProposedViewSize(width: Swift.min(proposal.width ?? max, max), height: proposal.height))
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        subviews.first?.place(at: bounds.origin, proposal: ProposedViewSize(width: bounds.width, height: bounds.height))
     }
 }

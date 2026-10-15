@@ -108,10 +108,10 @@ struct ShareScreen: View {
     @ViewBuilder func options(_ v: ShareView) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             ShareChipRow(chips: v.rangeChips) { c in model.act { $0.setShareOpt("range", c.value) } }
-            HStack(spacing: 6) {
-                ShareChipRow(chips: v.onlyChips) { c in model.act { $0.setShareOpt("only", c.value) } }
-                Spacer().frame(width: 8)
-                ShareChipRow(chips: v.toneChips) { c in model.act { $0.setShareOpt("polite", c.value) } }
+            ShareFlow(spacing: 6) {
+                ShareChipRow.chips(v.onlyChips) { c in model.act { $0.setShareOpt("only", c.value) } }
+                Color.clear.frame(width: 8, height: 1)
+                ShareChipRow.chips(v.toneChips) { c in model.act { $0.setShareOpt("polite", c.value) } }
             }
             TextField("", text: Binding(get: { v.name }, set: { s in model.act { $0.setShareName(s) } }),
                       prompt: Text("名前を入れる（例：山田）").foregroundStyle(.white.opacity(0.35)))
@@ -201,12 +201,14 @@ struct ShareScreen: View {
     }
 }
 
-/// 送り方の札の 1 列（押すと tapLight）
+/// 送り方の札の 1 列（入りきらなければ折り返す。押すと tapLight）
 struct ShareChipRow: View {
     let chips: [ShareView.Chip]
     let tap: (ShareView.Chip) -> Void
     var body: some View {
-        HStack(spacing: 6) {
+        ShareFlow(spacing: 6) { Self.chips(chips, tap) }
+    }
+    @ViewBuilder static func chips(_ chips: [ShareView.Chip], _ tap: @escaping (ShareView.Chip) -> Void) -> some View {
             ForEach(Array(chips.enumerated()), id: \.offset) { _, c in
                 Button { tap(c) } label: {
                     Text(c.label).font(.system(size: 12.5)).lineLimit(1).fixedSize()
@@ -218,6 +220,40 @@ struct ShareChipRow: View {
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(c.sel ? .isSelected : [])
             }
+    }
+}
+
+/// 横に並べ、入りきらなければ次の行へ（Web 版の flex-wrap）
+struct ShareFlow: Layout {
+    var spacing: CGFloat = 6
+    private func rows(_ width: CGFloat, _ subviews: Subviews) -> [[(Int, CGSize)]] {
+        var rows: [[(Int, CGSize)]] = [[]]
+        var x: CGFloat = 0
+        for (i, v) in subviews.enumerated() {
+            let s = v.sizeThatFits(.unspecified)
+            if x > 0 && x + s.width > width { rows.append([]); x = 0 }
+            rows[rows.count - 1].append((i, s))
+            x += s.width + spacing
+        }
+        return rows
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let w = proposal.width ?? .infinity
+        let rs = rows(w, subviews)
+        let h = rs.reduce(CGFloat(0)) { $0 + ($1.map { $0.1.height }.max() ?? 0) } + spacing * CGFloat(max(0, rs.count - 1))
+        let used = rs.map { r in r.reduce(CGFloat(0)) { $0 + $1.1.width } + spacing * CGFloat(max(0, r.count - 1)) }.max() ?? 0
+        return CGSize(width: proposal.width ?? used, height: h)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for r in rows(bounds.width, subviews) {
+            var x = bounds.minX
+            let rh = r.map { $0.1.height }.max() ?? 0
+            for (i, s) in r {
+                subviews[i].place(at: CGPoint(x: x, y: y + (rh - s.height) / 2), proposal: ProposedViewSize(s))
+                x += s.width + spacing
+            }
+            y += rh + spacing
         }
     }
 }
@@ -275,14 +311,17 @@ struct ShareFreePreview: View {
                 legend(1) { RoundedRectangle(cornerRadius: 5).fill(ShareColors.paper).overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(ShareColors.coral, style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))) }
                 legend(2) { RoundedRectangle(cornerRadius: 5).fill(ShareColors.hex("#EDEEF0")) }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 16)
             .overlay(alignment: .top) { Rectangle().fill(ShareColors.line).frame(height: 1) }
             .padding(.top, 18)
         }
         .padding(.horizontal, 22).padding(.top, 24).padding(.bottom, 22)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(ShareColors.paper, in: RoundedRectangle(cornerRadius: 22))
-        .shadow(color: .black.opacity(0.5), radius: 24, y: 18)
+        .background {
+            RoundedRectangle(cornerRadius: 22).fill(ShareColors.paper)
+                .shadow(color: .black.opacity(0.5), radius: 24, y: 18)
+        }
         .environment(\.colorScheme, .light)
     }
 
