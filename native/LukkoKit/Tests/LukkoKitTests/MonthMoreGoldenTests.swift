@@ -76,9 +76,10 @@ final class MonthMoreGoldenTests: XCTestCase {
             let core = AppCore(state: eng.state)
             let dark = core.isDark(sysDark: false)
             // 年月えらび
+            // Web 版の正解表は枠の色で見ている（選んでいる月は墨の枠なので、今月の薄い枠は出ない）
             var ys: JSONValue = .null
             if let v = eng.ymSheetView() {
-                let months: [JSONValue] = v.months.map { (mo: YMSheetView.Month) -> JSONValue in ["label": .string(mo.label), "sel": .bool(mo.sel), "isThis": .bool(mo.isThis)] }
+                let months: [JSONValue] = v.months.map { (mo: YMSheetView.Month) -> JSONValue in ["label": .string(mo.label), "sel": .bool(mo.sel), "isThis": .bool(mo.isThis && !mo.sel)] }
                 let slide: String = v.dir == 0 ? "none" : (v.dir > 0 ? "slideFromRight" : "slideFromLeft") + " .24s cubic-bezier(.2,.9,.2,1)"
                 ys = ["year": .string(v.year), "todayLabel": .string(v.todayLabel), "months": .array(months), "slide": .string(slide)]
             }

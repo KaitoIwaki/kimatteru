@@ -33,7 +33,6 @@ struct WeekStripBody: View {
     @State private var leading: Int?
     @State private var scroll = WeekScrollX()
     @State private var settleWork: DispatchWorkItem?
-    @State private var startTop: CGFloat = 0
     /// 最初の位置に合わせ終わったか（それまでは「流し終わった」を拾わない）
     @State private var placed = false
     static let pad = 370
@@ -43,6 +42,12 @@ struct WeekStripBody: View {
     init(initialFirst: Int) {
         _center = State(initialValue: initialFirst)
         _leading = State(initialValue: initialFirst)
+    }
+
+    /// 縦の最初の位置（Web 版の weekStartTop）
+    private func startTop(_ first: Int) -> CGFloat {
+        let cols = (first..<(first + 7)).map { model.core.weekCol($0, over: model.overlayFor($0 - 1, $0 + 1), dark: model.dark) }
+        return CGFloat(model.core.weekStartTop(cols))
     }
 
     var body: some View {
@@ -75,22 +80,17 @@ struct WeekStripBody: View {
                             .coordinateSpace(name: "week.h")
                             .scrollTargetBehavior(.viewAligned)
                             .scrollPosition(id: $leading, anchor: .leading)
-                            .onPreferenceChange(WeekScrollKey.self) { x in scroll.x = x }
+                            .modifier(WeekScrollTrack { x in scroll.x = x })
                         }
                         // 最初に見せる高さ（朝 7 時あたり。見えている 7 日にもっと早い予定があればそこから）
                         .overlay(alignment: .topLeading) {
-                            Color.clear.frame(width: 1, height: 1).padding(.top, startTop).id("week.top")
+                            Color.clear.frame(width: 1, height: 1).padding(.top, startTop(first)).id("week.top")
                         }
                     }
                     .onAppear {
-                        let cols = (first..<(first + 7)).map { model.core.weekCol($0, over: model.overlayFor($0 - 1, $0 + 1), dark: model.dark) }
-                        startTop = CGFloat(model.core.weekStartTop(cols))
-                        DispatchQueue.main.async {
-                            // 横はいちばん左の日へ、縦は朝の時刻へ（横を合わせると縦も動くので、縦はあとで）
-                            proxy.scrollTo(first, anchor: .leading)
-                            leading = first
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                             proxy.scrollTo("week.top", anchor: .top)
-                            DispatchQueue.main.async { placed = true }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { placed = true }
                         }
                     }
                 }
@@ -138,7 +138,7 @@ struct WeekStripHeader: View {
         let pillH = CGFloat(JS.round(17 * es))
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                ink("bg").frame(width: WeekStripBody.gutter)
+                Color.clear.frame(width: WeekStripBody.gutter, height: 50)
                 ZStack(alignment: .topLeading) {
                     ForEach(days, id: \.self) { n in
                         if let c = cols[n] {
@@ -148,14 +148,14 @@ struct WeekStripHeader: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, minHeight: 46, alignment: .topLeading)
+                .frame(width: colW * 7, height: 50, alignment: .topLeading)
                 .clipped()
             }
             if maxPills > 0 || anyMore {
                 HStack(alignment: .top, spacing: 0) {
-                    Text("終日").font(.system(size: 9)).foregroundStyle(ink("ink-faint"))
+                    Text("終日").font(.system(size: 9)).foregroundStyle(ink("ink-faint")).fixedSize()
                         .padding(.top, 3).padding(.leading, 3)
-                        .frame(width: WeekStripBody.gutter, alignment: .leading)
+                        .frame(width: WeekStripBody.gutter, alignment: .topLeading)
                     ZStack(alignment: .topLeading) {
                         ForEach(days, id: \.self) { n in
                             if let c = cols[n] {
@@ -165,8 +165,7 @@ struct WeekStripHeader: View {
                             }
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                    .frame(height: CGFloat(maxPills) * (pillH + 2) + (anyMore ? 13 : 0))
+                    .frame(width: colW * 7, height: CGFloat(maxPills) * (pillH + 2) + (anyMore ? 13 : 0), alignment: .topLeading)
                     .clipped()
                 }
                 .padding(.top, 3).padding(.bottom, 1)
@@ -367,6 +366,18 @@ struct WeekNowLine: View {
             }
             .offset(x: -3, y: top - 3.5)
             .allowsHitTesting(false)
+        }
+    }
+}
+
+/// 横に流した量を見張る（iOS 18 からは ScrollView の位置そのもの、それより前は中身の位置）
+struct WeekScrollTrack: ViewModifier {
+    let onChange: (CGFloat) -> Void
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.onScrollGeometryChange(for: CGFloat.self, of: { $0.contentOffset.x + $0.contentInsets.leading }) { _, x in onChange(-x) }
+        } else {
+            content.onPreferenceChange(WeekScrollKey.self) { x in onChange(x) }
         }
     }
 }

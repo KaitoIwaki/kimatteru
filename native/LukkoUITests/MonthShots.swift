@@ -79,7 +79,7 @@ final class MonthShots: XCTestCase {
         // 週表示
         seg(app, "month.viewSeg", "週")
         snap(app, "M03-week")
-        let strip = app.descendants(matching: .any)["week.strip"]
+        let strip = app.descendants(matching: .any).matching(identifier: "week.strip").firstMatch
         if strip.waitForExistence(timeout: 5) {
             strip.swipeLeft()
             sleep(2)
@@ -105,16 +105,12 @@ final class MonthShots: XCTestCase {
         }
 
         // 給料バー
-        let sw = app.switches["month.wageToggle"]
+        let sw = app.buttons["month.wageToggle"]
         if sw.waitForExistence(timeout: 5) {
             sw.tap()
             sleep(1)
-            if !app.descendants(matching: .any)["month.wageBar"].exists {
-                sw.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
-                sleep(1)
-            }
             snap(app, "M07-wage-bar")
-            sw.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)).tap()
+            sw.tap()
             sleep(1)
         }
 
@@ -178,7 +174,7 @@ final class MonthShots: XCTestCase {
 
     func testFirstRunHint() throws {
         let app = launch(sample(empty: true))
-        let hint = app.descendants(matching: .any)["month.firstRunHint"]
+        let hint = app.descendants(matching: .any).matching(identifier: "month.firstRunHint").firstMatch
         XCTAssertTrue(hint.waitForExistence(timeout: 10))
         sleep(1)
         snap(app, "M20-first-run-hint")

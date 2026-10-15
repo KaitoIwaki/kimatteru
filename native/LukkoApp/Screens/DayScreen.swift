@@ -102,7 +102,7 @@ struct DayStrip: View {
             .coordinateSpace(name: "day.strip")
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $leading, anchor: .leading)
-            .onPreferenceChange(DayStripScrollKey.self) { x in scroll.moved(x, width: cw * CGFloat(Self.len - 7)) }
+            .modifier(DayStripScrollTrack { x in scroll.moved(x, width: cw * CGFloat(Self.len - 7)) })
             // 流しているあいだだけ：見えている真ん中の日の月
             .overlay(alignment: .top) { DayStripMonthChip(base: base, cw: cw, scroll: scroll).offset(y: -6) }
         }
@@ -516,6 +516,18 @@ struct DayTimeView: View {
                 }
                 .onAppear { DispatchQueue.main.async { proxy.scrollTo("day.top", anchor: .top) } }
             }
+        }
+    }
+}
+
+/// 日付の帯を流した量を見張る（iOS 18 からは ScrollView の位置そのもの、それより前は中身の位置）
+struct DayStripScrollTrack: ViewModifier {
+    let onChange: (CGFloat) -> Void
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *) {
+            content.onScrollGeometryChange(for: CGFloat.self, of: { $0.contentOffset.x + $0.contentInsets.leading }) { _, x in onChange(-x) }
+        } else {
+            content.onPreferenceChange(DayStripScrollKey.self) { x in onChange(x) }
         }
     }
 }

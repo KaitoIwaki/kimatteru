@@ -116,7 +116,7 @@ struct MonthSubBar: View {
                 Text("週").tag("week")
             }
             .pickerStyle(.segmented)
-            .frame(width: 92)
+            .frame(width: 84)
             .accessibilityIdentifier("month.viewSeg")
             if h.undecidedCount > 0 {
                 Button { model.act { e in e.haptic("light"); e.set(["screen": "list", "listTab": "undecided", "returnTo": "month"]) } } label: {
@@ -135,6 +135,8 @@ struct MonthSubBar: View {
                         .background(ink("bg2"), in: Capsule())
                 }
                 .buttonStyle(.plain)
+                // 狭いときは、この札だけ詰める（…で切る）
+                .layoutPriority(-1)
             }
             Spacer(minLength: 0)
             if h.stampChipShown {
@@ -151,13 +153,28 @@ struct MonthSubBar: View {
                 .accessibilityIdentifier("month.stampChip")
             }
             if h.wageToggleShown {
-                Toggle(isOn: Binding(get: { JS.truthy(model.state["wageOn"]) }, set: { _ in model.act { $0.toggleWage() } })) {
-                    Text("給料").font(.system(size: 12)).foregroundStyle(JS.truthy(model.state["wageOn"]) ? ink("ink") : ink("ink-mut"))
+                // 給料のスイッチ（Web 版と同じ小さめの 44×26。段に全部が収まるように）
+                let on = JS.truthy(model.state["wageOn"])
+                Button { model.act { $0.toggleWage() } } label: {
+                    HStack(spacing: 7) {
+                        Text("給料").font(.system(size: 12)).foregroundStyle(on ? ink("ink") : ink("ink-mut"))
+                        Capsule().fill(on ? Color(red: 0x7F / 255, green: 0xAE / 255, blue: 0x85 / 255) : ink("line"))
+                            .frame(width: 44, height: 26)
+                            .overlay(alignment: .leading) {
+                                Circle().fill(ink("card")).frame(width: 22, height: 22)
+                                    .shadow(color: .black.opacity(0.25), radius: 1, y: 1)
+                                    .offset(x: on ? 20 : 2)
+                            }
+                            .animation(.timingCurve(0.2, 0.9, 0.2, 1, duration: 0.28), value: on)
+                    }
+                    .fixedSize()
+                    .contentShape(Rectangle())
                 }
-                .toggleStyle(.switch)
-                .tint(Color(red: 0x1D / 255, green: 0x9E / 255, blue: 0x75 / 255))
-                .controlSize(.mini)
-                .fixedSize()
+                .buttonStyle(.plain)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("給料")
+                .accessibilityValue(on ? "オン" : "オフ")
+                .accessibilityAddTraits(.isButton)
                 .accessibilityIdentifier("month.wageToggle")
             }
         }
