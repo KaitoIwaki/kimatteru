@@ -264,6 +264,7 @@ extension Engine {
     /// 取り消し（直前の削除・決定・動かす・片づけ）
     public func undoLast() {
         guard let u = state["undo"], JS.truthy(u) else { return }
+        haptic("light")
         cancel(named["undo"])
         let d = u["data"] ?? .null
         switch d["kind"]?.string {

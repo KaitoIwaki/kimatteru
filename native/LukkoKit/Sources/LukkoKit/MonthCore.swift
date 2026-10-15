@@ -131,6 +131,17 @@ extension AppCore {
 
     /// Y 年 M 月の週。日をまたぐ予定は、週の中で列をまたぐ 1 本の帯にする。入らない予定は「+N件」
     public func buildWeeks(_ Y: Int, _ M: Int, lanes lanesN: Int = MonthCore.maxLanes, overlay: [[String: JSONValue]] = [], wageOn: Bool, dark: Bool, sysZoom: Double = 1) -> [MonthCore.Week] {
+        // 予定が変わっていなければ、前に作った週をそのまま使う（前後の月も描くので、払うたびに作り直さない）
+        let ix = EventDayIndex.of(state["events"]?.array ?? [])
+        let key = MonthWeeksKey(settings: state["settings"], types: state["types"], jobs: state["jobs"], today: state["today"],
+                                y: Y, m: M, lanes: lanesN, wageOn: wageOn, dark: dark, sysZoom: sysZoom, overlay: overlay)
+        if let hit = ix.cachedWeeks(key) { return hit }
+        let weeks = buildWeeksRaw(Y, M, lanes: lanesN, overlay: overlay, wageOn: wageOn, dark: dark, sysZoom: sysZoom, index: ix)
+        ix.storeWeeks(key, weeks)
+        return weeks
+    }
+
+    func buildWeeksRaw(_ Y: Int, _ M: Int, lanes lanesN: Int, overlay: [[String: JSONValue]], wageOn: Bool, dark: Bool, sysZoom: Double, index ix: EventDayIndex) -> [MonthCore.Week] {
         let ws = JS.number(settings["weekStart"])
         guard ws.isFinite else { return [] }
         let wFirst = Civil.weekday(Y, M, 1), dim = Civil.daysInMonth(Y, M)
@@ -140,7 +151,7 @@ extension AppCore {
         let weekCount = Int((Double(first + dim) / 7).rounded(.up))
         let monthA = Civil.dayNo(Y, M, 1), monthB = Civil.dayNo(Y, M, dim)
         let hideCanceled = JS.truthy(settings["hideCanceled"])
-        var pool = events.filter { e in !(hideCanceled && e["status"] == "nakunatta") && Self.evTo(e) >= monthA && Self.evFrom(e) <= monthB }
+        var pool = ix.overlapping(monthA, monthB).filter { e in !(hideCanceled && e["status"] == "nakunatta") }
         pool += overlay
         var weeks: [MonthCore.Week] = []
         for w in 0..<weekCount {
@@ -239,13 +250,16 @@ extension Engine {
             let dw = ((i + ws) % 7 + 7) % 7
             return (wl[dw], dw == 0 ? MonthCore.holidayRed : dw == 6 ? MonthCore.saturdayBlue : "#9AA0A6")
         }
-        return MonthHead(monthLabel: JS.string(.number(JS.number(ym["m"]) + 1)), year: JS.string(ym["y"]),
-                         todayBtnShown: !(ymY == t.y && ymM == t.m),
+        // 週表示のときは、見出しの月と「今日」を見えている 7 日で決める
+        let calView = settings["calView"] == "week" ? "week" : "month"
+        let wk = calView == "week" ? core().weekHead(first: core().weekFirst()) : nil
+        return MonthHead(monthLabel: wk?.monthLabel ?? JS.string(.number(JS.number(ym["m"]) + 1)), year: wk?.year ?? JS.string(ym["y"]),
+                         todayBtnShown: wk?.todayBtnShown ?? !(ymY == t.y && ymM == t.m),
                          undecidedCount: undecided, shelfCount: shelf.count, shelfLabel: shelfLabel,
                          bellCount: unread, bellBadge: unread > 9 ? "9+" : String(unread),
                          weekdays: weekdays.map { (label: $0.0, color: $0.1) },
                          stampChipShown: !stampTemplates().isEmpty && state["screen"] == "month",
                          wageToggleShown: wageFeatureOn(),
-                         calView: settings["calView"] == "week" ? "week" : "month")
+                         calView: calView)
     }
 }
