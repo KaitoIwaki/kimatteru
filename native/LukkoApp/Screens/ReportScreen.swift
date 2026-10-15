@@ -51,7 +51,6 @@ struct ReportScreen: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("まとめ")
         }
-        .shareCovers(from: "report")
     }
 
     @ViewBuilder func headView(_ h: ReportView.Head, _ sub: String, size: CGFloat = 40) -> some View {

@@ -80,7 +80,6 @@ struct FreeScreen: View {
                 DayScreen()
             }
         }
-        .shareCovers(from: "free")
     }
 }
 

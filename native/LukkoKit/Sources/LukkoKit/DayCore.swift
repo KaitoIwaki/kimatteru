@@ -64,7 +64,7 @@ extension AppCore {
     public func dayEvents(_ Y: Int, _ M: Int, _ d: Int) -> [[String: JSONValue]] {
         let dn = Civil.dayNo(Y, M, d)
         let hide = JS.truthy(settings["hideCanceled"])
-        let evs = events.filter { covers($0, dn) && !(hide && $0["status"] == "nakunatta") }
+        let evs = EventDayIndex.of(state["events"]?.array ?? []).overlapping(dn, dn).filter { !(hide && $0["status"] == "nakunatta") }
         return JS.stableSorted(evs) { a, b in
             let d1 = (JS.truthy(b["allDay"]) ? 1 : 0) - (JS.truthy(a["allDay"]) ? 1 : 0); if d1 != 0 { return d1 < 0 ? -1 : 1 }
             let d2 = Self.evSpan(b) - Self.evSpan(a); if d2 != 0 { return d2 < 0 ? -1 : 1 }
@@ -146,7 +146,7 @@ extension AppCore {
         let hol = Holidays.name(o.y, o.m, o.d)
         let t = state["today"]
         let tN = Civil.dayNo(JS.int(t?["y"]), JS.int(t?["m"]), JS.int(t?["d"]))
-        let has = events.contains { covers($0, n) && $0["status"] != "nakunatta" }
+        let has = EventDayIndex.of(state["events"]?.array ?? []).overlapping(n, n).contains { $0["status"] != "nakunatta" }
         let sel = n == dn
         let red = hol != nil || dw == 0
         return DayCore.StripCell(key: String(n), dow: DayCore.wl[dw], date: o.d, sel: sel, today: n == tN, has: has,
@@ -205,4 +205,21 @@ extension AppCore {
     static func fixed3(_ x: Double) -> String { String(format: "%.3f", x) }
     /// JS の +(x).toFixed(1)
     static func fixed1(_ x: Double) -> Double { Double(String(format: "%.1f", x)) ?? x }
+}
+
+extension Engine {
+    /// 日付の帯の日を押した：選んでいる日なら何もしない。ほかの日はその日へ（送った向きから滑り込む）
+    public func dayStripTap(_ n: Int, selected dn: Int) {
+        guard n != dn else { return }
+        haptic("light")
+        let o = Civil.fromDayNo(n)
+        set(["ym": ["y": num(Double(o.y)), "m": num(Double(o.m))], "dayNum": num(Double(o.d)), "swipeRow": .null, "dayDir": num(n > dn ? 1 : -1)])
+    }
+    /// 一覧｜時間（次に開いたときも同じほう）
+    public func setDayView(_ k: String) {
+        haptic("light")
+        set(["settings": .object(Self.with(settings, ["dayView": str(k)]))])
+    }
+    /// 重ねて表示している iPhone の予定を押した
+    public func tapOverlayRow() { toast("iPhone のカレンダーの予定です。直すのは元のアプリで") }
 }

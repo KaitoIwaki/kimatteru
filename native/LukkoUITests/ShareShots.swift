@@ -91,6 +91,26 @@ final class ShareShots: XCTestCase {
         app.buttons["閉じる"].firstMatch.tap()
         sleep(1)
 
+        // 月表示の給料バーからも、同じまとめカードが今のタブの上に出る
+        app.tabBars.buttons["カレンダー"].tap()
+        sleep(1)
+        let wage = app.buttons["給料"].firstMatch
+        if wage.waitForExistence(timeout: 5) {
+            wage.tap()
+            let bar = app.buttons["month.wageBar"]
+            if bar.waitForExistence(timeout: 5) {
+                bar.tap()
+                XCTAssertTrue(app.images["summary.card"].waitForExistence(timeout: 10))
+                sleep(1)
+                snap(app, "S07b-summary-from-month")
+                app.buttons["閉じる"].firstMatch.tap()
+                sleep(1)
+            }
+            if app.buttons["給料"].firstMatch.waitForExistence(timeout: 3) { app.buttons["給料"].firstMatch.tap() }
+        }
+        app.tabBars.buttons["まとめ"].tap()
+        sleep(1)
+
         // まとめカード（年）
         let yearSeg = app.buttons["report.tab.year"]
         yearSeg.tap()

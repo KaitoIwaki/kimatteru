@@ -25,7 +25,7 @@
 | 2-K 中身（月：年月・金額・時間・日数・勤務先ごと／年：金額＋前の額の注記・時間・勤務先ごと・月ごとの棒） | `ShareCardDraw.drawMonthCard`・`drawYearCard` | ✓ |
 | 3.13 まとめ集計（カードに出す数） | `AppCore.summaryCard`（Web の `_buildCard` と同じ対象） | ✓ |
 | 4.4 画像の共有（一時置き場に PNG を書いて、画像だけを渡す） | `ShareImage`・`ShareSheet` | ✓ |
-| 4.4 文字＋.ics を一緒に渡す（shareTextAndFile） | `ShareSheet.presentText(_:fileName:fileText:)` を用意（「この予定を送る」は sw-form の画面） | ✓（部品のみ） |
+| 4.4 文字＋.ics を一緒に渡す（shareTextAndFile） | 「この予定を送る」は sw-form の `DetailScreen`（.ics つき）で済んでいる | ✓（sw-form） |
 
 ## 確かめ方
 
@@ -35,7 +35,7 @@
 
 ## Web 版と違うところ
 
-- 画面の出し方：share・summary は、開いた画面の上の iPhone のシート（Web は全面の画面）。下へ払うと「閉じる」と同じ。
+- 画面の出し方：share・summary は、今のタブの上に iPhone のシートで出す（Web は全面の画面）。空き状況・まとめ・月表示の給料バーのどこから開いても同じ（`LukkoApp.swift` の MainTabs に `ShareCovers` を 1 行）。下へ払うと「閉じる」と同じで、cardFrom の画面へ戻る。
 - 月｜年 の切り替えは一覧の上に固定（一覧の行に入れると、切り替えが戻ることがあった）。
 - カードの字：Web の "Hiragino Sans" と同じ書体を CoreText で使う（W3／W6／W7。CSS の太さ合わせと同じ選び方）。
 - まとめカードの描き直し：Web は [種類・年月・予定の数・勤務先の数] が変わったときだけ。こちらはカードの中身そのものが変わったとき（使い始める前の額を変えたときも描き直す）。
@@ -44,4 +44,3 @@
 ## 気づいたこと（ほかの担当）
 
 - 時給の入っていない勤務先（`hourly` が無い）の金額：Web は NaN、SwiftUI 版（`AppCore.hourlyFor`）は 0 になる。アプリで作る勤務先にはいつも時給があるので、正解表からは外した。
-- 「この予定を送る」（`DetailScreen.swift`）は文字だけを送っている。Web は .ics（`LUKKO-{M}月{D}日.ics`）も添える。`ShareSheet.presentText` が使える。

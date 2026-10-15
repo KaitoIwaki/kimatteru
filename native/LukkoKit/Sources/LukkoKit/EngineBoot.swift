@@ -223,8 +223,8 @@ extension Engine {
         guard state["onboard"]?["demo"] == "asking" else { return }
         haptic("light")
         patchOnboard(["demo": "fill"])
-        later(120) { [weak self] in self?.haptic("light") }
-        later(430) { [weak self] in self?.haptic("heavy"); self?.patchOnboard(["demo": "done"]) }
+        later(120) { [weak self] in self?.haptic("pen") }
+        later(430) { [weak self] in self?.haptic("success"); self?.patchOnboard(["demo": "done"]) }
     }
     public func onboardResetDemo() { patchOnboard(["demo": "dash"]) }
     public func onboardToggleMorning() { haptic("light"); patchOnboard(["morning": .bool(!JS.truthy(state["onboard"]?["morning"]))]) }

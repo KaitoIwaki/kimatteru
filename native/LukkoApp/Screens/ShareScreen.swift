@@ -2,40 +2,25 @@ import SwiftUI
 import UIKit
 import LukkoKit
 
-/// 空いてる日をシェア（screen='share'）とまとめカード（screen='summary'）を、開いた画面の上にシートで出す。
-/// どちらも Web 版では「来た画面（cardFrom）」へ閉じる。下へ払って閉じても同じ
+/// 空いてる日をシェア（screen='share'）とまとめカード（screen='summary'）を、今のタブの上にシートで出す。
+/// どこから開いても（空き状況・まとめ・月表示の給料バー）同じ。閉じると Web 版と同じく「来た画面（cardFrom）」へ。下へ払って閉じても同じ
 struct ShareCovers: ViewModifier {
-    /// この画面のタブ（month / free / report / settings）
-    let from: String
     @Environment(AppModel.self) private var model
-
-    /// share・summary を開いているときに、下のタブはどれにしておくか（来た画面のタブ）
-    static func tab(_ st: [String: JSONValue]) -> String {
-        let f = st["cardFrom"]?.string ?? ""
-        if ["free", "report", "settings"].contains(f) { return f }
-        if f.isEmpty { return st["screen"] == "share" ? "settings" : "month" }
-        return "month"
-    }
 
     func body(content: Content) -> some View {
         content
             .sheet(isPresented: binding("share") { $0.closeShare() }) {
-                ShareScreen().environment(\.ink, Ink(dark: model.dark))
+                ShareScreen().environment(model).environment(\.ink, Ink(dark: model.dark))
             }
             .sheet(isPresented: binding("summary") { $0.closeSummary() }) {
-                SummaryCardScreen().environment(\.ink, Ink(dark: model.dark))
+                SummaryCardScreen().environment(model).environment(\.ink, Ink(dark: model.dark))
             }
     }
 
     private func binding(_ screen: String, close: @escaping (Engine) -> Void) -> Binding<Bool> {
-        Binding(get: { model.state["screen"] == .string(screen) && Self.tab(model.state) == from },
+        Binding(get: { model.state["screen"] == .string(screen) },
                 set: { on in if !on && model.state["screen"] == .string(screen) { model.act { close($0) } } })
     }
-}
-
-extension View {
-    /// 空いてる日をシェア・まとめカードを、この画面から出す
-    func shareCovers(from tab: String) -> some View { modifier(ShareCovers(from: tab)) }
 }
 
 /// シェアの画面で使う色（地は暗色で固定。書き出す PNG に合わせ、テーマに従わない）
