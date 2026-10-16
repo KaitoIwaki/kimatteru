@@ -11,7 +11,7 @@ public enum NoticesCore {
     /// SwiftUI 版から足したお知らせ。0.40.0 は SwiftUI 版（App Store の 2.0）
     public static let nativeReleaseNotes: [(version: String, title: String, body: String)] = [
         ("0.40.0", "リニューアルしました",
-         "・画面の動きを iPhone と同じにしました\n・右下の「＋」から、すぐ予定を足せます\n・ほしい機能は、設定の「ご意見・機能のリクエスト」から送ってください\n・みんなの要望と、いまの状況は「みんなの要望を見る」で見られます"),
+         "・右下の「＋」から、すぐ予定を足せます\n・ほしい機能は、設定の「ご意見・機能のリクエスト」から送ってください\n・みんなの要望と、いまの状況は「みんなの要望を見る」で見られます"),
     ]
     public static let releaseNotes = nativeReleaseNotes + webReleaseNotes
     /// ここからは Web 版（notices.js）の文をそのまま写したもの（golden/phone.json で 1 文字ずつ確かめる）
