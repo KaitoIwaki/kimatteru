@@ -10,6 +10,7 @@
 //                                     App名・サブタイトル・プロモーション・新機能・説明・キーワード
 //     node tools/asc.mjs notes      ← 審査メモに応援への行き方を足す（書き込み）
 //     node tools/asc.mjs build      ← いちばん新しいビルドを 1.0 に付ける（書き込み）
+//     node tools/asc.mjs phased [go] ← 段階的リリースを読む／付ける
 //     node tools/asc.mjs submit     ← 調べるだけ（出さない）
 //     node tools/asc.mjs submit go  ← 審査に出す（書き込み）
 //     node tools/asc.mjs cancel     ← 出してしまった審査を取り下げる（書き込み）
@@ -135,6 +136,14 @@ const head = (s) => console.log(NL + s);
 const stamp = (d) => `${new Date(d).toISOString().replace('T', ' ').slice(0, 16)} UTC`;
 
 /** いちばん新しくて、処理が済んでいて、期限が切れていないビルド */
+/** いちばん新しい使えるビルドの版（例 "2.0"）。無ければ null */
+async function newestBuildVersion(appId) {
+  const bs = await get(`/v1/builds?filter[app]=${appId}&limit=5&sort=-uploadedDate&include=preReleaseVersion`);
+  const ver = Object.fromEntries((bs.included || []).map((x) => [x.id, x.attributes.version]));
+  const b = bs.data.find((x) => x.attributes.processingState === 'VALID' && !x.attributes.expired);
+  return b ? ver[b.relationships?.preReleaseVersion?.data?.id] || null : null;
+}
+
 async function newestBuild(appId) {
   const bs = await get(`/v1/builds?filter[app]=${appId}&limit=5&sort=-uploadedDate`);
   const newest = bs.data.find((b) => b.attributes.processingState === 'VALID' && !b.attributes.expired);
@@ -312,6 +321,12 @@ async function build() {
   const now = (await get(`/v1/appStoreVersions/${v.id}/build`)).data;
   const { newest } = await newestBuild(app.id);
   if (!newest) { console.log('使えるビルドがありません（まだ処理中かもしれません）'); return; }
+  // 版の違うビルドは付けない（2.0 の版に 1.3.x のビルドが付く、など）
+  const bv = await newestBuildVersion(app.id);
+  if (bv !== v.attributes.versionString) {
+    console.log(`  いちばん新しいビルドは版 ${bv}、付け先は版 ${v.attributes.versionString}。違うので止めます。`);
+    return;
+  }
   console.log(`  いま      ビルド ${now ? now.attributes.version : '（未選択）'}`);
   console.log(`  これから  ビルド ${newest.attributes.version}（${stamp(newest.attributes.uploadedDate)}）`);
   if (now && now.id === newest.id) { console.log('  すでに付いています。触りません。'); return; }
@@ -696,8 +711,10 @@ async function submit() {
 }
 
 /**
- * 次の版を App Store Connect に作る。番号は Xcode の MARKETING_VERSION から取る
+ * 次の版を App Store Connect に作る。番号は「届いたいちばん新しいビルドの版」から取る
  * （原稿とストアで番号がずれないように、ここで手で打たない）。
+ * 前は Capacitor 版の project.pbxproj の MARKETING_VERSION を読んでいたが、2.0 から本体は
+ * SwiftUI 版（native/project.yml、別の枝）になり、master からは読めない。ビルドの版なら、どちらでも正しい。
  *
  *   node tools/asc.mjs version      ← 作る。もう有れば何もしない
  *
@@ -705,11 +722,10 @@ async function submit() {
  * 引き継がれないので、fill を忘れると空で出る。
  */
 async function version() {
-  const pbx = fs.readFileSync(new URL('../ios/App/App.xcodeproj/project.pbxproj', import.meta.url), 'utf8');
-  const m = pbx.match(/MARKETING_VERSION = ([\d.]+);/);
-  if (!m) throw new Error('project.pbxproj に MARKETING_VERSION が無い');
-  const want = m[1];
   const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const want = await newestBuildVersion(app.id);
+  if (!want) throw new Error('使えるビルドが無い（まだ処理中かもしれない）');
+  console.log(`届いたいちばん新しいビルドの版: ${want}`);
   const vs = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=5`)).data;
   head('■ 版');
   for (const v of vs) line(v.attributes.versionString, v.attributes.appStoreState);
@@ -998,7 +1014,31 @@ async function builds() {
   }
 }
 
+/**
+ * 段階的リリース（7日かけて少しずつ配る）。いちばん新しい版に付ける。
+ *   node tools/asc.mjs phased      ← 読むだけ
+ *   node tools/asc.mjs phased go   ← 付ける（書き込み）。公開したときから始まり、途中で止められる
+ */
+async function phased() {
+  const go = process.argv[3] === 'go';
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
+  console.log(`版 ${v.attributes.versionString}（${v.attributes.appStoreState}）`);
+  let now = null;
+  try { now = (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionPhasedRelease`)).data; } catch { now = null; }
+  if (now) { console.log(`段階的リリース: ✓ 付いている（${now.attributes.phasedReleaseState}）`); return; }
+  console.log('段階的リリース: まだ付いていない');
+  if (!go) { console.log('付けるなら: node tools/asc.mjs phased go'); return; }
+  if (!EDITABLE.includes(v.attributes.appStoreState)) { console.log('この版は書き換えられる状態ではないので、止めます。'); return; }
+  await call('/v1/appStoreVersionPhasedReleases', 'POST', {
+    data: { type: 'appStoreVersionPhasedReleases', attributes: { phasedReleaseState: 'INACTIVE' },
+      relationships: { appStoreVersion: { data: { type: 'appStoreVersions', id: v.id } } } },
+  });
+  const back = (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionPhasedRelease`)).data;
+  console.log(`結果: ${back ? '✓ 付いた（' + back.attributes.phasedReleaseState + '）' : '✗ 付かなかった'}`);
+}
+
 const cmd = process.argv[2] || 'status';
-const jobs = { release, status, builds, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps, subinfo, stats };
+const jobs = { release, status, builds, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps, subinfo, stats, phased };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });
