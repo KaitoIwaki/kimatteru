@@ -1024,6 +1024,8 @@ async function phased() {
   const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
   const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
   console.log(`版 ${v.attributes.versionString}（${v.attributes.appStoreState}）`);
+  const RT = { MANUAL: '手で公開する（審査を通ったら待つ）', AFTER_APPROVAL: '審査を通ったらすぐ公開', SCHEDULED: '日時を決めて公開' };
+  console.log(`公開のしかた: ${RT[v.attributes.releaseType] || v.attributes.releaseType}`);
   let now = null;
   try { now = (await get(`/v1/appStoreVersions/${v.id}/appStoreVersionPhasedRelease`)).data; } catch { now = null; }
   if (now) { console.log(`段階的リリース: ✓ 付いている（${now.attributes.phasedReleaseState}）`); return; }
