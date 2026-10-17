@@ -141,10 +141,10 @@ struct MainTabs: View {
         if #available(iOS 18.0, *) {
             TabView(selection: tab) {
                 Tab("カレンダー", systemImage: "calendar", value: "month") { MonthScreen() }
-                Tab(value: "free") { FreeScreen() } label: {
+                Tab(value: "free") { TabGate(active: model.tab == "free") { FreeScreen() } } label: {
                     Label { Text("空き状況") } icon: { Image(uiImage: SystemTabIcon.free).renderingMode(.original) }
                 }
-                Tab("まとめ", systemImage: "chart.bar", value: "report") { ReportScreen() }
+                Tab("まとめ", systemImage: "chart.bar", value: "report") { TabGate(active: model.tab == "report") { ReportScreen() } }
                 Tab("設定", systemImage: "gearshape", value: "settings") { SettingsScreen() }
                 // 「＋」：今月を見ていれば今日、別の月ならその月の 1 日で新しい予定（このタブには移らない）
                 Tab("追加", systemImage: "plus", value: "add", role: .search) { Color.clear }
@@ -154,12 +154,12 @@ struct MainTabs: View {
                 MonthScreen()
                     .tabItem { Label("カレンダー", systemImage: "calendar") }
                     .tag("month")
-                FreeScreen()
+                TabGate(active: model.tab == "free") { FreeScreen() }
                     .tabItem {
                         Label { Text("空き状況") } icon: { Image(uiImage: SystemTabIcon.free).renderingMode(.original) }
                     }
                     .tag("free")
-                ReportScreen()
+                TabGate(active: model.tab == "report") { ReportScreen() }
                     .tabItem { Label("まとめ", systemImage: "chart.bar") }
                     .tag("report")
                 SettingsScreen()
@@ -203,5 +203,15 @@ struct MainTabs: View {
         .modifier(AlertPresenter())
         // 応援（消耗型）の、あとで届く購入を受け取る（承認待ちのあとで通ったもの など）
         .task { SupportStore.shared.listen(model) }
+    }
+}
+
+/// 見えていないタブは描かない。中身（state）が変わるたびに、見えていない「まとめ」「空き状況」まで
+/// 全部の予定を数え直していた（月を払うたびに重くなる元の 1 つ）。開いたときに、そのときの中身で描く
+struct TabGate<Content: View>: View {
+    let active: Bool
+    @ViewBuilder let content: () -> Content
+    var body: some View {
+        if active { content() } else { Color(.systemGroupedBackground).ignoresSafeArea() }
     }
 }

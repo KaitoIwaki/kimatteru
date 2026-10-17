@@ -73,6 +73,7 @@ struct MonthToolbar: ToolbarContent {
                     .lineLimit(1)
                 }
                 .accessibilityLabel("年と月をえらぶ")
+                .accessibilityValue("\(h.year)年\(h.monthLabel)月")
                 Button { model.act { $0.headNext() } } label: { Image(systemName: "chevron.right").frame(width: 28, height: 38) }
                     .accessibilityLabel(h.calView == "week" ? "次の週" : "次の月")
             }
@@ -198,33 +199,61 @@ struct WeekdayHeader: View {
     }
 }
 
-/// 月のマス。横に払うと隣の月へ（iPhone 標準のページ送り。指についてきて、離すと隣の月に収まるか戻る）
+/// 月のマス。横に払うと隣の月へ（iOS 17 のページ送りのスクロール）。
+/// 前は「いまの月の前後 2 か月」だけを並べ、払い終わるたびに並べ直していた。速く続けて払うと、
+/// 並べ直しが追いつく前に端にぶつかって止まり、払っている途中で中身が入れ替わって引っかかっていた。
+/// いまは 1970〜2119 年の月を最初から並べておき（描くのは見えている月と隣だけ）、並べ直さない。
+/// 「いまの月」（state.ym）を書き換えるのは、払い終わって少し止まってから 1 回だけ
 struct MonthPager: View {
     @Environment(AppModel.self) private var model
-    /// 何か月目か（2000 年 1 月からの通し番号）
-    @State private var page = 0
+    /// 何か月目か（2000 年 1 月が 0）
     static func index(_ y: Int, _ m: Int) -> Int { (y - 2000) * 12 + m }
     static func ym(_ i: Int) -> (y: Int, m: Int) { (2000 + Int((Double(i) / 12).rounded(.down)), ((i % 12) + 12) % 12) }
+    /// 並べる月：1970 年 1 月〜2119 年 12 月
+    static let first = index(1970, 0), last = index(2119, 11)
+    static func clamp(_ i: Int) -> Int { min(max(i, first), last) }
+
+    /// いま見えている月（払っているあいだも動く）
+    @State private var pos: Int?
+    /// 払い終わってから state.ym へ書くまでの待ち
+    @State private var commit: Task<Void, Never>?
 
     var body: some View {
         let ym = model.state["ym"] ?? .null
-        let cur = Self.index(JS.int(ym["y"]), JS.int(ym["m"]))
-        TabView(selection: $page) {
-            ForEach((cur - 2)...(cur + 2), id: \.self) { i in
-                MonthGrid(y: Self.ym(i).y, m: Self.ym(i).m)
-                    .tag(i)
+        let cur = Self.clamp(Self.index(JS.int(ym["y"]), JS.int(ym["m"])))
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(Self.first...Self.last, id: \.self) { i in
+                    MonthGrid(y: Self.ym(i).y, m: Self.ym(i).m)
+                        .containerRelativeFrame([.horizontal, .vertical])
+                        .id(i)
+                }
             }
+            .scrollTargetLayout()
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
-        .onAppear { page = cur }
-        .onChange(of: cur) { _, c in if page != c { page = c } }
-        .onChange(of: page) { _, p in
-            guard p != cur else { return }
-            model.act { e in
-                // 払ったときに日付が変わっていないか確かめる（Web 版の _checkToday）
-                e.checkToday()
-                let n = Self.ym(p)
-                e.set(["ym": JSONValue.object(["y": .number(Double(n.y)), "m": .number(Double(n.m))]), "dayNum": .null])
+        .scrollTargetBehavior(.paging)
+        .scrollIndicators(.hidden)
+        .scrollPosition(id: $pos)
+        .onAppear { pos = cur }
+        // ‹ › ・今日・年月えらびで月が変わった：そこへ送る
+        .onChange(of: cur) { _, c in
+            guard pos != c else { return }
+            commit?.cancel()
+            withAnimation(.snappy(duration: 0.3)) { pos = c }
+        }
+        // 払った：止まって 0.15 秒たったら、いまの月を書き換える（払っている途中では書かない）
+        .onChange(of: pos) { _, p in
+            commit?.cancel()
+            guard let p, p != cur else { return }
+            commit = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 150_000_000)
+                guard !Task.isCancelled, pos == p else { return }
+                model.act { e in
+                    // 払ったときに日付が変わっていないか確かめる（Web 版の _checkToday）
+                    e.checkToday()
+                    let n = Self.ym(p)
+                    e.set(["ym": JSONValue.object(["y": .number(Double(n.y)), "m": .number(Double(n.m))]), "dayNum": .null])
+                }
             }
         }
     }
