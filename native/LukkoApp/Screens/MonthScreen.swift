@@ -226,6 +226,8 @@ struct MonthPager: View {
                 ForEach(Self.first...Self.last, id: \.self) { i in
                     MonthGrid(y: Self.ym(i).y, m: Self.ym(i).m)
                         .containerRelativeFrame([.horizontal, .vertical])
+                        // 隣の月も用意されているので、読み上げ（と試験）は見えている月だけにする（同じ「20日」が並ばないように）
+                        .accessibilityHidden(i != (pos ?? cur))
                         .id(i)
                 }
             }
