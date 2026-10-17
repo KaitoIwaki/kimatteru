@@ -48,6 +48,12 @@ final class MonthSwipeTests: XCTestCase {
             break
         }
         sleep(1)
+        // 1 週目が曜日の段の下にもぐっていない（1 日のマスの上が、曜日の段の下より下にある）
+        let weekdays = app.descendants(matching: .any).matching(identifier: "month.weekdays").firstMatch
+        let day1 = app.descendants(matching: .any).matching(identifier: "month.day.1").firstMatch
+        XCTAssertTrue(weekdays.waitForExistence(timeout: 5) && day1.waitForExistence(timeout: 5), "曜日の段か 1 日のマスが無い")
+        XCTAssertGreaterThanOrEqual(day1.frame.minY, weekdays.frame.maxY - 1, "1 週目が曜日の段の下にもぐっている")
+        snap(app, "m00-month")
         guard let start = monthNo(app) else { return XCTFail("見出しの月が読めない") }
         let grid = app.windows.firstMatch
 

@@ -196,6 +196,8 @@ struct WeekdayHeader: View {
         }
         .padding(.top, 6).padding(.bottom, 5)
         .overlay(alignment: .bottom) { Rectangle().fill(ink("line")).frame(height: 1) }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("month.weekdays")
     }
 }
 
@@ -235,6 +237,9 @@ struct MonthPager: View {
         }
         .scrollTargetBehavior(.paging)
         .scrollIndicators(.hidden)
+        // 下のタブの裏まで月のマスを伸ばす（前の TabView のページ送りと同じ）。これが無いと、スクロールが下の余白（タブの分）を
+        // 差し引いた高さに、余白込みの高さの月を上下まん中で置くので、はみ出した分だけ 1 週目が曜日の下にもぐっていた
+        .ignoresSafeArea(.container, edges: .bottom)
         .scrollPosition(id: $pos)
         .onAppear { pos = cur }
         // ‹ › ・今日・年月えらびで月が変わった：そこへ送る
