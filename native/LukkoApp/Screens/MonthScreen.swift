@@ -224,7 +224,7 @@ struct MonthPager: View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 0) {
                 ForEach(Self.first...Self.last, id: \.self) { i in
-                    MonthGrid(y: Self.ym(i).y, m: Self.ym(i).m)
+                    MonthGrid(y: Self.ym(i).y, m: Self.ym(i).m, active: i == (pos ?? cur))
                         .containerRelativeFrame([.horizontal, .vertical])
                         // 隣の月も用意されているので、読み上げ（と試験）は見えている月だけにする（同じ「20日」が並ばないように）
                         .accessibilityHidden(i != (pos ?? cur))
@@ -264,6 +264,8 @@ struct MonthPager: View {
 /// 1 か月ぶんのマス。週ごとに、日付の段と帯の段を重ねる
 struct MonthGrid: View {
     let y: Int, m: Int
+    /// 見えている月か（隣に用意しておく月は、日付のボタンの名札を付けない）
+    var active = true
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
 
@@ -286,7 +288,7 @@ struct MonthGrid: View {
             let morph: (id: JSONValue, phase: String)? = mo.map { (id: $0["id"] ?? .null, phase: JS.string($0["phase"])) }
             VStack(spacing: 0) {
                 ForEach(Array(weeks.enumerated()), id: \.offset) { w, week in
-                    WeekRow(y: y, m: m, week: week, colW: geo.size.width / 7, laneH: laneH, barH: barH, scale: es, morph: morph)
+                    WeekRow(y: y, m: m, active: active, week: week, colW: geo.size.width / 7, laneH: laneH, barH: barH, scale: es, morph: morph)
                         .frame(height: rowH)
                         .overlay(alignment: .top) { if w > 0 { Rectangle().fill(ink("line")).frame(height: 1) } }
                 }
@@ -299,6 +301,7 @@ struct MonthGrid: View {
 /// 1 週。地（押せるマス）・日付・帯・「+N件」
 struct WeekRow: View {
     let y: Int, m: Int
+    var active = true
     let week: MonthCore.Week
     let colW: CGFloat, laneH: CGFloat, barH: CGFloat, scale: Double
     var morph: (id: JSONValue, phase: String)? = nil
@@ -318,7 +321,7 @@ struct WeekRow: View {
                         .onTapGesture { tapDay(sl) }
                         .accessibilityElement()
                         .accessibilityLabel(sl.blank ? "" : "\(sl.day)日")
-                        .accessibilityIdentifier(sl.blank ? "" : "month.day.\(sl.day)")
+                        .accessibilityIdentifier(sl.blank || !active ? "" : "month.day.\(sl.day)")
                         .accessibilityAddTraits(sl.blank ? [] : .isButton)
                 }
             }
