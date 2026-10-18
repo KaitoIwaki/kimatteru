@@ -58,6 +58,9 @@ jobs:
         run: |
           DEV=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(|iPhone 1[6-9] \(" | grep -v Max | head -1 | sed -E 's/^ *([^(]+) \(.*/\1/' | sed 's/ *$//')
           echo "device: $DEV"
+          # ストア画像のために、上の時刻を 9:41・電波と電池を満タンにしておく（Apple の見本と同じ）
+          xcrun simctl boot "$DEV" || true
+          xcrun simctl status_bar booted override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
           set -o pipefail
           xcodebuild test -project LUKKO.xcodeproj -scheme LUKKO -destination "platform=iOS Simulator,name=$DEV" -resultBundlePath ../ui.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tee ../ui-test.log | tail -60
       - name: 写真を取り出す
