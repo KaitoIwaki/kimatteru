@@ -223,11 +223,15 @@ struct MonthPager: View {
     var body: some View {
         let ym = model.state["ym"] ?? .null
         let cur = Self.clamp(Self.index(JS.int(ym["y"]), JS.int(ym["m"])))
+        // 月の大きさは「見えている所」（上の段の下〜下のタブの上）ぴったりにする。
+        // containerRelativeFrame は下のタブの裏まで入った高さを返すので、はみ出して 1 週目が上にもぐったり、
+        // タブの裏まで伸ばすと最後の週が半分隠れたりした。GeometryReader の大きさは見えている所だけ
+        GeometryReader { geo in
         ScrollView(.horizontal) {
             LazyHStack(spacing: 0) {
                 ForEach(Self.first...Self.last, id: \.self) { i in
                     MonthGrid(y: Self.ym(i).y, m: Self.ym(i).m, active: i == (pos ?? cur))
-                        .containerRelativeFrame([.horizontal, .vertical])
+                        .frame(width: geo.size.width, height: geo.size.height)
                         // 隣の月も用意されているので、読み上げ（と試験）は見えている月だけにする（同じ「20日」が並ばないように）
                         .accessibilityHidden(i != (pos ?? cur))
                         .id(i)
@@ -237,10 +241,8 @@ struct MonthPager: View {
         }
         .scrollTargetBehavior(.paging)
         .scrollIndicators(.hidden)
-        // 下のタブの裏まで月のマスを伸ばす（前の TabView のページ送りと同じ）。これが無いと、スクロールが下の余白（タブの分）を
-        // 差し引いた高さに、余白込みの高さの月を上下まん中で置くので、はみ出した分だけ 1 週目が曜日の下にもぐっていた
-        .ignoresSafeArea(.container, edges: .bottom)
         .scrollPosition(id: $pos)
+        }
         .onAppear { pos = cur }
         // ‹ › ・今日・年月えらびで月が変わった：そこへ送る
         .onChange(of: cur) { _, c in

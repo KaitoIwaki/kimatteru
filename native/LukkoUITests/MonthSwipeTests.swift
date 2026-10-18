@@ -53,6 +53,12 @@ final class MonthSwipeTests: XCTestCase {
         let day1 = app.descendants(matching: .any).matching(identifier: "month.day.1").firstMatch
         XCTAssertTrue(weekdays.waitForExistence(timeout: 5) && day1.waitForExistence(timeout: 5), "曜日の段か 1 日のマスが無い")
         XCTAssertGreaterThanOrEqual(day1.frame.minY, weekdays.frame.maxY - 1, "1 週目が曜日の段の下にもぐっている")
+        // 最後の週が下のタブの裏に隠れていない（月の終わりの日のマスの下が、タブの上より上にある）
+        let lastDay = (28...31).reversed().map { app.descendants(matching: .any).matching(identifier: "month.day.\($0)").firstMatch }.first { $0.exists }
+        let tabBar = app.tabBars.firstMatch
+        if let lastDay, tabBar.exists {
+            XCTAssertLessThanOrEqual(lastDay.frame.maxY, tabBar.frame.minY + 2, "最後の週が下のタブの裏に隠れている")
+        } else { XCTFail("月の終わりの日のマスか、下のタブが無い") }
         snap(app, "m00-month")
         guard let start = monthNo(app) else { return XCTFail("見出しの月が読めない") }
         let grid = app.windows.firstMatch
