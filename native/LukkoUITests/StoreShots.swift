@@ -45,7 +45,7 @@ final class StoreShots: XCTestCase {
             return "{" + o + "}"
         }
         let jobs = "[{\"id\":\"j1\",\"name\":\"カフェ\",\"hourly\":1200}]"
-        return "{\"savedAt\":9000,\"events\":[\(evs.joined(separator: ","))],\"jobs\":\(jobs),\"settings\":{\"onboarded\":true,\"profile\":\"student\"}}"
+        return "{\"savedAt\":9000000000000,\"events\":[\(evs.joined(separator: ","))],\"jobs\":\(jobs),\"settings\":{\"onboarded\":true,\"profile\":\"student\"}}"
     }
 
     private func snap(_ app: XCUIApplication, _ name: String) {
@@ -57,7 +57,7 @@ final class StoreShots: XCTestCase {
 
     func testStoreMonth() {
         let app = XCUIApplication()
-        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedFile", b64(store())]
+        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", b64(store())]
         app.launch()
         XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 60), "月の見出しが出ない")
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
