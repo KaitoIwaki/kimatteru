@@ -3,18 +3,8 @@ import UIKit
 import CoreText
 import LukkoKit
 
-/// 手書きの字（Yomogi を切り出したもの。Web 版の styles.css の LukkoYomogi）。無い字は丸ゴシックで出る
+/// 応援の画面の色（字は iPhone 標準。前は手書き風の Yomogi を使っていたが、ほかの画面と字がそろわず読みにくかった）
 enum SupportFont {
-    private static var registered = false
-    static func yomogi(_ size: CGFloat) -> Font {
-        if !registered {
-            registered = true
-            if let url = Bundle.main.url(forResource: "LukkoYomogi", withExtension: "ttf") {
-                CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
-            }
-        }
-        return .custom("Yomogi-Regular", size: size)
-    }
     static let sage = Palette.hex("#7FAE85")
     static let sageDark = Palette.hex("#5E8A66")
     static let teal = Palette.hex("#1D9E75")

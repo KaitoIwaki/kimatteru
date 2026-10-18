@@ -13,26 +13,26 @@ struct SupportPage: View {
         ScrollView {
             VStack(spacing: 0) {
                 VStack(spacing: 12) {
-                    Text("いつも使ってくださって、\nありがとうございます。").font(SupportFont.yomogi(22)).foregroundStyle(ink("ink")).lineSpacing(8)
-                    Text("あなたの応援が、\nこれからの開発の力になります。").font(SupportFont.yomogi(13)).foregroundStyle(ink("ink-mut")).lineSpacing(10)
+                    Text("いつも使ってくださって、\nありがとうございます。").font(.system(size: 22, weight: .bold)).foregroundStyle(ink("ink")).lineSpacing(8)
+                    Text("あなたの応援が、\nこれからの開発の力になります。").font(.system(size: 13)).foregroundStyle(ink("ink-mut")).lineSpacing(10)
                 }
                 .multilineTextAlignment(.center)
                 .padding(.top, 18).padding(.horizontal, 8).padding(.bottom, 6)
 
                 SupportSprout(width: 150).padding(.top, 22).padding(.bottom, 26)
 
-                Text("応援する").font(SupportFont.yomogi(13)).foregroundStyle(SupportFont.sageDark).padding(.bottom, 10)
+                Text("応援する").font(.system(size: 13, weight: .semibold)).foregroundStyle(SupportFont.sageDark).padding(.bottom, 10)
                 VStack(spacing: 8) {
                     ForEach(sv.tipRows, id: \.id) { t in
                         Button { Task { await SupportStore.shared.buy(t.id, model) } } label: {
                             HStack(spacing: 13) {
                                 SupportTipIcon(kind: t.icon).frame(width: 40, height: 40).background(ink("bg2"), in: Circle())
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(t.title).font(SupportFont.yomogi(15)).foregroundStyle(ink("ink"))
-                                    if !t.sub.isEmpty { Text(t.sub).font(SupportFont.yomogi(11.5)).foregroundStyle(ink("ink-mut")) }
+                                    Text(t.title).font(.system(size: 15, weight: .semibold)).foregroundStyle(ink("ink"))
+                                    if !t.sub.isEmpty { Text(t.sub).font(.system(size: 12)).foregroundStyle(ink("ink-mut")) }
                                 }
                                 Spacer(minLength: 0)
-                                Text(t.price).font(SupportFont.yomogi(15)).monospacedDigit().foregroundStyle(SupportFont.sageDark)
+                                Text(t.price).font(.system(size: 15, weight: .semibold)).monospacedDigit().foregroundStyle(SupportFont.sageDark)
                                 Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(ink("ink-faint"))
                             }
                             .padding(.leading, 11).padding(.trailing, 13).padding(.vertical, 11)
@@ -47,8 +47,8 @@ struct SupportPage: View {
 
                 // 手書きふうの「いつもありがとう」
                 VStack(spacing: 0) {
-                    Text("いつも").font(SupportFont.yomogi(16))
-                    Text("ありがとう").font(SupportFont.yomogi(16))
+                    Text("いつも").font(.system(size: 15, weight: .semibold))
+                    Text("ありがとう").font(.system(size: 15, weight: .semibold))
                     SettingsSVGPath(d: "M2 10C25 3 55 1 88 4", box: 90)
                         .stroke(ink("ink-faint"), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
                         .frame(width: 90, height: 90).frame(height: 12, alignment: .top).clipped()
@@ -64,7 +64,7 @@ struct SupportPage: View {
         .background(ink("bg").ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .principal) { Text("応援する").font(SupportFont.yomogi(16)).foregroundStyle(ink("ink")) }
+            ToolbarItem(placement: .principal) { Text("応援する").font(.system(size: 17, weight: .semibold)).foregroundStyle(ink("ink")) }
         }
         .toolbarRole(.editor)
     }
@@ -105,23 +105,23 @@ struct SupportThanksSheet: View {
         let sv = model.engine.supportView()
         VStack(spacing: 0) {
             SupportSprout(width: 96).padding(.bottom, 14)
-            Text("応援、\nありがとうございます！").font(SupportFont.yomogi(21)).foregroundStyle(ink("ink")).multilineTextAlignment(.center).lineSpacing(6)
+            Text("応援、\nありがとうございます！").font(.system(size: 21, weight: .bold)).foregroundStyle(ink("ink")).multilineTextAlignment(.center).lineSpacing(6)
             HStack(spacing: 8) {
                 SupportTipIcon(kind: sv.tipThanksIcon.isEmpty ? "heart" : sv.tipThanksIcon)
-                Text(sv.tipThanksTitle).font(SupportFont.yomogi(14)).foregroundStyle(ink("ink"))
-                Text(sv.tipThanksPrice).font(SupportFont.yomogi(14)).monospacedDigit().foregroundStyle(SupportFont.sageDark)
+                Text(sv.tipThanksTitle).font(.system(size: 14, weight: .semibold)).foregroundStyle(ink("ink"))
+                Text(sv.tipThanksPrice).font(.system(size: 14, weight: .semibold)).monospacedDigit().foregroundStyle(SupportFont.sageDark)
             }
             .padding(.horizontal, 14).padding(.vertical, 7)
             .background(ink("card"), in: Capsule())
             .padding(.top, 14).padding(.bottom, 20)
             Button { model.act { $0.tipThanksCard() } } label: {
-                Text("サポーターカードを見る").font(SupportFont.yomogi(15)).foregroundStyle(.white)
+                Text("サポーターカードを見る").font(.system(size: 16, weight: .semibold)).foregroundStyle(.white)
                     .frame(maxWidth: .infinity).padding(13).background(SupportFont.sage, in: RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(SettingsPressStyle(radius: 14))
             .accessibilityIdentifier("thanks.card")
             Button { model.act { $0.closeTipThanks() } } label: {
-                Text("閉じる").font(SupportFont.yomogi(14)).foregroundStyle(ink("ink-mut")).frame(maxWidth: .infinity).padding(12)
+                Text("閉じる").font(.system(size: 15)).foregroundStyle(ink("ink-mut")).frame(maxWidth: .infinity).padding(12)
             }
             .buttonStyle(.plain)
             .padding(.top, 4)

@@ -372,8 +372,9 @@ struct ObTitle: View {
                 .offset(y: 9 * (1 - p))
             }
         }
-        .font(.custom("HiraMinProN-W3", size: 27))
-        .tracking(1.35)
+        // 見出しも iPhone 標準の字（前は明朝体。ほかの画面と字がそろわなかった）
+        .font(.system(size: 26, weight: .bold))
+        .tracking(0.3)
         .lineLimit(1)
         .fixedSize()
         .frame(height: 27 * 1.6)
