@@ -100,4 +100,33 @@ final class StoreShots: XCTestCase {
         sleep(2)
         snap(app, "store-03-dialog")
     }
+
+    /// 空き状況と、空いてる日をシェアの画面（送る文・送る画像）
+    func testStoreShare() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-lukkoTestReset", "-lukkoShowSharePNG", "-lukkoSeedLocalStorage", b64(store())]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["空き状況"].waitForExistence(timeout: 60), "下のタブが出ない")
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "許可", "Don’t Allow", "許可しない"] where springboard.buttons[label].waitForExistence(timeout: 2) {
+            springboard.buttons[label].tap()
+            break
+        }
+        app.tabBars.buttons["空き状況"].tap()
+        sleep(2)
+        snap(app, "store-05-free")
+        let share = app.buttons["free.share"]
+        XCTAssertTrue(share.waitForExistence(timeout: 10), "シェアのボタンが無い")
+        share.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["share.card"].waitForExistence(timeout: 10), "シェアの画面が出ない")
+        sleep(2)
+        snap(app, "store-06-share")
+        app.swipeUp()
+        sleep(1)
+        snap(app, "store-07-share-text")
+        let png = app.images["share.png"]
+        for _ in 0..<4 where !(png.exists && png.isHittable) { app.swipeUp() }
+        sleep(1)
+        snap(app, "store-08-share-png")
+    }
 }
