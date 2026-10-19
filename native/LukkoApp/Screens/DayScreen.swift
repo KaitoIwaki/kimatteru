@@ -6,6 +6,17 @@ struct DayScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
 
+    /// 見出しの日付・曜日・祝日（日付は fixedSize で必ず全部出す）
+    private func dayHead(_ h: DayCore.Head, dow: Bool, holiday: Bool) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(h.bigDate).font(.system(size: 22, weight: .semibold)).tracking(-0.3).foregroundStyle(ink.css(h.dateColor)).fixedSize()
+            if dow { Text(h.dowFull).font(.system(size: 13)).foregroundStyle(ink("ink-mut")).fixedSize() }
+            if holiday && !h.holiday.isEmpty {
+                Text(h.holiday).font(.system(size: 11, weight: .semibold)).foregroundStyle(Color(red: 0xB4 / 255, green: 0x45 / 255, blue: 0x3A / 255)).fixedSize()
+            }
+        }
+    }
+
     var body: some View {
         let ym = model.state["ym"] ?? .null
         let Y = JS.int(ym["y"]), M = JS.int(ym["m"])
@@ -37,14 +48,12 @@ struct DayScreen: View {
         .toolbar {
             // 大きな日付・曜日・祝日
             ToolbarItem(placement: .principal) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(v.head.bigDate).font(.system(size: 22, weight: .semibold)).tracking(-0.3).foregroundStyle(ink.css(v.head.dateColor))
-                    Text(v.head.dowFull).font(.system(size: 13)).foregroundStyle(ink("ink-mut"))
-                    if !v.head.holiday.isEmpty {
-                        Text(v.head.holiday).font(.system(size: 11, weight: .semibold)).foregroundStyle(Color(red: 0xB4 / 255, green: 0x45 / 255, blue: 0x3A / 255)).lineLimit(1)
-                    }
+                // 日付は切らない（祝日の名前が入ると「10月1…」と切れていた）。入らなければ、曜日 → 祝日の順に外す
+                ViewThatFits(in: .horizontal) {
+                    dayHead(v.head, dow: true, holiday: true)
+                    dayHead(v.head, dow: false, holiday: true)
+                    dayHead(v.head, dow: false, holiday: false)
                 }
-                .lineLimit(1)
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(.isHeader)
             }

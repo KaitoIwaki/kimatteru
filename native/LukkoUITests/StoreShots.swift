@@ -93,11 +93,8 @@ final class StoreShots: XCTestCase {
         }
         let row = app.descendants(matching: .any).matching(identifier: "day.row.st7").firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 5), "歯医者の行が無い")
+        // 点線の予定は、押すとすぐ「この用事、どうなりました？」が出る
         row.tap()
-        sleep(1)
-        snap(app, "store-02-detail")
-        XCTAssertTrue(app.buttons["detail.primary"].waitForExistence(timeout: 5), "どうなった？のボタンが無い")
-        app.buttons["detail.primary"].tap()
         sleep(2)
         snap(app, "store-03-dialog")
     }
