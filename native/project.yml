@@ -77,11 +77,27 @@ targets:
       base:
         CODE_SIGNING_ALLOWED: NO
         GENERATE_INFOPLIST_FILE: YES
+  # ストア画像のための、ウィジェットの絵だけを描く試験（アプリには入らない）。ウィジェットの部品をそのまま使う
+  WidgetShots:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: WidgetShots
+      - path: LukkoWidget/KimatteruWidget.swift
+    dependencies:
+      - package: LukkoKit
+    settings:
+      base:
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) WIDGET_SHOTS"
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        SWIFT_VERSION: "5.0"
 schemes:
   LUKKO:
     build:
       targets:
         LUKKO: all
         LUKKOUITests: [test]
+        WidgetShots: [test]
     test:
-      targets: [LUKKOUITests]
+      targets: [LUKKOUITests, WidgetShots]

@@ -1030,6 +1030,8 @@ struct RootView: View {
     }
 }
 
+// ストア画像の試験（WidgetShots）では、ウィジェットの絵だけを描く。そこでは @main を外す
+#if !WIDGET_SHOTS
 @main
 struct KimatteruWidget: Widget {
     let kind = "KimatteruWidget"
@@ -1047,3 +1049,11 @@ struct KimatteruWidget: Widget {
         .contentMarginsDisabled()
     }
 }
+#endif
+
+#if WIDGET_SHOTS
+extension Provider {
+    /// 試験用：その時刻の中身（App Group に書いた JSON から作る。本物と同じ作り方）
+    func shotEntry(_ now: Date) -> Entry { build(now) }
+}
+#endif
