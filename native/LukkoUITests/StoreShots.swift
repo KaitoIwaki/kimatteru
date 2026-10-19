@@ -72,4 +72,33 @@ final class StoreShots: XCTestCase {
         sleep(2)
         snap(app, "store-04-report")
     }
+
+    /// 「この用事、どうなりました？」（点線の予定を、決まったにする瞬間）。12 日の歯医者から開く
+    func testStoreDialog() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", b64(store())]
+        app.launch()
+        XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 60), "月の見出しが出ない")
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "許可", "Don’t Allow", "許可しない"] where springboard.buttons[label].waitForExistence(timeout: 2) {
+            springboard.buttons[label].tap()
+            break
+        }
+        sleep(1)
+        let cell = app.buttons["month.day.12"]
+        XCTAssertTrue(cell.waitForExistence(timeout: 10), "12 日のマスが無い")
+        for _ in 0..<3 {
+            cell.tap()
+            if app.buttons["予定を追加"].firstMatch.waitForExistence(timeout: 3) { break }
+        }
+        let row = app.descendants(matching: .any).matching(identifier: "day.row.st7").firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "歯医者の行が無い")
+        row.tap()
+        sleep(1)
+        snap(app, "store-02-detail")
+        XCTAssertTrue(app.buttons["detail.primary"].waitForExistence(timeout: 5), "どうなった？のボタンが無い")
+        app.buttons["detail.primary"].tap()
+        sleep(2)
+        snap(app, "store-03-dialog")
+    }
 }
