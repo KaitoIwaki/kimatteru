@@ -33,11 +33,13 @@ final class StoreShots: XCTestCase {
         (30, "バイト", "baito", "kakutei", "17:00", "22:00", false, 1, ""),
     ]
 
-    private func store() -> String {
+    /// worked：過ぎたバイト（20 日より前）を「働いた記録（✓）」にする（まとめの給料は記録から出るので、5 枚目だけ）
+    private func store(worked: Bool = false) -> String {
         let c = Calendar(identifier: .gregorian).dateComponents([.year, .month], from: Date())
         let y = c.year!, m = c.month! - 1
         let evs = month.enumerated().map { i, e -> String in
-            var o = "\"id\":\"st\(i)\",\"y\":\(y),\"m\":\(m),\"day\":\(e.d),\"start\":\"\(e.s)\",\"end\":\"\(e.e)\",\"title\":\"\(e.t)\",\"type\":\"\(e.ty)\",\"status\":\"\(e.st)\",\"updatedAt\":1"
+            let st = (worked && e.ty == "baito" && e.st == "kakutei" && e.d < 20) ? "jisseki" : e.st
+            var o = "\"id\":\"st\(i)\",\"y\":\(y),\"m\":\(m),\"day\":\(e.d),\"start\":\"\(e.s)\",\"end\":\"\(e.e)\",\"title\":\"\(e.t)\",\"type\":\"\(e.ty)\",\"status\":\"\(st)\",\"updatedAt\":1"
             if e.all { o += ",\"allDay\":true" }
             if e.days > 1 { o += ",\"days\":\(e.days)" }
             if !e.cand.isEmpty { o += ",\"candId\":\"\(e.cand)\"" }
@@ -168,5 +170,27 @@ final class StoreShots: XCTestCase {
             sleep(3)
         }
         snap(app, "store-10-import-found")
+    }
+
+    /// まとめ（働いた記録から出る給料の目安まで）
+    func testStoreReport() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", b64(store(worked: true))]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["まとめ"].waitForExistence(timeout: 60), "下のタブが出ない")
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "許可", "Don’t Allow", "許可しない"] where springboard.buttons[label].waitForExistence(timeout: 2) {
+            springboard.buttons[label].tap()
+            break
+        }
+        app.tabBars.buttons["まとめ"].tap()
+        sleep(2)
+        snap(app, "store-11-report")
+        app.swipeUp()
+        sleep(1)
+        snap(app, "store-12-report-wage")
+        app.swipeUp()
+        sleep(1)
+        snap(app, "store-13-report-wage2")
     }
 }
