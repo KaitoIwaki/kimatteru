@@ -71,6 +71,10 @@ final class StoreShots: XCTestCase {
         app.tabBars.buttons["まとめ"].tap()
         sleep(2)
         snap(app, "store-04-report")
+        // 給料の目安が見えるところまで下へ
+        app.swipeUp()
+        sleep(1)
+        snap(app, "store-04b-report-wage")
     }
 
     /// 「この用事、どうなりました？」（点線の予定を、決まったにする瞬間）。12 日の歯医者から開く
@@ -128,5 +132,41 @@ final class StoreShots: XCTestCase {
         for _ in 0..<4 where !(png.exists && png.isHittable) { app.swipeUp() }
         sleep(1)
         snap(app, "store-08-share-png")
+    }
+
+    /// iPhone のカレンダーから取り込む（見本の予定をシミュレーターのカレンダーに入れてから）
+    func testStoreImport() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", b64(store()), "-lukkoSeedPhoneCalendar"]
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        app.launch()
+        // カレンダーと通知の許可（出たら許す）
+        for _ in 0..<3 {
+            var tapped = false
+            for label in ["Allow Full Access", "フルアクセスを許可", "Allow", "許可"] where springboard.buttons[label].waitForExistence(timeout: 4) {
+                springboard.buttons[label].tap(); tapped = true; break
+            }
+            if !tapped { break }
+            sleep(1)
+        }
+        XCTAssertTrue(app.tabBars.buttons["設定"].waitForExistence(timeout: 60), "下のタブが出ない")
+        app.tabBars.buttons["設定"].tap()
+        sleep(1)
+        let row = app.staticTexts["iPhone のカレンダー"].firstMatch
+        for _ in 0..<4 where !(row.exists && row.isHittable) { app.swipeUp(); sleep(1) }
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "iPhone のカレンダーの行が無い")
+        row.tap()
+        sleep(1)
+        let imp = app.buttons["iPhone のカレンダーから取り込む"].firstMatch
+        XCTAssertTrue(imp.waitForExistence(timeout: 5), "取り込むボタンが無い")
+        imp.tap()
+        sleep(2)
+        if app.buttons["import.scan"].waitForExistence(timeout: 3) { app.buttons["import.scan"].tap(); sleep(3) }
+        if app.buttons["import.read"].waitForExistence(timeout: 5) {
+            snap(app, "store-09-import-cals")
+            app.buttons["import.read"].tap()
+            sleep(3)
+        }
+        snap(app, "store-10-import-found")
     }
 }

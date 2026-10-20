@@ -45,6 +45,10 @@ struct LukkoApp: App {
         if let i = args.firstIndex(of: "-lukkoSeedFile"), i + 1 < args.count, let raw = Data(base64Encoded: args[i + 1]) {
             try? SafeFile.write(raw, to: data.fileURL)
         }
+        #if DEBUG
+        // 試験のときだけ：取り込みの見本の予定を、シミュレーターの iPhone のカレンダーに入れる
+        if args.contains("-lukkoSeedPhoneCalendar") { await PhoneSeed.run() }
+        #endif
         await model.start()
         if let i = args.firstIndex(of: "-lukkoTestState"), i + 1 < args.count,
            let raw = Data(base64Encoded: args[i + 1]), case .object(let patch)? = try? JSONDecoder().decode(JSONValue.self, from: raw) {
