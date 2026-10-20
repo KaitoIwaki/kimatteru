@@ -17,7 +17,7 @@
 //     node tools/asc.mjs release    ← 審査を通って「リリース待ち」の版を確かめる（読むだけ）
 //     node tools/asc.mjs release go ← その版を App Store に公開する（書き込み。取り消せない）
 //     node tools/asc.mjs shots      ← 6.9 インチのスクショの枠を読む（読むだけ）
-//     node tools/asc.mjs shots go   ← store-assets/sukuji/flat-work の 7 枚（社会人の1か月）に差し替える（書き込み）
+//     node tools/asc.mjs shots go   ← store-assets/appstore-2.0 の 7 枚に差し替える（書き込み）
 //     node tools/asc.mjs cpp [go|submit] ← 学生向けのカスタムプロダクトページ（flat の 6 枚）
 //
 // 鍵はここでしか読まない。表示もしないし、Apple 以外へは送らない。
@@ -746,17 +746,18 @@ async function version() {
 // 「上げ終えた」と MD5 を PATCH。最後に並び順を PATCH で固定する
 // 1.3 から、いちばん上の店頭は社会人の1か月（sukuji/flat-work/）。7 枚目に「仕事の予定も、外に出ない。」
 // 学生の1か月（sukuji/flat/）は、学生向けのカスタムプロダクトページ（cpp）に回す
-const SHOTS = ['wide-1.png', 'wide-2.png', '3.png', '4.png', '7.png', '5.png', '6.png'];
-const SHOTS_DIR = 'flat-work';
+// 2.0.1 から、店頭の 7 枚は store-assets/appstore-2.0/（机の上の iPhone に本物の画面をはめた写真）
+const SHOTS = ['01.png', '02.png', '03.png', '04.png', '05.png', '06.png', '07.png'];
+const SHOTS_DIR = 'appstore-2.0';
 const CPP_SHOTS = ['wide-1.png', 'wide-2.png', '3.png', '4.png', '5.png', '6.png'];
 const CPP_DIR = 'flat';
 const CPP_NAME = '学生向け';
 const CPP_PROMO = 'バイトのシフトと給料、遊びの候補日。決まっていない予定は点線、決まったら塗り。空いてる日だけを、画像で友だちに送れます。';
 async function shots() {
   const go = process.argv[3] === 'go';
-  const dir = new URL(`../../store-assets/sukuji/${SHOTS_DIR}/`, import.meta.url);
+  const dir = new URL(`../../store-assets/${SHOTS_DIR}/`, import.meta.url);
   const files = SHOTS.map((f) => ({ name: f, path: new URL(f, dir) }));
-  for (const f of files) if (!fs.existsSync(f.path)) throw new Error(`無い: store-assets/sukuji/${SHOTS_DIR}/${f.name}`);
+  for (const f of files) if (!fs.existsSync(f.path)) throw new Error(`無い: store-assets/${SHOTS_DIR}/${f.name}`);
 
   const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
   const v = (await get(`/v1/apps/${app.id}/appStoreVersions?limit=1`)).data[0];
