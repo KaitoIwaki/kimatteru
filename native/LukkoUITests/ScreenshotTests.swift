@@ -6,6 +6,8 @@ final class ScreenshotTests: XCTestCase {
     private func sample() -> String {
         let c = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: Date())
         let y = c.year!, m = c.month! - 1, today = c.day!
+        // 見本の日。今日だと、時刻の過ぎた予定がたたまれて写らないので、今日が 20 日なら 22 日にする
+        let dd = today == 20 ? 22 : 20
         func ev(_ id: String, _ d: Int, _ title: String, _ type: String, _ status: String, _ s: String = "10:00", _ e: String = "11:00", extra: String = "") -> String {
             "{\"id\":\"\(id)\",\"y\":\(y),\"m\":\(m),\"day\":\(d),\"start\":\"\(s)\",\"end\":\"\(e)\",\"title\":\"\(title)\",\"type\":\"\(type)\",\"status\":\"\(status)\",\"updatedAt\":1\(extra)}"
         }
@@ -18,11 +20,11 @@ final class ScreenshotTests: XCTestCase {
             ev("f", 12, "歯医者", "yoji", "kakutei", "09:30", "10:30"),
             ev("g", 15, "ランチ", "asobi", "nakunatta", "12:00", "13:00"),
             ev("h", min(today, 28), "面接", "yoji", "mikakutei", "14:00", "15:00"),
-            ev("i", 20, "カフェ", "baito", "mikakutei", "17:00", "22:00"),
-            ev("j", 20, "買い物", "other", "kakutei", "11:00", "12:00"),
-            ev("k", 20, "映画", "asobi", "kakutei", "18:00", "20:00"),
-            ev("l", 20, "勉強会", "yoji", "kakutei", "20:00", "21:00"),
-            ev("n", 20, "電話", "other", "kakutei", "21:00", "21:30"),
+            ev("i", dd, "カフェ", "baito", "mikakutei", "17:00", "22:00"),
+            ev("j", dd, "買い物", "other", "kakutei", "11:00", "12:00"),
+            ev("k", dd, "映画", "asobi", "kakutei", "18:00", "20:00"),
+            ev("l", dd, "勉強会", "yoji", "kakutei", "20:00", "21:00"),
+            ev("n", dd, "電話", "other", "kakutei", "21:00", "21:30"),
         ]
         return "{\"savedAt\":9000000000000,\"events\":[\(evs.joined(separator: ","))],\"settings\":{\"hourly\":1100,\"weekStart\":0,\"onboarded\":true}}"
     }
@@ -40,7 +42,8 @@ final class ScreenshotTests: XCTestCase {
         // 今月へ戻る（払いは取りこぼすことがあるので、「今日」で戻す）
         if app.buttons["今日"].waitForExistence(timeout: 3) { app.buttons["今日"].tap() }
         sleep(1)
-        let day = app.buttons["month.day.20"]
+        let today = Calendar(identifier: .gregorian).component(.day, from: Date())
+        let day = app.buttons["month.day.\(today == 20 ? 22 : 20)"]
         XCTAssertTrue(day.waitForExistence(timeout: 10))
         day.tap()
         sleep(1)

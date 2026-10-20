@@ -157,8 +157,8 @@ final class StoreShots: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5), "iPhone のカレンダーの行が無い")
         row.tap()
         sleep(1)
-        let imp = app.buttons["iPhone のカレンダーから取り込む"].firstMatch
-        XCTAssertTrue(imp.waitForExistence(timeout: 5), "取り込むボタンが無い")
+        let imp = app.staticTexts["予定を取り込む"].firstMatch
+        XCTAssertTrue(imp.waitForExistence(timeout: 5), "予定を取り込むの行が無い")
         imp.tap()
         sleep(2)
         if app.buttons["import.scan"].waitForExistence(timeout: 3) { app.buttons["import.scan"].tap(); sleep(3) }
