@@ -79,3 +79,49 @@ jobs:
             shots
             ui-test.log
             release-build.log
+
+  # 宣伝の動画のための録画。コミットの文に [promo] があるときだけ動く（ふだんの確かめには入れない）
+  promo:
+    if: contains(github.event.head_commit.message, '[promo]')
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode*.app | sort -V | tail -1)" && xcodebuild -version
+      - name: プロジェクトを組み立てる
+        working-directory: native
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: 動かしながら録画する
+        working-directory: native
+        run: |
+          DEV=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(|iPhone 1[6-9] \(" | grep -v Max | head -1 | sed -E 's/^ *([^(]+) \(.*//' | sed 's/ *$//')
+          echo "device: $DEV"
+          xcrun simctl boot "$DEV" || true
+          xcrun simctl status_bar booted override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState discharging --batteryLevel 100 || true
+          xcodebuild build-for-testing -project LUKKO.xcodeproj -scheme LUKKO -destination "platform=iOS Simulator,name=$DEV" CODE_SIGNING_ALLOWED=NO 2>&1 | tail -5
+          xcrun simctl io booted recordVideo --codec=h264 --force ../promo.mov &
+          REC=$!
+          sleep 3
+          python3 -c 'import time; print(time.time())' > ../promo-start.txt
+          TEST_RUNNER_LUKKO_PROMO=1 xcodebuild test-without-building -project LUKKO.xcodeproj -scheme LUKKO -destination "platform=iOS Simulator,name=$DEV" -only-testing:LUKKOUITests/StoreShots/testPromoRecording -resultBundlePath ../promo.xcresult CODE_SIGNING_ALLOWED=NO 2>&1 | tail -20 || true
+          sleep 1
+          kill -INT $REC || true
+          wait $REC || true
+          ls -la ../promo.mov
+      - name: 目印を取り出す
+        if: always()
+        run: |
+          mkdir -p promo-marks
+          if [ -d promo.xcresult ]; then xcrun xcresulttool export attachments --path promo.xcresult --output-path promo-marks || true; fi
+          ls -la promo-marks | head
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: promo
+          path: |
+            promo.mov
+            promo-start.txt
+            promo-marks

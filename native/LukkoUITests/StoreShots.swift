@@ -193,4 +193,59 @@ final class StoreShots: XCTestCase {
         sleep(1)
         snap(app, "store-13-report-wage2")
     }
+
+    /// 宣伝の動画のための操作（録画しながら動かす）。ふだんの試験では飛ばす（TEST_RUNNER_LUKKO_PROMO=1 のときだけ）
+    func testPromoRecording() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["LUKKO_PROMO"] == "1", "宣伝の録画のときだけ動かす")
+        let app = XCUIApplication()
+        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", b64(store(worked: true))]
+        app.launch()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "許可", "Don’t Allow", "許可しない"] where springboard.buttons[label].waitForExistence(timeout: 3) {
+            springboard.buttons[label].tap()
+            break
+        }
+        XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 60))
+        // 録画の区切り（ここから使う）
+        mark(app, "promo-start")
+        sleep(3)
+        // 月を速く払う（先へ 2 回、戻る 2 回）
+        let grid = app.windows.firstMatch
+        grid.swipeLeft(velocity: .fast); usleep(600_000)
+        grid.swipeLeft(velocity: .fast); sleep(1)
+        grid.swipeRight(velocity: .fast); usleep(600_000)
+        grid.swipeRight(velocity: .fast); sleep(2)
+        // 12 日の点線の歯医者を押して、確定した → 塗りに変わる
+        mark(app, "promo-confirm")
+        let cell = app.buttons["month.day.12"]
+        for _ in 0..<3 { cell.tap(); if app.buttons["予定を追加"].firstMatch.waitForExistence(timeout: 3) { break } }
+        sleep(1)
+        app.descendants(matching: .any).matching(identifier: "day.row.st7").firstMatch.tap()
+        sleep(2)
+        app.buttons["確定した"].firstMatch.tap()
+        sleep(4)
+        // 空いてる日をシェア
+        mark(app, "promo-share")
+        app.tabBars.buttons["空き状況"].tap()
+        sleep(2)
+        app.buttons["free.share"].tap()
+        sleep(3)
+        app.swipeUp(); sleep(2)
+        app.buttons["閉じる"].firstMatch.tap()
+        sleep(1)
+        // まとめ（給料の目安）
+        mark(app, "promo-report")
+        app.tabBars.buttons["まとめ"].tap()
+        sleep(3)
+        app.swipeUp(); sleep(3)
+        mark(app, "promo-end")
+    }
+
+    /// 録画の中の時刻を残す（あとで切り出す目印）
+    private func mark(_ app: XCUIApplication, _ name: String) {
+        let a = XCTAttachment(string: "\(name) \(Date().timeIntervalSince1970)")
+        a.name = name
+        a.lifetime = .keepAlways
+        add(a)
+    }
 }
