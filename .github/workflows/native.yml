@@ -97,7 +97,7 @@ jobs:
       - name: 動かしながら録画する
         working-directory: native
         run: |
-          DEV=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(|iPhone 1[6-9] \(" | grep -v Max | head -1 | sed -E 's/^ *([^(]+) \(.*//' | sed 's/ *$//')
+          DEV=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(|iPhone 1[6-9] \(" | grep -v Max | head -1 | sed -E 's/^ *([^(]+) \(.*/\1/' | sed 's/ *$//')
           echo "device: $DEV"
           xcrun simctl boot "$DEV" || true
           xcrun simctl status_bar booted override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState discharging --batteryLevel 100 || true
