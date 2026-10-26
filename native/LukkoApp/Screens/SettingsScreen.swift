@@ -354,6 +354,7 @@ struct SettingsPage: View {
                 settingToggle("帯に時刻を出す", "barTime", v.barTime)
                 settingToggle("点線に「仮」を付ける", "kariMark", v.kariMark)
                 settingToggle("無くなった予定を隠す", "hideCanceled", v.hideCanceled)
+                settingToggle("月を縦にスクロール", "monthVertical", JS.truthy(model.state["settings"]?["monthVertical"]))
             }
             .listRowBackground(ink("card"))
             Section {

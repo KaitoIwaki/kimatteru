@@ -16,7 +16,8 @@ struct MonthScreen: View {
                     WeekStripView()
                 } else {
                     WeekdayHeader(h: h)
-                    MonthPager()
+                    // 設定の「月を縦にスクロール」：週を縦につなげて、動かした分だけずらす
+                    if JS.truthy(model.state["settings"]?["monthVertical"]) { MonthScroller() } else { MonthPager() }
                 }
             }
             .background(ink("bg"))
@@ -312,6 +313,13 @@ struct WeekRow: View {
     let week: MonthCore.Week
     let colW: CGFloat, laneH: CGFloat, barH: CGFloat, scale: Double
     var morph: (id: JSONValue, phase: String)? = nil
+    /// 縦につなげた表示のとき：列ごとの日と、見出しの月（その月の日にだけ名札を付ける）・押したとき
+    var scroll: ScrollInfo? = nil
+    struct ScrollInfo {
+        let days: [MonthCore.DayRef]
+        let cur: (y: Int, m: Int)
+        let onTap: (Int, Int, Int) -> Void
+    }
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
 
@@ -325,10 +333,10 @@ struct WeekRow: View {
                         .overlay { if sl.today { TodayFlash(at: model.state["flashToday"]?.number ?? 0) } }
                         .overlay(alignment: .trailing) { if i < 6 { Rectangle().fill(ink("line-faint")).frame(width: 1) } }
                         .contentShape(Rectangle())
-                        .onTapGesture { tapDay(sl) }
+                        .onTapGesture { tapDay(sl, i) }
                         .accessibilityElement()
-                        .accessibilityLabel(sl.blank ? "" : "\(sl.day)日")
-                        .accessibilityIdentifier(sl.blank || !active ? "" : "month.day.\(sl.day)")
+                        .accessibilityLabel(sl.blank ? "" : scroll.map { "\($0.days[i].m + 1)月\(sl.day)日" } ?? "\(sl.day)日")
+                        .accessibilityIdentifier(idOf(sl, i))
                         .accessibilityAddTraits(sl.blank ? [] : .isButton)
                 }
             }
@@ -336,7 +344,11 @@ struct WeekRow: View {
             HStack(spacing: 0) {
                 ForEach(0..<7, id: \.self) { i in
                     let sl = week.slots[i]
-                    HStack(spacing: 0) {
+                    HStack(spacing: 2) {
+                        // 縦につなげた表示では、月のはじめの日に月の名前を添える
+                        if let s = scroll, sl.day == 1 {
+                            Text("\(s.days[i].m + 1)月").font(.system(size: 11, weight: .bold)).foregroundStyle(ink("ink"))
+                        }
                         if sl.today {
                             Text("\(sl.day)").font(.system(size: 11, weight: .bold)).monospacedDigit()
                                 .foregroundStyle(ink.css(sl.color))
@@ -385,8 +397,14 @@ struct WeekRow: View {
         (model.state["events"]?.array ?? []).lazy.compactMap { $0.object }.first { $0["id"] == id }
     }
 
-    private func tapDay(_ sl: MonthCore.Slot) {
+    private func idOf(_ sl: MonthCore.Slot, _ i: Int) -> String {
+        if let s = scroll { return s.days[i].y == s.cur.y && s.days[i].m == s.cur.m ? "month.day.\(sl.day)" : "" }
+        return sl.blank || !active ? "" : "month.day.\(sl.day)"
+    }
+
+    private func tapDay(_ sl: MonthCore.Slot, _ i: Int) {
         guard !sl.blank else { return }
+        if let s = scroll { let r = s.days[i]; s.onTap(r.y, r.m, r.d); return }
         model.act { e in
             // シフト入力のあいだは、押した日に型を置く（その日の一覧は開かない）
             if JS.truthy(e.state["stamp"]) { e.stampDay(y, m, sl.day) }
