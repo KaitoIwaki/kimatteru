@@ -57,16 +57,17 @@ struct DayScreen: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityAddTraits(.isHeader)
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Picker("表示", selection: Binding(get: { v.head.view }, set: { k in model.act { $0.setDayView(k) } })) {
-                    Text("一覧").tag("list")
-                    Text("時間").tag("time")
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 100)
-                .accessibilityIdentifier("day.viewSeg")
-            }
         }
+        // 一覧｜時間の切り替え。iOS 26 が右上に付けるガラスの土台は外す（切り替えにも土台があり、二重に見えていた）
+        .modifier(TrailingNoGlass {
+            Picker("表示", selection: Binding(get: { v.head.view }, set: { k in model.act { $0.setDayView(k) } })) {
+                Text("一覧").tag("list")
+                Text("時間").tag("time")
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 100)
+            .accessibilityIdentifier("day.viewSeg")
+        })
     }
 }
 
@@ -540,6 +541,18 @@ struct DayStripScrollTrack: ViewModifier {
             content.onScrollGeometryChange(for: CGFloat.self, of: { $0.contentOffset.x + $0.contentInsets.leading }) { _, x in onChange(-x) }
         } else {
             content.onPreferenceChange(DayStripScrollKey.self) { x in onChange(x) }
+        }
+    }
+}
+
+/// 右上に置く部品。iOS 26 は右上の部品にガラスの土台を自動で付けるが、自分で土台を持つ部品（切り替え）は二重になるので外す
+struct TrailingNoGlass<Item: View>: ViewModifier {
+    @ViewBuilder let item: () -> Item
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.toolbar { ToolbarItem(placement: .topBarTrailing) { item() }.sharedBackgroundVisibility(.hidden) }
+        } else {
+            content.toolbar { ToolbarItem(placement: .topBarTrailing) { item() } }
         }
     }
 }

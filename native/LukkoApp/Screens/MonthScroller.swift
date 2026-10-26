@@ -52,7 +52,8 @@ struct MonthScroller: View {
             .scrollPosition(id: $pos, anchor: .top)
         }
         .background(ink("card"))
-        .onAppear { pos = Self.weekOf(cur, base) }
+        // はじめて出たときだけ、その月の 1 日の週へ（日の画面から戻ったときは、見ていた所のまま）
+        .onAppear { if pos == nil { pos = Self.weekOf(cur, base) } }
         // ‹ › ・今日・年月えらびで月が変わった：その月の 1 日の週を上に
         .onChange(of: cur) { old, c in
             if selfSet == c { selfSet = nil; return }
