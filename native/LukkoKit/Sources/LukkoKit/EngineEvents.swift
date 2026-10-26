@@ -279,6 +279,7 @@ extension Engine {
                 r["updatedAt"] = num(now)
                 return r
             }), "morph": .null])
+        case "full": undoFull(d["prev"]?.object ?? [:])
         case "many":
             let prev = d["prev"]?.object ?? [:]
             set(["events": eventsArray(events.map { e in

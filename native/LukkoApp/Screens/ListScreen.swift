@@ -6,9 +6,16 @@ struct ListScreen: View {
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
     @FocusState private var searchFocused: Bool
+    /// 「選択」のあいだ：選んだ予定（id）・時間をそろえる小窓・消す前の確かめ
+    @State private var selecting = false
+    @State private var picked: Set<String> = []
+    @State private var timeSheet = false
+    @State private var askDelete = false
 
     var body: some View {
         let v = model.engine.listView(dark: model.dark)
+        let keys = v.groups.flatMap { $0.rows }.map { JS.string($0.key) }
+        let chosen = keys.filter { picked.contains($0) }
         List {
             Section {
                 Picker("一覧", selection: Binding(get: { v.tab }, set: { k in model.act { $0.setListTab(k) } })) {
@@ -69,7 +76,12 @@ struct ListScreen: View {
             }
             ForEach(Array(v.groups.enumerated()), id: \.offset) { _, g in
                 Section(g.head) {
-                    ForEach(g.rows, id: \.key) { r in ListRowView(row: r) }
+                    ForEach(g.rows, id: \.key) { r in
+                        let k = JS.string(r.key)
+                        ListRowView(row: r, selecting: selecting, picked: picked.contains(k)) {
+                            if picked.contains(k) { picked.remove(k) } else { picked.insert(k) }
+                        }
+                    }
                 }
             }
             if !v.empty.isEmpty {
@@ -83,6 +95,44 @@ struct ListScreen: View {
                                                     set: { on in if !on && model.state["screen"] == "detail" { model.act { $0.detailBack() } } })) { DetailScreen() }
         .navigationTitle("予定の一覧")
         .navigationBarTitleDisplayMode(.inline)
+        // 予定をまとめて選ぶ（時間をそろえる・消す）
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(selecting ? "完了" : "選択") {
+                    selecting.toggle()
+                    picked = []
+                }
+                .disabled(!selecting && keys.isEmpty)
+                .accessibilityIdentifier("list.select")
+            }
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if selecting {
+                ListSelectBar(count: chosen.count, allPicked: !keys.isEmpty && chosen.count == keys.count,
+                              toggleAll: { picked = chosen.count == keys.count ? [] : Set(keys) },
+                              time: { timeSheet = true }, delete: { askDelete = true })
+            }
+        }
+        // タブや探す言葉が変わって見えなくなった予定は、選んだものから外す
+        .onChange(of: keys) { _, ks in picked.formIntersection(ks) }
+        .confirmationDialog("\(chosen.count)件を消しますか？", isPresented: $askDelete, titleVisibility: .visible) {
+            Button("\(chosen.count)件を消す", role: .destructive) {
+                let ids = chosen.map { JSONValue.string($0) }
+                model.act { $0.bulkDelete(ids) }
+                selecting = false; picked = []
+            }
+            .accessibilityIdentifier("list.bulkDelete.confirm")
+        } message: { Text("「最近消した予定」から30日以内なら戻せます") }
+        .sheet(isPresented: $timeSheet) {
+            let first = (model.state["events"]?.array ?? []).compactMap { $0.object }.first { chosen.first == JS.string($0["id"]) }
+            let timed = first.map { !JS.truthy($0["allDay"]) } ?? false
+            ListTimeSheet(count: chosen.count, done: { s, e in
+                let ids = chosen.map { JSONValue.string($0) }
+                model.act { $0.bulkSetTime(ids, start: s, end: e) }
+                selecting = false; picked = []
+            }, start: timed ? JS.string(first?["start"]) : "10:00", end: timed ? JS.string(JS.or(first?["actualEnd"], first?["end"])) : "11:00")
+            .environment(\.ink, ink)
+        }
         .sheet(isPresented: Binding(get: { JS.truthy(model.state["somedayPick"]) }, set: { on in if !on { model.act { $0.set(["somedayPick": .null]) } } })) {
             SomedayPickSheet().environment(\.ink, ink)
         }
@@ -91,11 +141,21 @@ struct ListScreen: View {
 
 struct ListRowView: View {
     let row: ListView.Row
+    /// 「選択」のあいだは、押すと選ぶ・はずす（予定は開かない）
+    var selecting = false
+    var picked = false
+    var toggle: () -> Void = {}
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
+            if selecting {
+                Image(systemName: picked ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 21))
+                    .foregroundStyle(picked ? FormTone.teal : ink("ink-faint"))
+                    .padding(.top, 6)
+            }
             VStack(alignment: .leading, spacing: 0) {
                 Text(row.date).font(.system(size: 14)).monospacedDigit().foregroundStyle(ink("ink"))
                 Text(row.dow).font(.system(size: 10)).foregroundStyle(ink("ink-faint"))
@@ -109,7 +169,7 @@ struct ListRowView: View {
                     .overlay { if row.dashed { RoundedRectangle(cornerRadius: 6).strokeBorder(ink.css(String(row.pill["border"]?.string?.split(separator: " ").last ?? "")), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2])) } }
                 if !row.place.isEmpty { Text(row.place).font(.system(size: 11.5)).foregroundStyle(ink("ink-mut")).lineLimit(1) }
                 // まだの行だけ：決まった／流れた（押しても行は開かない）
-                if row.dashed {
+                if row.dashed && !selecting {
                     HStack(spacing: 6) {
                         Button { open(confirm: true) } label: {
                             Text("決まった").font(.system(size: 12)).foregroundStyle(ink("card"))
@@ -129,7 +189,8 @@ struct ListRowView: View {
         }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
-        .onTapGesture { open(confirm: false) }
+        .onTapGesture { if selecting { toggle() } else { open(confirm: false) } }
+        .accessibilityAddTraits(selecting && picked ? .isSelected : [])
         .accessibilityIdentifier("list.row.\(JS.string(row.key))")
     }
 
