@@ -53,20 +53,21 @@ final class ListSelectTests: XCTestCase {
         let undo = app.descendants(matching: .any).matching(identifier: "undo.bar").firstMatch
         XCTAssertTrue(undo.waitForExistence(timeout: 3), "元に戻すの帯が出ない")
         // 「元に戻す」は 5 秒で消えるので、確かめは短く
-        XCTAssertTrue(row(app, "s1").staticTexts.matching(NSPredicate(format: "label CONTAINS '17:00'")).firstMatch.exists, "見本1 が 17:00 になっていない")
-        XCTAssertTrue(row(app, "s3").staticTexts.matching(NSPredicate(format: "label CONTAINS '10:00'")).firstMatch.exists, "選んでいない 見本3 が変わった")
+        // 選んだ 2 件だけが 17:00 から、残りの 3 件は 10:00 から
+        XCTAssertEqual(times(app, "17:00"), 2, "選んだ 2 件が 17:00 になっていない")
+        XCTAssertEqual(times(app, "10:00"), 3, "選んでいない予定まで変わった")
         snap(app, "L02-after-time")
         // 元に戻す
         app.buttons["undo.button"].tap()
         sleep(1)
-        XCTAssertTrue(row(app, "s1").staticTexts.matching(NSPredicate(format: "label CONTAINS '10:00'")).firstMatch.exists, "元に戻しても 10:00 に戻らない")
+        XCTAssertEqual(times(app, "10:00"), 5, "元に戻しても 10:00 に戻らない")
 
         // 選択 → 全部選ぶ → 消す → 確かめて消す
         app.buttons["list.select"].tap()
         app.buttons["list.selectAll"].tap()
         XCTAssertTrue(app.staticTexts["5件"].waitForExistence(timeout: 3), "全部選ぶで 5件 にならない")
         app.buttons["list.bulkDelete"].tap()
-        let confirm = app.buttons["5件を消す"]
+        let confirm = app.buttons["5件を消す"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 3), "消す前の確かめが出ない")
         snap(app, "L03-delete-ask")
         confirm.tap()
@@ -75,6 +76,11 @@ final class ListSelectTests: XCTestCase {
         app.buttons["undo.button"].tap()
         XCTAssertTrue(row(app, "s1").waitForExistence(timeout: 3) && row(app, "s5").exists, "元に戻しても予定が戻らない")
         snap(app, "L05-restored")
+    }
+
+    /// その時刻で始まる予定の数（一覧の「10:00–11:00」の字）
+    private func times(_ app: XCUIApplication, _ start: String) -> Int {
+        app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", start)).count
     }
 
     private func snap(_ app: XCUIApplication, _ name: String) {
