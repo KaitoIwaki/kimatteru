@@ -612,14 +612,16 @@ struct SettingsBackupPage: View {
             }
             .listRowBackground(ink("card"))
             Section {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text("1").font(.system(size: 14, weight: .bold)).foregroundStyle(ink("ink"))
-                    Text("「クイックスタート」か「iCloud バックアップから復元」で、予定も移ります").font(.system(size: 14)).foregroundStyle(ink("ink-soft")).lineSpacing(5)
-                }
-                .listRowSeparator(.hidden)
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text("2").font(.system(size: 14, weight: .bold)).foregroundStyle(ink("ink"))
-                    Text("移らなかったら：前の iPhone で「控えをファイルに保存」→ 新しい iPhone で「ファイルから戻す」").font(.system(size: 14)).foregroundStyle(ink("ink-soft")).lineSpacing(5)
+                // いちばん確かなのは iCloud の同期（新しい iPhone として設定しても移る）。同期を使えない版では出さない
+                let steps: [String] = (v.syncShown ? ["前の iPhone で、設定の「iCloud で同期」をオンにしておく → 新しい iPhone でもオンにすると、予定が入ります"] : [])
+                    + ["「クイックスタート」か「iCloud バックアップから復元」でも、予定は移ります",
+                       "移らなかったら：前の iPhone で「控えをファイルに保存」→ 新しい iPhone で「ファイルから戻す」"]
+                ForEach(Array(steps.enumerated()), id: \.offset) { i, t in
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text("\(i + 1)").font(.system(size: 14, weight: .bold)).foregroundStyle(ink("ink"))
+                        Text(t).font(.system(size: 14)).foregroundStyle(ink("ink-soft")).lineSpacing(5)
+                    }
+                    .listRowSeparator(i < steps.count - 1 ? .hidden : .automatic)
                 }
             } header: { Text("機種変更のとき") } footer: {
                 Button { model.act { $0.togglePaste() } } label: {
