@@ -64,7 +64,10 @@ final class AppModel {
     static func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded(.down) }
 
     func start() async {
+        guard !ready else { return }
         await data.start()
+        // 保存ファイルがあるのに読めない：画面に知らせて待つ（何も書かない。「もう一度読み込む」でやり直す）
+        if data.unreadable { return }
         var st = Engine.defaultState(now: Self.nowMs(), tz: .current)
         for k in StoreFile.persistedKeys { if let v = data.state[k] { st[k] = v } }
         let eng = Engine(state: st, now: Self.nowMs(), timeZone: .current)

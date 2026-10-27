@@ -14,7 +14,8 @@ struct ListScreen: View {
 
     var body: some View {
         let v = model.engine.listView(dark: model.dark)
-        let keys = v.groups.flatMap { $0.rows }.map { JS.string($0.key) }
+        // 同じ予定が 2 か所に出ても 1 件と数える
+        let keys = Self.unique(v.groups.flatMap { $0.rows }.map { JS.string($0.key) })
         let chosen = keys.filter { picked.contains($0) }
         List {
             Section {
@@ -136,6 +137,13 @@ struct ListScreen: View {
         .sheet(isPresented: Binding(get: { JS.truthy(model.state["somedayPick"]) }, set: { on in if !on { model.act { $0.set(["somedayPick": .null]) } } })) {
             SomedayPickSheet().environment(\.ink, ink)
         }
+    }
+}
+
+extension ListScreen {
+    static func unique(_ a: [String]) -> [String] {
+        var seen = Set<String>()
+        return a.filter { seen.insert($0).inserted }
     }
 }
 

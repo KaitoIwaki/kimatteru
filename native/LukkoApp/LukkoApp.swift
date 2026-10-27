@@ -46,6 +46,9 @@ struct LukkoApp: App {
             try? SafeFile.write(raw, to: data.fileURL)
         }
         #if DEBUG
+        // 試験のときだけ：保存ファイルを読めなくする／読めるように戻す（「読めないのに空で開いて上書きする」が起きないかの確かめ）
+        if args.contains("-lukkoTestUnreadable") { try? FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: data.fileURL.path) }
+        if args.contains("-lukkoTestReadable") { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: data.fileURL.path) }
         // 試験のときだけ：取り込みの見本の予定を、シミュレーターの iPhone のカレンダーに入れる
         if args.contains("-lukkoSeedPhoneCalendar") { await PhoneSeed.run() }
         #endif
@@ -71,6 +74,8 @@ struct RootView: View {
         ZStack(alignment: .bottomLeading) {
             if model.ready {
                 MainTabs()
+            } else if model.data.unreadable {
+                UnreadableView()
             } else {
                 Color(.systemBackground).ignoresSafeArea()
             }
@@ -106,6 +111,34 @@ struct RootView: View {
         let th = JS.truthy(cfg["theme"]) ? JS.string(cfg["theme"]) : (JS.truthy(cfg["dark"]) ? "dark" : "light")
         if th == "auto" { return nil }
         return th == "dark" ? .dark : .light
+    }
+}
+
+/// 保存ファイルがあるのに読めなかったとき（再起動のあと、まだロックを解いていないときなど）。
+/// 空のカレンダーは見せず、何も書かない。ロックを解いて戻ってきたら、自分で読み直す
+struct UnreadableView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var busy = false
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "calendar.badge.exclamationmark").font(.system(size: 44)).foregroundStyle(.secondary)
+            Text("予定を読み込めませんでした").font(.headline)
+            Text("予定は消えていません。\niPhone のロックを解いてから、もう一度読み込んでください").font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            Button { retry() } label: { Text(busy ? "読み込み中…" : "もう一度読み込む").frame(minWidth: 180) }
+                .buttonStyle(.borderedProminent)
+                .disabled(busy)
+                .accessibilityIdentifier("unreadable.retry")
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemBackground))
+        .onChange(of: scenePhase) { _, p in if p == .active { retry() } }
+    }
+    private func retry() {
+        guard !busy else { return }
+        busy = true
+        Task { @MainActor in await model.start(); busy = false }
     }
 }
 

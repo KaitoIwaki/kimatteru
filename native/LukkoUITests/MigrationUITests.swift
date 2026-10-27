@@ -44,6 +44,23 @@ final class MigrationUITests: XCTestCase {
         snap(app, "migration-2-relaunch")
     }
 
+    /// 保存ファイルがあるのに読めない（再起動のあと、ロックを解く前など）→ 空で開かず、何も書かない。
+    /// 読めるようになって開き直すと、元の予定がそのまま全部ある（上書きされていない）
+    func testUnreadableFileIsNeverOverwritten() {
+        // 引っ越し済みの人（localStorage は空）。保存ファイルに予定 3 件
+        var app = launch(["-lukkoTestReset", "-lukkoClearLocalStorage", "-lukkoSeedFile", b64(store(savedAt: 5000, ids: ["a", "b", "c"])), "-lukkoTestUnreadable"])
+        let retry = app.buttons["unreadable.retry"]
+        XCTAssertTrue(retry.waitForExistence(timeout: 60), "読めないときの画面が出ない")
+        XCTAssertFalse(app.buttons["これからの予定の一覧"].exists, "読めないのに、カレンダーを開いた")
+        snap(app, "unreadable-1")
+        app.terminate()
+        // 読めるように戻して開き直す：予定 3 件がそのまま
+        app = launch(["-lukkoTestReadable"])
+        waitLoaded(app)
+        XCTAssertEqual(label(app, "debug.eventCount"), "予定 3 件", "読めなかったあいだに、保存ファイルが上書きされた")
+        snap(app, "unreadable-2-reopened")
+    }
+
     /// ファイルのほうが新しく中身も違う（いまの版の _checkFile と同じ）→ ファイル
     func testFileNewer() {
         let app = launch(["-lukkoTestReset",

@@ -19,6 +19,9 @@ final class AppData {
     private(set) var startNotice: StartNotice?
     /// 元の写しを残せなかったときは、保存ファイルを書き換えない（読むだけで開く。書こうとすると「保存できていません」を出す）
     private(set) var writeBlocked = false
+    /// 保存ファイルがあるのに読めなかった（再起動のあと、まだロックを解いていないときなど）。
+    /// このときは何も開かず、何も書かない（空のカレンダーで開いて、本物のファイルを上書きしないように）
+    private(set) var unreadable = false
 
     static let migratedKey = "lukko.native.migrated"
     let library: URL
@@ -38,7 +41,20 @@ final class AppData {
 
     /// 起動したとき。引っ越しがまだなら引っ越す
     func start() async {
-        let fileData = try? Data(contentsOf: fileURL)
+        unreadable = false
+        // 「ファイルが無い」と「あるのに読めない」を分ける。読めなければ少し待って読み直す（最大 10 秒）
+        var read = StoreRead.read(fileURL)
+        for _ in 0..<20 {
+            guard case .unreadable = read else { break }
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            read = StoreRead.read(fileURL)
+        }
+        if case .unreadable(let why) = read {
+            log("保存ファイルがあるのに読めない：\(why)。開かずに待つ")
+            unreadable = true
+            return
+        }
+        let fileData: Data? = { if case .data(let d) = read { return d }; return nil }()
         let migrated = UserDefaults.standard.bool(forKey: Self.migratedKey)
         var fileValid = false
         if case .success(let c) = Migration.parse(fileData, source: .file) {
