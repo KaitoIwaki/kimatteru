@@ -62,7 +62,7 @@ function need(name) {
 // 提出などの書き込みは今までどおり「App マネージャ」のキーで行い、管理のキーは stats のときだけ使う。
 // ASC_STATS_KEY_ID / ASC_STATS_KEY_PATH が無ければ、いつものキーで試す
 function token() {
-  const statsKey = process.argv[2] === 'stats' && (process.env.ASC_STATS_KEY_ID || local().ASC_STATS_KEY_ID);
+  const statsKey = ['stats', 'insight'].includes(process.argv[2]) && (process.env.ASC_STATS_KEY_ID || local().ASC_STATS_KEY_ID);
   const kid = statsKey ? need('ASC_STATS_KEY_ID') : need('ASC_KEY_ID');
   const iss = need('ASC_ISSUER_ID');
   const path = statsKey ? need('ASC_STATS_KEY_PATH') : need('ASC_KEY_PATH');
@@ -988,6 +988,56 @@ async function stats() {
   console.log(`${NL}直近7日の新規ダウンロード：${last7}（目標 100）`);
 }
 
+/**
+ * 読むだけ：分析の報告を細かく見る（どこから来て、どこで離れているか）。
+ *   node tools/asc.mjs insight [日数]   ← 既定 28 日
+ * 同じ日の数字が、あとから届く報告にも重ねて入ってくる（stats で倍・3倍になっていた）。
+ * ここでは「その日について、いちばん新しい報告の値」だけを使う
+ */
+async function insight() {
+  const days = Number(process.argv[3]) || 28;
+  const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
+  const reqs = (await get(`/v1/apps/${app.id}/analyticsReportRequests?limit=10`)).data;
+  const req = reqs.find((r) => r.attributes.accessType === 'ONGOING' && !r.attributes.stoppedDueToInactivity);
+  if (!req) { console.log('まだ依頼していません。node tools/asc.mjs stats setup'); return; }
+  const reps = [];
+  let next = `/v1/analyticsReportRequests/${req.id}/reports?limit=200`;
+  while (next) { const r = await get(next); reps.push(...r.data); next = r.links && r.links.next ? r.links.next.replace(HOST, '') : null; }
+  const zlib = await import('node:zlib');
+  const names = ['App Downloads Standard', 'App Store Discovery and Engagement Standard', 'App Sessions Standard', 'App Store Installation and Deletion Standard'];
+  const out = {};
+  for (const name of names) {
+    const rep = reps.find((r) => r.attributes.name === name);
+    if (!rep) { console.log(`${name}：まだ無い`); continue; }
+    const inst = (await get(`/v1/analyticsReports/${rep.id}/instances?filter[granularity]=DAILY&limit=${days + 10}`)).data;
+    // 新しい報告から順に読み、その日の行がまだ無いときだけ使う
+    inst.sort((a, b) => (b.attributes.processingDate || '').localeCompare(a.attributes.processingDate || ''));
+    const taken = new Set();
+    let cols = null; const rows = [];
+    for (const it of inst) {
+      const got = new Set();
+      const segs = (await get(`/v1/analyticsReportInstances/${it.id}/segments`)).data;
+      for (const sg of segs) {
+        const buf = Buffer.from(await (await fetch(sg.attributes.url)).arrayBuffer());
+        const [head, ...lines] = zlib.gunzipSync(buf).toString('utf8').trim().split(/\r?\n/);
+        cols = head.split('\t');
+        const di = cols.indexOf('Date');
+        for (const ln of lines) { const c = ln.split('\t'); const d = c[di]; if (!d || taken.has(d)) continue; got.add(d); rows.push(c); }
+      }
+      for (const d of got) taken.add(d);
+    }
+    out[name] = { cols, rows };
+    console.log(`${NL}■ ${name}（${rows.length} 行）`);
+    console.log(`  列: ${(cols || []).join(' | ')}`);
+  }
+  fs.writeFileSync(new URL('./insight.local.json', import.meta.url), JSON.stringify(out));
+  // 口コミ（星と文）
+  const rv = (await get(`/v1/apps/${app.id}/customerReviews?sort=-createdDate&limit=50`)).data;
+  console.log(`${NL}■ 口コミ ${rv.length} 件`);
+  for (const r of rv) console.log(`  ★${r.attributes.rating} ${r.attributes.territory} ${stamp(r.attributes.createdDate)} ${r.attributes.title || ''} / ${(r.attributes.body || '').replace(/\s+/g, ' ').slice(0, 120)}`);
+  console.log(`${NL}中身は tools/insight.local.json に書きました（gitignore）`);
+}
+
 /** 読むだけ：いちばん新しい提出の箱の中身と、付いているビルドの輸出（暗号）の答え。出し直せないときの原因探しに */
 async function subinfo() {
   const app = (await get(`/v1/apps?filter[bundleId]=${BUNDLE_ID}&limit=1`)).data[0];
@@ -1042,6 +1092,6 @@ async function phased() {
 }
 
 const cmd = process.argv[2] || 'status';
-const jobs = { release, status, builds, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps, subinfo, stats, phased };
+const jobs = { release, status, builds, text, iap, memo, version, fill, notes, build, submit, cancel, shots, cpp, caps, subinfo, stats, insight, phased };
 if (!jobs[cmd]) { console.error(`できること: ${Object.keys(jobs).join(', ')}`); process.exit(2); }
 jobs[cmd]().catch((e) => { console.error(`${NL}失敗: ${e.message}`); process.exit(1); });

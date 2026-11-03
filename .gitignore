@@ -15,3 +15,5 @@ SECRET_*.pem
 app/tools/*.p8
 *.p8
 app/tools/asc.local.json
+
+app/tools/insight.local.json
