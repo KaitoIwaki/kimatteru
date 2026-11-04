@@ -143,12 +143,14 @@ public final class Engine {
     // MARK: 評価の小窓（うれしい瞬間にだけ、控えめに）
     public func maybeAskReview(_ reason: String) {
         let cfg = settings
-        // JS：if(!cfg.firstUseAt || now-cfg.firstUseAt < 7*86400000) return;
-        if !JS.truthy(cfg["firstUseAt"]) || now - JS.number(cfg["firstUseAt"]) < 7 * 86_400_000 { return }
-        if JS.truthy(cfg["lastReviewAsk"]) && now - JS.number(cfg["lastReviewAsk"]) < 60 * 86_400_000 { return }
+        // 2.2 から少し早めに頼む（評価が 0 件で、ストアのページを開いた人が入れるのをためらうため）。
+        // 使い始めて 3 日（前は 7 日）・前に頼んでから 30 日（前は 60 日）・確定 3 回目（前は 5 回目）・開いたとき 7 日と 10 件（前は 14 日と 20 件）。
+        // 実際に小窓を出すかは iOS が決める（1 年に 3 回まで）
+        if !JS.truthy(cfg["firstUseAt"]) || now - JS.number(cfg["firstUseAt"]) < 3 * 86_400_000 { return }
+        if JS.truthy(cfg["lastReviewAsk"]) && now - JS.number(cfg["lastReviewAsk"]) < 30 * 86_400_000 { return }
         let n = JS.truthy(cfg["confirmCount"]) ? JS.number(cfg["confirmCount"]) : 0
-        let good = reason == "share" || (reason == "confirm" && [5, 10, 25].contains(n))
-            || (reason == "open" && now - JS.number(cfg["firstUseAt"]) > 14 * 86_400_000 && events.count >= 20)
+        let good = reason == "share" || (reason == "confirm" && [3, 10, 25].contains(n))
+            || (reason == "open" && now - JS.number(cfg["firstUseAt"]) > 7 * 86_400_000 && events.count >= 10)
         if !good { return }
         set(["settings": .object(Self.with(settings, ["lastReviewAsk": num(now)]))])
         later(1200) { [weak self] in self?.onRequestReview() }
