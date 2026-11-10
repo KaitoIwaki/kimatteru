@@ -222,7 +222,7 @@ final class StoreShots: XCTestCase {
         sleep(1)
         app.descendants(matching: .any).matching(identifier: "day.row.st7").firstMatch.tap()
         sleep(2)
-        app.buttons["確定した"].firstMatch.tap()
+        app.buttons["決まった"].firstMatch.tap()
         sleep(4)
         // 空いてる日をシェア
         mark(app, "promo-share")

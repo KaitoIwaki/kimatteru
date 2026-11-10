@@ -182,7 +182,7 @@ final class MonthShots: XCTestCase {
             let r = app.descendants(matching: .any).matching(identifier: "day.row.h").firstMatch
             if r.waitForExistence(timeout: 5) {
                 r.tap()
-                let ok = app.buttons["確定した"]
+                let ok = app.buttons["決まった"]
                 if ok.waitForExistence(timeout: 5) {
                     snap(app, "M14-confirm-dialog")
                     ok.tap()

@@ -204,7 +204,7 @@ struct OnboardingView: View {
         }
     }
 
-    /// 1 枚目の紙：今日の日付・塗りの予定 1 本・点線の予定 1 本（押すと問いが出て、「確定した」で塗りになる）
+    /// 1 枚目の紙：今日の日付・塗りの予定 1 本・点線の予定 1 本（押すと問いが出て、「決まった」で塗りになる）
     @ViewBuilder private func demoPaper(_ v: OnboardView, _ k: ObClock) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(v.dateText).font(.system(size: 11, weight: .semibold)).foregroundStyle(ink("ink-mut")).padding(.bottom, 10)
@@ -244,12 +244,12 @@ struct OnboardingView: View {
             // 押されるまでは、点線が静かに息をする（出そろってから）
             .scaleEffect(v.step == 1 && !v.filled && !v.asking ? k.breath(after: 2.9) : 1)
             .modifier(ObLift(p: k.p(2.1, 0.55)))
-            // 本物と同じ：押すとこの問いが出て、「確定した」で塗りになる
+            // 本物と同じ：押すとこの問いが出て、「決まった」で塗りになる
             if v.asking {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(v.askHeading).font(.system(size: 13, weight: .bold)).foregroundStyle(ink("ink"))
                     Button { model.act { $0.onboardDemoConfirm() } } label: {
-                        Text("確定した").font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
+                        Text("決まった").font(.system(size: 14, weight: .bold)).foregroundStyle(.white)
                             .frame(maxWidth: .infinity).padding(.vertical, 11).padding(.horizontal, 14)
                             .background(FormTone.teal, in: RoundedRectangle(cornerRadius: 12))
                     }

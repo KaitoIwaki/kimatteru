@@ -197,7 +197,7 @@ final class FormShots: XCTestCase {
             demo.tap()
             sleep(1)
             snap(app, "42-onboard-asking")
-            if app.buttons["確定した"].waitForExistence(timeout: 3) { app.buttons["確定した"].tap() }
+            if app.buttons["決まった"].waitForExistence(timeout: 3) { app.buttons["決まった"].tap() }
             sleep(1)
             snap(app, "43-onboard-done")
         }

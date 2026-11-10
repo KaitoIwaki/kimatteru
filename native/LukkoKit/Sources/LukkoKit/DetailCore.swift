@@ -250,7 +250,7 @@ extension Engine {
         v.typeColor = JS.string(t["color"]); v.openColor = v.typeColor
         v.changed = d["start"] != d["origS"] || d["end"] != d["origE"]
         v.origText = (mode == "worked" ? "確定 " : "希望 ") + JS.string(d["origS"]) + "–" + JS.string(d["origE"])
-        v.primaryLabel = mode == "worked" ? "記録する" : "確定した"
+        v.primaryLabel = mode == "worked" ? "記録する" : "決まった"
         v.primaryBg = AppCore.rgb(TypeDefs.mixHex(JS.string(t["color"]), "#000000", 0.35))
         v.breakShown = mode == "worked"
         if v.breakShown {

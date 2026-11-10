@@ -423,7 +423,7 @@ struct FormScreen: View {
                         Toggle(isOn: Binding(get: { v.candOn }, set: { _ in model.act { $0.toggleCand() } })) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("どれか1日に決まる（候補日）").font(.system(size: 14.5))
-                                Text("1つ確定したら、ほかの候補を片づけるか聞きます").font(.system(size: 11)).foregroundStyle(ink("ink-mut"))
+                                Text("1つ決まったら、ほかの候補を片づけるか聞きます").font(.system(size: 11)).foregroundStyle(ink("ink-mut"))
                             }
                         }
                         .tint(FormTone.teal)
