@@ -105,7 +105,8 @@ final class StoreShots: XCTestCase {
         // 先の日（今日より後）のときは詳しい画面が開くので、そこの「この予定、どうなった？」から出す
         row.tap()
         if !app.buttons["決まった"].firstMatch.waitForExistence(timeout: 3) {
-            let ask = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'この予定'")).firstMatch
+            // 右上の「…」も名前が「この予定」で始まるので、「どうなった」で探す
+            let ask = app.buttons.matching(NSPredicate(format: "label CONTAINS 'どうなった'")).firstMatch
             if ask.waitForExistence(timeout: 3) { ask.tap() }
             XCTAssertTrue(app.buttons["決まった"].firstMatch.waitForExistence(timeout: 5), "「どうなった？」の小窓が出ない")
         }
