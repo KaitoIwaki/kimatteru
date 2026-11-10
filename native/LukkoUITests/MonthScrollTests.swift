@@ -58,20 +58,18 @@ final class MonthScrollTests: XCTestCase {
         XCTAssertLessThan(cell(app, 1).frame.minY, weekdays.frame.maxY + 40, "1 日の週がいちばん上に来ていない")
         snap(app, "v00-top")
 
-        // ゆっくり 120pt 引き上げる：めくらずに、引いた分だけずれる。
-        // 見出しの月は、まんなかの週で決まるので、月の始まりの曜日によっては変わってよい。
-        // マスは「11月15日」のような名前（月つき）で探す（見出しの月が変わっても同じマスを追える）
-        let mm = start % 12 + 1
-        let d15 = app.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "\(mm)月15日")).firstMatch
+        // ゆっくり 60pt 引き上げる：めくらずに、引いた分だけずれる。
+        // 見出しの月は、まんなかの週で決まる（2 週ほど動くと変わることがある）ので、1 週より短く引いて、同じ月の 15 日のマスで測る
+        let d15 = cell(app, 15)
         XCTAssertTrue(d15.exists, "15 日のマスが無い")
         let y0 = d15.frame.minY
         let from = app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
-        let to = from.withOffset(CGVector(dx: 0, dy: -120))
-        from.press(forDuration: 0.1, thenDragTo: to, withVelocity: .slow, thenHoldForDuration: 0.5)
+        from.press(forDuration: 0.1, thenDragTo: from.withOffset(CGVector(dx: 0, dy: -60)), withVelocity: .slow, thenHoldForDuration: 0.5)
         sleep(1)
+        XCTAssertEqual(monthNo(app), start, "1 週より短く動かしただけで、見出しの月が変わった")
         let moved = y0 - d15.frame.minY
-        XCTAssertGreaterThan(moved, 70, "引いたのにほとんど動かない（\(moved)pt）")
-        XCTAssertLessThan(moved, 260, "引いた分より大きく動いた（\(moved)pt）")
+        XCTAssertGreaterThan(moved, 30, "引いたのにほとんど動かない（\(moved)pt）")
+        XCTAssertLessThan(moved, 140, "引いた分より大きく動いた（\(moved)pt）")
 
         // 月の境目が見えるところまで上げる（次の月の 1 日が見える）
         for _ in 0..<2 {
