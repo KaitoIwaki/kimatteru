@@ -101,8 +101,14 @@ final class StoreShots: XCTestCase {
         XCTAssertTrue(row.waitForExistence(timeout: 5), "歯医者の行が無い")
         sleep(1)
         snap(app, "store-02-day")
-        // 点線の予定は、押すとすぐ「この用事、どうなりました？」が出る
+        // 点線の予定は、押すとすぐ「この用事、どうなりました？」が出る。
+        // 先の日（今日より後）のときは詳しい画面が開くので、そこの「この予定、どうなった？」から出す
         row.tap()
+        if !app.buttons["決まった"].firstMatch.waitForExistence(timeout: 3) {
+            let ask = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'この予定'")).firstMatch
+            if ask.waitForExistence(timeout: 3) { ask.tap() }
+            XCTAssertTrue(app.buttons["決まった"].firstMatch.waitForExistence(timeout: 5), "「どうなった？」の小窓が出ない")
+        }
         sleep(2)
         snap(app, "store-03-dialog")
     }
