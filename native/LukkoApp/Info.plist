@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 起動画面：アプリの地と同じ色だけ（ロゴは置かない）。明るい #F6F7F9・暗い #0B0D10（Assets の LaunchBG） -->
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBG</string>
+	</dict>
+</dict>
+</plist>

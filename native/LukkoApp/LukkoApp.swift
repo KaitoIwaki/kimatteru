@@ -77,7 +77,8 @@ struct RootView: View {
             } else if model.data.unreadable {
                 UnreadableView()
             } else {
-                Color(.systemBackground).ignoresSafeArea()
+                // 読み込み中：起動画面と同じ色（ダークモードで一瞬白く光らないように）
+                Color("LaunchBG").ignoresSafeArea()
             }
             if Self.debug { DebugBadge() }
             // 保存についての知らせ（いちばん上に、必ず出す）
@@ -107,6 +108,8 @@ struct RootView: View {
 
     /// 設定で「明るい／暗い」を選んでいるときだけ、アプリ全体をそちらにする（iPhone に合わせるときは何もしない）
     private var forcedScheme: ColorScheme? {
+        // 読み込みが済むまでは設定が分からないので、iPhone に合わせる（「明るい」に決めつけると、暗い iPhone で白く光る）
+        guard model.ready else { return nil }
         let cfg = model.state["settings"] ?? .null
         let th = JS.truthy(cfg["theme"]) ? JS.string(cfg["theme"]) : (JS.truthy(cfg["dark"]) ? "dark" : "light")
         if th == "auto" { return nil }
@@ -132,7 +135,7 @@ struct UnreadableView: View {
         }
         .padding(32)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemBackground))
+        .background(Color("LaunchBG"))
         .onChange(of: scenePhase) { _, p in if p == .active { retry() } }
     }
     private func retry() {

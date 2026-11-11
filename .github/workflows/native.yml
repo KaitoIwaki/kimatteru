@@ -53,6 +53,12 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild build -project LUKKO.xcodeproj -scheme LUKKO -configuration Release -sdk iphoneos -destination "generic/platform=iOS" CODE_SIGNING_ALLOWED=NO 2>&1 | tee ../release-build.log | tail -30
+          # 起動画面の色が入っているか（Info.plist を混ぜる形にしたので、抜けていないか確かめる）
+          APP=$(xcodebuild -project LUKKO.xcodeproj -scheme LUKKO -configuration Release -sdk iphoneos -showBuildSettings 2>/dev/null | awk -F' = ' '/ CODESIGNING_FOLDER_PATH /{print $2; exit}')
+          echo "app: $APP"
+          test "$(plutil -extract UILaunchScreen.UIColorName raw "$APP/Info.plist")" = "LaunchBG"
+          test "$(plutil -extract CFBundleDisplayName raw "$APP/Info.plist")" = "LUKKO"
+          plutil -extract NSCalendarsFullAccessUsageDescription raw "$APP/Info.plist" > /dev/null
       - name: 画面の試験と写真（シミュレーター）
         working-directory: native
         run: |
