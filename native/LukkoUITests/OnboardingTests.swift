@@ -65,9 +65,16 @@ final class OnboardingTests: XCTestCase {
     }
 
     func testImportFromMonthHintReturnsToMonth() {
-        let app = launch("{\"savedAt\":8000,\"events\":[],\"settings\":{\"onboarded\":true}}")
+        // 予定 0 件は、保存ファイルと localStorage の両方に同じ中身を入れる（月の案内の写真の試験と同じ）。
+        // ファイルだけだと、空のファイルを「まだ何も無い」と見て、はじめての案内が出てしまう
+        let empty = "{\"savedAt\":9000000000001,\"events\":[],\"settings\":{\"onboarded\":true}}"
+        let app = XCUIApplication()
+        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", b64(empty), "-lukkoSeedFile", b64(empty)]
+        app.launch()
+        allowAlerts()
         let hint = app.staticTexts["month.firstRunHint"]
         XCTAssertTrue(hint.waitForExistence(timeout: 60), "予定が 0 件なのに月の案内が出ない")
+        XCTAssertFalse(app.buttons["スキップ"].exists, "はじめての案内が出ている（試験の準備が違う）")
         app.buttons["iPhone のカレンダーから取り込む"].tap()
         // 押した時点で iPhone の許可が出る
         allowAlerts()
