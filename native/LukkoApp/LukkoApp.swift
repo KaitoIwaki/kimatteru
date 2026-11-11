@@ -223,15 +223,15 @@ struct MainTabs: View {
             DialogSheet().environment(\.ink, Ink(dark: model.dark))
         }
         .sheet(isPresented: Binding(get: { model.state["screen"] == "import" }, set: { on in
-            if !on && model.state["screen"] == "import" { model.act { $0.set(["screen": "settings"]) } }
+            if !on && model.state["screen"] == "import" { model.act { $0.importBack() } }
         })) {
             NavigationStack {
                 ImportScreen()
-                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { model.act { $0.set(["screen": "settings"]) } } } }
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { model.act { $0.importBack() } } } }
             }
             .environment(\.ink, Ink(dark: model.dark))
         }
-        .fullScreenCover(isPresented: Binding(get: { !JS.truthy(model.state["settings"]?["onboarded"]) }, set: { _ in })) {
+        .fullScreenCover(isPresented: Binding(get: { !JS.truthy(model.state["settings"]?["onboarded"]) || JS.truthy(model.state["onboard"]?["replay"]) }, set: { _ in })) {
             OnboardingView().environment(\.ink, Ink(dark: model.dark))
         }
         // 空いてる日をシェア・まとめカード（空き状況・まとめ・月表示の給料バー、どこから開いても今のタブの上にシートで出す）

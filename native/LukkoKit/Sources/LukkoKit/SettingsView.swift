@@ -292,6 +292,18 @@ extension Engine {
     public func pickProfile(_ k: String) { setProfile(k, JS.truthy(state["profileSheet"]?["retire"]) && k != "student") }
     public func replayGuide() {
         haptic("light")
-        set(["settings": .object(Self.with(settings, ["onboarded": false])), "onboard": ["step": 0, "demo": "dash", "picked": .string(core().profile()), "replay": true]])
+        // 「案内を済ませた」は保存したまま。見直しの途中でアプリを閉じても、次に開いたとき案内は出ない
+        set(["onboard": ["step": 0, "demo": "dash", "picked": .string(core().profile()), "replay": true]])
+    }
+    /// 案内を出しているか（はじめての人か、設定から見直しているとき）
+    public func showOnboarding() -> Bool {
+        !JS.truthy(settings["onboarded"]) || JS.truthy(state["onboard"]?["replay"])
+    }
+    /// 案内を終える（「はじめる」「スキップ」）。見直しの印も消す
+    public func finishGuide() {
+        finishOnboard(false)
+        if JS.truthy(state["onboard"]?["replay"]) {
+            set(["onboard": .object(Self.with(state["onboard"]?.object ?? [:], ["replay": Optional<JSONValue>.none]))])
+        }
     }
 }

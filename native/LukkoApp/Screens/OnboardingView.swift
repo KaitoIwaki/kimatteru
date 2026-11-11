@@ -1,7 +1,7 @@
 import SwiftUI
 import LukkoKit
 
-/// はじめての案内（Web 版の onboarding。view.jsx 2185-2390）。5 枚：使い方を選ぶ → 決まった／まだ → 空き → 送る → 取り込み。
+/// はじめての案内（Web 版の onboarding。view.jsx 2185-2390）。5 枚：使い方を選ぶ → 決まった／まだ → 空き → 送る → はじめる（取り込みは月の画面の案内から）。
 ///
 /// 見出しは一字ずつ、薄い墨から本来の濃さへ沈み込むように現れる（inkRise）。紙や予定は下から静かに置かれる（obLift）。
 /// 遅れはページを開いた時刻からの経過で決める（Web 版の CSS の animation-delay と同じ値）。中身を押すと演出を飛ばして全部出す
@@ -16,14 +16,13 @@ struct OnboardingView: View {
     var body: some View {
         _ = model.state["onboard"]
         let v = model.engine.onboardView(sysDark: model.sysDark)
-        let canImport = model.engine.phone != nil
         return VStack(spacing: 0) {
             HStack {
                 Button { model.act { $0.onboardBack() } } label: { Text("←").font(.system(size: 17)).foregroundStyle(ink("ink-mut")).padding(.vertical, 6).padding(.trailing, 12) }
                     .buttonStyle(.plain).opacity(v.step == 0 ? 0 : 1).disabled(v.step == 0)
                     .accessibilityLabel("戻る")
                 Spacer()
-                Button { model.act { $0.finishOnboard(false) } } label: { Text("スキップ").font(.system(size: 14)).foregroundStyle(ink("ink-faint")).padding(.vertical, 6) }
+                Button { model.act { $0.finishGuide() } } label: { Text("スキップ").font(.system(size: 14)).foregroundStyle(ink("ink-faint")).padding(.vertical, 6) }
                     .buttonStyle(.plain)
             }
             .padding(.horizontal, 18).padding(.top, 4)
@@ -50,7 +49,7 @@ struct OnboardingView: View {
                 .animation(.timingCurve(0.2, 0.9, 0.2, 1, duration: 0.3), value: v.step)
                 .padding(.top, 20).padding(.bottom, 16)
                 .accessibilityHidden(true)
-                bottomButtons(v, canImport)
+                bottomButtons(v)
             }
             .padding(.horizontal, 26).padding(.bottom, 12)
         }
@@ -62,15 +61,16 @@ struct OnboardingView: View {
     }
 
     private func restartPage() {
-        pageStart = Date(); fastAt = nil; settled = false
-        let step = model.engine.onboardView().step
+        let start = Date()
+        pageStart = start; fastAt = nil; settled = false
+        // 止めるのは、この枚を開いたときの待ちだけ。すぐ戻って同じ枚を開き直したときに、前の待ちで演出の途中のまま止めない
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.6) {
-            if model.engine.onboardView().step == step { settled = true }
+            if pageStart == start { settled = true }
         }
     }
 
     // MARK: 下のボタン
-    @ViewBuilder private func bottomButtons(_ v: OnboardView, _ canImport: Bool) -> some View {
+    @ViewBuilder private func bottomButtons(_ v: OnboardView) -> some View {
         switch v.step {
         case 1:
             // 押さなくても進める。押してあれば黒、まだなら控えめな地
@@ -79,21 +79,11 @@ struct OnboardingView: View {
         case 2, 3:
             ObButton(label: "つぎへ", dark: true) { model.act { $0.onboardNext() } }
         case 4:
-            VStack(spacing: 9) {
-                if canImport { ObButton(label: "カレンダーから取り込む", dark: true) { startImport() } }
-                ObButton(label: canImport ? "空のまま はじめる" : "はじめる", dark: !canImport, outlined: canImport) { model.act { $0.finishOnboard(false) } }
-            }
+            // 取り込みはここに置かない（許可を聞く前の説明に「聞かずに進む」道を作らない。5.1.1(iv)）。
+            // 取り込みは月の画面の案内から。押した時点で iPhone の許可が出る
+            ObButton(label: "はじめる", dark: true) { model.act { $0.finishGuide() } }
         default:
             EmptyView()
-        }
-    }
-
-    /// 取り込みへ。案内（全画面）を閉じきってから取り込みのシートを出す（2 枚を同時には動かせない）
-    private func startImport() {
-        model.act { e in e.finishOnboard(true); e.set(["screen": "month"]) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-            model.act { $0.set(["screen": "import"]) }
-            Task { await model.engine.askImportNow() }
         }
     }
 
@@ -169,26 +159,20 @@ struct OnboardingView: View {
                 .font(.system(size: 13)).lineSpacing(8).foregroundStyle(ink("ink-soft")).padding(.top, 16)
                 .modifier(ObCap(p: k.p(2.5, 0.45)))
         default:
-            ObTitle(text: "いまの予定を、", start: 0.1, step: 0.06, clock: k).padding(.top, 24)
-            ObTitle(text: "持っていきますか？", start: 0.55, step: 0.05, clock: k)
-            Text("iPhone のカレンダーから読み込めます。はじめから作り直さなくて済みます。")
-                .font(.system(size: 14)).lineSpacing(9).foregroundStyle(ink("ink-soft")).padding(.top, 14)
-                .modifier(ObCap(p: k.p(1.4, 0.5)))
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(["読むだけです。書き込みはしません", "入れるものは1件ずつ選べます", "あとから設定でもできます"], id: \.self) { t in
+            ObTitle(text: "登録なしで、", start: 0.1, step: 0.06, clock: k).padding(.top, 24)
+            ObTitle(text: "すぐ使えます。", start: 0.45, step: 0.05, clock: k)
+            // 予定が外に出ない、を最初に言っておく
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(["アカウント登録は要りません", "予定はこの iPhone の中だけ。どこにも送りません", "広告はありません"], id: \.self) { t in
                     HStack(alignment: .firstTextBaseline, spacing: 6) { Text("・"); Text(t).frame(maxWidth: .infinity, alignment: .leading) }
                 }
             }
-            .font(.system(size: 12.5)).foregroundStyle(ink("ink-soft"))
+            .font(.system(size: 14)).foregroundStyle(ink("ink-soft"))
             .padding(.horizontal, 18).padding(.vertical, 16)
             .background(ink("card"), in: RoundedRectangle(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(ink("line")))
             .padding(.top, 24)
-            .modifier(ObLift(p: k.p(1.65, 0.6)))
-            // 会社の予定を入れても外に出ない、を最初に言っておく
-            Text("アカウント登録は要りません。予定はこの iPhone の中だけにあり、どこにも送りません。")
-                .font(.system(size: 12.5)).lineSpacing(6).foregroundStyle(ink("ink-soft")).padding(.top, 14)
-                .modifier(ObCap(p: k.p(1.4, 0.5)))
+            .modifier(ObLift(p: k.p(1.0, 0.6)))
             // 毎朝、今日の予定をまとめて知らせる。許可は、ここでオンにした人にだけ後で聞く
             Toggle(isOn: Binding(get: { v.morningOn }, set: { _ in model.act { $0.onboardToggleMorning() } })) {
                 VStack(alignment: .leading, spacing: 2) {

@@ -39,6 +39,8 @@ public final class Engine {
     var named: [String: Int] = [:]
     /// 取り消しの「前の値」の項目（JS では値が undefined の項目も「消す」として戻すため、項目の名前を持っておく）
     public var undoPrevKeys: [String] = []
+    /// 取り込みの画面を開く前にいた画面（「やめる」「閉じる」でそこへ戻す）
+    var importFrom: JSONValue?
 
     public init(state: Obj, now: Double, timeZone: TimeZone) {
         self.state = state; self.fixedNow = now; self.timeZone = timeZone
@@ -46,6 +48,8 @@ public final class Engine {
 
     // MARK: 中身の差し替え（JS の setState。上の段だけ混ぜる。nil は「無い」）
     public func set(_ patch: [String: JSONValue?]) {
+        // 取り込みを開いた元の画面を覚えておく（閉じたらそこへ戻す）。保存しない
+        if case .some(.some(let s)) = patch["screen"], s == "import", state["screen"] != "import" { importFrom = state["screen"] }
         for (k, v) in patch { if let v { state[k] = v } else { state.removeValue(forKey: k) } }
         didChange()
     }

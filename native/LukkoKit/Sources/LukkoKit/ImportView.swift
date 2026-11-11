@@ -95,8 +95,8 @@ extension Engine {
         let k = key + "Open"
         setImp([k: .bool(!JS.truthy(impObj[k]))])
     }
-    /// 取り込みの画面から出る（やめる・←）
-    public func importBack() { set(["screen": "settings"]) }
+    /// 取り込みの画面から出る（やめる・閉じる・下へ払う）。開いた元の画面へ戻す（月の案内から開いたら月へ）
+    public func importBack() { set(["screen": importFrom ?? "settings"]) }
     /// 取り込みが済んで「カレンダーを見る」
     public func importDone() { set(["screen": "month"]) }
 }

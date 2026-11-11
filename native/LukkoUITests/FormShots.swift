@@ -181,7 +181,7 @@ final class FormShots: XCTestCase {
         }
     }
 
-    /// はじめての案内（5 枚）と、そこからの取り込み
+    /// はじめての案内（5 枚）。最後は「はじめる」
     func testOnboarding() throws {
         // 案内がまだの人。保存ファイルが前の試験の localStorage に勝つよう、予定を 1 件入れて新しくしておく
         let app = launch(seed: "{\"savedAt\":9900000000000,\"events\":[{\"id\":\"z\",\"y\":2020,\"m\":0,\"day\":1,\"start\":\"10:00\",\"end\":\"11:00\",\"title\":\"old\",\"type\":\"yoji\",\"status\":\"kakutei\"}],\"settings\":{\"onboarded\":false}}")
@@ -208,33 +208,13 @@ final class FormShots: XCTestCase {
             sleep(i == 0 ? 3 : 3)
             snap(app, name)
         }
-        // 取り込み：iPhone の許可の画面が出たら許す（出ない・言葉が違うときは、そのまま写す）
-        addUIInterruptionMonitor(withDescription: "calendar") { alert in
-            for label in ["Allow Full Access", "フルアクセスを許可", "OK", "Allow"] where alert.buttons[label].exists {
-                alert.buttons[label].tap(); return true
-            }
-            return false
-        }
-        let imp = app.buttons["カレンダーから取り込む"]
-        if imp.waitForExistence(timeout: 3) {
-            imp.tap()
-            sleep(3)
-            let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
-            for label in ["Allow Full Access", "フルアクセスを許可"] where springboard.buttons[label].waitForExistence(timeout: 2) {
-                springboard.buttons[label].tap()
-                break
-            }
-            app.tap()
-            sleep(2)
-            snap(app, "47-import")
-            if app.buttons["import.scan"].waitForExistence(timeout: 2) { app.buttons["import.scan"].tap(); sleep(3) }
-            if app.buttons["import.read"].waitForExistence(timeout: 3) {
-                snap(app, "48-import-cals")
-                app.buttons["import.read"].tap()
-                sleep(3)
-            }
-            snap(app, "49-import-found")
-        }
+        // 最後の枚は「はじめる」だけ（取り込みは月の画面の案内から。許可を聞く前の説明に、聞かずに進む道を置かない）
+        XCTAssertFalse(app.buttons["カレンダーから取り込む"].exists, "案内の最後に取り込みのボタンが残っている")
+        let start = app.buttons["はじめる"]
+        XCTAssertTrue(start.waitForExistence(timeout: 3), "「はじめる」が無い")
+        start.tap()
+        let closed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: start)
+        XCTAssertEqual(XCTWaiter().wait(for: [closed], timeout: 5), .completed, "はじめるで案内が閉じない")
     }
 
     /// 月表示の日を押して、日の画面を開く（起きたばかりで押し損ねたら、もう一度押す）
