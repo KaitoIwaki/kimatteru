@@ -23,7 +23,8 @@ final class RobustnessTests: XCTestCase {
                                               "start": pick(["10:00", odd()]), "end": pick(["11:00", odd()]), "status": pick(["kakutei", "mikakutei", "jisseki", odd()])]
                 if rnd() < 0.3 { e["allDay"] = odd() }
                 if rnd() < 0.3 { e["days"] = odd() }
-                if rnd() < 0.2 { e["remindMin"] = odd() }
+                if rnd() < 0.2 { e["remindMin"] = pick([.number(60), odd()]) }
+                if rnd() < 0.2 { e["remindMin2"] = pick([.number(1440), .number(60), odd()]) }
                 if rnd() < 0.2 { e["actualEnd"] = odd() }
                 events.append(.object(e))
             }
@@ -56,6 +57,14 @@ final class RobustnessTests: XCTestCase {
             _ = NoticesCore.syncShiftNotices([], events, now: 1_790_000_000_000, tz: tz)
             _ = NotifyCore.buildSchedule(events.compactMap { $0.object }, eng.state["settings"]?.object ?? [:], now: NotifyCore.LocalTime(2026, 9, 15, 10, 0))
             _ = WidgetCore.buildPayload(eng.state, today: (2026, 9, 15), atMs: 1_790_000_000_000)
+            // お知らせ 2 つ（2.2）：壊れた値の予定を開いて、押して、切り替えても落ちない
+            if let first = events.first?.object {
+                eng.openEdit(first, nil)
+                _ = eng.formView()
+                eng.toggleRemind(.number(60)); eng.toggleRemind(.number(1440)); eng.toggleRemind(.number(10))
+                eng.toggleAllDay()
+                _ = eng.formView()
+            }
             eng.refreshNotif()
             eng.checkToday()
             eng.save()

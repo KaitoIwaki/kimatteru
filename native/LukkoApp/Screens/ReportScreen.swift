@@ -43,7 +43,7 @@ struct ReportScreen: View {
                 }
                 List {
                     if v.empty {
-                        Text("まだ何もありません。予定を確定すると、何にどれだけ時間を使ったかが、ここに積み上がっていきます。")
+                        Text("まだ何もありません。予定が決まると、何にどれだけ時間を使ったかが、ここに積み上がっていきます。")
                             .foregroundStyle(.secondary).listRowBackground(Color.clear)
                     } else if v.tab == "year" { yearBody(v) } else { monthBody(v) }
                 }
@@ -119,7 +119,7 @@ struct ReportScreen: View {
                 Spacer(); Text("\(v.yearLabel) \(v.monthLabel)").font(.headline); Spacer()
                 Button { model.act { $0.set(["ym": Engine.shiftMonth($0.state["ym"], 1)]) } } label: { Image(systemName: "chevron.right") }.buttonStyle(.borderless).accessibilityLabel("次の月")
             }
-            if v.monthNone { Text("この月には、確定した予定がありません。").foregroundStyle(.secondary) }
+            if v.monthNone { Text("この月には、決まった予定がありません。").foregroundStyle(.secondary) }
             else { headView(v.monthHead, v.monthSub); kinds(v.monthKinds) }
         }
         if !v.overMonth.isEmpty || !v.leave.isEmpty {

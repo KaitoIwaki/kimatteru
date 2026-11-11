@@ -138,6 +138,7 @@ extension Engine {
         v.spanText = AppCore.evSpan(ev) > 1 ? "\(AppCore.evSpan(ev))日間" : ""
         let drm = ev["remindMin"]?.number
         v.remindText = (drm == nil || JS.truthy(settings["notifyOff"])) ? "" : c.remindLabel(ev["remindMin"], ev["allDay"]) + "にお知らせ"
+        if !v.remindText.isEmpty, RemindPair.second(ev) != nil { v.remindText = RemindPair.labels(ev).joined(separator: "・") + "にお知らせ" }
         v.place = JS.string(JS.or(ev["place"], "")).jsTrimmed
         v.placeHref = v.place.isEmpty ? "" : "https://maps.apple.com/?q=" + JS.encodeURIComponent(v.place)
         v.memo = JS.string(JS.or(ev["memo"], "")).jsTrimmed

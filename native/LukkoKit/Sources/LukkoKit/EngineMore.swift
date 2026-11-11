@@ -367,7 +367,7 @@ extension Engine {
         for e in list { prev[JS.string(e["id"])] = .object(["status": str("mikakutei")]) }
         let ids = list.map { $0["id"] }
         set(["events": eventsArray(events.map { e in ids.contains(where: { $0 == e["id"] }) ? Self.with(e, ["status": str("kakutei"), "updatedAt": num(now)]) : e })])
-        showUndo("\(JS.string(ym["m"].map { JSONValue.number(JS.number($0) + 1) }))月の希望\(list.count)件を確定にしました", .object(["kind": str("many"), "prev": .object(prev)]))
+        showUndo("\(JS.string(ym["m"].map { JSONValue.number(JS.number($0) + 1) }))月の希望\(list.count)件が決まりました", .object(["kind": str("many"), "prev": .object(prev)]))
     }
 
     // MARK: 予定を写す
@@ -383,7 +383,7 @@ extension Engine {
                                "place": JS.or(ev["place"], str("")) ?? str(""), "memo": JS.or(ev["memo"], str("")) ?? str(""), "link": JS.or(ev["link"], str("")) ?? str(""),
                                "secret": .bool(JS.truthy(ev["secret"])), "repEvery": .null, "repSpan": num(3), "repDows": .array([]), "added": .array(added), "picking": str("date")],
                               ["title": ev["title"], "type": ev["type"], "start": ev["start"], "end": ev["end"], "y": ev["y"], "m": ev["m"], "day": ev["day"],
-                               "pickY": ev["y"], "pickM": ev["m"], "jobId": ev["jobId"]])
+                               "pickY": ev["y"], "pickM": ev["m"], "jobId": ev["jobId"], "remindMin2": RemindPair.second(ev).map { .number($0) }])
         set(["screen": str("new"), "returnTo": JS.or(ret, str("month")), "newType": .null, "detailId": .null, "draft": .object(draft)])
     }
 

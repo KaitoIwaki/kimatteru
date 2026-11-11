@@ -153,7 +153,7 @@ extension Engine {
         let seg: [StampBarView.Seg] = [("kakutei", "決まってる"), ("mikakutei", "希望（点線）")].map { k, label in
             .init(key: k, label: label, sel: sp["status"] == .string(k))
         }
-        return StampBarView(tpls: tpls, seg: seg, monthLabel: "\(JS.string(.number(JS.number(state["ym"]?["m"]) + 1)))月の希望をまとめて確定")
+        return StampBarView(tpls: tpls, seg: seg, monthLabel: "\(JS.string(.number(JS.number(state["ym"]?["m"]) + 1)))月の希望を全部「決まった」に")
     }
     public func stampPick(_ key: JSONValue?) {
         guard let sp = state["stamp"]?.object else { return }

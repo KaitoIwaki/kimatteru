@@ -23,6 +23,8 @@ extension Engine {
         var p: [String: JSONValue?] = ["title": e["title"], "type": e["type"], "place": JS.or(e["place"], ""), "memo": "", "link": JS.or(e["link"], ""),
                                        "jobId": JS.or(e["jobId"], dr["jobId"]), "remindMin": e["remindMin"]?.number != nil ? e["remindMin"] : dr["remindMin"]]
         if JS.truthy(e["allDay"]) { p["allDay"] = true } else { p["allDay"] = false; p["start"] = e["start"]; p["end"] = e["end"] }
+        // 前回のお知らせが 2 つなら、2 つとも写す（前回にお知らせが無ければ、今の下書きのまま）
+        if e["remindMin"]?.number != nil { p["remindMin2"] = RemindPair.second(e).map { .number($0) } }
         var added: [JSONValue] = []
         for x in (dr["added"]?.array ?? []) + (JS.truthy(e["place"]) ? ["place"] : []) + (JS.truthy(e["link"]) ? ["link"] : []) where !added.contains(x) { added.append(x) }
         p["added"] = .array(added)
@@ -88,6 +90,13 @@ extension Engine {
         let allDay = !JS.truthy(dr["allDay"])
         let ok: [Double] = allDay ? [0, 1440] : [10, 30, 60, 1440]
         let keep: JSONValue = (dr["remindMin"]?.number).map { ok.contains($0) ? .number($0) : .null } ?? .null
+        // 2 つ目も同じに見直す。1 つ目が外れて 2 つ目が残るときは、2 つ目を 1 つ目にする
+        let keep2: Double? = RemindPair.second(dr).flatMap { ok.contains($0) ? $0 : nil }
+        if let k2 = keep2 {
+            if keep == .null { patchDraft(["allDay": .bool(allDay), "remindMin": .number(k2), "remindMin2": nil, "picking": .null]); return }
+            patchDraft(["allDay": .bool(allDay), "remindMin": keep, "remindMin2": .number(k2), "picking": .null]); return
+        }
+        if dr["remindMin2"] != nil { patchDraft(["allDay": .bool(allDay), "remindMin": keep, "remindMin2": nil, "picking": .null]); return }
         patchDraft(["allDay": .bool(allDay), "remindMin": keep, "picking": .null])
     }
     public func bumpSpan(_ d: Int) {

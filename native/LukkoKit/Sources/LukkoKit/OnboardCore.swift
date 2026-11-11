@@ -52,7 +52,9 @@ extension Engine {
         v.done = d == "done"
         v.askHeading = demo[2]
         v.demoLabel = v.filled ? demo[0] : "？" + demo[0]
-        v.caption = v.filled ? "決まった、が形になりました。" : v.asking ? "押すと、この予定が塗りに変わります。" : "↑ 点線の予定をタップしてみてください"
+        // 学生（バイト）は、決まったシフトが給料の目安に入ることまで言う
+        let wageNote = OnboardCore.demo[picked] == nil || picked == "student"
+        v.caption = v.filled ? (wageNote ? "決まったシフトは、給料の目安に入ります。" : "決まった、が形になりました。") : v.asking ? "押すと、この予定が塗りに変わります。" : "↑ 点線の予定をタップしてみてください"
         v.captionGreen = v.filled
         v.nextDark = v.done
         v.solidLabel = demo[1]

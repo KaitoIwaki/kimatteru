@@ -379,10 +379,12 @@ struct FormScreen: View {
                 VStack(alignment: .leading, spacing: 9) {
                     FlowLayout(spacing: 8) {
                         ForEach(Array(v.remindSeg.enumerated()), id: \.offset) { _, c in
-                            FormChip(label: c.label, sel: c.sel, on: FormTone.teal) { model.act { $0.setRemind(c.key) } }
+                            FormChip(label: c.label, sel: c.sel, on: FormTone.teal) { model.act { $0.toggleRemind(c.key) } }
+                                .accessibilityIdentifier("form.remind.\(c.label)")
                         }
                     }
                     if !v.remindNote.isEmpty { Text(v.remindNote).font(.system(size: 11)).foregroundStyle(ink("ink-faint")).padding(.horizontal, 4) }
+                    Text("2つまで選べます").font(.system(size: 11)).foregroundStyle(ink("ink-faint")).padding(.horizontal, 4)
                 }
                 .padding(.vertical, 6)
                 .listRowBackground(ink("bg2"))

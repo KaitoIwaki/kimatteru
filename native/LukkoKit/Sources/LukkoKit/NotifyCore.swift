@@ -117,7 +117,10 @@ public enum NotifyCore {
                                      at: at, extra: ["eventId": .string(idStr), "kind": .string("worked")], actionTypeId: "WORKED"))
                 }
             }
-            if let rm = remindMinutes(e), status != "jisseki" {
+            // お知らせは 2 つまで（2 つ目は別の ID。同じ ID だと上書きされて 1 つしか出ない）
+            var reminds: [(Double, String)] = []
+            if let rm = remindMinutes(e) { reminds.append((rm, "r")); if let r2 = RemindPair.second(e) { reminds.append((r2, "r2")) } }
+            for (rm, prefix) in reminds where status != "jisseki" {
                 var hh = alldayAnchorH, mm = 0
                 if !JS.truthy(e["allDay"]) {
                     let p = JS.string(e["start"]).components(separatedBy: ":")
@@ -128,7 +131,7 @@ public enum NotifyCore {
                 let at = LocalTime(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"]), hh, Int(max(-1.0e12, min(1.0e12, off))))
                 if abs(off) < 1.4e11 && at > now {
                     let place = (!JS.truthy(e["secret"]) && !hideAll && JS.truthy(e["place"])) ? "・" + JS.string(e["place"]) : ""
-                    out.append(Notif(id: numericId("r" + idStr),
+                    out.append(Notif(id: numericId(prefix + idStr),
                                      title: .string(JS.string(title(e)) + (status == "mikakutei" ? "（まだ）" : "")),
                                      body: whenText(e, rm) + place, at: at,
                                      extra: ["eventId": .string(idStr), "kind": .string("remind")],

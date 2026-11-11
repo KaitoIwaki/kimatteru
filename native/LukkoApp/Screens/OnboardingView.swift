@@ -110,17 +110,17 @@ struct OnboardingView: View {
                 }
             }
             .padding(.top, 26)
-            Text("予定の種類や呼び方がこれに合わせて決まります。あとから設定の「使い方」で変えられます。")
+            Text("あとから設定の「使い方」で変えられます")
                 .font(.system(size: 12)).lineSpacing(5).foregroundStyle(ink("ink-faint")).padding(.top, 14)
         case 1:
             ObTitle(text: "決まった予定も、", start: 0.15, step: 0.06, clock: k).padding(.top, 24)
             ObTitle(text: "まだの予定も。", start: 0.62, step: 0.05, clock: k)
             demoPaper(v, k)
                 .padding(.top, 34)
-                .modifier(ObLift(p: k.p(1.7, 0.6)))
-            Text("決まっている予定は塗り、まだ分からない予定は点線です。")
+                .modifier(ObLift(p: k.p(1.0, 0.6)))
+            Text("決まった予定は塗り、まだの予定は点線")
                 .font(.system(size: 13)).lineSpacing(8).foregroundStyle(ink("ink-soft")).padding(.top, 16)
-                .modifier(ObCap(p: k.p(2.4, 0.45)))
+                .modifier(ObCap(p: k.p(1.7, 0.45)))
         case 2:
             ObTitle(text: "空いてる日が、", start: 0.1, step: 0.06, clock: k).padding(.top, 24)
             ObTitle(text: "ひと目でわかる。", start: 0.55, step: 0.05, clock: k)
@@ -138,26 +138,26 @@ struct OnboardingView: View {
                     }
                     .padding(.vertical, 11)
                     .overlay(alignment: .top) { if i > 0 { Rectangle().fill(ink("line")).frame(height: 1) } }
-                    .modifier(ObLift(p: k.p(1.75 + Double(i) * 0.15, 0.5)))
+                    .modifier(ObLift(p: k.p(1.25 + Double(i) * 0.15, 0.5)))
                 }
             }
             .padding(.horizontal, 16).padding(.top, 6).padding(.bottom, 10)
             .background(ink("card"), in: RoundedRectangle(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(ink("line")))
             .padding(.top, 30)
-            .modifier(ObLift(p: k.p(1.5, 0.6)))
-            Text("予定を入れておくだけで、その日が空いているかどうかが出ます。")
+            .modifier(ObLift(p: k.p(1.0, 0.6)))
+            Text("予定を入れるだけで、空いている日が出ます")
                 .font(.system(size: 13)).lineSpacing(8).foregroundStyle(ink("ink-soft")).padding(.top, 16)
-                .modifier(ObCap(p: k.p(2.3, 0.45)))
+                .modifier(ObCap(p: k.p(1.8, 0.45)))
         case 3:
             ObTitle(text: "予定は見せずに、", start: 0.1, step: 0.06, clock: k).padding(.top, 24)
             ObTitle(text: "空きだけ送れる。", start: 0.55, step: 0.05, clock: k)
             shareCard(k)
                 .padding(.top, 30)
-                .modifier(ObLift(p: k.p(1.5, 0.6)))
-            Text("カレンダーごと送ると、見せたくない予定まで写ってしまいます。空いている日だけの画像を作れます。")
+                .modifier(ObLift(p: k.p(1.0, 0.6)))
+            Text("空いている日だけの画像を作れます")
                 .font(.system(size: 13)).lineSpacing(8).foregroundStyle(ink("ink-soft")).padding(.top, 16)
-                .modifier(ObCap(p: k.p(2.5, 0.45)))
+                .modifier(ObCap(p: k.p(2.0, 0.45)))
         default:
             ObTitle(text: "登録なしで、", start: 0.1, step: 0.06, clock: k).padding(.top, 24)
             ObTitle(text: "すぐ使えます。", start: 0.45, step: 0.05, clock: k)
@@ -192,13 +192,13 @@ struct OnboardingView: View {
     @ViewBuilder private func demoPaper(_ v: OnboardView, _ k: ObClock) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(v.dateText).font(.system(size: 11, weight: .semibold)).foregroundStyle(ink("ink-mut")).padding(.bottom, 10)
-                .modifier(ObCap(p: k.p(1.85, 0.5)))
+                .modifier(ObCap(p: k.p(1.15, 0.5)))
             Text(v.solidLabel).font(.system(size: 15)).foregroundStyle(ink.css(v.solidInk)).lineLimit(1)
                 .padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 34, maxHeight: 34, alignment: .leading)
                 .background(ink.css(v.solidBg), in: RoundedRectangle(cornerRadius: 9))
                 .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(ink.css(v.solidLine), lineWidth: 1.6))
                 .padding(.bottom, 8)
-                .modifier(ObLift(p: k.p(1.95, 0.55)))
+                .modifier(ObLift(p: k.p(1.25, 0.55)))
             Button { model.act { $0.onboardDemoTap() } } label: {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 9).fill(ink.css(v.dashBg))
@@ -226,8 +226,8 @@ struct OnboardingView: View {
                 }
             }
             // 押されるまでは、点線が静かに息をする（出そろってから）
-            .scaleEffect(v.step == 1 && !v.filled && !v.asking ? k.breath(after: 2.9) : 1)
-            .modifier(ObLift(p: k.p(2.1, 0.55)))
+            .scaleEffect(v.step == 1 && !v.filled && !v.asking ? k.breath(after: 2.2) : 1)
+            .modifier(ObLift(p: k.p(1.4, 0.55)))
             // 本物と同じ：押すとこの問いが出て、「決まった」で塗りになる
             if v.asking {
                 VStack(alignment: .leading, spacing: 0) {
@@ -273,7 +273,7 @@ struct OnboardingView: View {
                     .frame(maxWidth: .infinity).frame(height: 27)
                     .background(Palette.hex(f ? "#FAECE7" : "#EDEEF0"), in: RoundedRectangle(cornerRadius: 6))
                     .overlay { if f { RoundedRectangle(cornerRadius: 6).strokeBorder(Palette.hex("#D85A30"), lineWidth: 1.5) } }
-                    .modifier(ObLift(p: k.p(1.7 + Double(i) * 0.022, 0.4)))
+                    .modifier(ObLift(p: k.p(1.2 + Double(i) * 0.022, 0.4)))
             }
             HStack(spacing: 14) {
                 HStack(spacing: 6) {

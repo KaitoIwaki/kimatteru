@@ -279,7 +279,13 @@ extension Engine {
         v.remindValue = JS.truthy(settings["notifyOff"]) ? "通知はオフ" : (dr["remindMin"]?.number != nil ? c.remindLabel(dr["remindMin"], dr["allDay"]) : "なし")
         let cur: JSONValue = dr["remindMin"]?.number.map { .number($0) } ?? .null
         v.remindSeg = (allDay ? FormCore.remindAllDay : FormCore.remindTimed).map { .init(key: $0.0, label: $0.1, sel: cur == $0.0) }
-        if case .number(let r) = cur {
+        // 2 つ選んでいるとき（2.2）：両方に印、「前日・1時間前」
+        if let r2 = RemindPair.second(dr) {
+            for i in v.remindSeg.indices where v.remindSeg[i].key == .number(r2) { v.remindSeg[i].sel = true }
+            let names = RemindPair.labels(dr)
+            if !JS.truthy(settings["notifyOff"]) { v.remindValue = names.joined(separator: "・") }
+            v.remindNote = names.joined(separator: "と") + "にお知らせします"
+        } else if case .number(let r) = cur {
             v.remindNote = allDay ? (r == 0 ? "当日の朝9時にお知らせします" : "\(JS.numberToString(r / 1440))日前の朝9時にお知らせします")
                 : (r >= 1440 ? "\(JS.numberToString(r / 1440))日前の同じ時刻にお知らせします"
                    : "始まる\(r >= 60 ? JS.numberToString(JS.round(r / 60)) + "時間" : JS.numberToString(r) + "分")前にお知らせします")
