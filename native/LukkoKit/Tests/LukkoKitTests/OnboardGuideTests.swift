@@ -5,13 +5,13 @@ import XCTest
 final class OnboardGuideTests: XCTestCase {
     private let tz = TimeZone(identifier: "Asia/Tokyo")!
 
-    private func engine(onboarded: Bool, screen: String = "month") -> Engine {
+    private func engine(onboarded: Bool, screen: String? = "month") -> Engine {
         let now = JSDate.make(2026, 10, 10, 12, 0, 0, tz)
         var st = Engine.defaultState(now: now, tz: tz)
         var s = st["settings"]?.object ?? [:]
         s["onboarded"] = .bool(onboarded)
         st["settings"] = .object(s)
-        st["screen"] = .string(screen)
+        if let screen { st["screen"] = .string(screen) }
         return Engine(state: st, now: now, timeZone: tz)
     }
 
@@ -56,6 +56,12 @@ final class OnboardGuideTests: XCTestCase {
         s.set(["screen": "import"])
         s.importBack()
         XCTAssertEqual(s.state["screen"], "settings")
+
+        // 開いた直後（画面がまだ入っていない）は月にいるので、月へ
+        let f = engine(onboarded: true, screen: nil)
+        f.set(["screen": "import"])
+        f.importBack()
+        XCTAssertEqual(f.state["screen"], "month", "開いた直後に月の案内から開いたのに、月へ戻らない")
 
         // 元が分からないときは、今までどおり設定へ
         let n = engine(onboarded: true, screen: "import")

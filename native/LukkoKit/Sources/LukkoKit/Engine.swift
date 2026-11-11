@@ -48,8 +48,9 @@ public final class Engine {
 
     // MARK: 中身の差し替え（JS の setState。上の段だけ混ぜる。nil は「無い」）
     public func set(_ patch: [String: JSONValue?]) {
-        // 取り込みを開いた元の画面を覚えておく（閉じたらそこへ戻す）。保存しない
-        if case .some(.some(let s)) = patch["screen"], s == "import", state["screen"] != "import" { importFrom = state["screen"] }
+        // 取り込みを開いた元の画面を覚えておく（閉じたらそこへ戻す）。保存しない。
+        // 開いた直後は画面がまだ入っていない（月の画面にいる）ので、そのときは月
+        if case .some(.some(let s)) = patch["screen"], s == "import", state["screen"] != "import" { importFrom = state["screen"] ?? "month" }
         for (k, v) in patch { if let v { state[k] = v } else { state.removeValue(forKey: k) } }
         didChange()
     }
