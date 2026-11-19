@@ -604,8 +604,11 @@ struct BigDate: View {
                     Text(String(ch)).font(.system(size: 12)).foregroundColor(color)
                 }
             }
+            // 右上の「まだ ◯」に押されて、曜日の字が細く切れないように（縮ませない）
+            .fixedSize()
             .padding(.top, 3)
         }
+        .layoutPriority(1)
     }
     private var color: Color {
         entry.dayColor == 1 ? HOLIDAY_RED : entry.dayColor == 2 ? SATURDAY_BLUE : INK
@@ -628,6 +631,7 @@ struct SmallView: View {
                     if entry.undecided > 0 {
                         Text("まだ \(entry.undecided)")
                             .font(.system(size: 10)).foregroundColor(UNDECIDED)
+                            .lineLimit(1).fixedSize()
                     }
                 }
                 .padding(.top, 2)
