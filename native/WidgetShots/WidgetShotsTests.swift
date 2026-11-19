@@ -7,6 +7,12 @@ import LukkoKit
 /// 見本の予定は StoreShots と同じ「学生の 1 か月」。今日は 20 日（バイトとレポート締切がある日）にする
 @MainActor
 final class WidgetShotsTests: XCTestCase {
+    /// ウィジェットの「決まった」の置き場の名前が、アプリと同じか（違うと、押しても黙って届かない）
+    func testConfirmKeyMatchesApp() {
+        XCTAssertEqual(CONFIRM_KEY, WidgetConfirm.key)
+        XCTAssertEqual(APP_GROUP, "group.com.kimatteru.app")
+    }
+
     private typealias E = (d: Int, t: String, ty: String, st: String, s: String, e: String, all: Bool, days: Int, cand: String)
     private let month: [E] = [
         (3, "バイト", "baito", "kakutei", "17:00", "22:00", false, 1, ""),

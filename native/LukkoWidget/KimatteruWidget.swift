@@ -26,9 +26,48 @@
 
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 let APP_GROUP = "group.com.kimatteru.app"
 let STORE_KEY = "widget"
+/// 「決まった」の頼みを置くキー。アプリの WidgetConfirm.key と同じにする（違うと黙って届かない）
+let CONFIRM_KEY = "widgetConfirms"
+
+// MARK: - 「決まった」のボタン（2.4）
+//
+// ウィジェットは予定のファイルを書き換えない。「この予定が決まった」という頼みを共有の置き場に足し、
+// 見た目だけ先に塗りにする。本当に決まったにするのは、次にアプリを開いたとき（アプリだけが予定を書く）。
+
+struct ConfirmIntent: AppIntent {
+    static var title: LocalizedStringResource = "決まった"
+    static var isDiscoverable: Bool = false
+    @Parameter(title: "予定") var eventId: String
+
+    init() { eventId = "" }
+    init(eventId: String) { self.eventId = eventId }
+
+    func perform() async throws -> some IntentResult {
+        guard !eventId.isEmpty, let store = UserDefaults(suiteName: APP_GROUP) else { return .result() }
+        let ms = Int(Date().timeIntervalSince1970 * 1000)
+        let list = (store.stringArray(forKey: CONFIRM_KEY) ?? []) + ["\(ms)|\(eventId)"]
+        store.set(Array(list.suffix(50)), forKey: CONFIRM_KEY)
+        // 先に塗りで見せる（その予定の、どの日の分も）
+        if let json = store.string(forKey: STORE_KEY), let data = json.data(using: .utf8),
+           var obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+           var days = obj["days"] as? [String: Any] {
+            for (k, v) in days {
+                guard var arr = v as? [[String: Any]] else { continue }
+                for i in arr.indices where (arr[i]["k"] as? String) == eventId { arr[i]["s"] = 1 }
+                days[k] = arr
+            }
+            obj["days"] = days
+            if let out = try? JSONSerialization.data(withJSONObject: obj), let s = String(data: out, encoding: .utf8) {
+                store.set(s, forKey: STORE_KEY)
+            }
+        }
+        return .result()
+    }
+}
 
 // MARK: - 受け取る中身
 
@@ -331,6 +370,8 @@ struct Provider: TimelineProvider {
 struct Pill: View {
     let item: Item
     var height: CGFloat = 22
+    /// 点線で、まだ終わっていない予定には「決まった」の丸を付ける
+    private var confirmable: Bool { !item.solid && !item.past && !(item.k ?? "").isEmpty }
     var body: some View {
         HStack(spacing: 5) {
             Text(item.time)
@@ -342,8 +383,17 @@ struct Pill: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
             Spacer(minLength: 0)
+            if confirmable {
+                Button(intent: ConfirmIntent(eventId: item.k ?? "")) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: min(15, height - 6), weight: .medium))
+                        .foregroundColor(toBlack(item.c, 0.66))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(item.n)を決まったにする")
+            }
         }
-        .padding(.horizontal, 7)
+        .padding(.leading, 7).padding(.trailing, confirmable ? 4 : 7)
         .frame(height: height)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(

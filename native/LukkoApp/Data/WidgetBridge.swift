@@ -19,6 +19,18 @@ enum WidgetBridge {
         var why = ""
     }
 
+    /// ウィジェットで押された「決まった」の頼み（まだ反映していないもの）
+    static func pendingConfirms() -> [String] {
+        UserDefaults(suiteName: appGroup)?.stringArray(forKey: WidgetConfirm.key) ?? []
+    }
+    /// 反映した頼みを消す（読んでから消すまでに、ウィジェットが足した頼みは残す）
+    static func removeConfirms(_ done: [String]) {
+        guard let store = UserDefaults(suiteName: appGroup) else { return }
+        let gone = Set(done)
+        let rest = (store.stringArray(forKey: WidgetConfirm.key) ?? []).filter { !gone.contains($0) }
+        if rest.isEmpty { store.removeObject(forKey: WidgetConfirm.key) } else { store.set(rest, forKey: WidgetConfirm.key) }
+    }
+
     /// いまの予定をウィジェットへ渡す。失敗しても投げない（ウィジェットが古いままより、予定の保存が止まるほうがずっと困る）
     @discardableResult
     static func push(_ state: [String: JSONValue], now: Date = Date()) -> Result {

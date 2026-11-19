@@ -122,6 +122,18 @@ final class AppModel {
         }
         // ウィジェットへ（Web 版は起動の確かめのあと、ファイル保存の間合いで渡す）
         pushWidget()
+        applyWidgetConfirms()
+    }
+
+    /// ウィジェットで押された「決まった」を反映する（開いたとき・戻ってきたとき）
+    func applyWidgetConfirms() {
+        guard ready else { return }
+        let pending = WidgetBridge.pendingConfirms()
+        guard !pending.isEmpty else { return }
+        engine.applyWidgetConfirms(WidgetConfirm.ids(pending))
+        WidgetBridge.removeConfirms(pending)
+        // ウィジェットは先に塗りで見せている。本当の中身で描き直させる（決まらなかった頼みがあっても戻る）
+        pushWidget(force: true)
     }
 
     /// 手ごたえ（Web 版 haptics.js：tapLight＝軽い、stampHeavy＝重い、penTick＝硬い、settleSuccess＝成功）
@@ -276,6 +288,8 @@ final class AppModel {
             hiddenAt = Date()
             flush()
         case .active:
+            // ホーム画面のウィジェットで「決まった」を押してから開いた
+            applyWidgetConfirms()
             // ほかのアプリから戻ってきたときだけ（通知センターを下ろした・Face ID の確かめ、では動かさない）
             guard let at = hiddenAt else { return }
             hiddenAt = nil
