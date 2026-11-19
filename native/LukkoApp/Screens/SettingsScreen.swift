@@ -182,6 +182,8 @@ struct SettingsMain: View {
     let sv: SupportView
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
+    /// 振動の試験（版の表示を長押し）
+    @State private var hapticTest = false
 
     var body: some View {
         Form {
@@ -280,6 +282,9 @@ struct SettingsMain: View {
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
                     .onTapGesture { SupportStore.shared.tapVersion(model) }
+                    // 長押しで振動の試験（隠し）
+                    .onLongPressGesture(minimumDuration: 1.2) { hapticTest = true }
+                    .sheet(isPresented: $hapticTest) { HapticTestView() }
                     .listRowBackground(Color.clear)
                     .accessibilityIdentifier("settings.version")
             }
