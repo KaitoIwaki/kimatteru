@@ -1,0 +1,19 @@
+@font-face{font-family:"NotoJP";src:url("file:///C:/Windows/Fonts/NotoSansJP-VF.ttf");font-weight:100 900}
+html,body{margin:0;height:2796px;overflow:hidden}
+body{position:relative;font-family:"NotoJP",sans-serif;-webkit-font-smoothing:antialiased;width:1290px;--ink:#0B0D10;--green:#1D9E75;--paper:#F6F7F9;color:var(--ink)}
+body.wide{width:2580px}
+.bg{position:absolute;top:0;height:2796px}
+h1{position:absolute;margin:0;top:170px;font-size:132px;line-height:1.2;font-weight:900;letter-spacing:-.01em;white-space:nowrap}
+.sub{position:absolute;top:530px;font-size:52px;font-weight:600;opacity:.62;white-space:nowrap}
+.w{color:#fff}
+.phone{position:absolute;--w:1040px;width:var(--w);background:#0B0B0C;border-radius:calc(var(--w)*.132);padding:calc(var(--w)*.021);box-sizing:border-box;box-shadow:0 0 0 3px #2a2c30,0 50px 140px rgba(0,0,0,.28)}
+.phone .scr{border-radius:calc(var(--w)*.112);overflow:hidden;position:relative;background:#fff}
+.phone .scr img{width:100%;display:block}
+.phone .isl{position:absolute;left:50%;top:calc(var(--w)*.04);width:calc(var(--w)*.27);height:calc(var(--w)*.078);transform:translateX(-50%);border-radius:99px;background:#000}
+.chip{position:absolute;box-sizing:border-box;height:170px;border-radius:30px;font-size:82px;font-weight:700;line-height:154px;padding-left:36px;color:#2a2320}
+.tag{position:absolute;font-size:56px;font-weight:800;white-space:nowrap}
+.head{position:absolute;top:170px;left:130px}
+.head h1{position:static}
+.head h1.s{font-size:120px}
+.head .sub{position:static;margin-top:34px}
+.head .brand{font-size:62px;font-weight:900;letter-spacing:.12em;color:var(--green);margin:-90px 0 10px 4px}
