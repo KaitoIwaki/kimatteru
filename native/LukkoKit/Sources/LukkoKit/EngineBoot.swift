@@ -178,6 +178,7 @@ extension Engine {
         if actionId == "yes" && ev["status"] == "mikakutei" {
             undoPrevKeys = ["status"]
             updateEvent(ev["id"], ["status": "kakutei"])
+            noteConfirmed([ev])
             set(["screen": "month", "ym": ym])
             showUndo("「\(JS.string(ev["title"]))」が決まりました", ["kind": "status", "id": ev["id"] ?? .null, "prev": ["status": ev["status"] ?? .null]])
             return

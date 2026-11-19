@@ -154,10 +154,28 @@ public final class Engine {
         if !JS.truthy(cfg["firstUseAt"]) || now - JS.number(cfg["firstUseAt"]) < 3 * 86_400_000 { return }
         if JS.truthy(cfg["lastReviewAsk"]) && now - JS.number(cfg["lastReviewAsk"]) < 30 * 86_400_000 { return }
         let n = JS.truthy(cfg["confirmCount"]) ? JS.number(cfg["confirmCount"]) : 0
-        let good = reason == "share" || (reason == "confirm" && [3, 10, 25].contains(n))
+        // cleared：その月の点線が全部片づいた。milestone：通知やウィジェットから決まったにして、3・10・25 回目を越えた（2.3）
+        let good = reason == "share" || reason == "cleared" || reason == "milestone" || (reason == "confirm" && [3, 10, 25].contains(n))
             || (reason == "open" && now - JS.number(cfg["firstUseAt"]) > 7 * 86_400_000 && events.count >= 10)
         if !good { return }
         set(["settings": .object(Self.with(settings, ["lastReviewAsk": num(now)]))])
         later(1200) { [weak self] in self?.onRequestReview() }
+    }
+
+    /// その予定の月に、まだの予定が残っていないか（点線が全部片づいた）
+    func monthCleared(_ ev: Obj?) -> Bool {
+        guard let ev else { return false }
+        return !events.contains { $0["status"] == "mikakutei" && $0["y"] == ev["y"] && $0["m"] == ev["m"] }
+    }
+
+    /// 通知のボタン・ウィジェットから決まったにした：回数を数え、節目を越えたか、その月の点線が全部片づいたら評価を頼む
+    func noteConfirmed(_ list: [Obj]) {
+        guard !list.isEmpty else { return }
+        let prev = JS.truthy(settings["confirmCount"]) ? JS.number(settings["confirmCount"]) : 0
+        let n = prev + Double(list.count)
+        set(["settings": .object(Self.with(settings, ["confirmCount": num(n)]))])
+        let crossed = [3.0, 10, 25].contains { prev < $0 && $0 <= n }
+        let cleared = list.contains { monthCleared($0) }
+        if crossed || cleared { later(600) { [weak self] in self?.maybeAskReview(cleared ? "cleared" : "milestone") } }
     }
 }

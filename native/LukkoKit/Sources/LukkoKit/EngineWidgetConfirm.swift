@@ -34,6 +34,7 @@ extension Engine {
             guard pick.contains(JS.string(e["id"])), e["status"] == "mikakutei" else { return e }
             return Self.with(e, ["status": "kakutei", "updatedAt": num(now)])
         })])
+        noteConfirmed(hit)
         let t = JS.string(hit[0]["title"])
         showUndo(hit.count == 1 ? "ウィジェットで「\(t.isEmpty ? "予定" : t)」が決まりました" : "ウィジェットで\(hit.count)件が決まりました",
                  .object(["kind": str("full"), "prev": .object(prev)]))

@@ -347,7 +347,8 @@ extension Engine {
             self.updateEvent(did, ["status": self.str("kakutei")])
             let cc = JS.truthy(self.settings["confirmCount"]) ? JS.number(self.settings["confirmCount"]) : 0
             self.set(["morph": .null, "settings": .object(Self.with(self.settings, ["confirmCount": self.num(cc + 1)]))])
-            self.later(600) { [weak self] in self?.maybeAskReview("confirm") }
+            // その月の点線が全部片づいたら、回数に関係なく頼む（うれしい瞬間）
+            self.later(600) { [weak self] in guard let self else { return }; self.maybeAskReview(self.monthCleared(ev0) ? "cleared" : "confirm") }
             let others = (ev0 != nil && JS.truthy(ev0!["candId"])) ? self.events.filter { $0["candId"] == ev0!["candId"] && $0["id"] != did && $0["status"] == self.str("mikakutei") } : []
             if !others.isEmpty {
                 self.set(["candAsk": .object(["id": did ?? .null, "title": ev0!["title"] ?? .null, "ids": .array(others.map { $0["id"] ?? .null })])])
@@ -425,5 +426,7 @@ extension Engine {
         for id in ids { prev[JS.string(id)] = .object(["status": str("mikakutei")]) }
         set(["candAsk": .null, "events": eventsArray(events.map { e in ids.contains { $0 == e["id"] } ? Self.with(e, ["status": str("nakunatta"), "updatedAt": num(now)]) : e })])
         showUndo("ほかの候補\(ids.count)件を片づけました", .object(["kind": str("many"), "prev": .object(prev)]))
+        // 候補を片づけて、その月の点線が全部なくなった
+        if let first = events.first(where: { $0["id"] == ids.first }), monthCleared(first) { later(600) { [weak self] in self?.maybeAskReview("cleared") } }
     }
 }

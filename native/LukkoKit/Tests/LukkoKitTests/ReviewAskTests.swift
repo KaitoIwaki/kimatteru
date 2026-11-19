@@ -43,4 +43,49 @@ final class ReviewAskTests: XCTestCase {
     func testNoFirstUse() {
         let e = engine(firstDaysAgo: nil); e.maybeAskReview("share"); XCTAssertFalse(asked(e))
     }
+
+    // MARK: 通知・ウィジェットから決まったにしたとき（2.3）
+
+    /// 11 月に点線を 2 件、12 月に点線を 1 件
+    private func undecided(confirmCount: Int) -> Engine {
+        let e = engine(firstDaysAgo: 5, confirmCount: confirmCount)
+        func ev(_ id: String, _ m: Int) -> JSONValue {
+            .object(["id": .string(id), "y": 2026, "m": .number(Double(m)), "day": 20, "start": "10:00", "end": "11:00", "title": "a", "type": "yoji", "status": "mikakutei", "updatedAt": 1])
+        }
+        e.set(["events": .array([ev("n1", 10), ev("n2", 10), ev("d1", 11)])])
+        return e
+    }
+    private func count(_ e: Engine) -> JSONValue? { e.state["settings"]?["confirmCount"] }
+
+    func testNotificationConfirmCounts() {
+        let e = undecided(confirmCount: 0)
+        e.handleNotificationTap(eventId: "n1", kind: "remind", actionId: "yes", extra: [:])
+        XCTAssertEqual(count(e), 1, "通知の「決まった」が数えられない")
+        e.advance(1000)
+        XCTAssertFalse(asked(e), "節目でもなく、月の点線も残っているのに頼んだ")
+    }
+
+    func testMilestoneFromNotification() {
+        let e = undecided(confirmCount: 2)
+        e.handleNotificationTap(eventId: "n1", kind: "remind", actionId: "yes", extra: [:])
+        e.advance(1000)
+        XCTAssertTrue(asked(e), "通知で 3 回目になったのに頼まない")
+    }
+
+    func testMonthClearedAsks() {
+        let e = undecided(confirmCount: 0)
+        // 12 月の点線は 1 件だけ。それが決まると、12 月の点線が無くなる
+        e.handleNotificationTap(eventId: "d1", kind: "remind", actionId: "yes", extra: [:])
+        e.advance(1000)
+        XCTAssertTrue(asked(e), "その月の点線が全部片づいたのに頼まない")
+    }
+
+    func testWidgetCrossesMilestone() {
+        // 2 回 → ウィジェットで 2 件 → 4 回（3 回目を飛び越えても頼む）
+        let e = undecided(confirmCount: 2)
+        e.applyWidgetConfirms(["n1", "n2"])
+        XCTAssertEqual(count(e), 4)
+        e.advance(1000)
+        XCTAssertTrue(asked(e), "ウィジェットでまとめて決めて 3 回目を越えたのに頼まない")
+    }
 }
