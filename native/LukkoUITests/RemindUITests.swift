@@ -82,3 +82,39 @@ final class AskByUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "の朝9時に、まだ決まっていなければ")).firstMatch.waitForExistence(timeout: 3), "選んでも期限が入らない")
     }
 }
+
+/// 月の画面で、帯を長押しして別の日へ運ぶ
+final class MoveUITests: XCTestCase {
+    private func b64(_ s: String) -> String { Data(s.utf8).base64EncodedString() }
+
+    func testDragBarToAnotherDay() {
+        let cal = Calendar(identifier: .gregorian)
+        let c = cal.dateComponents([.year, .month], from: Date())
+        let app = XCUIApplication()
+        let store = "{\"savedAt\":8000,\"events\":[{\"id\":\"a\",\"y\":\(c.year!),\"m\":\(c.month! - 1),\"day\":10,\"start\":\"12:00\",\"end\":\"13:00\",\"title\":\"ランチ\",\"type\":\"asobi\",\"status\":\"kakutei\",\"updatedAt\":1}],\"settings\":{\"onboarded\":true}}"
+        app.launchArguments = ["-lukkoTestReset", "-lukkoClearLocalStorage", "-lukkoSeedFile", b64(store)]
+        app.launch()
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "許可", "Don’t Allow", "許可しない"] where springboard.buttons[label].waitForExistence(timeout: 2) {
+            springboard.buttons[label].tap()
+            break
+        }
+        let from = app.descendants(matching: .any).matching(identifier: "month.day.10").firstMatch
+        let to = app.descendants(matching: .any).matching(identifier: "month.day.17").firstMatch
+        XCTAssertTrue(from.waitForExistence(timeout: 60), "月の画面が出ない")
+        sleep(1)
+        // 帯は日付の数字の下（マスの上から 30pt あたり）にある
+        let grab = from.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 30))
+        grab.press(forDuration: 1.2, thenDragTo: to.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)))
+        let moved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "17日に動かしました")).firstMatch
+        XCTAssertTrue(moved.waitForExistence(timeout: 4), "運んでも予定が動かない")
+        let a = XCTAttachment(screenshot: app.screenshot()); a.name = "V00-moved"; a.lifetime = .keepAlways; add(a)
+        // 元に戻す
+        app.buttons["undo.button"].tap()
+        sleep(1)
+        // 帯を押すと、その日の画面が開く（長押しでなければ、今までどおり）
+        grab.tap()
+        XCTAssertTrue(app.buttons["予定を追加"].firstMatch.waitForExistence(timeout: 5), "帯を押しても日の画面が開かない")
+        XCTAssertTrue(app.staticTexts["ランチ"].firstMatch.exists, "元に戻したのに 10日に予定が無い")
+    }
+}

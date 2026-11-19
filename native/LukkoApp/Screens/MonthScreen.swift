@@ -327,18 +327,30 @@ struct WeekRow: View {
     }
     @Environment(AppModel.self) private var model
     @Environment(\.ink) private var ink
+    /// 帯を運んでいるあいだ、指の下にある列（置ける日を縁どる）
+    @State private var dropCol: Int?
 
     var body: some View {
+        // 長押しで運べる予定（決まった・点線。シフト入力のあいだは運ばない）
+        let movable: Set<String> = JS.truthy(model.state["stamp"]) ? [] : Set(model.engine.movableIds())
         ZStack(alignment: .topLeading) {
-            // 地とタップ領域。帯はこの上に載る（帯は押せない。マスのどこを押してもその日が開く）
+            // 地とタップ領域。帯はこの上に載る（帯を押しても、その列の日が開く。長押しで帯を運んで、別の日に置ける）
             HStack(spacing: 0) {
                 ForEach(0..<7, id: \.self) { i in
                     let sl = week.slots[i]
                     Rectangle().fill(ink.css(sl.bg))
                         .overlay { if sl.today { TodayFlash(at: model.state["flashToday"]?.number ?? 0) } }
                         .overlay(alignment: .trailing) { if i < 6 { Rectangle().fill(ink("line-faint")).frame(width: 1) } }
+                        .overlay { if dropCol == i { RoundedRectangle(cornerRadius: 6).strokeBorder(FormTone.teal, lineWidth: 2).padding(1) } }
                         .contentShape(Rectangle())
                         .onTapGesture { tapDay(sl, i) }
+                        .dropDestination(for: String.self) { items, _ in
+                            guard let id = Engine.draggedId(items), let d = dayOf(sl, i) else { return false }
+                            model.act { $0.moveEvent(.string(id), to: d.y, d.m, d.d) }
+                            return true
+                        } isTargeted: { on in
+                            if on { dropCol = i } else if dropCol == i { dropCol = nil }
+                        }
                         .accessibilityElement()
                         .accessibilityLabel(sl.blank ? "" : scroll.map { "\($0.days[i].m + 1)月\(sl.day)日" } ?? "\(sl.day)日")
                         .accessibilityIdentifier(idOf(sl, i))
@@ -383,10 +395,14 @@ struct WeekRow: View {
                     }
                 }
                 .frame(width: max(0, colW * CGFloat(b.span) - margin(b, "marginLeft") - margin(b, "marginRight")), height: barH)
+                .modifier(BarDrag(enabled: morph?.id != b.id && movable.contains(JS.string(b.id)), id: JS.string(b.id), title: b.text) { x in
+                    // 帯を押した：押した所の列の日を開く（マスを押したのと同じ）
+                    let col = min(6, max(0, b.c0 + Int((x + margin(b, "marginLeft")) / max(1, colW))))
+                    tapDay(week.slots[col], col)
+                })
                 .offset(x: colW * CGFloat(b.c0) + margin(b, "marginLeft"), y: 22 + CGFloat(b.lane) * laneH)
                 .opacity(focus == nil || focus!.contains(JS.string(b.id)) ? 1 : 0.2)
                 .shadow(color: focus?.contains(JS.string(b.id)) == true ? FormTone.teal.opacity(0.55) : .clear, radius: 3)
-                .allowsHitTesting(false)
             }
             // 入らなかった数
             ForEach(week.more, id: \.col) { mo in
@@ -401,6 +417,11 @@ struct WeekRow: View {
     }
 
     private func margin(_ b: MonthCore.Bar, _ k: String) -> CGFloat { CGFloat(b.style[k]?.number ?? 0) }
+    /// その列の日（月の外の空きマスは nil）
+    private func dayOf(_ sl: MonthCore.Slot, _ i: Int) -> (y: Int, m: Int, d: Int)? {
+        if let s = scroll { let r = s.days[i]; return (r.y, r.m, r.d) }
+        return sl.blank ? nil : (y, m, sl.day)
+    }
     private func event(_ id: JSONValue) -> [String: JSONValue]? {
         (model.state["events"]?.array ?? []).lazy.compactMap { $0.object }.first { $0["id"] == id }
     }
@@ -530,5 +551,26 @@ struct CandFocusBar: View {
         .padding(.horizontal, 12).padding(.vertical, 6)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("month.candFocus")
+    }
+}
+
+/// 帯を長押しで運べるようにする（運べない帯は、今までどおり押せない＝下のマスが押される）
+struct BarDrag: ViewModifier {
+    let enabled: Bool, id: String, title: String
+    let onTap: (CGFloat) -> Void
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .contentShape(Rectangle())
+                .onTapGesture(coordinateSpace: .local) { loc in onTap(loc.x) }
+                .draggable(Engine.dragPrefix + id) {
+                    Text(title.isEmpty ? "予定" : title).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .background(.regularMaterial, in: Capsule())
+                }
+                .accessibilityHidden(true)
+        } else {
+            content.allowsHitTesting(false)
+        }
     }
 }

@@ -5,5 +5,5 @@ import Foundation
 struct ScrollTick {
     private var quietUntil = Date.distantPast
     mutating func quiet(_ seconds: Double = 0.6) { quietUntil = Date().addingTimeInterval(seconds) }
-    func tick() { if Date() >= quietUntil { AppModel.haptic("select") } }
+    @MainActor func tick() { if Date() >= quietUntil { AppModel.haptic("select") } }
 }
