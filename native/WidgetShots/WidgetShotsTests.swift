@@ -100,5 +100,14 @@ final class WidgetShotsTests: XCTestCase {
         attach(lock(LockRectView(entry: e), 172, 76), "widget-lock-rect")
         attach(lock(LockCircleView(entry: e), 76, 76), "widget-lock-circle")
         attach(lock(LockInlineView(entry: e), 260, 24), "widget-lock-inline")
+
+        // 点線の予定がある日（19 日の面接）。点線の予定に「決まった」の丸が付く（2.3）
+        var c19 = c; c19.day = 19
+        let now19 = cal.date(from: c19)!
+        let ms19 = (now19.timeIntervalSince1970 * 1000).rounded(.down)
+        store.set(JSJSON.stringify(WidgetCore.buildPayload(st, today: (y, m, 19), atMs: ms19)), forKey: STORE_KEY)
+        let e19 = Provider().shotEntry(now19)
+        attach(home(SmallView(entry: e19), 170, 170), "widget-small-undecided")
+        attach(home(MediumView(entry: e19), 364, 170), "widget-medium-undecided")
     }
 }

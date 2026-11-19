@@ -79,6 +79,39 @@ final class StoreShots: XCTestCase {
         snap(app, "store-04b-report-wage")
     }
 
+    /// 決める期限（点線の予定に期限を付ける）。来月の 20 日に「飲み会」を点線で置いて、期限を「3日後」にしたところ
+    func testStoreAskBy() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-lukkoTestReset", "-lukkoSeedLocalStorage", b64(store())]
+        app.launch()
+        XCTAssertTrue(app.buttons["年と月をえらぶ"].waitForExistence(timeout: 60), "月の見出しが出ない")
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "許可", "Don’t Allow", "許可しない"] where springboard.buttons[label].waitForExistence(timeout: 2) {
+            springboard.buttons[label].tap()
+            break
+        }
+        app.buttons["次の月"].tap()
+        sleep(1)
+        let cell = app.buttons["month.day.20"]
+        XCTAssertTrue(cell.waitForExistence(timeout: 10))
+        let add = app.buttons["予定を追加"].firstMatch
+        for _ in 0..<3 { cell.tap(); if add.waitForExistence(timeout: 3) { break } }
+        add.tap()
+        sleep(1)
+        let title = app.textFields["form.title"]
+        if title.waitForExistence(timeout: 5) { title.tap(); title.typeText("飲み会") }
+        app.segmentedControls["form.status"].buttons.element(boundBy: 1).tap()
+        let row = app.buttons["form.row.決める期限"]
+        XCTAssertTrue(row.waitForExistence(timeout: 3), "期限の行が出ない")
+        row.tap()
+        let three = app.buttons["form.askBy.3日後"].firstMatch
+        if three.waitForExistence(timeout: 3) { three.tap() }
+        // キーボードを閉じる
+        app.navigationBars.firstMatch.tap()
+        sleep(1)
+        snap(app, "store-14-askby")
+    }
+
     /// 「この用事、どうなりました？」（点線の予定を、決まったにする瞬間）。12 日の歯医者から開く
     func testStoreDialog() {
         let app = XCUIApplication()
