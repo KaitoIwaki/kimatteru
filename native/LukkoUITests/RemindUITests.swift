@@ -69,7 +69,8 @@ final class AskByUITests: XCTestCase {
         let row = app.buttons["form.row.決める期限"]
         XCTAssertFalse(row.exists, "塗りの予定に期限の行が出る")
         // 「まだ」にすると、期限の行が出る
-        let seg = app.segmentedControls.buttons.element(boundBy: 1)
+        // 予定の画面の「決まった｜まだ」（後ろの日の画面にも「一覧｜時間」の切り替えがあるので、名前で探す）
+        let seg = app.segmentedControls["form.status"].buttons.element(boundBy: 1)
         XCTAssertTrue(seg.waitForExistence(timeout: 5))
         seg.tap()
         XCTAssertTrue(row.waitForExistence(timeout: 3), "点線にしても期限の行が出ない")

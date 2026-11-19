@@ -144,6 +144,7 @@ struct FormScreen: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
+                .accessibilityIdentifier("form.status")
                 HStack(spacing: 7) {
                     RoundedRectangle(cornerRadius: 3).fill(ink.css(v.previewBg)).frame(width: 14, height: 10)
                         .overlay { if v.previewDashed { RoundedRectangle(cornerRadius: 3).strokeBorder(ink.css(v.draftColor), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2])) } }
