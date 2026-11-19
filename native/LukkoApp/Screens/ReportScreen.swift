@@ -119,6 +119,20 @@ struct ReportScreen: View {
                 Spacer(); Text("\(v.yearLabel) \(v.monthLabel)").font(.headline); Spacer()
                 Button { model.act { $0.set(["ym": Engine.shiftMonth($0.state["ym"], 1)]) } } label: { Image(systemName: "chevron.right") }.buttonStyle(.borderless).accessibilityLabel("次の月")
             }
+            // この月に決まった数・まだの数（塗りと点線で）
+            if v.monthDecided + v.monthUndecided > 0 {
+                HStack(spacing: 10) {
+                    Text("決まった \(v.monthDecided)件").font(.system(size: 13, weight: .semibold)).foregroundStyle(.white)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .background(FormTone.teal, in: Capsule())
+                    Text("まだ \(v.monthUndecided)件").font(.system(size: 13, weight: .semibold)).foregroundStyle(FormTone.teal)
+                        .padding(.horizontal, 12).padding(.vertical, 6)
+                        .overlay(Capsule().strokeBorder(FormTone.teal, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
+                    Spacer()
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("report.decided")
+            }
             if v.monthNone { Text("この月には、決まった予定がありません。").foregroundStyle(.secondary) }
             else { headView(v.monthHead, v.monthSub); kinds(v.monthKinds) }
         }

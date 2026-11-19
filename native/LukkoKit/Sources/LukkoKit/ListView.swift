@@ -5,6 +5,8 @@ public struct ListView: Equatable {
     public struct Row: Equatable {
         public var key: JSONValue, title: String, place: String, date: String, dow: String, time: String
         public var dashed: Bool, word: String, pill: [String: JSONValue], goneLabel: String
+        /// 決める期限（「まだ」の一覧の「そろそろ決める」だけ）：「あと2日」「今日まで」「期限を過ぎました」
+        public var ask: String = ""
     }
     public struct Group: Equatable { public var head: String; public var rows: [Row] }
     public struct Shelf: Equatable { public var key: JSONValue; public var title: String; public var when: String; public var dot: String }
@@ -91,8 +93,21 @@ extension Engine {
             v.dashOnly = onlyDash
         } else if tab == "undecided" {
             let past = Array(sortD(und.filter { AppCore.evTo($0) < todayN }).reversed().prefix(30))
-            let next = sortD(und.filter { AppCore.evTo($0) >= todayN })
-            v.groups = (past.isEmpty ? [] : [.init(head: "日が過ぎて、まだ点線のまま", rows: past.map(rowOf))]) + group(next)
+            // 決める期限を付けた予定は、期限の近い順に「そろそろ決める」へ（2.3）。下の日付の並びには出さない
+            let asked = JS.stableSorted(und.filter { AppCore.evTo($0) >= todayN && AskBy.date($0) != nil }) { a, b in
+                let x = AskBy.date(a)!, y = AskBy.date(b)!
+                return JS.sign(Double(Civil.dayNo(x.y, x.m, x.d) - Civil.dayNo(y.y, y.m, y.d)))
+            }
+            let askedIds = Set(asked.map { JS.string($0["id"]) })
+            let next = sortD(und.filter { AppCore.evTo($0) >= todayN && !askedIds.contains(JS.string($0["id"])) })
+            let soon: [ListView.Group] = asked.isEmpty ? [] : [.init(head: "そろそろ決める", rows: asked.map { e in
+                var r = rowOf(e)
+                let d = AskBy.date(e)!
+                let left = Civil.dayNo(d.y, d.m, d.d) - todayN
+                r.ask = left > 0 ? "あと\(left)日" : left == 0 ? "今日まで" : "期限を過ぎました"
+                return r
+            })]
+            v.groups = soon + (past.isEmpty ? [] : [.init(head: "日が過ぎて、まだ点線のまま", rows: past.map(rowOf))]) + group(next)
             v.empty = past.count + next.count + someday.count == 0 ? "まだ決まっていない予定はありません" : ""
             v.shelf = someday.map { it in .init(key: it["id"] ?? .null, title: JS.string(it["title"]), when: MonthCore.somedayLabel[JS.string(it["when"])] ?? "undefined",
                                                  dot: JS.string(c.T(it["type"])?["color"])) }

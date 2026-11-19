@@ -113,6 +113,29 @@ final class AskByTests: XCTestCase {
         XCTAssertEqual(e.state["events"]?.array?.first?["status"], "kakutei")
     }
 
+    /// 「まだ」の一覧：期限を付けた予定は、期限の近い順に「そろそろ決める」へ。下の日付の並びには重ねて出さない
+    func testUndecidedListSoonGroup() {
+        let e = engine([ev("a", day: 25, askBy: ["y": 2026, "m": 10, "d": 22]), ev("b", day: 28, askBy: ["y": 2026, "m": 10, "d": 20]),
+                        ev("c", day: 26, askBy: ["y": 2026, "m": 10, "d": 18]), ev("n", day: 24, askBy: nil)])
+        e.set(["listTab": "undecided"])
+        let g = e.listView(dark: false).groups
+        XCTAssertEqual(g.first?.head, "そろそろ決める")
+        XCTAssertEqual(g.first?.rows.map { JS.string($0.key) }, ["c", "b", "a"], "期限の近い順でない")
+        XCTAssertEqual(g.first?.rows.map { $0.ask }, ["期限を過ぎました", "あと1日", "あと3日"])
+        let rest = g.dropFirst().flatMap { $0.rows.map { JS.string($0.key) } }
+        XCTAssertEqual(rest, ["n"], "期限のある予定が下にも重ねて出る")
+    }
+
+    /// まとめ：その月に決まった数・まだの数
+    func testReportCounts() {
+        var k = ev("k", status: "kakutei"); k["askBy"] = nil
+        let e = engine([ev("a"), ev("b"), k, ev("w", status: "jisseki"), ev("g", status: "nakunatta"), ev("x", status: "kakutei").merging(["m": 9]) { $1 }])
+        e.set(["ym": ["y": 2026, "m": 10]])
+        let v = e.reportView()
+        XCTAssertEqual(v.monthDecided, 2, "決まった・働いた記録を数えない、または別の月まで数える")
+        XCTAssertEqual(v.monthUndecided, 2)
+    }
+
     /// 読み込みと同期で消えない
     func testKeptThroughLoadAndSync() {
         let list = Loader.sanitizeEvents(.array([.object(ev())]), makeId: { "x" })

@@ -18,6 +18,8 @@ public struct ReportView: Equatable {
     public var monthJobs: [JSONValue] = [], yearJobs: [JSONValue] = []
     public var overMonth = "", overYear = "", leave = ""
     public var payRows: [PayRow] = []
+    /// その月の予定のうち、決まった数・まだの数（2.3。月の振り返り。競わせない）
+    public var monthDecided = 0, monthUndecided = 0
 }
 
 extension AppCore {
@@ -53,6 +55,9 @@ extension Engine {
         v.monthKinds = moK; v.yearKinds = yrK
         v.monthNone = moK.isEmpty
         v.monthHead = c.spentHead(tm.h, tm.d); v.monthSub = "\(JS.numberToString(tm.t))件の予定"
+        let inMonth = events.filter { $0["y"] == yV && $0["m"] == mV }
+        v.monthDecided = inMonth.filter { $0["status"] == "kakutei" || $0["status"] == "jisseki" }.count
+        v.monthUndecided = inMonth.filter { $0["status"] == "mikakutei" }.count
         v.yearHead = c.spentHead(ty.h, ty.d); v.yearSub = "\(JS.numberToString(ty.t))件の予定"
         let perMonth = (0..<12).map { i in spent.filter { $0["y"] == yV && $0["m"] == .number(Double(i)) }.reduce(0.0) { $0 + c.spentHours($1) } }
         let peak = max(1, perMonth.max() ?? 0)

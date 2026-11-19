@@ -170,7 +170,14 @@ struct ListRowView: View {
             }
             .frame(width: 42, alignment: .leading)
             VStack(alignment: .leading, spacing: 3) {
-                Text(row.time).font(.system(size: 12)).monospacedDigit().foregroundStyle(ink("ink-mut"))
+                HStack(spacing: 8) {
+                    Text(row.time).font(.system(size: 12)).monospacedDigit().foregroundStyle(ink("ink-mut"))
+                    // 決める期限（「そろそろ決める」の行だけ）
+                    if !row.ask.isEmpty {
+                        Label(row.ask, systemImage: "hourglass").font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(row.ask == "期限を過ぎました" ? ink("sun") : FormTone.teal)
+                    }
+                }
                 Text(row.title).font(.system(size: 13)).lineLimit(1).padding(.horizontal, 8).padding(.vertical, 2)
                     .foregroundStyle(ink.css(row.pill["color"]?.string))
                     .background(ink.css(row.pill["background"]?.string), in: RoundedRectangle(cornerRadius: 6))
