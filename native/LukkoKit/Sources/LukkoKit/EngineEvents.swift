@@ -340,13 +340,19 @@ extension Engine {
         set(["dialog": .null, "screen": str("month"), "dayNum": .null, "detailId": .null, "morph": .object(["id": did ?? .null, "phase": str("dash")]),
              "ym": ev0.map { .object(["y": $0["y"] ?? .null, "m": $0["m"] ?? .null]) } ?? state["ym"]])
         let morphIs = { [weak self] () -> Bool in guard let m = self?.state["morph"], JS.truthy(m) else { return false }; return m["id"] == did }
-        later(150) { [weak self] in if morphIs() { self?.set(["morph": .object(["id": did ?? .null, "phase": .string("fill")])]); self?.haptic("pen") } }
-        later(470) { [weak self] in if morphIs() { self?.set(["morph": .object(["id": did ?? .null, "phase": .string("settle")])]); self?.haptic("success") } }
+        // 振動は画面側が鳴らす（小窓が閉じきってから帯が動くので、その時刻に合わせる）
+        later(150) { [weak self] in if morphIs() { self?.set(["morph": .object(["id": did ?? .null, "phase": .string("fill")])]) } }
+        later(470) { [weak self] in if morphIs() { self?.set(["morph": .object(["id": did ?? .null, "phase": .string("settle")])]) } }
         later(760) { [weak self] in
             guard let self, morphIs() else { return }
             self.updateEvent(did, ["status": self.str("kakutei")])
             let cc = JS.truthy(self.settings["confirmCount"]) ? JS.number(self.settings["confirmCount"]) : 0
             self.set(["morph": .null, "settings": .object(Self.with(self.settings, ["confirmCount": self.num(cc + 1)]))])
+            // その月の点線が全部片づいた：画面全体のお祝い（画面側が出す。同じ月は 1 回だけ）
+            if self.monthCleared(ev0), let e = ev0 {
+                let n = self.events.filter { $0["y"] == e["y"] && $0["m"] == e["m"] && ($0["status"] == "kakutei" || $0["status"] == "jisseki") }.count
+                self.set(["celebrate": .object(["y": e["y"] ?? .null, "m": e["m"] ?? .null, "decided": self.num(Double(n))])])
+            }
             // その月の点線が全部片づいたら、回数に関係なく頼む（うれしい瞬間）
             self.later(600) { [weak self] in guard let self else { return }; self.maybeAskReview(self.monthCleared(ev0) ? "cleared" : "confirm") }
             let others = (ev0 != nil && JS.truthy(ev0!["candId"])) ? self.events.filter { $0["candId"] == ev0!["candId"] && $0["id"] != did && $0["status"] == self.str("mikakutei") } : []

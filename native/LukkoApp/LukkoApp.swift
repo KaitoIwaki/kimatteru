@@ -83,6 +83,11 @@ struct RootView: View {
             if Self.debug { DebugBadge() }
             // 保存についての知らせ（いちばん上に、必ず出す）
             if model.ready { SystemSaveBanner() }
+            // 今月の点線が全部片づいたときのお祝い（画面全体。触っても下が使える）
+            if let ms = model.milestone {
+                MilestoneOverlay(info: ms) { if model.milestone == ms { model.milestone = nil } }
+                    .id(ms.n)
+            }
             LockedCover()
             // ロックを入れている人は、アプリの切り替え画面に中身を見せない（いまの版の lukko.shield と同じ）
             if JS.truthy(model.state["settings"]?["lock"]) && scenePhase != .active {

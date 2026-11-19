@@ -295,8 +295,7 @@ struct MonthGrid: View {
             let wageOn = JS.truthy(model.state["wageOn"]) && model.engine.wageFeatureOn()
             let monthA = Civil.dayNo(y, m, 1)
             let weeks = core.buildWeeks(y, m, lanes: lanes, overlay: model.overlayFor(monthA, monthA + Civil.daysInMonth(y, m)), wageOn: wageOn, dark: model.dark)
-            let mo = model.state["morph"].flatMap { JS.truthy($0) ? $0 : nil }
-            let morph: (id: JSONValue, phase: String)? = mo.map { (id: $0["id"] ?? .null, phase: JS.string($0["phase"])) }
+            let morph = model.barCelebration
             VStack(spacing: 0) {
                 ForEach(Array(weeks.enumerated()), id: \.offset) { w, week in
                     WeekRow(y: y, m: m, active: active, week: week, colW: geo.size.width / 7, laneH: laneH, barH: barH, scale: es, morph: morph)
@@ -317,7 +316,7 @@ struct WeekRow: View {
     var active = true
     let week: MonthCore.Week
     let colW: CGFloat, laneH: CGFloat, barH: CGFloat, scale: Double
-    var morph: (id: JSONValue, phase: String)? = nil
+    var morph: AppModel.BarCelebration? = nil
     /// 縦につなげた表示のとき：列ごとの日と、見出しの月（その月の日にだけ名札を付ける）・押したとき
     var scroll: ScrollInfo? = nil
     struct ScrollInfo {
@@ -389,8 +388,8 @@ struct WeekRow: View {
                 let L = margin(b, "marginLeft") > 0, R = margin(b, "marginRight") > 0
                 Group {
                     if let mo = morph, mo.id == b.id, let ev = event(b.id) {
-                        CelebrateMorphBar(m: model.core.morphBar(ev, phase: mo.phase, startsHere: L, endsHere: R, dark: model.dark),
-                                          height: barH, scale: scale, left: L, right: R)
+                        CelebrateMorphBar(m: model.core.morphBar(ev, phase: "dash", startsHere: L, endsHere: R, dark: model.dark),
+                                          start: mo.start, height: barH, scale: scale, left: L, right: R)
                     } else {
                         BarView(bar: b, height: barH, scale: scale)
                     }

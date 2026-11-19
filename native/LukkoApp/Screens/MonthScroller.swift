@@ -129,8 +129,7 @@ struct ScrollWeekRow: View {
         let lanes = max(2, min(7, Int(((rowH - 22 - 14) / laneH).rounded(.down))))
         let wageOn = JS.truthy(model.state["wageOn"]) && model.engine.wageFeatureOn()
         let sw = model.core.buildScrollWeek(start, lanes: lanes, overlay: model.overlayFor(start, start + 7), wageOn: wageOn, dark: model.dark)
-        let mo = model.state["morph"].flatMap { JS.truthy($0) ? $0 : nil }
-        let morph: (id: JSONValue, phase: String)? = mo.map { (id: $0["id"] ?? .null, phase: JS.string($0["phase"])) }
+        let morph = model.barCelebration
         WeekRow(y: cur.y, m: cur.m, week: sw.week, colW: colW, laneH: laneH, barH: barH, scale: es, morph: morph,
                 scroll: .init(days: sw.days, cur: cur, onTap: onTap))
             .overlay(alignment: .top) { Rectangle().fill(ink("line")).frame(height: 1) }

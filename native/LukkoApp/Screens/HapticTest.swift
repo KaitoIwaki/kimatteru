@@ -32,6 +32,15 @@ struct HapticTestView: View {
                 } footer: {
                     Text("押して、振動したものを教えてください。\(note)")
                 }
+                Section {
+                    Button("大きいお祝いを見る") {
+                        let t = Calendar.current.dateComponents([.year, .month], from: Date())
+                        dismiss()
+                        model.showMilestone(y: t.year ?? 2026, m: (t.month ?? 1) - 1, decided: 12, forced: true, delay: 0.7)
+                    }
+                } footer: {
+                    Text("今月の点線が全部片づいたときに出るお祝いを、試しに出します。")
+                }
             }
             .navigationTitle("振動の試験")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } } }

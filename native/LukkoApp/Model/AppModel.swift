@@ -66,6 +66,34 @@ final class AppModel {
     var hapticPulse = HapticPulse(kind: "", n: 0)
     static weak var current: AppModel?
 
+    /// 「決まった」の帯の演出（画面側の時計で動かす。CelebrateMorphBar）
+    struct BarCelebration: Equatable { var id: JSONValue; var start: Date }
+    var barCelebration: BarCelebration?
+    /// 今月の点線が全部片づいたときの、画面全体のお祝い（MilestoneOverlay）
+    struct Milestone: Equatable { var y: Int; var m: Int; var decided: Int; var n: Int }
+    var milestone: Milestone?
+
+    /// お祝いを出す。forced でなければ、同じ月は 1 回だけ（この iPhone で覚える）
+    func showMilestone(y: Int, m: Int, decided: Int, forced: Bool = false, delay: Double = 0.65) {
+        let key = "\(y)-\(m)"
+        let ud = UserDefaults.standard
+        var done = ud.stringArray(forKey: "celebratedMonths") ?? []
+        if !forced {
+            if done.contains(key) { return }
+            done.append(key)
+            ud.set(Array(done.suffix(24)), forKey: "celebratedMonths")
+        }
+        let n = (milestone?.n ?? 0) + 1
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard let self else { return }
+            self.milestone = Milestone(y: y, m: m, decided: decided, n: n)
+            AppModel.haptic("success")
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            AppModel.haptic("light")
+        }
+    }
+
     static func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded(.down) }
 
     func start() async {
@@ -174,6 +202,22 @@ final class AppModel {
     private func engineChanged() {
         guard let engine else { return }
         state = engine.state
+        // 「決まった」を押した：帯の演出を始める（小窓が閉じきってから動く。振動もここから）
+        if let mo = state["morph"], JS.truthy(mo), mo["phase"] == "dash", barCelebration?.id != mo["id"] {
+            let id = mo["id"] ?? .null
+            barCelebration = BarCelebration(id: id, start: Date())
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: 500_000_000); AppModel.haptic("pen")
+                try? await Task.sleep(nanoseconds: 400_000_000); AppModel.haptic("success")
+                try? await Task.sleep(nanoseconds: 750_000_000)
+                if self?.barCelebration?.id == id { self?.barCelebration = nil }
+            }
+        }
+        // 今月の点線が全部片づいた：画面全体のお祝い
+        if let c = state["celebrate"], JS.truthy(c) {
+            showMilestone(y: JS.int(c["y"]), m: JS.int(c["m"]), decided: JS.int(c["decided"]))
+            DispatchQueue.main.async { [weak self] in self?.engine?.set(["celebrate": nil]) }
+        }
         if let t = SystemCore.rootTab(state["screen"]), t != tab { tab = t }
         if Self.persisted(state) != lastSaved { scheduleSave() }
         if remindSig() != lastRemindSig { scheduleReminders() }
