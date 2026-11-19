@@ -53,6 +53,9 @@ public struct FormView {
     public var repNthChips: [Chip] = [], repEveryChips: [Chip] = [], repDowChips: [Chip] = [], repWeekChips: [Chip] = []
     // お知らせ
     public var rowRemindOpen = false, remindValue = "", remindNote = ""
+    /// 決める期限（点線の予定だけ。2.3）
+    public var askShown = false, askOpen = false, askValue = "", askNote = ""
+    public var askChips: [Chip] = []
     public var remindSeg: [Chip] = []
     // 時刻
     public var startValue = "", endValue = "", startOpen = false, endOpen = false
@@ -315,6 +318,7 @@ extension Engine {
         v.previewDashed = und
         v.previewBg = JS.string(und ? dt["paper"] : dt["color"])
         v.previewBorder = und ? "1.5px dashed " + JS.string(dt["color"]) : ""
+        fillAskBy(&v, dr)
         return v
     }
 

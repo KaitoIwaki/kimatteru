@@ -10,6 +10,8 @@ public struct DetailView: Equatable {
     public var title = "", typeDark = "", dateText = "", holText = "", movedText = ""
     public var statusLabel = "", badgeChar = "", badgeBg = "", badgeColor = "", badgeBorder = ""
     public var timeText = "", spanText = "", remindText = ""
+    /// 決める期限（点線の予定だけ）。過ぎていたら late
+    public var askText = "", askLate = false
     public var place = "", placeHref = "", memo = ""
     public var memoParts: [Part] = []
     public var link = "", linkLabel = ""
@@ -139,6 +141,7 @@ extension Engine {
         let drm = ev["remindMin"]?.number
         v.remindText = (drm == nil || JS.truthy(settings["notifyOff"])) ? "" : c.remindLabel(ev["remindMin"], ev["allDay"]) + "にお知らせ"
         if !v.remindText.isEmpty, RemindPair.second(ev) != nil { v.remindText = RemindPair.labels(ev).joined(separator: "・") + "にお知らせ" }
+        (v.askText, v.askLate) = askByText(ev)
         v.place = JS.string(JS.or(ev["place"], "")).jsTrimmed
         v.placeHref = v.place.isEmpty ? "" : "https://maps.apple.com/?q=" + JS.encodeURIComponent(v.place)
         v.memo = JS.string(JS.or(ev["memo"], "")).jsTrimmed

@@ -31,6 +31,8 @@ struct MonthScroller: View {
     @State private var commit: Task<Void, Never>?
     /// こちらで書いた月（動かして止まった・日を押した）。この月へは送り直さない（見ている所が飛ばないように）
     @State private var selfSet: Int?
+    /// 週が 1 つ進むごとの小さな振動
+    @State private var tick = ScrollTick()
 
     var body: some View {
         let ws = JS.int(model.state["settings"]?["weekStart"])
@@ -53,7 +55,7 @@ struct MonthScroller: View {
         }
         .background(ink("card"))
         // はじめて出たときだけ、その月の 1 日の週へ（日の画面から戻ったときは、見ていた所のまま）
-        .onAppear { if pos == nil { pos = Self.weekOf(cur, base) } }
+        .onAppear { if pos == nil { tick.quiet(); pos = Self.weekOf(cur, base) } }
         // ‹ › ・今日・年月えらびで月が変わった：その月の 1 日の週を上に
         .onChange(of: cur) { old, c in
             if selfSet == c { selfSet = nil; return }
@@ -61,14 +63,16 @@ struct MonthScroller: View {
             commit?.cancel()
             let to = Self.weekOf(c, base)
             guard pos != to else { return }
+            tick.quiet()
             if abs(c - old) <= 2 { withAnimation(.snappy(duration: 0.3)) { pos = to } } else { pos = to }
         }
         // 週のはじまりの設定が変わった：同じ月の 1 日の週へ
-        .onChange(of: ws) { _, _ in pos = Self.weekOf(curMonth, Self.base(ws)) }
+        .onChange(of: ws) { _, _ in tick.quiet(); pos = Self.weekOf(curMonth, Self.base(ws)) }
         // 動かした：止まって 0.15 秒たったら、見出しの月を書き換える
         .onChange(of: pos) { _, p in
             commit?.cancel()
             guard let p else { return }
+            tick.tick()
             commit = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 150_000_000)
                 guard !Task.isCancelled, pos == p else { return }

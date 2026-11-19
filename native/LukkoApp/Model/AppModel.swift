@@ -57,7 +57,7 @@ final class AppModel {
     /// 通知の貼り直しを決める設定（Web 版の componentDidUpdate の NK と同じ）
     static let notifyKeys = ["notifyOff", "remind", "morning", "morningAt", "evening", "weekly", "hideTitles"]
     /// 中の版の番号。Web 版の最後（0.32.x）より上から続ける（ベルのお知らせの「新しい版」の判定に使う）
-    static let version = "0.42.0"
+    static let version = "0.43.0"
 
     init(data: AppData) { self.data = data }
 
@@ -130,6 +130,8 @@ final class AppModel {
         case "heavy": UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
         case "pen", "rigid": UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
         case "success": UINotificationFeedbackGenerator().notificationOccurred(.success)
+        // 流して日・週・月が 1 つ進んだ（ダイヤルの目盛り）
+        case "select": UISelectionFeedbackGenerator().selectionChanged()
         default: UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
     }

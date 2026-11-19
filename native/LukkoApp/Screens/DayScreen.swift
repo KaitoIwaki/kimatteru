@@ -80,6 +80,8 @@ struct DayStrip: View {
     /// 並べる範囲の真ん中の週のはじまり（前後 42 日、計 91 日）。範囲の外へ移ったら並べ直す
     @State private var center: Int?
     @State private var leading: Int?
+    /// 日が 1 つ進むごとの小さな振動
+    @State private var tick = ScrollTick()
     @State private var scroll = DayStripScroll()
     static let pad = 42
     static var len: Int { pad * 2 + 7 }
@@ -123,19 +125,21 @@ struct DayStrip: View {
         .onAppear {
             // 並べ直したとき（最初）は、選んだ日の週を左の端に。バーは出さない
             let w0 = weekStartOf(selected)
-            scroll.quiet(); center = w0; leading = w0
+            scroll.quiet(); tick.quiet(); center = w0; leading = w0
         }
         .onChange(of: selected) { _, sel in
             // 選んだ日が見えていなければ、その週まで流す。範囲の外なら、その週を真ん中に並べ直す
             let vis = leading ?? c
             if sel >= vis && sel <= vis + 6 { return }
             let nf = weekStartOf(sel)
+            tick.quiet()
             if nf >= base && nf <= base + Self.len - 7 {
                 withAnimation(.smooth(duration: 0.3)) { leading = nf }
             } else {
                 scroll.quiet(); center = nf; leading = nf
             }
         }
+        .onChange(of: leading) { _, _ in tick.tick() }
     }
 }
 

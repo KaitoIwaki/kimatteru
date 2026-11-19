@@ -36,6 +36,7 @@ struct FormScreen: View {
             Form {
                 titleSection(v, dr)
                 statusSection(v)
+                if v.askShown { askSection(v) }
                 typeSection(v)
                 if v.newTypeShown { newTypeSection(v) }
                 if v.jobPickerShown && v.newJobShown { newJobSection(v) }
@@ -150,6 +151,26 @@ struct FormScreen: View {
                 }
             }
             .padding(.vertical, 4)
+        }
+    }
+
+    // MARK: 決める期限（点線の予定だけ）
+    @ViewBuilder func askSection(_ v: FormView) -> some View {
+        Section {
+            FoldRow(title: "決める期限", value: v.askValue, open: v.askOpen) { model.act { $0.openRow("askBy") } }
+            if v.askOpen {
+                VStack(alignment: .leading, spacing: 9) {
+                    FlowLayout(spacing: 8) {
+                        ForEach(Array(v.askChips.enumerated()), id: \.offset) { _, c in
+                            FormChip(label: c.label, sel: c.sel, on: FormTone.teal) { model.act { $0.setAskBy(c.key.string) } }
+                                .accessibilityIdentifier("form.askBy.\(c.label)")
+                        }
+                    }
+                    Text(v.askNote).font(.system(size: 11)).foregroundStyle(ink("ink-faint")).padding(.horizontal, 4)
+                }
+                .padding(.vertical, 6)
+                .listRowBackground(ink("bg2"))
+            }
         }
     }
 

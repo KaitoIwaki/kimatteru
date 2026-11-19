@@ -12,6 +12,7 @@ struct MonthScreen: View {
         NavigationStack {
             VStack(spacing: 0) {
                 MonthSubBar(h: h)
+                if let f = model.engine.candFocus() { CandFocusBar(focus: f) }
                 if h.calView == "week" {
                     WeekStripView()
                 } else {
@@ -255,6 +256,8 @@ struct MonthPager: View {
         .onChange(of: pos) { _, p in
             commit?.cancel()
             guard let p, p != cur else { return }
+            // 払って次の月に入った（ボタンで送ったときは pos が cur と同じなので鳴らない）
+            AppModel.haptic("select")
             commit = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 150_000_000)
                 guard !Task.isCancelled, pos == p else { return }
@@ -308,6 +311,8 @@ struct MonthGrid: View {
 
 /// 1 週。地（押せるマス）・日付・帯・「+N件」
 struct WeekRow: View {
+    /// 候補をまとめて見ているときの、その候補の予定の id
+    private var candIds: Set<String>? { _ = model.state["candFocus"]; return model.engine.candFocus()?.ids }
     let y: Int, m: Int
     var active = true
     let week: MonthCore.Week
@@ -365,7 +370,8 @@ struct WeekRow: View {
                 }
             }
             .allowsHitTesting(false)
-            // 帯
+            // 帯（候補をまとめて見ているときは、その候補だけを目立たせ、ほかを薄くする）
+            let focus = candIds
             ForEach(week.bars, id: \.key) { b in
                 let L = margin(b, "marginLeft") > 0, R = margin(b, "marginRight") > 0
                 Group {
@@ -378,6 +384,8 @@ struct WeekRow: View {
                 }
                 .frame(width: max(0, colW * CGFloat(b.span) - margin(b, "marginLeft") - margin(b, "marginRight")), height: barH)
                 .offset(x: colW * CGFloat(b.c0) + margin(b, "marginLeft"), y: 22 + CGFloat(b.lane) * laneH)
+                .opacity(focus == nil || focus!.contains(JS.string(b.id)) ? 1 : 0.2)
+                .shadow(color: focus?.contains(JS.string(b.id)) == true ? FormTone.teal.opacity(0.55) : .clear, radius: 3)
                 .allowsHitTesting(false)
             }
             // 入らなかった数
@@ -497,5 +505,30 @@ struct OpenSidesRect: Shape {
             p.addArc(tangent1End: CGPoint(x: r.minX, y: r.minY), tangent2End: CGPoint(x: r.minX + radius, y: r.minY), radius: radius)
         }
         return p
+    }
+}
+
+/// 候補をまとめて見ているときの帯（月の見出しの下）。✕ で戻す
+struct CandFocusBar: View {
+    let focus: Engine.CandFocus
+    @Environment(AppModel.self) private var model
+    @Environment(\.ink) private var ink
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "circle.dashed").foregroundStyle(FormTone.teal)
+            Text("「\(focus.title)」の候補 \(focus.ids.count)日").font(.system(size: 13, weight: .semibold)).foregroundStyle(ink("ink")).lineLimit(1)
+            Spacer(minLength: 6)
+            Button { model.act { $0.clearCandFocus() } } label: {
+                Image(systemName: "xmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(ink("ink-mut")).frame(width: 30, height: 30)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("候補のまとめ表示をやめる")
+        }
+        .padding(.leading, 14).padding(.trailing, 6).padding(.vertical, 4)
+        .background(ink("card"), in: Capsule())
+        .overlay(Capsule().strokeBorder(FormTone.teal.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("month.candFocus")
     }
 }

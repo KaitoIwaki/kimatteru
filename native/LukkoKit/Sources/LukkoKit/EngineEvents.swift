@@ -131,6 +131,7 @@ extension Engine {
                           "secret": .bool(JS.truthy(ev["secret"])), "repEvery": .null, "repSpan": num(3), "repDows": .array([]), "added": .array(added), "picking": .null]
         for k in ["title", "type", "status", "jobId"] { if let v = ev[k] { draft[k] = v } }
         if let r2 = RemindPair.second(ev) { draft["remindMin2"] = .number(r2) }
+        if let ab = AskBy.date(ev) { draft["askBy"] = AskBy.object(ab) }
         set(["screen": str("new"), "returnTo": JS.or(ret, str("month")), "newType": .null, "detailId": .null, "draft": .object(draft)])
     }
 
@@ -142,6 +143,8 @@ extension Engine {
         let spanField: JSONValue? = span > 1 ? num(Double(span)) : nil
         // お知らせは 2 つまで。近いほうを remindMin、遠いほうを remindMin2（古い版では近いほうだけ鳴る）
         let (remindField, remind2Field) = RemindPair.fields(dr)
+        // 決める期限は点線のときだけ残す（決まった・無くなったにしたら消す）
+        let askField: JSONValue? = AskBy.date(dr).map { AskBy.object($0) }
         func trimmed(_ k: String) -> JSONValue? {
             let s = (JS.truthy(dr[k]) ? JS.string(dr[k]) : "").jsTrimmed
             return s.isEmpty ? nil : str(s)
@@ -168,7 +171,7 @@ extension Engine {
             let isJ = dr["status"] == str("jisseki")
             func patchOf(_ e: Obj) -> Obj {
                 var base = Self.with(e, ["type": dr["type"], "title": title, "y": dr["y"], "m": dr["m"], "day": dr["day"], "start": dr["start"], "status": dr["status"],
-                                         "allDay": dr["allDay"], "days": spanField, "remindMin": remindField, "remindMin2": remind2Field, "place": placeField, "memo": memoField, "link": linkField,
+                                         "allDay": dr["allDay"], "days": spanField, "remindMin": remindField, "remindMin2": remind2Field, "askBy": askField, "place": placeField, "memo": memoField, "link": linkField,
                                          "secret": secretField, "jobId": isBaito ? dr["jobId"] : nil, "updatedAt": num(now)])
                 if isJ { base = Self.with(base, ["actualEnd": dr["end"]]) } else { base = Self.with(base, ["end": dr["end"], "actualEnd": nil]) }
                 return base
@@ -201,7 +204,7 @@ extension Engine {
             let t = today
             let sid = uid("s"), nid = uid("n")
             let ev = Self.with(["id": str(nid), "type": dr["type"] ?? .null, "title": title, "start": dr["start"] ?? .null, "end": dr["end"] ?? .null, "allDay": dr["allDay"] ?? .null, "status": str("mikakutei")],
-                               ["days": spanField, "remindMin": remindField, "remindMin2": remind2Field, "place": placeField, "memo": memoField, "link": linkField, "secret": secretField, "jobId": isBaito ? dr["jobId"] : nil])
+                               ["days": spanField, "remindMin": remindField, "remindMin2": remind2Field, "askBy": askField, "place": placeField, "memo": memoField, "link": linkField, "secret": secretField, "jobId": isBaito ? dr["jobId"] : nil])
             let item: Obj = ["id": str(sid), "when": dr["someday"]!, "title": title, "type": dr["type"] ?? .null, "y": num(Double(t.y)), "m": num(Double(t.m)), "day": num(Double(t.d)), "at": num(now), "ev": .object(ev)]
             set(["screen": back(), "someday": .array([.object(item)] + (state["someday"]?.array ?? [])), "settings": rememberType()])
             toast("「\(JS.string(title))」を「\(Self.somedayLabel[JS.string(dr["someday"])] ?? "undefined")」に置きました")
@@ -218,7 +221,7 @@ extension Engine {
         let made: [JSONValue] = placeOn.enumerated().map { i, p in
             let o: Obj = ["id": str("\(tag)-\(i)"), "type": dr["type"] ?? .null, "title": title, "y": num(p.count > 0 ? p[0] : .nan), "m": num(p.count > 1 ? p[1] : .nan), "day": num(p.count > 2 ? p[2] : .nan),
                           "start": dr["start"] ?? .null, "end": dr["end"] ?? .null, "status": dr["status"] ?? .null, "allDay": dr["allDay"] ?? .null, "updatedAt": num(base)]
-            return .object(Self.with(o, ["days": spanField, "remindMin": remindField, "remindMin2": remind2Field, "place": placeField, "memo": memoField, "link": linkField, "secret": secretField,
+            return .object(Self.with(o, ["days": spanField, "remindMin": remindField, "remindMin2": remind2Field, "askBy": askField, "place": placeField, "memo": memoField, "link": linkField, "secret": secretField,
                                          "repId": repId, "candId": candId, "jobId": isBaito ? dr["jobId"] : nil,
                                          "want": dr["status"] == str("mikakutei") ? .array([dr["start"] ?? .null, dr["end"] ?? .null]) : nil]))
         }

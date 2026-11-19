@@ -31,6 +31,8 @@ struct WeekStripBody: View {
     @State private var center: Int
     /// いちばん左に見えている日
     @State private var leading: Int?
+    /// 日が 1 つ進むごとの小さな振動
+    @State private var tick = ScrollTick()
     @State private var scroll = WeekScrollX()
     @State private var settleWork: DispatchWorkItem?
     /// 最初の位置に合わせ終わったか（それまでは「流し終わった」を拾わない）
@@ -102,6 +104,7 @@ struct WeekStripBody: View {
         // ‹ ›・今日などで、いちばん左の日が変わった：そこまで滑らかに流す。範囲の外なら並べ直す
         .onChange(of: first) { _, f in
             guard leading != f else { return }
+            tick.quiet()
             if abs(f - center) > Self.pad - 30 {
                 center = f
                 leading = f
@@ -111,6 +114,7 @@ struct WeekStripBody: View {
         }
         // 流し終わった（160ms 動かなかった）：いちばん左に見えている日を覚える
         .onChange(of: leading) { _, n in
+            if placed { tick.tick() }   // 開いた直後に並べるときは鳴らさない
             settleWork?.cancel()
             guard let n, placed else { return }
             let w = DispatchWorkItem { [model] in model.act { $0.weekSettle(n) } }

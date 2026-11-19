@@ -117,6 +117,21 @@ public enum NotifyCore {
                                      at: at, extra: ["eventId": .string(idStr), "kind": .string("worked")], actionTypeId: "WORKED"))
                 }
             }
+            // 決める期限（点線のまま期限の日が来たら、朝 9 時に）。予定が始まった後は出さない
+            if let ab = AskBy.date(e) {
+                let at = LocalTime(ab.y, ab.m, ab.d, AskBy.notifyHour, 0)
+                let p = JS.string(e["start"]).components(separatedBy: ":")
+                let sh = JS.truthy(e["allDay"]) ? 0 : JS.int(p[0]), sm = JS.truthy(e["allDay"]) || p.count < 2 ? 0 : JS.int(p[1])
+                let begins = LocalTime(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"]), sh, sm)
+                if at > now && at < begins {
+                    let hidden = JS.truthy(e["secret"]) || hideAll
+                    let evDay = LocalTime(JS.int(e["y"]), JS.int(e["m"]), JS.int(e["day"]), 0, 0)
+                    out.append(Notif(id: numericId("k" + idStr),
+                                     title: .string(hidden ? "まだの予定、決まりましたか？" : JS.string(e["title"]) + "、決まりましたか？"),
+                                     body: "決める期限は今日です（\(AskBy.label((evDay.y, evDay.m, evDay.d)))の予定）", at: at,
+                                     extra: ["eventId": .string(idStr), "kind": .string("remind")], actionTypeId: "UNDECIDED"))
+                }
+            }
             // お知らせは 2 つまで（2 つ目は別の ID。同じ ID だと上書きされて 1 つしか出ない）
             var reminds: [(Double, String)] = []
             if let rm = remindMinutes(e) { reminds.append((rm, "r")); if let r2 = RemindPair.second(e) { reminds.append((r2, "r2")) } }

@@ -25,6 +25,7 @@ final class RobustnessTests: XCTestCase {
                 if rnd() < 0.3 { e["days"] = odd() }
                 if rnd() < 0.2 { e["remindMin"] = pick([.number(60), odd()]) }
                 if rnd() < 0.2 { e["remindMin2"] = pick([.number(1440), .number(60), odd()]) }
+                if rnd() < 0.2 { e["askBy"] = pick([["y": 2026, "m": 9, "d": 10], ["y": odd(), "m": odd(), "d": odd()], odd()]) }
                 if rnd() < 0.2 { e["actualEnd"] = odd() }
                 events.append(.object(e))
             }
@@ -63,6 +64,8 @@ final class RobustnessTests: XCTestCase {
                 _ = eng.formView()
                 eng.toggleRemind(.number(60)); eng.toggleRemind(.number(1440)); eng.toggleRemind(.number(10))
                 eng.toggleAllDay()
+                _ = eng.formView()
+                eng.setStatus("mikakutei"); eng.setAskBy("tomorrow"); eng.setAskBy("eve")
                 _ = eng.formView()
             }
             eng.refreshNotif()

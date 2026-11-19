@@ -76,8 +76,18 @@ struct DetailScreen: View {
                     .animation(.snappy(duration: 0.3), value: v.badgeChar)
                 Text(v.statusLabel).font(.system(size: 13)).foregroundStyle(ink.css(v.typeDark))
                 if !v.candText.isEmpty {
-                    Text(v.candText).font(.system(size: 11)).foregroundStyle(ink("ink-mut")).padding(.horizontal, 8).padding(.vertical, 2)
+                    // 押すと、月の画面で同じ候補をまとめて見る
+                    Button { model.act { $0.focusCandidates($0.state["detailId"]) } } label: {
+                        HStack(spacing: 4) {
+                            Text(v.candText)
+                            Image(systemName: "calendar").font(.system(size: 10))
+                        }
+                        .font(.system(size: 11)).foregroundStyle(ink("ink-mut")).padding(.horizontal, 8).padding(.vertical, 2)
                         .overlay(Capsule().strokeBorder(ink("ink-faint"), style: StrokeStyle(lineWidth: 1, dash: [3, 2])))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(v.candText)。候補をカレンダーでまとめて見る")
+                    .accessibilityIdentifier("detail.candFocus")
                 }
             }
             .padding(.bottom, 4)
@@ -102,6 +112,14 @@ struct DetailScreen: View {
                     Text(v.remindText)
                 }
                 .font(.system(size: 12)).foregroundStyle(ink("ink-mut")).padding(.top, 4)
+            }
+            if !v.askText.isEmpty {
+                HStack(spacing: 5) {
+                    Image(systemName: "hourglass")
+                    Text(v.askText)
+                }
+                .font(.system(size: 12)).foregroundStyle(v.askLate ? ink("sun") : ink("ink-mut")).padding(.top, 4)
+                .accessibilityIdentifier("detail.askBy")
             }
             if !v.wantText.isEmpty { Text(v.wantText).font(.system(size: 12)).foregroundStyle(ink("ink-mut")).padding(.top, 3) }
             if !v.place.isEmpty, let url = URL(string: v.placeHref) {
