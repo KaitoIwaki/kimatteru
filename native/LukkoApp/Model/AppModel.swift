@@ -59,11 +59,12 @@ final class AppModel {
     /// 中の版の番号。Web 版の最後（0.32.x）より上から続ける（ベルのお知らせの「新しい版」の判定に使う）
     static let version = "0.43.0"
 
-    init(data: AppData) { self.data = data; AppModel.current = self }
+    init(data: AppData) { self.data = data }
 
     /// 振動を鳴らす合図（画面の RootView が .sensoryFeedback で鳴らす）
     struct HapticPulse: Equatable { var kind: String; var n: Int }
     var hapticPulse = HapticPulse(kind: "", n: 0)
+    /// 振動の合図の宛先（画面に出ている本物の AppModel。start で付ける）
     static weak var current: AppModel?
 
     /// 「決まった」の帯の演出（画面側の時計で動かす。CelebrateMorphBar）
@@ -97,6 +98,9 @@ final class AppModel {
     static func nowMs() -> Double { (Date().timeIntervalSince1970 * 1000).rounded(.down) }
 
     func start() async {
+        // 振動の合図の宛先。init ではなくここで付ける：@State の初期値は App が作り直されるたびに評価され、
+        // 使われずに捨てられる AppModel ができる。init で付けると、その捨てられたほう（すぐ消える）を指して空になり、振動が全部鳴らなかった
+        AppModel.current = self
         guard !ready else { return }
         await data.start()
         // 保存ファイルがあるのに読めない：画面に知らせて待つ（何も書かない。「もう一度読み込む」でやり直す）
