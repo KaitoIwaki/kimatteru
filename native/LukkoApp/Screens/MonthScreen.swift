@@ -345,6 +345,7 @@ struct WeekRow: View {
                         .contentShape(Rectangle())
                         .onTapGesture { tapDay(sl, i) }
                         .dropDestination(for: String.self) { items, _ in
+                            dropCol = nil
                             guard let id = Engine.draggedId(items), let d = dayOf(sl, i) else { return false }
                             model.act { $0.moveEvent(.string(id), to: d.y, d.m, d.d) }
                             return true
@@ -414,6 +415,8 @@ struct WeekRow: View {
             }
         }
         .clipped()
+        // 予定が変わった（置いた・元に戻した）ら、置き場所の縁を消す（運ぶのをやめたときに縁が残らないように）
+        .onChange(of: model.state["events"]) { _, _ in dropCol = nil }
     }
 
     private func margin(_ b: MonthCore.Bar, _ k: String) -> CGFloat { CGFloat(b.style[k]?.number ?? 0) }

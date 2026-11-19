@@ -106,7 +106,9 @@ final class MoveUITests: XCTestCase {
         sleep(1)
         // 帯は日付の数字の下（マスの上から 30pt あたり）にある
         let grab = from.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 30))
-        grab.press(forDuration: 1.2, thenDragTo: to.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)))
+        // 置く場所で少し止めてから離す（すぐ離すと、置いたことにならないことがある。人が置くときと同じ動き）
+        grab.press(forDuration: 1.2, thenDragTo: to.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)),
+                   withVelocity: .slow, thenHoldForDuration: 0.8)
         let moved = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "17日に動かしました")).firstMatch
         XCTAssertTrue(moved.waitForExistence(timeout: 4), "運んでも予定が動かない")
         let a = XCTAttachment(screenshot: app.screenshot()); a.name = "V00-moved"; a.lifetime = .keepAlways; add(a)
