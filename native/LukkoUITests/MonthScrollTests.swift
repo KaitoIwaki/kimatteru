@@ -68,7 +68,8 @@ final class MonthScrollTests: XCTestCase {
         sleep(1)
         XCTAssertEqual(monthNo(app), start, "1 週より短く動かしただけで、見出しの月が変わった")
         let moved = y0 - d15.frame.minY
-        XCTAssertGreaterThan(moved, 30, "引いたのにほとんど動かない（\(moved)pt）")
+        // 指が動き始めるまでの遊び（10pt ほど）があるので、60pt 引いても動くのは 30pt 前後になる。めくりなら 1 か月ぶん（数百 pt）動く
+        XCTAssertGreaterThan(moved, 15, "引いたのにほとんど動かない（\(moved)pt）")
         XCTAssertLessThan(moved, 140, "引いた分より大きく動いた（\(moved)pt）")
 
         // 月の境目が見えるところまで上げる（次の月の 1 日が見える）
