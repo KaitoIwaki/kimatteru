@@ -360,6 +360,9 @@ struct SettingsPage: View {
                 settingToggle("点線に「仮」を付ける", "kariMark", v.kariMark)
                 settingToggle("無くなった予定を隠す", "hideCanceled", v.hideCanceled)
                 settingToggle("月を縦にスクロール", "monthVertical", JS.truthy(model.state["settings"]?["monthVertical"]))
+                // 振動（はじめはオン。切ると、アプリの振動が全部止まる。Core Haptics は iPhone 側の判断を通らないので、ここで切れるように）
+                toggle("振動", !JS.truthy(model.state["settings"]?["hapticsOff"])) { model.act { $0.toggleSetting("hapticsOff") } }
+                    .accessibilityIdentifier("settings.haptics")
             }
             .listRowBackground(ink("card"))
             Section {

@@ -176,8 +176,9 @@ final class AppModel {
     /// 手ごたえ（Web 版 haptics.js：tapLight＝軽い、stampHeavy＝重い、penTick＝硬い、settleSuccess＝成功）。
     /// Core Haptics で鳴らす（HapticPlayer。.sensoryFeedback と UIKit は実機で鳴らなかった）
     static func haptic(_ kind: String) {
-        HapticPlayer.shared.play(kind)
-        guard let m = current else { return }
+        guard let m = current else { HapticPlayer.shared.play(kind); return }
+        // 設定の「振動」を切っている人には鳴らさない（試験の画面の合図の回数は数える）
+        if !JS.truthy(m.state["settings"]?["hapticsOff"]) { HapticPlayer.shared.play(kind) }
         m.hapticPulse = HapticPulse(kind: kind, n: m.hapticPulse.n &+ 1)
     }
 
