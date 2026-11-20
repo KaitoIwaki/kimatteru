@@ -40,6 +40,9 @@ struct DayScreen: View {
             .animation(dir == 0 ? nil : .timingCurve(0.2, 0.9, 0.2, 1, duration: 0.22), value: dn)
             .frame(maxHeight: .infinity)
         }
+        // キーボードには合わせない（この画面に打つところは無い）。予定の小窓でキーボードを出したまま保存して戻ると、
+        // 実機でまれに画面全体が上へずれたまま残り、日付の帯が時刻の裏に潜っていた
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .background(ink("bg"))
         .navigationDestination(isPresented: Binding(get: { model.state["screen"] == "detail" && model.state["returnTo"] == "day" },
                                                     set: { on in if !on && model.state["screen"] == "detail" { model.act { $0.detailBack() } } })) { DetailScreen() }

@@ -64,8 +64,6 @@ jobs:
         run: |
           DEV=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(|iPhone 1[6-9] \(" | grep -v Max | head -1 | sed -E 's/^ *([^(]+) \(.*/\1/' | sed 's/ *$//')
           echo "device: $DEV"
-          # 画面のキーボードを出す（Mac のキーボードをつなぐと出ない。iPhone と同じく、キーボードが出たまま保存するところを試す）
-          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false || true
           # ストア画像のために、上の時刻を 9:41・電波と電池を満タンにしておく（Apple の見本と同じ）
           xcrun simctl boot "$DEV" || true
           xcrun simctl status_bar booted override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState discharging --batteryLevel 100 || true
