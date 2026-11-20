@@ -61,7 +61,7 @@ final class AppModel {
 
     init(data: AppData) { self.data = data }
 
-    /// 振動を鳴らす合図（画面の RootView が .sensoryFeedback で鳴らす）
+    /// 振動を鳴らした回数（振動の試験の画面に出す）
     struct HapticPulse: Equatable { var kind: String; var n: Int }
     var hapticPulse = HapticPulse(kind: "", n: 0)
     /// 振動の合図の宛先（画面に出ている本物の AppModel。start で付ける）
@@ -173,27 +173,12 @@ final class AppModel {
         pushWidget(force: true)
     }
 
-    /// 手ごたえ（Web 版 haptics.js：tapLight＝軽い、stampHeavy＝重い、penTick＝硬い、settleSuccess＝成功）
-    ///
-    /// 前は鳴らすたびに UIFeedbackGenerator をその場で作って捨てていた。iOS 17.5 から生成器は画面に結びつけて使う形になり、
-    /// 新しい iOS では、画面に結びついていない生成器は鳴らないことがある（塗りに変わるとき・運んで置いたときに鳴らなかった）。
-    /// いまは合図を出すだけにして、画面（RootView）の .sensoryFeedback で鳴らす
+    /// 手ごたえ（Web 版 haptics.js：tapLight＝軽い、stampHeavy＝重い、penTick＝硬い、settleSuccess＝成功）。
+    /// Core Haptics で鳴らす（HapticPlayer。.sensoryFeedback と UIKit は実機で鳴らなかった）
     static func haptic(_ kind: String) {
+        HapticPlayer.shared.play(kind)
         guard let m = current else { return }
         m.hapticPulse = HapticPulse(kind: kind, n: m.hapticPulse.n &+ 1)
-    }
-
-    /// 合図の種類 → iPhone の振動
-    static func feedback(_ kind: String) -> SensoryFeedback? {
-        switch kind {
-        case "": return nil
-        case "heavy": return .impact(weight: .heavy)
-        case "pen", "rigid": return .impact(flexibility: .rigid)
-        case "success": return .success
-        // 流して日・週・月が 1 つ進んだ（ダイヤルの目盛り）
-        case "select": return .selection
-        default: return .impact(weight: .light)
-        }
     }
 
     static func persisted(_ st: [String: JSONValue]) -> [String: JSONValue] {

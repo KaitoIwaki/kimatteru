@@ -26,7 +26,7 @@ struct HapticTestView: View {
                 Section {
                     Button("A：ボタンで直接（SwiftUI）") { direct += 1 }
                         .sensoryFeedback(.success, trigger: direct)
-                    Button("B：アプリの今の仕組み") { AppModel.haptic("success") }
+                    Button("B：アプリの今の仕組み（Core Haptics）") { AppModel.haptic("success") }
                     Button("C：UIKit（用意してから鳴らす）") { notifier.prepare(); notifier.notificationOccurred(.success) }
                     Button("D：Core Haptics") { playCore() }
                 } footer: {

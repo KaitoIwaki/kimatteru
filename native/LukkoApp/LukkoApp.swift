@@ -96,9 +96,6 @@ struct RootView: View {
         }
         .environment(\.ink, Ink(dark: model.dark))
         .preferredColorScheme(forcedScheme)
-        // 振動（エンジンや画面から AppModel.haptic で合図が来る）。合図を見るのは小さな HapticHost だけにして、
-        // 振動のたびに画面全体を組み直さない（流しているあいだも鳴るので）
-        .background(HapticHost())
         .onAppear {
             model.sysDark = scheme == .dark
             readSystemZoom()
@@ -264,13 +261,3 @@ struct TabGate<Content: View>: View {
     }
 }
 
-/// 振動を鳴らすだけの見えない部品。AppModel.hapticPulse が変わるたびに、その種類の振動を鳴らす
-struct HapticHost: View {
-    @Environment(AppModel.self) private var model
-    var body: some View {
-        Color.clear
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-            .sensoryFeedback(trigger: model.hapticPulse) { _, p in AppModel.feedback(p.kind) }
-    }
-}
