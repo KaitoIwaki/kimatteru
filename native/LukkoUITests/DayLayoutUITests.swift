@@ -37,17 +37,22 @@ final class DayLayoutUITests: XCTestCase {
         XCTAssertTrue(strip.waitForExistence(timeout: 5), "日付の帯が見つからない")
         check("open")
 
-        // 1. 「予定を追加」→ 題名を打つ（キーボードが出たまま）→ 保存
-        for round in 1...2 {
+        // 1. 「予定を追加」→ 題名を打つ（キーボードが出たまま）→ 保存。保存は 下の「保存」・右上の ✓・キーボードの「完了」の 3 通り
+        for (round, how) in ["saveBar", "check", "enter"].enumerated() {
             addButton.tap()
             let title = app.textFields["form.title"].firstMatch
             XCTAssertTrue(title.waitForExistence(timeout: 5), "予定の画面が出ない")
             sleep(1)
             title.tap()
             title.typeText("試し\(round)")
-            app.buttons["form.saveBar"].firstMatch.tap()
-            XCTAssertTrue(addButton.waitForExistence(timeout: 5), "保存しても日の画面に戻らない")
-            check("saved\(round)")
+            log.append("kb=\(app.keyboards.count)")
+            switch how {
+            case "saveBar": app.buttons["form.saveBar"].firstMatch.tap()
+            case "check": app.navigationBars.buttons["保存"].firstMatch.tap()
+            default: title.typeText("\n")
+            }
+            XCTAssertTrue(addButton.waitForExistence(timeout: 5), "保存しても日の画面に戻らない（\(how)）")
+            check("saved-\(how)")
         }
         // 2. 足した予定を押して開き、戻る
         let row = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "day.row.")).firstMatch
